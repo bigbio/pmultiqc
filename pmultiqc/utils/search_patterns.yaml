@@ -1,0 +1,4 @@
+proteomicslfq/out_csv:
+    fn: "*.csv"
+proteomicslfq/out_mzTab:
+    fn: "*.mzTab"
