@@ -1,0 +1,6 @@
+.table tr td {
+    display: block;
+    font-size: 0.9em;
+    height: 30px;
+    overflow: scroll;
+}
