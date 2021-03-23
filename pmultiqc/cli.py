@@ -13,7 +13,7 @@ import click
 exp_design = click.option('--exp_design', 'exp_design', required=True)
 mzMLs = click.option('--mzMLs', 'mzMLs', required=True)
 raw_ids = click.option('--raw_ids', 'raw_ids', required=True)
-
+remove_decoy = click.option('--remove_decoy', 'remove_decoy', default=False)
 
 disable_plugin = click.option('--disable-example-plugin', 'disable_plugin',
                               is_flag=True,
