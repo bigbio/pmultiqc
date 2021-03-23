@@ -35,7 +35,8 @@ setup(
             'disable_plugin = pmultiqc.cli:disable_plugin',
             'exp_design = pmultiqc.cli:exp_design',
             'mzMLs = pmultiqc.cli:mzMLs',
-            'raw_ids = pmultiqc.cli:raw_ids'
+            'raw_ids = pmultiqc.cli:raw_ids',
+            'remove_decoy = pmultiqc.cli:remove_decoy'
         ],
         'multiqc.hooks.v1': [
             'execution_start = pmultiqc.custom_code:example_plugin_execution_start'
