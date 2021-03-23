@@ -16,10 +16,12 @@ A library for proteomics QC report based on MultiQC framework. The library gener
   - out_triqler.tsv   : Input of Triqler software
 - raw_ids             : Identification results from search + percolator
 
+An example report can be found in [multiqc_report.html](http://bigbio.xyz/pmultiqc/multiqc_report.html)
 
 Most of the metrics are compute based on the `out.mzTab` and the `consensus_ids` which contains the filtered peptides and protein identifications.
 
 ## Metrics
+
 
 
 
