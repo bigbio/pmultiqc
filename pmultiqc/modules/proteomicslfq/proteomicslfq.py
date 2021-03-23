@@ -17,6 +17,7 @@ import os
 
 # Initialise the main MultiQC logger
 log = logging.getLogger('__name__')
+log.setLevel(logging.INFO)
 
 
 class MultiqcModule(BaseMultiqcModule):
@@ -613,7 +614,8 @@ class MultiqcModule(BaseMultiqcModule):
             peptides = list(set(data[data['Reference'] == i]['PeptideSequence'].tolist()))
             if config.kwargs['remove_decoy']:
                 while index < len(peptides):
-                    ProteinNames = data[data[data['Reference'] == i]['PeptideSequence'] == peptides[i]]['ProteinName'].tolist()
+                    ProteinNames = data[data[data['Reference'] == i]['PeptideSequence'] == peptides[i]][
+                        'ProteinName'].tolist()
                     for p in ProteinNames:
                         if len(p.split(';')) == 1:
                             if p.startswith('DECOY_'):
@@ -795,7 +797,8 @@ class MultiqcModule(BaseMultiqcModule):
                         self.peak_intensity_distribution['identified_spectra']['0-10'] += 1
 
                     if 'precursorList' in i.keys():
-                        charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['charge state']
+                        charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
+                            'charge state']
                         if charge_state > 7:
                             self.charge_state_distribution['identified_spectra']['>7'] += 1
                         elif charge_state == 7:
@@ -835,10 +838,11 @@ class MultiqcModule(BaseMultiqcModule):
                         self.peak_intensity_distribution['unidentified_spectra']['10-100'] += 1
                     else:
                         self.peak_intensity_distribution['unidentified_spectra']['0-10'] += 1
-                    
+
                     if 'precursorList' in i.keys():
                         try:
-                            charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['charge state']
+                            charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
+                                'charge state']
                             if charge_state > 7:
                                 self.charge_state_distribution['unidentified_spectra']['>7'] += 1
                             elif charge_state == 7:
@@ -858,7 +862,7 @@ class MultiqcModule(BaseMultiqcModule):
                         except KeyError:
                             log.warning("No charge state: {}".format(i['id']))
                             # print("No charge state: " + i['id'])
-                            
+
             self.Total_ms2_Spectral = self.Total_ms2_Spectral + ms2_number
             mzml_table[m] = {'MS1_Num': ms1_number}
             mzml_table[m]['MS2_Num'] = ms2_number
@@ -882,7 +886,7 @@ class MultiqcModule(BaseMultiqcModule):
                 mzML_name = raw_id.split('_comet')[0] + '.mzML'
                 mzml_table[mzML_name]['Comet'] = comet_identified_num
 
-            mzml_table[mzML_name]['Final result of spectrum'] = self.mL_spec_ident_final[mzML_name]
+            mzml_table[mzML_name]['Final result of spectra'] = self.mL_spec_ident_final[mzML_name]
             mzml_table[mzML_name]['Final result of Peptides'] = self.mzml_peptide_map[mzML_name]
         self.mzml_table = mzml_table
         # write to file
