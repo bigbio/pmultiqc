@@ -44,7 +44,11 @@ A table called [Spectra Tracking](http://bigbio.xyz/pmultiqc/multiqc_report.html
 - Final result of Spectra: Final number of PSMs reported in the mzTab?
 - Final result of Peptides: Final number of Peptides identified in the mzTab
 
+### Peak Intensity Distribution
 
+The [Peak Intensity Distribution](http://bigbio.xyz/pmultiqc/multiqc_report.html#Peak_Intensity_Distribution) aims to show the Peak instensity in the MS2 spectra for all the experiment but also for the identified spectra. The plot split the intesity in chunks of 0-10, 10-100, 100-300, ... 6k-10k, >10k.
+
+This is a histogram representing the ion intensity vs. the frequency for all MS2 spectra in a whole given experiment. It is possible to filter the information for all, identified and unidentified spectra. This plot can give a general estimation of the noise level of the spectra. Generally, one should expect to have a high number of low intensity noise peaks with a low number of high intensity signal peaks. A disproportionate number of high signal peaks may indicate heavy spectrum pre-filtering or potential experimental problems. In the case of data reuse this plot can be useful in identifying the requirement for pre-processing of the spectra prior to any downstream analysis. The quality of the identifications is not linked to this data as most search engines perform internal spectrum pre-processing before matching the spectra. Thus, the spectra reported are not necessarily pre-processed since the search engine may have applied the pre-processing step internally. This pre-processing is not necessarily reported in the experimental metadata.
 
 
 
