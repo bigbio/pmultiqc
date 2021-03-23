@@ -1,7 +1,8 @@
 # pmultiqc
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
 
-A library for proteomics QC report based on MultiQC framework. The library generates a QC report for the [https://github.com/nf-core/proteomicslfq](proteomicsLFQ pipeline). The library read the input of the proteomicsLFQ pipeline, with the following structure:
+A library for proteomics QC report based on MultiQC framework. The library generates a QC report for the [proteomicsLFQ pipeline](https://github.com/nf-core/proteomicslfq). The library read the input of the proteomicsLFQ pipeline, with the following structure:
+
 
 - consensus_ids       : Identification results from ConsesusId tool in OpenMS
 - dbs                 : Database used for the peptide/protein identification step.
@@ -14,5 +15,12 @@ A library for proteomics QC report based on MultiQC framework. The library gener
   - out_msstats.csv   : Input of MSstats software
   - out_triqler.tsv   : Input of Triqler software
 - raw_ids             : Identification results from search + percolator
+
+
+Most of the metrics are compute based on the `out.mzTab` and the `consensus_ids` which contains the filtered peptides and protein identifications.
+
+## Metrics
+
+
 
 
