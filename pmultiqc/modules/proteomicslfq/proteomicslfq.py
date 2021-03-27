@@ -927,7 +927,6 @@ class MultiqcModule(BaseMultiqcModule):
 
         # peptide quantification table data
         pep_quant = dict()
-        quant_method = meta_data['quantification_method']
         study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
                                       pep_table.columns.tolist()))
         for index, row in pep_table.iterrows():
