@@ -93,6 +93,8 @@ class MultiqcModule(BaseMultiqcModule):
 
         self.draw_psm_table()
         self.draw_mzml_ms()
+        self.draw_precursor_charge_distribution()
+        self.draw_peaks_per_ms2()
         self.draw_peak_intensity_distribution()
         self.draw_delta_mass()
         # exist some problems
@@ -340,12 +342,6 @@ class MultiqcModule(BaseMultiqcModule):
             'color': "#ffffff",
             'format': '{:,.0f}'
         }
-
-        # headers['spectra_ref'] = {
-        #     'description': 'spectra_reference',
-        #     'color': "#ffffff",
-        #     'format': '{:,.0f}'
-        # }
 
         # write to file
         self.write_data_file(self.pep_quant_table, 'pep_quant')
@@ -625,18 +621,19 @@ class MultiqcModule(BaseMultiqcModule):
         # write to file
         self.write_data_file(self.charge_state_distribution, 'charge_state_distribution')
         bar_html = bargraph.plot(self.charge_state_distribution, cats, pconfig)
+
         # Add a report section with the line plot
         self.add_section(
             name="Distribution of precursor charges",
             anchor="Distribution of precursor charges",
             description='''This is a bar chart representing the distribution of the precursor ion charges 
-                        for a given whole experiment. This information can be used to identify potential ionization problems 
-                        including many 1+ charges from an ESI ionization source or an unexpected distribution of charges. 
-                        MALDI experiments are expected to contain almost exclusively 1+ charged ions. 
-                        An unexpected charge distribution may furthermore be caused by specific search engine parameter settings 
-                        such as limiting the search to specific ion charges.
+                        for a given whole experiment. 
                         ''',
-            helptext='''
+            helptext='''This information can be used to identify potential ionization problems 
+                        including many 1+ charges from an ESI ionization source or an unexpected 
+                        distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ 
+                        charged ions. An unexpected charge distribution may furthermore be caused by specific search 
+                        engine parameter settings such as limiting the search to specific ion charges.
                     ''',
             plot=bar_html
         )
