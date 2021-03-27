@@ -5,19 +5,17 @@
 from __future__ import absolute_import
 from collections import OrderedDict
 import logging
-import json
+from sdrf_pipelines.openms.openms import OpenMS
 from multiqc import config
-from multiqc.plots import table, bargraph
+from multiqc.plots import table, bargraph, linegraph
 from multiqc.modules.base_module import BaseMultiqcModule
-from multiqc.utils import report
 import pandas as pd
 import re
 from pyteomics import mztab, mzml, openms
 import os
 
 # Initialise the main MultiQC logger
-log = logging.getLogger('__name__')
-log.setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
 
 class MultiqcModule(BaseMultiqcModule):
@@ -43,6 +41,16 @@ class MultiqcModule(BaseMultiqcModule):
         for f in self.find_log_files({'fn': 'out.mzTab'}):
             self.out_mzTab_path = os.path.join(config.analysis_dir[0], f['fn'])
 
+        if config.kwargs['exp_design']:
+            self.exp_design = config.kwargs['exp_design']
+        elif config.kwargs['sdrf']:
+            OpenMS().openms_convert(config.kwargs['sdrf'], config.kwargs['raw'],
+                                    False, True, False, config.kwargs['condition'])
+            self.exp_design = './' + 'experimental_design.tsv'
+
+        else:
+            raise AttributeError("exp_design and sdrf cannot be empty at the same time")
+
         self.PSM_table = dict()
         self.mzml_peptide_map = dict()
         self.identified_spectrum = dict()
@@ -59,6 +67,10 @@ class MultiqcModule(BaseMultiqcModule):
         self.mL_spec_ident_final = dict()
         self.peak_intensity_distribution = dict()
         self.charge_state_distribution = dict()
+        self.peak_per_ms2 = dict()
+        self.delta_mass = dict()
+        self.delta_mass_percent = dict()
+
         # parse input data
         self.parse_out_csv()
         self.parse_out_mzTab()
@@ -66,10 +78,10 @@ class MultiqcModule(BaseMultiqcModule):
 
         # draw the experimental design
         self.draw_exp_design()
-        #
+
         self.draw_summary_proten_ident_table()
-        #
-        # # draw_proteomicslfq_identi_num
+
+        # draw_proteomicslfq_identi_num
         self.draw_proteomicslfq_identi_num()
 
         # draw number of peptides per protein
@@ -78,10 +90,13 @@ class MultiqcModule(BaseMultiqcModule):
         # draw peptides quantification information
 
         self.draw_pep_quant_info()
-        #
+
         self.draw_psm_table()
         self.draw_mzml_ms()
+        self.draw_precursor_charge_distribution()
+        self.draw_peaks_per_ms2()
         self.draw_peak_intensity_distribution()
+        self.draw_delta_mass()
         # exist some problems
         # self.css = {
         #     './assets/css/proteomicslfq.css':
@@ -90,7 +105,7 @@ class MultiqcModule(BaseMultiqcModule):
 
     def draw_exp_design(self):
         exp_design_table = dict()
-        with open(config.kwargs['exp_design'], 'r') as f:
+        with open(self.exp_design, 'r') as f:
             data = f.readlines()
             empty_row = data.index('\n')
             f_table = data[1:empty_row]
@@ -282,7 +297,7 @@ class MultiqcModule(BaseMultiqcModule):
         bar_html = bargraph.plot([self.num_pep_per_protein, self.percent_pep_per_protein], headers, pconfig)
         # Add a report section with the line plot
         self.add_section(
-            name="Number Of Peptides Per Proteins",
+            name="Number of Peptides Per Proteins",
             anchor="num_of_pep_per_prot",
             description='This plot shows the number of peptides per proteins '
                         'in ProteomicsLFQ pipeline final result',
@@ -324,12 +339,6 @@ class MultiqcModule(BaseMultiqcModule):
 
         headers['peptide_sequence'] = {
             'description': 'peptide_sequence',
-            'color': "#ffffff",
-            'format': '{:,.0f}'
-        }
-
-        headers['spectra_ref'] = {
-            'description': 'spectra_reference',
             'color': "#ffffff",
             'format': '{:,.0f}'
         }
@@ -389,11 +398,11 @@ class MultiqcModule(BaseMultiqcModule):
             'format': '{:,.0f}'
         }
 
-        headers['spectra_ref'] = {
-            'description': 'spectra_reference',
-            'color': "#ffffff",
-            'format': '{:,.0f}'
-        }
+        # headers['spectra_ref'] = {
+        #     'description': 'spectra_reference',
+        #     'color': "#ffffff",
+        #     'format': '{:,.0f}'
+        # }
         headers['unique'] = {
             'description': 'unique',
             'color': "#ffffff",
@@ -494,7 +503,7 @@ class MultiqcModule(BaseMultiqcModule):
             'id': 'peak_intensity_distribution',  # ID used for the table
             'cpswitch': False,
             'title': 'Peak Intensity Distribution',
-            'xlab': 'Peak Intensity'
+            # 'xlab': 'Peak Intensity'
         }
         cats = OrderedDict()
         cats['0-10'] = {
@@ -568,12 +577,187 @@ class MultiqcModule(BaseMultiqcModule):
             plot=bar_html
         )
 
+    def draw_precursor_charge_distribution(self):
+        # Create table plot
+        pconfig = {
+            'id': 'Precursor_Ion_Charge_Distribution',  # ID used for the table
+            'cpswitch': False,
+            'title': 'Precursor Ion Charge Distribution',
+        }
+        cats = OrderedDict()
+        cats['1'] = {
+            'name': '1',
+            'description': 'Precursor charge state is 1'
+        }
+        cats['2'] = {
+            'name': '2',
+            'description': 'Precursor charge state is 2'
+        }
+        cats['3'] = {
+            'name': '3',
+            'description': 'Precursor charge state is 3'
+        }
+        cats['4'] = {
+            'name': '4',
+            'description': 'Precursor charge state is 4'
+        }
+        cats['5'] = {
+            'name': '5',
+            'description': 'Precursor charge state is 5'
+        }
+        cats['6'] = {
+            'name': '6',
+            'description': 'Precursor charge state is 6'
+        }
+        cats['7'] = {
+            'name': '7',
+            'description': 'Precursor charge state is 7'
+        }
+        cats['>7'] = {
+            'name': '>7',
+            'description': 'Precursor charge state >7'
+        }
+
+        # write to file
+        self.write_data_file(self.charge_state_distribution, 'charge_state_distribution')
+        bar_html = bargraph.plot(self.charge_state_distribution, cats, pconfig)
+
+        # Add a report section with the line plot
+        self.add_section(
+            name="Distribution of precursor charges",
+            anchor="Distribution of precursor charges",
+            description='''This is a bar chart representing the distribution of the precursor ion charges 
+                        for a given whole experiment. 
+                        ''',
+            helptext='''This information can be used to identify potential ionization problems 
+                        including many 1+ charges from an ESI ionization source or an unexpected 
+                        distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ 
+                        charged ions. An unexpected charge distribution may furthermore be caused by specific search 
+                        engine parameter settings such as limiting the search to specific ion charges.
+                    ''',
+            plot=bar_html
+        )
+
+    def draw_peaks_per_ms2(self):
+        # Create table plot
+        pconfig = {
+            'id': 'peaks_per_ms2',  # ID used for the table
+            'cpswitch': False,
+            'title': 'Number of Peaks per MS/MS spectrum',
+        }
+        cats = OrderedDict()
+        cats['0-100'] = {
+            'name': '0-100',
+            'description': 'Number of Peaks per MS/MS spectrum is between 0 and 100'
+        }
+        cats['100-200'] = {
+            'name': '100-200',
+            'description': 'Number of Peaks per MS/MS spectrum is between 100 and 200'
+        }
+        cats['200-300'] = {
+            'name': '200-300',
+            'description': 'Number of Peaks per MS/MS spectrum is between 200 and 300'
+        }
+        cats['300-400'] = {
+            'name': '300-400',
+            'description': 'Number of Peaks per MS/MS spectrum is between 300 and 400'
+        }
+        cats['400-500'] = {
+            'name': '400-500',
+            'description': 'Number of Peaks per MS/MS spectrum is between 400 and 500'
+        }
+        cats['500-600'] = {
+            'name': '500-600',
+            'description': 'Number of Peaks per MS/MS spectrum is between 500 and 600'
+        }
+        cats['600-700'] = {
+            'name': '600-700',
+            'description': 'Number of Peaks per MS/MS spectrum is between 600 and 700'
+        }
+        cats['700-800'] = {
+            'name': '700-800',
+            'description': 'Number of Peaks per MS/MS spectrum is between 700 and 800'
+        }
+        cats['800-900'] = {
+            'name': '800-900',
+            'description': 'Number of Peaks per MS/MS spectrum is between 800 and 900'
+        }
+        cats['900-1000'] = {
+            'name': '900-1000',
+            'description': 'Number of Peaks per MS/MS spectrum is between 900 and 1000'
+        }
+        cats['>1000'] = {
+            'name': '>1000',
+            'description': 'Number of Peaks per MS/MS spectrum > 1000'
+        }
+
+        # write to file
+        self.write_data_file(self.peak_per_ms2, 'peak_per_ms2')
+        bar_html = bargraph.plot(self.peak_per_ms2, cats, pconfig)
+
+        self.add_section(
+            name="Number of Peaks per MS/MS spectrum",
+            anchor="Number of Peaks per MS/MS spectrum",
+            description='''This chart represents a histogram containing the number of peaks per MS/MS spectrum 
+            in a given experiment. This chart assumes centroid data. Too few peaks can identify poor fragmentation 
+            or a detector fault, as opposed to a large number of peaks representing very noisy spectra. 
+            This chart is extensively dependent on the pre-processing steps performed to the spectra 
+            (centroiding, deconvolution, peak picking approach, etc).
+                        ''',
+            helptext='''
+                    ''',
+            plot=bar_html
+        )
+
+    def draw_delta_mass(self):
+
+        self.delta_mass_percent['target'] = dict(zip(self.delta_mass['target'].keys(),
+                                                     list(map(lambda v: v / len(self.delta_mass['target']),
+                                                              self.delta_mass['target'].values()))))
+        self.delta_mass_percent['decoy'] = dict(zip(self.delta_mass['decoy'].keys(),
+                                                    list(map(lambda v: v / len(self.delta_mass['decoy']),
+                                                             self.delta_mass['decoy'].values()))))
+        lineconfig = {
+            # Building the plot
+            'id': 'delta_mass',  # HTML ID used for plot
+            "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}",
+            # Plot configuration
+            'title': 'Delta m/z',  # Plot title - should be in format "Module Name: Plot Title"
+            'xlab': 'Experimental m/z - Theoretical m/z',  # X axis label
+            'ylab': 'Relative Frequency',  # Y axis label
+            'colors': {'target': '#b2df8a', 'decoy': '#DC143C'},
+            'xmax': max(list(self.delta_mass['decoy'].keys()) +
+                        (list(self.delta_mass['target'].keys()))) + 0.01,
+            'xmin': min(list(self.delta_mass['decoy'].keys()) +
+                        (list(self.delta_mass['target'].keys()))) - 0.01,
+            "data_labels": [{"name": "Counts", "ylab": "Count"},
+                            {"name": "Relative Frequency", "ylab": "Relative Frequency"}],
+        }
+
+        line_html = linegraph.plot([self.delta_mass, self.delta_mass_percent], lineconfig)
+
+        self.add_section(
+            name="Delta Mass",
+            anchor="delta_mass",
+            description='''This chart represents the distribution of the relative frequency of experimental 
+                            precursor ion mass (m/z) - theoretical precursor ion mass (m/z). 
+                            ''',
+            helptext='''
+                    Mass deltas close to zero reflect more accurate identifications and also 
+                    that the reporting of the amino acid modifications and charges have been done accurately. 
+                    This plot can highlight systematic bias if not centered on zero. 
+                    Other distributions can reflect modifications not being reported properly. 
+                    Also it is easy to see the different between the target and the decoys identifications.
+                    ''',
+            plot=line_html
+        )
+
     def parse_out_csv(self):
 
         # result statistics table
         data = pd.read_csv(self.out_csv_path, sep=',', header=0)
         data = data.astype(str)
-        exp_data = pd.read_csv(config.kwargs['exp_design'], sep='\t', header=0, index_col=None, dtype=str)
+        exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
         exp_data = exp_data.dropna(axis=0)
         Spec_File = exp_data['Spectra_Filepath'].tolist()
         for i in Spec_File:
@@ -682,7 +866,8 @@ class MultiqcModule(BaseMultiqcModule):
         mztab_data = mztab.MzTab(self.out_mzTab_path)
         pep_table = mztab_data.peptide_table
         meta_data = dict(mztab_data.metadata)
-
+        self.delta_mass['target'] = dict()
+        self.delta_mass['decoy'] = dict()
         # PSM table data
         psm = mztab_data.spectrum_match_table
         psm_table = dict()
@@ -696,7 +881,7 @@ class MultiqcModule(BaseMultiqcModule):
                 continue
             else:
                 psm_table[row['PSM_ID']] = {'sequence': row['sequence']}
-                psm_table[row['PSM_ID']]['spectra_ref'] = row['spectra_ref']
+                # psm_table[row['PSM_ID']]['spectra_ref'] = row['spectra_ref']
                 psm_table[row['PSM_ID']]['unique'] = row['unique']
                 for score in scores:
                     psm_table[row['PSM_ID']][score] = row[score]
@@ -719,6 +904,18 @@ class MultiqcModule(BaseMultiqcModule):
                         self.mzml_peptide_map[mzML_Name] = 1
                     else:
                         self.mzml_peptide_map[mzML_Name] += 1
+            # extract delta mass
+            relative_diff = row['exp_mass_to_charge'] - row['calc_mass_to_charge']
+            if row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
+                if relative_diff in self.delta_mass['decoy']:
+                    self.delta_mass['decoy'][relative_diff] += 1
+                else:
+                    self.delta_mass['decoy'][relative_diff] = 1
+            else:
+                if relative_diff in self.delta_mass['target']:
+                    self.delta_mass['target'][relative_diff] += 1
+                else:
+                    self.delta_mass['target'][relative_diff] = 1
 
         self.mL_spec_ident_final = mL_spec_ident_final
         self.Total_ms2_Spectral_Identified = len(spectrum)
@@ -727,7 +924,6 @@ class MultiqcModule(BaseMultiqcModule):
 
         # peptide quantification table data
         pep_quant = dict()
-        quant_method = meta_data['quantification_method']
         study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
                                       pep_table.columns.tolist()))
         for index, row in pep_table.iterrows():
@@ -736,7 +932,7 @@ class MultiqcModule(BaseMultiqcModule):
             else:
                 pep_quant[str(index)] = {'peptide_sequence': row['sequence']}  # keep id unique
                 pep_quant[str(index)]['accession'] = row['accession']
-                pep_quant[str(index)]['spectra_ref'] = row['spectra_ref']
+                # pep_quant[str(index)]['spectra_ref'] = row['spectra_ref']
                 # pep_quant[str(index)]['quantification_method'] = quant_method
                 for s in study_variables:
                     pep_quant[str(index)][s] = row[s]
@@ -760,13 +956,17 @@ class MultiqcModule(BaseMultiqcModule):
         self.charge_state_distribution['unidentified_spectra'] = dict(zip(
             ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
         ))
+        self.peak_per_ms2['identified_spectra'] = dict(zip(
+            ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
+             '300-400', '200-300', '100-200', '0-100'], [0] * 11
+        ))
 
         mzml_table = {}
         mzmls_dir = config.kwargs['mzMLs']
 
         for m in os.listdir(mzmls_dir):
             # print(os.path.join(mzmls_dir, m))
-            log.info("Parsing {}...".format(os.path.join(mzmls_dir, m)))
+            log.debug("Parsing {}...".format(os.path.join(mzmls_dir, m)))
             for i in mzml.MzML(os.path.join(mzmls_dir, m)):
                 if i['ms level'] == 1:
                     ms1_number += 1
@@ -797,24 +997,51 @@ class MultiqcModule(BaseMultiqcModule):
                         self.peak_intensity_distribution['identified_spectra']['0-10'] += 1
 
                     if 'precursorList' in i.keys():
-                        charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
-                            'charge state']
-                        if charge_state > 7:
-                            self.charge_state_distribution['identified_spectra']['>7'] += 1
-                        elif charge_state == 7:
-                            self.charge_state_distribution['identified_spectra']['7'] += 1
-                        elif charge_state == 6:
-                            self.charge_state_distribution['identified_spectra']['6'] += 1
-                        elif charge_state == 5:
-                            self.charge_state_distribution['identified_spectra']['5'] += 1
-                        elif charge_state == 4:
-                            self.charge_state_distribution['identified_spectra']['4'] += 1
-                        elif charge_state == 3:
-                            self.charge_state_distribution['identified_spectra']['3'] += 1
-                        elif charge_state == 2:
-                            self.charge_state_distribution['identified_spectra']['2'] += 1
-                        elif charge_state == 1:
-                            self.charge_state_distribution['identified_spectra']['1'] += 1
+                        try:
+                            charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
+                                'charge state']
+                            if charge_state > 7:
+                                self.charge_state_distribution['identified_spectra']['>7'] += 1
+                            elif charge_state == 7:
+                                self.charge_state_distribution['identified_spectra']['7'] += 1
+                            elif charge_state == 6:
+                                self.charge_state_distribution['identified_spectra']['6'] += 1
+                            elif charge_state == 5:
+                                self.charge_state_distribution['identified_spectra']['5'] += 1
+                            elif charge_state == 4:
+                                self.charge_state_distribution['identified_spectra']['4'] += 1
+                            elif charge_state == 3:
+                                self.charge_state_distribution['identified_spectra']['3'] += 1
+                            elif charge_state == 2:
+                                self.charge_state_distribution['identified_spectra']['2'] += 1
+                            elif charge_state == 1:
+                                self.charge_state_distribution['identified_spectra']['1'] += 1
+                        except KeyError:
+                            log.warning("No charge state: {}".format(i['id']))
+
+                    if i['ms level'] == 2:
+                        if i['defaultArrayLength'] >= 1000:
+                            self.peak_per_ms2['identified_spectra']['>1000'] += 1
+                        elif 900 <= i['defaultArrayLength'] < 1000:
+                            self.peak_per_ms2['identified_spectra']['900-1000'] += 1
+                        elif 800 <= i['defaultArrayLength'] < 900:
+                            self.peak_per_ms2['identified_spectra']['800-900'] += 1
+                        elif 700 <= i['defaultArrayLength'] < 800:
+                            self.peak_per_ms2['identified_spectra']['700-800'] += 1
+                        elif 600 <= i['defaultArrayLength'] < 700:
+                            self.peak_per_ms2['identified_spectra']['600-700'] += 1
+                        elif 500 <= i['defaultArrayLength'] < 600:
+                            self.peak_per_ms2['identified_spectra']['500-600'] += 1
+                        elif 400 <= i['defaultArrayLength'] < 500:
+                            self.peak_per_ms2['identified_spectra']['400-500'] += 1
+                        elif 300 <= i['defaultArrayLength'] < 400:
+                            self.peak_per_ms2['identified_spectra']['300-400'] += 1
+                        elif 200 <= i['defaultArrayLength'] < 300:
+                            self.peak_per_ms2['identified_spectra']['200-300'] += 1
+                        elif 100 <= i['defaultArrayLength'] < 200:
+                            self.peak_per_ms2['identified_spectra']['100-200'] += 1
+                        else:
+                            self.peak_per_ms2['identified_spectra']['0-100'] += 1
                 else:
                     if i['base peak intensity'] > 10000:
                         self.peak_intensity_distribution['unidentified_spectra']['>10000'] += 1
@@ -869,7 +1096,7 @@ class MultiqcModule(BaseMultiqcModule):
 
         raw_ids = config.kwargs['raw_ids']
         for raw_id in os.listdir(raw_ids):
-            log.info("Parsing {}...".format(raw_ids))
+            log.debug("Parsing {}...".format(raw_ids))
             if 'msgf' in raw_id:
                 mz = openms.idxml.IDXML(os.path.join(raw_ids, raw_id))
 

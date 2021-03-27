@@ -8,7 +8,7 @@ using the setuptools plugin hooks.
 from __future__ import print_function
 from pkg_resources import get_distribution
 import logging
-from multiqc.utils import report, util_functions, config
+from multiqc.utils import config
 
 # Initialise the main MultiQC logger
 log = logging.getLogger('multiqc')
@@ -30,7 +30,7 @@ def example_plugin_execution_start():
     if config.kwargs.get('disable_plugin', True):
         return None
 
-    log.info("Running Example MultiQC Plugin v{}".format(config.pmultiqc))
+    log.info("Running pmultiqc Plugin v{}".format(config.pmultiqc))
 
     # Add to the search patterns used by modules
     if 'proteomicslfq/out_csv' not in config.sp:
@@ -38,4 +38,3 @@ def example_plugin_execution_start():
 
     if 'proteomicslfq/out_mzTab' not in config.sp:
         config.update_dict(config.sp, {'proteomicslfq/out_mzTab': {'fn': 'out.mzTab'}})
-

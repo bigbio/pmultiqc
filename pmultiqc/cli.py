@@ -10,7 +10,11 @@ http://click.pocoo.org/5/
 import click
 
 
-exp_design = click.option('--exp_design', 'exp_design', required=True)
+exp_design = click.option('--exp_design', 'exp_design')
+sdrf = click.option('--sdrf', 'sdrf')
+raw = click.option('--raw', 'raw', help='Keep filenames in experimental design output as raw.', default=False)
+condition = click.option('--condition', "condition",
+                         help='Create conditions from provided (e.g., factor) columns.')
 mzMLs = click.option('--mzMLs', 'mzMLs', required=True)
 raw_ids = click.option('--raw_ids', 'raw_ids', required=True)
 remove_decoy = click.option('--remove_decoy', 'remove_decoy', default=False)
