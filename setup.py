@@ -25,7 +25,8 @@ setup(
     install_requires=[
         'multiqc',
         'pandas',
-        'pyteomics'
+        'pyteomics',
+        'sdrf_pipelines'
     ],
     entry_points={
         'multiqc.modules.v1': [
@@ -34,6 +35,9 @@ setup(
         'multiqc.cli_options.v1': [
             'disable_plugin = pmultiqc.cli:disable_plugin',
             'exp_design = pmultiqc.cli:exp_design',
+            'sdrf = pmultiqc.cli:sdrf',
+            'raw = pmultiqc.cli:raw',
+            'condition = pmultiqc.cli:condition',
             'mzMLs = pmultiqc.cli:mzMLs',
             'raw_ids = pmultiqc.cli:raw_ids',
             'remove_decoy = pmultiqc.cli:remove_decoy'

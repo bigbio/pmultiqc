@@ -30,7 +30,7 @@ def example_plugin_execution_start():
     if config.kwargs.get('disable_plugin', True):
         return None
 
-    log.info("Running Example MultiQC Plugin v{}".format(config.pmultiqc))
+    log.info("Running pmultiqc Plugin v{}".format(config.pmultiqc))
 
     # Add to the search patterns used by modules
     if 'proteomicslfq/out_csv' not in config.sp:
