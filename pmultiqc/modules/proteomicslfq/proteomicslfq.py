@@ -755,6 +755,7 @@ class MultiqcModule(BaseMultiqcModule):
     def parse_out_csv(self):
 
         # result statistics table
+        log.warning("Parsing out csv file...")
         data = pd.read_csv(self.out_csv_path, sep=',', header=0)
         data = data.astype(str)
         exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
@@ -863,6 +864,7 @@ class MultiqcModule(BaseMultiqcModule):
         self.Total_Protein_Identified = len(prot_pep_map)
 
     def parse_out_mzTab(self):
+        log.warning("Parsing mzTab file...")
         mztab_data = mztab.MzTab(self.out_mzTab_path)
         pep_table = mztab_data.peptide_table
         meta_data = dict(mztab_data.metadata)
@@ -940,8 +942,6 @@ class MultiqcModule(BaseMultiqcModule):
         self.pep_quant_table = pep_quant
 
     def parse_mzml_idx(self):
-        ms1_number = 0
-        ms2_number = 0
         self.peak_intensity_distribution['identified_spectra'] = dict(zip(
             ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
              '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
@@ -961,12 +961,19 @@ class MultiqcModule(BaseMultiqcModule):
              '300-400', '200-300', '100-200', '0-100'], [0] * 11
         ))
 
+        self.peak_per_ms2['unidentified_spectra'] = dict(zip(
+            ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
+             '300-400', '200-300', '100-200', '0-100'], [0] * 11
+        ))
+
         mzml_table = {}
         mzmls_dir = config.kwargs['mzMLs']
 
         for m in os.listdir(mzmls_dir):
             # print(os.path.join(mzmls_dir, m))
-            log.debug("Parsing {}...".format(os.path.join(mzmls_dir, m)))
+            log.warning("Parsing {}...".format(os.path.join(mzmls_dir, m)))
+            ms1_number = 0
+            ms2_number = 0
             for i in mzml.MzML(os.path.join(mzmls_dir, m)):
                 if i['ms level'] == 1:
                     ms1_number += 1
@@ -1090,13 +1097,37 @@ class MultiqcModule(BaseMultiqcModule):
                             log.warning("No charge state: {}".format(i['id']))
                             # print("No charge state: " + i['id'])
 
+                    if i['ms level'] == 2:
+                        if i['defaultArrayLength'] >= 1000:
+                            self.peak_per_ms2['unidentified_spectra']['>1000'] += 1
+                        elif 900 <= i['defaultArrayLength'] < 1000:
+                            self.peak_per_ms2['unidentified_spectra']['900-1000'] += 1
+                        elif 800 <= i['defaultArrayLength'] < 900:
+                            self.peak_per_ms2['unidentified_spectra']['800-900'] += 1
+                        elif 700 <= i['defaultArrayLength'] < 800:
+                            self.peak_per_ms2['unidentified_spectra']['700-800'] += 1
+                        elif 600 <= i['defaultArrayLength'] < 700:
+                            self.peak_per_ms2['unidentified_spectra']['600-700'] += 1
+                        elif 500 <= i['defaultArrayLength'] < 600:
+                            self.peak_per_ms2['unidentified_spectra']['500-600'] += 1
+                        elif 400 <= i['defaultArrayLength'] < 500:
+                            self.peak_per_ms2['unidentified_spectra']['400-500'] += 1
+                        elif 300 <= i['defaultArrayLength'] < 400:
+                            self.peak_per_ms2['unidentified_spectra']['300-400'] += 1
+                        elif 200 <= i['defaultArrayLength'] < 300:
+                            self.peak_per_ms2['unidentified_spectra']['200-300'] += 1
+                        elif 100 <= i['defaultArrayLength'] < 200:
+                            self.peak_per_ms2['unidentified_spectra']['100-200'] += 1
+                        else:
+                            self.peak_per_ms2['unidentified_spectra']['0-100'] += 1
+
             self.Total_ms2_Spectral = self.Total_ms2_Spectral + ms2_number
             mzml_table[m] = {'MS1_Num': ms1_number}
             mzml_table[m]['MS2_Num'] = ms2_number
 
         raw_ids = config.kwargs['raw_ids']
         for raw_id in os.listdir(raw_ids):
-            log.debug("Parsing {}...".format(raw_ids))
+            log.warning("Parsing {}...".format(raw_ids))
             if 'msgf' in raw_id:
                 mz = openms.idxml.IDXML(os.path.join(raw_ids, raw_id))
 
