@@ -900,12 +900,11 @@ class MultiqcModule(BaseMultiqcModule):
                         mL_spec_ident_final[mzML_Name] = 1
                     else:
                         mL_spec_ident_final[mzML_Name] += 1
-                if row['sequence'] not in seq:
-                    seq.append(row['sequence'])
-                    if mzML_Name not in self.mzml_peptide_map:
-                        self.mzml_peptide_map[mzML_Name] = 1
-                    else:
-                        self.mzml_peptide_map[mzML_Name] += 1
+                if mzML_Name in self.mzml_peptide_map.keys():
+                    if row['sequence'] not in self.mzml_peptide_map[mzML_Name]:
+                        self.mzml_peptide_map[mzML_Name].append(row['sequence'])
+                else:
+                    self.mzml_peptide_map[mzML_Name] = [row['sequence']]
             # extract delta mass
             relative_diff = row['exp_mass_to_charge'] - row['calc_mass_to_charge']
             if row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
@@ -918,6 +917,8 @@ class MultiqcModule(BaseMultiqcModule):
                     self.delta_mass['target'][relative_diff] += 1
                 else:
                     self.delta_mass['target'][relative_diff] = 1
+            if row['sequence'] not in seq:
+                seq.append(row['sequence'])
 
         self.mL_spec_ident_final = mL_spec_ident_final
         self.Total_ms2_Spectral_Identified = len(spectrum)
@@ -1145,7 +1146,8 @@ class MultiqcModule(BaseMultiqcModule):
                 mzml_table[mzML_name]['Comet'] = comet_identified_num
 
             mzml_table[mzML_name]['Final result of spectra'] = self.mL_spec_ident_final[mzML_name]
-            mzml_table[mzML_name]['Final result of Peptides'] = self.mzml_peptide_map[mzML_name]
+            mzml_table[mzML_name]['Final result of Peptides'] = len(self.mzml_peptide_map[mzML_name])
+
         self.mzml_table = mzml_table
         # write to file
         self.write_data_file(mzml_table, 'mzMLs_statistics_table')
