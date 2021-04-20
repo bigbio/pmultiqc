@@ -1,6 +1,55 @@
 .table tr td {
-    display: block;
-    font-size: 0.9em;
-    height: 30px;
-    overflow: scroll;
+    overflow-y: hidden;
+    white-space: nowrap;
 }
+
+#Experimental_Design tr td .wrapper .bar{
+    background-color: #ffffff !important;
+}
+
+#result_statistics tr .Sample_Name .wrapper .bar{
+    background-color: #ffffff !important;
+}
+
+#result_statistics tr .fraction .wrapper .bar{
+    background-color: #ffffff !important;
+}
+
+.page_control{
+    text-align: center;
+}
+
+.page_control span{
+    margin-right: 1%;
+    border: 1px solid #cccccc;
+    border-radius: 3px;
+    padding: 6px 5px;
+}
+
+.page_control .page{
+    border: 1px solid #cccccc;
+    border-radius: 3px;
+    width: 50px;
+}
+
+.searchInput{
+    border: 1px solid #cccccc;
+    border-radius: 3px;
+    padding: 5px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    width: 100px;
+}
+
+#quant_search_col, #psm_search_col{
+    border: 1px solid #cccccc;
+    border-radius: 3px;
+    padding: 5px 10px;
+    line-height: 1.5;
+    width: 100px;
+    margin-left: 4px;
+    font-size: 12px;
+    height: 29.92px;
+    margin-right: 4px;
+}
+

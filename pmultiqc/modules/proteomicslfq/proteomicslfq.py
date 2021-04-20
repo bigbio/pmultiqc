@@ -10,12 +10,21 @@ from multiqc import config
 from multiqc.plots import table, bargraph, linegraph
 from multiqc.modules.base_module import BaseMultiqcModule
 import pandas as pd
+from collections import Counter
 import re
 from pyteomics import mztab, mzml, openms
 import os
+import sqlite3
 
 # Initialise the main MultiQC logger
 log = logging.getLogger(__name__)
+con = sqlite3.connect('./proteomicslfq.db')
+cur = con.cursor()
+cur.execute("drop table if exists PSM")
+con.commit()
+
+cur.execute("drop table if exists QUANT")
+con.commit()
 
 
 class MultiqcModule(BaseMultiqcModule):
@@ -97,11 +106,19 @@ class MultiqcModule(BaseMultiqcModule):
         self.draw_peaks_per_ms2()
         self.draw_peak_intensity_distribution()
         self.draw_delta_mass()
-        # exist some problems
-        # self.css = {
-        #     './assets/css/proteomicslfq.css':
-        #         os.path.join(os.path.dirname(__file__), 'assets', 'css', 'proteomicslfq.css')
-        # }
+
+        self.css = {
+            'assets/css/proteomicslfq.css':
+                os.path.join(os.path.dirname(__file__), 'assets', 'css', 'proteomicslfq.css')
+        }
+        self.js = {
+            'assets/js/proteomicslfq.js':
+                os.path.join(os.path.dirname(__file__), 'assets', 'js', 'proteomicslfq.js'),
+            'assets/js/axios.min.js':
+                os.path.join(os.path.dirname(__file__), 'assets', 'js', 'axios.min.js'),
+            'assets/js/sql-optimized.js':
+                os.path.join(os.path.dirname(__file__), 'assets', 'js', 'sql-optimized.js')
+        }
 
     def draw_exp_design(self):
         exp_design_table = dict()
@@ -133,33 +150,33 @@ class MultiqcModule(BaseMultiqcModule):
             'sortRows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'Spectra File',
-            'format': '{:,.0f}'  # The header used for the first column
+            'format': '{:,.0f}',  # The header used for the first column
         }
         headers = OrderedDict()
 
         headers['Fraction_Group'] = {
             'description': 'Fraction_Group',
-            'color': "#ffffff"
+            'color': "#ffffff",
         }
         headers['Fraction'] = {
             'description': 'Fraction identifier',
-            'color': "#ffffff"
+            'color': "#ffffff",
         }
         headers['Label'] = {
             'description': 'Label',
-            'color': "#ffffff"
+            'color': "#ffffff",
         }
         headers['Sample'] = {
             'description': 'Sample Name',
-            'color': "#ffffff"
+            'color': "#ffffff",
         }
         headers['MSstats_Condition'] = {
             'description': 'MSstats Condition',
-            'color': "#ffffff"
+            'color': "#ffffff",
         }
         headers['MSstats_BioReplicate'] = {
             'description': 'MSstats BioReplicate',
-            'color': "#ffffff"
+            'color': "#ffffff",
         }
         table_html = table.plot(exp_design_table, headers, pconfig)
 
@@ -291,9 +308,6 @@ class MultiqcModule(BaseMultiqcModule):
             'description': 'number of peptides per proteins'
         }
 
-        # write to file
-        self.write_data_file(self.num_pep_per_protein, 'num_pep_per_protein')
-
         bar_html = bargraph.plot([self.num_pep_per_protein, self.percent_pep_per_protein], headers, pconfig)
         # Add a report section with the line plot
         self.add_section(
@@ -324,39 +338,35 @@ class MultiqcModule(BaseMultiqcModule):
             'raw_data_fn': 'multiqc_quantification_of_peptides_table',  # File basename to use for raw data file
             'sortRows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
-            'col1_header': 'Index',
+            'col1_header': 'ID',
             'format': '{:,.6f}',  # The header used for the first column
-            'scale': 'Set3'
+            'scale': 'Set3',
+            'no_beeswarm': True
         }
 
         headers = OrderedDict()
-        headers['accession'] = {
-            'description': 'accession number of sequence',
-            'color': "#ffffff",
-            'format': '{:,.0f}',
-            'hidden': True
-        }
-
-        headers['peptide_sequence'] = {
+        headers['sequence'] = {
             'description': 'peptide_sequence',
             'color': "#ffffff",
             'format': '{:,.0f}'
         }
-
-        # write to file
-        self.write_data_file(self.pep_quant_table, 'pep_quant')
-
-        if len(self.pep_quant_table) > 500:
-            L = 0
-            new_pep_quant = dict()
-            for key, value in self.pep_quant_table.items():
-                new_pep_quant[key] = value
-                L += 1
-                if L == 500:
-                    break
-        else:
-            new_pep_quant = self.pep_quant_table
-        table_html = table.plot(new_pep_quant, headers, pconfig)
+        table_html = table.plot(self.pep_quant_table, headers, pconfig)
+        pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
+        index = re.search(pattern, table_html).span()[0]
+        t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
+                                      'onkeyup="searchQuantFunction()" id="quant_search">' \
+                                      '<select name="quant_search_col" id="quant_search_col"><option value="">' \
+                                      'ID</option>'
+        for key, _ in self.pep_quant_table['1'].items():
+            t_html += '<option>' + key.replace("[", "_").replace("]", "") + '</option>'
+        table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
+                                            'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' \
+                            + table_html[index:]
+        table_html = table_html + '''<div class="page_control"><span id="quantFirst">First Page</span><span 
+        id="quantPre"> Previous Page</span><span id="quantNext">Next Page </span><span id="quantLast">Last 
+        Page</span><span id="quantPageNum"></span>Page/Total <span id="quantTotalPage"></span>Pages <input 
+        type="number" name="" id="pep_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+        onkeydown="quant_page_jump()" min="1"/> </div> '''
 
         self.add_section(
             name="Quantification Result",
@@ -379,7 +389,7 @@ class MultiqcModule(BaseMultiqcModule):
 
     def draw_psm_table(self):
         pconfig = {
-            'id': 'peptide spectrum match',  # ID used for the table
+            'id': 'peptide_spectrum_match',  # ID used for the table
             'table_title': 'peptide spectrum match information',
             # Title of the table. Used in the column config modal
             'save_file': False,  # Whether to save the table data to a file
@@ -388,7 +398,8 @@ class MultiqcModule(BaseMultiqcModule):
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'PSM_ID',
             'format': '{:,.9f}',  # The header used for the first column
-            'scale': 'Set5'
+            'scale': 'Set5',
+            'no_beeswarm': True
         }
 
         headers = OrderedDict()
@@ -398,31 +409,32 @@ class MultiqcModule(BaseMultiqcModule):
             'format': '{:,.0f}'
         }
 
-        # headers['spectra_ref'] = {
-        #     'description': 'spectra_reference',
-        #     'color': "#ffffff",
-        #     'format': '{:,.0f}'
-        # }
         headers['unique'] = {
             'description': 'unique',
             'color': "#ffffff",
             'format': '{:,.0f}'
         }
 
-        # write to file
-        self.write_data_file(self.PSM_table, 'psm_table')
+        table_html = table.plot(self.PSM_table, headers, pconfig)
 
-        if len(self.PSM_table) > 500:
-            L = 0
-            new_psm_table = {}
-            for key, value in self.PSM_table.items():
-                new_psm_table[key] = value
-                L += 1
-                if L == 500:
-                    break
-        else:
-            new_psm_table = self.PSM_table
-        table_html = table.plot(new_psm_table, headers, pconfig)
+        pattern = re.compile(r'<small id="peptide_spectrum_match_numrows_text"')
+        index = re.search(pattern, table_html).span()[0]
+        t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
+                                      'onkeyup="searchPsmFunction()" id="psm_search">' \
+                                      '<select name="psm_search_col" id="psm_search_col"><option value="">' \
+                                      'PSM_ID</option>'
+
+        for key, _ in self.PSM_table[1].items():
+            t_html += '<option>' + key.replace("[", "_").replace("]", "") + '</option>'
+        table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
+                                            'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' \
+                            + table_html[index:]
+        table_html = table_html + '''<div class="page_control"><span id="psmFirst">First Page</span><span 
+                id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
+                Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
+                type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+                onkeydown="psm_page_jump()" min="1"/> </div> '''
+
         # Add a report section with the line plot
         self.add_section(
             name="Peptide-Spectrum Matches",
@@ -551,8 +563,6 @@ class MultiqcModule(BaseMultiqcModule):
             'description': 'peak intensity > 10000'
         }
 
-        # write to file
-        self.write_data_file(self.peak_intensity_distribution, 'peak_intensity_distribution')
         bar_html = bargraph.plot(self.peak_intensity_distribution, cats, pconfig)
         # Add a report section with the line plot
         self.add_section(
@@ -618,8 +628,6 @@ class MultiqcModule(BaseMultiqcModule):
             'description': 'Precursor charge state >7'
         }
 
-        # write to file
-        self.write_data_file(self.charge_state_distribution, 'charge_state_distribution')
         bar_html = bargraph.plot(self.charge_state_distribution, cats, pconfig)
 
         # Add a report section with the line plot
@@ -691,8 +699,6 @@ class MultiqcModule(BaseMultiqcModule):
             'description': 'Number of Peaks per MS/MS spectrum > 1000'
         }
 
-        # write to file
-        self.write_data_file(self.peak_per_ms2, 'peak_per_ms2')
         bar_html = bargraph.plot(self.peak_per_ms2, cats, pconfig)
 
         self.add_section(
@@ -875,10 +881,45 @@ class MultiqcModule(BaseMultiqcModule):
         psm_table = dict()
         scores = list(filter(lambda x: re.match(r'search_engine_score.*?', x) is not None,
                              psm.columns.tolist()))
-        spectrum = []
-        seq = []
+        t = (' float'.join(scores) + ' float').replace("[", "_").replace("]", "")
+        cur.execute("CREATE TABLE PSM(PSM_ID int, sequence VARCHAR(100), PSM_UNIQUE int, " + t + ")")
+        con.commit()
+
         mL_spec_ident_final = {}
-        for _, row in psm.iterrows():
+        psm['stand_spectra_ref'] = psm.apply(
+            lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
+        for m in set(psm['stand_spectra_ref'].tolist()):
+            if config.kwargs['remove_decoy']:
+                self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
+                                                       psm[psm[psm['stand_spectra_ref'] == m]
+                                                           ['opt_global_cv_MS:1002217_decoy_peptide'] != 1][
+                                                           'spectra_ref'].tolist()))
+                self.mzml_peptide_map[m] = list(set(psm[psm[psm['stand_spectra_ref'] == m]
+                                                        ['opt_global_cv_MS:1002217_decoy_peptide'] != 1][
+                                                        'sequence'].tolist()))
+            else:
+                self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
+                                                       psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
+                self.mzml_peptide_map[m] = list(set(psm[psm['stand_spectra_ref'] == m]['sequence'].tolist()))
+            mL_spec_ident_final[m] = len(self.identified_spectrum[m])
+        psm['relative_diff'] = psm['exp_mass_to_charge'] - psm['calc_mass_to_charge']
+        self.delta_mass['decoy'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 1]
+                                           ['relative_diff'].tolist())
+        self.delta_mass['target'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+                                            ['relative_diff'].tolist())
+
+        sql_t = "(" + ','.join(['?'] * (len(scores) + 3)) + ")"
+        if config.kwargs['remove_decoy']:
+            cur.executemany("INSERT INTO PSM (PSM_ID,sequence,PSM_UNIQUE," +
+                            ','.join(scores).replace("[", "_").replace("]", "") + ") VALUES " + sql_t,
+                            [tuple(x) for x in psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+                            [['PSM_ID', 'sequence', 'unique'] + scores].values])
+        else:
+            cur.executemany("INSERT INTO PSM (PSM_ID,sequence,PSM_UNIQUE," +
+                            ','.join(scores).replace("[", "_").replace("]", "") + ") VALUES " + sql_t,
+                            [tuple(x) for x in psm[['PSM_ID', 'sequence', 'unique'] + scores].values])
+        con.commit()
+        for idx, row in psm.iterrows():
             if config.kwargs['remove_decoy'] and row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
                 continue
             else:
@@ -887,58 +928,48 @@ class MultiqcModule(BaseMultiqcModule):
                 psm_table[row['PSM_ID']]['unique'] = row['unique']
                 for score in scores:
                     psm_table[row['PSM_ID']][score] = row[score]
+            if idx > 48:
+                break
 
-                mzML_Name = os.path.basename(meta_data[row['spectra_ref'].split(':')[0] + '-location'])
-                if row['spectra_ref'] not in spectrum:
-                    spectrum.append(row['spectra_ref'])
-                    if mzML_Name not in self.identified_spectrum.keys():
-                        self.identified_spectrum[mzML_Name] = [row['spectra_ref'].split(':')[1]]
-                    elif row['spectra_ref'].split(':')[1] not in self.identified_spectrum[mzML_Name]:
-                        self.identified_spectrum[mzML_Name].append(row['spectra_ref'].split(':')[1])
-
-                    if mzML_Name not in mL_spec_ident_final:
-                        mL_spec_ident_final[mzML_Name] = 1
-                    else:
-                        mL_spec_ident_final[mzML_Name] += 1
-                if mzML_Name in self.mzml_peptide_map.keys():
-                    if row['sequence'] not in self.mzml_peptide_map[mzML_Name]:
-                        self.mzml_peptide_map[mzML_Name].append(row['sequence'])
-                else:
-                    self.mzml_peptide_map[mzML_Name] = [row['sequence']]
-            # extract delta mass
-            relative_diff = row['exp_mass_to_charge'] - row['calc_mass_to_charge']
-            if row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
-                if relative_diff in self.delta_mass['decoy']:
-                    self.delta_mass['decoy'][relative_diff] += 1
-                else:
-                    self.delta_mass['decoy'][relative_diff] = 1
-            else:
-                if relative_diff in self.delta_mass['target']:
-                    self.delta_mass['target'][relative_diff] += 1
-                else:
-                    self.delta_mass['target'][relative_diff] = 1
-            if row['sequence'] not in seq:
-                seq.append(row['sequence'])
+        # extract delta mass
 
         self.mL_spec_ident_final = mL_spec_ident_final
-        self.Total_ms2_Spectral_Identified = len(spectrum)
-        self.Total_Peptide_Count = len(seq)
+        if config.kwargs['remove_decoy']:
+            self.Total_ms2_Spectral_Identified = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+                                                         ['spectra_ref']))
+            self.Total_Peptide_Count = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+                                               ['sequence']))
+        else:
+            self.Total_ms2_Spectral_Identified = len(set(psm['spectra_ref']))
+            self.Total_Peptide_Count = len(set(psm['sequence']))
         self.PSM_table = psm_table
 
         # peptide quantification table data
         pep_quant = dict()
         study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
                                       pep_table.columns.tolist()))
+        cur.execute("CREATE TABLE QUANT(ID integer PRIMARY KEY AUTOINCREMENT, sequence VARCHAR(100))")
+        con.commit()
+        sql_col = "sequence"
+        sql_t = "(" + ','.join(['?'] * (len(study_variables) + 1)) + ")"
+
+        for s in study_variables:
+            s = s.replace("[", "_").replace("]", "")
+            cur.execute("ALTER TABLE QUANT ADD " + s + " FLOAT")
+            con.commit()
+            sql_col += "," + s
+        cur.executemany("INSERT INTO QUANT (" + sql_col + ") VALUES " + sql_t,
+                        [tuple(x) for x in pep_table[['sequence'] + study_variables].values])
+        con.commit()
         for index, row in pep_table.iterrows():
             if config.kwargs['remove_decoy'] and row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
                 continue
             else:
-                pep_quant[str(index)] = {'peptide_sequence': row['sequence']}  # keep id unique
-                pep_quant[str(index)]['accession'] = row['accession']
-                # pep_quant[str(index)]['spectra_ref'] = row['spectra_ref']
-                # pep_quant[str(index)]['quantification_method'] = quant_method
+                pep_quant[str(index + 1)] = {'sequence': row['sequence']}  # keep id unique
                 for s in study_variables:
-                    pep_quant[str(index)][s] = row[s]
+                    pep_quant[str(index + 1)][s] = row[s]
+            if index > 48:
+                break
 
         self.pep_quant_table = pep_quant
 
@@ -1149,5 +1180,3 @@ class MultiqcModule(BaseMultiqcModule):
             mzml_table[mzML_name]['Final result of Peptides'] = len(self.mzml_peptide_map[mzML_name])
 
         self.mzml_table = mzml_table
-        # write to file
-        self.write_data_file(mzml_table, 'mzMLs_statistics_table')
