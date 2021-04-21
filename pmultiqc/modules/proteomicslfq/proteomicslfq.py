@@ -18,7 +18,15 @@ import sqlite3
 
 # Initialise the main MultiQC logger
 log = logging.getLogger(__name__)
-con = sqlite3.connect('./proteomicslfq.db')
+if config.output_dir:
+    if os.path.exists(config.output_dir):
+        con = sqlite3.connect(os.path.join(config.output_dir, 'proteomicslfq.db'))
+    else:
+        os.makedirs(config.output_dir)
+        con = sqlite3.connect(os.path.join(config.output_dir, 'proteomicslfq.db'))
+else:
+    con = sqlite3.connect('./proteomicslfq.db')
+
 cur = con.cursor()
 cur.execute("drop table if exists PSM")
 con.commit()
