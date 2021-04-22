@@ -1,0 +1,4 @@
+include pmultiqc/modules/proteomicslfq/assets/css/proteomicslfq.css
+include pmultiqc/modules/proteomicslfq/assets/js/proteomicslfq.js
+include pmultiqc/modules/proteomicslfq/assets/js/axios.min.js
+include pmultiqc/modules/proteomicslfq/assets/js/sql-optimized.js
