@@ -32,7 +32,7 @@ setup(
     'multiqc',
     'pandas',
     'pyteomics',
-    'sdrf_pipelines'
+    'sdrf-pipelines'
   ],
   entry_points={
     'multiqc.modules.v1': [
