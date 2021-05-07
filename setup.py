@@ -7,7 +7,7 @@ For more information about MultiQC, see http://multiqc.info
 
 from setuptools import setup, find_packages
 
-version = '0.0.3'
+version = '0.0.4'
 
 def readme():
   with open('README.md') as f:
@@ -16,6 +16,7 @@ def readme():
 setup(
   name='pmultiqc',
   version=version,
+  description='Python package for quality control of proteomics datasets, based on multiqc package',
   author='Chengxin Dai, Yasset Perez-Riverol',
   author_email='S200502020@cqupt.edu.cn, ypriverol@gmail.com',
   long_description=readme(),
