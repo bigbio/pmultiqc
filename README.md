@@ -4,7 +4,6 @@
 
 A library for proteomics QC report based on MultiQC framework. The library generates a QC report for the [proteomicsLFQ pipeline](https://github.com/nf-core/proteomicslfq). The library read the input of the proteomicsLFQ pipeline, with the following structure:
 
-
 - consensus_ids       : Identification results from ConsesusId tool in OpenMS
 - dbs                 : Database used for the peptide/protein identification step.
 - ids                 : Identification results from each search engine.
