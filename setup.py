@@ -12,8 +12,8 @@ version = '0.0.2'
 setup(
     name='pmultiqc',
     version=version,
-    author='Chengxin Dai',
-    author_email='S200502020@cqupt.edu.cn',
+    author='Chengxin Dai, Yasset Perez-Riverol',
+    author_email='S200502020@cqupt.edu.cn, ypriverol@gmail.com',
     description="proteomics label free analysis pipeline quality control report",
     long_description=__doc__,
     keywords='Proteomics',
