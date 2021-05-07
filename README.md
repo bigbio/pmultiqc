@@ -1,5 +1,6 @@
 # pmultiqc
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
+[![Upload Python Package](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml)
 
 A library for proteomics QC report based on MultiQC framework. The library generates a QC report for the [proteomicsLFQ pipeline](https://github.com/nf-core/proteomicslfq). The library read the input of the proteomicsLFQ pipeline, with the following structure:
 
