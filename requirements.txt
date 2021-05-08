@@ -1,0 +1,5 @@
+multiqc
+pandas
+pyteomics
+sdrf-pipelines
+lxml
