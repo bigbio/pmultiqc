@@ -16,6 +16,21 @@ A library for proteomics QC report based on MultiQC framework. The library gener
   - out_triqler.tsv   : Input of Triqler software
 - raw_ids             : Identification results from search + percolator
 
+## Usage
+```multiqc --exp_design/sdrf {expdesign_file/sdrf file} --mzMLs {mzMLs file dir} --raw_ids {raw identification dir} {proteomicslfq result dir} -o {output dir}```
+
+example: ```multiqc --exp_design ./UPS1/experimental_design.tsv --mzMLs ./UPS1/shared-peptides-star-align-stricter-pep-protein-FDR/mzMLs --raw_ids ./UPS1/shared-peptides-star-align-stricter-pep-protein-FDR/raw_ids ./UPS1/shared-peptides-star-align-stricter-pep-protein-FDR/proteomics_lfq -o ./shared-peptides-star-align-stricter-pep-protein-FDR-statistics ```
+
+### parameters
+- --exp_design: The experimental design file path, the most entries can be derived from the sdrf file
+- --sdrf: Sample and Data Relationship Format file path
+- --raw: Keep filenames in experimental design output as raw when exp_design file is provided
+- --condition: Create conditions from provided (e.g., factor) columns when exp_design file is provided
+- --mzMLs: mzMLs file directory
+- --raw_ids: raw identification file dir
+- --remove_decoy: Whether to remove the decoy peptides when counting
+
+
 An example report can be found in [multiqc_report.html](http://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html)
 
 Most of the metrics are compute based on the `out.mzTab` and the `consensus_ids` which contains the filtered peptides and protein identifications.
