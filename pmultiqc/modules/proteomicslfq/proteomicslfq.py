@@ -7,7 +7,7 @@ from collections import OrderedDict
 import logging
 from sdrf_pipelines.openms.openms import OpenMS
 from multiqc import config
-from multiqc.plots import table, bargraph, linegraph
+from multiqc.plots import table, bargraph, linegraph, heatmap
 from multiqc.modules.base_module import BaseMultiqcModule
 import pandas as pd
 from collections import Counter
@@ -15,6 +15,7 @@ import re
 from pyteomics import mztab, mzml, openms
 import os
 import sqlite3
+import numpy as np
 
 # Initialise the main MultiQC logger
 log = logging.getLogger(__name__)
@@ -87,12 +88,22 @@ class MultiqcModule(BaseMultiqcModule):
         self.peak_per_ms2 = dict()
         self.delta_mass = dict()
         self.delta_mass_percent = dict()
+        self.heatmap_con_score = dict()
+        self.heatmap_pep_intensity = {}
+        self.heatmap_charge_score = dict()
+        self.MissedCleavages_heatmap_score = dict()
+        self.MissedCleavagesVar_score = dict()
+        self.ID_RT_score = dict()
+        self.HeatmapOverSamplingScore = dict()
+        self.HeatmapPepMissingScore = dict()
 
         # parse input data
+        self.CalHeatMapScore()
         self.parse_out_csv()
         self.parse_out_mzTab()
         self.parse_mzml_idx()
 
+        self.draw_heatmap()
         # draw the experimental design
         self.draw_exp_design()
 
@@ -127,6 +138,49 @@ class MultiqcModule(BaseMultiqcModule):
             'assets/js/sql-optimized.js':
                 os.path.join(os.path.dirname(__file__), 'assets', 'js', 'sql-optimized.js')
         }
+
+    def draw_heatmap(self):
+        HeatMapScore = []
+        xnames = ['Contaminants', 'Peptide Intensity', 'Charge', 'Missed Cleavages', 'Missed Cleavages Var',
+                  'ID rate over RT', 'MS2 OverSampling', 'Pep Missing Values']
+        ynames = []
+        for k, v in self.heatmap_con_score.items():
+            ynames.append(k)
+            HeatMapScore.append([v, self.heatmap_pep_intensity[k], self.heatmap_charge_score[k],
+                                self.MissedCleavages_heatmap_score[k],
+                                 self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
+                                 self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
+        pconfig = {
+            'title': 'Performance Overview',  # Plot title - should be in format "Module Name: Plot Title"
+            'xTitle': 'metrics',  # X-axis title
+            'yTitle': 'RawName',  # Y-axis title
+            'square': False
+        }
+
+        hm_html = heatmap.plot(HeatMapScore, xnames, ynames, pconfig)
+        # Add a report section with the heatmap plot
+        self.add_section(
+            name="HeatMap",
+            anchor="proteomicslfq_heatmap",
+            description='This plot shows the pipeline performance overview',
+            helptext='''
+                    This plot shows the pipeline performance overview. Some metrics are calculated.
+                    
+                    * Heatmap score[Contaminants]: as fraction of summed intensity with 0 = sample full of contaminants; 
+                        1 = no contaminants
+                    * Heatmap score[Pep Intensity (>23.0)]: Linear scale of the median intensity reaching the threshold, 
+                        i.e. reaching 221 of 223 gives score 0.25.
+                    * Heatmap score[Charge]: Deviation of the charge 2 proportion from a representative Raw file.
+                    * Heatmap score [MC]: the fraction (0% - 100%) of fully cleaved peptides per Raw file
+                    * Heatmap score [MC Var]: each Raw file is scored for its deviation from the ‘average’ digestion 
+                        state of the current study.
+                    * Heatmap score [ID rate over RT]: Scored using ‘Uniform’ scoring function. 
+                    * Heatmap score [MS2 Oversampling]: The percentage of non-oversampled 3D-peaks.
+                    * Heatmap score [Pep Missing]: Linear scale of the fraction of missing peptides.
+                    
+                    ''',
+            plot=hm_html
+        )
 
     def draw_exp_design(self):
         exp_design_table = dict()
@@ -291,7 +345,8 @@ class MultiqcModule(BaseMultiqcModule):
             helptext='''
             This plot shows the ProteomicsLFQ pipeline final result.
             Including Sample Name、Possible Study Variables、identified the number of peptide in the pipeline、
-            and identified the number of modified peptide in the pipeline, eg.
+            and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained 
+            from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
             ''',
             plot=table_html
         )
@@ -324,15 +379,8 @@ class MultiqcModule(BaseMultiqcModule):
             description='This plot shows the number of peptides per proteins '
                         'in ProteomicsLFQ pipeline final result',
             helptext='''
-                    This longer description explains what exactly the numbers mean
-                    and supports markdown formatting. This means that we can do _this_:
-
-                    * Something important
-                    * Something else important
-                    * Best of all - some `code`
-
-                    Doesn't matter if this is copied from documentation - makes it
-                    easier for people to find quickly.
+                        This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
+                        identifications can constitute more confident results.
                     ''',
             plot=bar_html
         )
@@ -382,15 +430,8 @@ class MultiqcModule(BaseMultiqcModule):
             description='This plot shows the quantification information of peptides'
                         'in ProteomicsLFQ pipeline final result',
             helptext='''
-                            This longer description explains what exactly the numbers mean
-                            and supports markdown formatting. This means that we can do _this_:
-
-                            * Something important
-                            * Something else important
-                            * Best of all - some `code`
-
-                            Doesn't matter if this is copied from documentation - makes it
-                            easier for people to find quickly.
+                        The quantification information of peptides is obtained from the pep table in the mzTab file. 
+                        The table shows the quantitative level of peptides in different study variables.
                             ''',
             plot=table_html
         )
@@ -450,15 +491,11 @@ class MultiqcModule(BaseMultiqcModule):
             description='This plot shows the PSM information'
                         'in ProteomicsLFQ pipeline final result',
             helptext='''
-                            This longer description explains what exactly the numbers mean
-                            and supports markdown formatting. This means that we can do _this_:
+                        This table fully displays the peptide spectrum matching information in the mzTab file:
 
-                            * Something important
-                            * Something else important
-                            * Best of all - some `code`
-
-                            Doesn't matter if this is copied from documentation - makes it
-                            easier for people to find quickly.
+                        * sequence: peptide sequence
+                        * unique
+                        * search_engine_score
                             ''',
             plot=table_html
         )
@@ -504,15 +541,16 @@ class MultiqcModule(BaseMultiqcModule):
             anchor="spectra_tracking",
             description='This plot shows the ProteomicsLFQ pipeline mzML tracking',
             helptext='''
-                    This longer description explains what exactly the numbers mean
-                    and supports markdown formatting. This means that we can do _this_:
+                    This table shows the changes in the number of spectra corresponding to each input file 
+                    during the pipeline operation. And the number of peptides finally identified is obtained from 
+                    the PSM table in the mzTab file. You can also remove the decoy with the `remove_decoy` parameter.:
 
-                    * Something important
-                    * Something else important
-                    * Best of all - some `code`
-
-                    Doesn't matter if this is copied from documentation - makes it
-                    easier for people to find quickly.
+                    * MS1_Num: The number of MS1 spectra extracted from mzMLs
+                    * MS2_Num: The number of MS2 spectra extracted from mzMLs
+                    * MSGF: The Number of spectra identified by MSGF search engine
+                    * Comet: The Number of spectra identified by Comet search engine
+                    * Final result of spectra: extracted from PSM table in mzTab file
+                    * Final result of Peptides: extracted from PSM table in mzTab file
                     ''',
             plot=table_html
         )
@@ -766,6 +804,88 @@ class MultiqcModule(BaseMultiqcModule):
             plot=line_html
         )
 
+    def CalHeatMapScore(self):
+        log.warning("Calculate Heatmap Score")
+        data = pd.read_csv(self.out_csv_path, sep=',', header=0)
+        data['DECOY'] = data.apply(lambda x: self.dis_decoy(x['ProteinName']), axis=1)
+        total_intensity = sum(data['Intensity'])
+        cont_top = {}
+        for i in np.unique(data[data['DECOY'] == "DECOY"]['ProteinName']):
+            cont_top[i] = np.sum(data[data['ProteinName'] == i]['Intensity']) / total_intensity
+        cont_top_5 = sorted(cont_top.items(), key=lambda item: item[1], reverse=True)
+        dictdata = {}
+        for l in cont_top_5:
+            dictdata[l[0]] = l[1]
+        for i in np.unique(data['Reference']):
+            self.heatmap_con_score[i] = 1 - np.sum(data[(data.Reference == i) & (data['DECOY'] == 'DECOY')]['Intensity']) / \
+                                   np.sum(data[data['Reference'] == i]['Intensity'])
+            pep_median = np.median(data[data['Reference'] == i]['Intensity'])
+            self.heatmap_pep_intensity[i] = np.minimum(1.0, pep_median / (2 ** 23))  # Threshold
+
+        #  HeatMapMissedCleavages
+        mztab_data = mztab.MzTab(self.out_mzTab_path)
+        psm = mztab_data.spectrum_match_table
+        global_peps = set(psm['opt_global_cv_MS:1000889_peptidoform_sequence'])
+        global_peps_count = len(global_peps)
+        psm = psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
+        meta_data = dict(mztab_data.metadata)
+        psm.loc[:, 'stand_spectra_ref'] = psm.apply(
+            lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
+        psm.loc[:, 'missed_cleavages'] = psm.apply(lambda x: self.cal_MissCleavages(x['sequence']), axis=1)
+        msms_count_map = {}
+        for name, group in psm.groupby(
+                ['stand_spectra_ref', 'opt_global_cv_MS:1000889_peptidoform_sequence', 'charge']):
+            if name[0] not in msms_count_map:
+                msms_count_map[name[0]] = [len(group)]
+            else:
+                msms_count_map[name[0]].append(len(group))
+
+        for name, group in psm.groupby('stand_spectra_ref'):
+            sc = group['missed_cleavages'].value_counts()
+            self.MissedCleavages_heatmap_score[name] = sc[0] / sc[:].sum()
+
+            x = group['retention_time'] / np.sum(group['retention_time'])
+            n = len(group['retention_time'])
+            y = np.sum(x) / n
+            worst = ((1 - y) ** 0.5) * 1 / n + (y ** 0.5) * (n - 1) / n
+            sc = np.sum(np.abs(x - y) ** 0.5) / n
+            if worst == 0:
+                self.ID_RT_score[name] = 1
+            else:
+                self.ID_RT_score[name] = (worst - sc) / worst
+
+            #  For HeatMapOverSamplingScore
+            if np.max(msms_count_map[name]) >= 3:
+                for i, value in enumerate(msms_count_map[name]):
+                    if value >= 3:
+                        msms_count_map[name][i] = "3+"
+            tt = Counter(msms_count_map[name])
+            self.HeatmapOverSamplingScore[name] = np.minimum(1.0, tt[1] * 1.0 / np.sum(list(tt.values())))
+
+            # For HeatMapPepMissingScore
+            idFraction = len(
+                set(group['opt_global_cv_MS:1000889_peptidoform_sequence']).intersection(
+                    global_peps)) / global_peps_count
+            self.HeatmapPepMissingScore[name] = np.minimum(1.0, idFraction)
+
+        median = np.median(list(self.MissedCleavages_heatmap_score.values()))
+        self.MissedCleavagesVar_score = dict(zip(self.MissedCleavages_heatmap_score.keys(),
+                                                 list(map(lambda v: 1 - np.abs(v - median),
+                                                          self.MissedCleavages_heatmap_score.values()))))
+
+    # if missed.cleavages is not given, it is assumed that trypsin was used for digestion
+    @staticmethod
+    def cal_MissCleavages(sequence):
+        miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace('K', '').replace('R', ''))
+        return miss_cleavages
+
+    @staticmethod
+    def dis_decoy(ProteinName):
+        if 'DECOY' in ProteinName:
+            return 'DECOY'
+        else:
+            return 'TARGET'
+
     def parse_out_csv(self):
 
         # result statistics table
@@ -841,8 +961,6 @@ class MultiqcModule(BaseMultiqcModule):
 
             modified_pep = list(filter(lambda x: re.match(r'.*?\(.*\).*?', x) is not None, peptides))
             self.cal_num_table_data[i]['modified_peptide_num'] = len(modified_pep)
-
-        self.write_data_file(self.cal_num_table_data, 'result_statistics_table')
 
         #  table of peptide number per protein
         prot_pep_map = {}
@@ -1008,12 +1126,14 @@ class MultiqcModule(BaseMultiqcModule):
 
         mzml_table = {}
         mzmls_dir = config.kwargs['mzMLs']
-
+        heatmap_charge = {}
         for m in os.listdir(mzmls_dir):
             # print(os.path.join(mzmls_dir, m))
             log.warning("Parsing {}...".format(os.path.join(mzmls_dir, m)))
             ms1_number = 0
             ms2_number = 0
+            total_charge_num = 0
+            charge_2 = 0
             for i in mzml.MzML(os.path.join(mzmls_dir, m)):
                 if i['ms level'] == 1:
                     ms1_number += 1
@@ -1160,10 +1280,20 @@ class MultiqcModule(BaseMultiqcModule):
                             self.peak_per_ms2['unidentified_spectra']['100-200'] += 1
                         else:
                             self.peak_per_ms2['unidentified_spectra']['0-100'] += 1
-
+                if 'precursorList' in i.keys():
+                    total_charge_num += 1
+                    charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
+                        'charge state']
+                    if charge_state == 2:
+                        charge_2 += 1
+            heatmap_charge[m] = charge_2 / total_charge_num
             self.Total_ms2_Spectral = self.Total_ms2_Spectral + ms2_number
             mzml_table[m] = {'MS1_Num': ms1_number}
             mzml_table[m]['MS2_Num'] = ms2_number
+        median = np.median(list(heatmap_charge.values()))
+        self.heatmap_charge_score = dict(zip(heatmap_charge.keys(),
+                                             list(map(lambda v: 1 - np.abs(v - median),
+                                                      heatmap_charge.values()))))
 
         raw_ids = config.kwargs['raw_ids']
         for raw_id in os.listdir(raw_ids):
