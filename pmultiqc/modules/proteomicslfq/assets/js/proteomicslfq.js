@@ -25,7 +25,7 @@ $(document).ready(function () {
     quantPageNum.innerHTML = '1';
 })
 
-//下一页
+//NextPage
 function quantNext(){
     currentRow = quantPageSize * quantPage;
     maxRow = currentRow + quantPageSize;
@@ -53,7 +53,7 @@ function quantNext(){
     quantFirstLink();
 }
 
-//上一页
+//PreviousPage
 function quantPre(){
     quantPage--;
     currentRow = quantPageSize * quantPage;
@@ -82,7 +82,7 @@ function quantPre(){
     quantLastLink();
 }
 
-//第一页
+//FirstPage
 function quantFirst(){
     quantPage = 1;
     updateQuantData(0).then(res =>{
@@ -112,7 +112,7 @@ function quantFirst(){
     quantLastLink();
 }
 
-//最后一页
+//LastPage
 function quantLast(){
     quantPage = parseInt(quantLastRows / quantPageSize + 1);
     updateQuantData(quantLastRows).then(res =>{
@@ -147,18 +147,18 @@ function showPage(pageNum, page){
 
 }
 
-//总共页数
+//TotalPage
 async function quantPageCount(){
     let t;
     await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
         .then(function (response) {
         let db = new window.SQL.Database(new Uint8Array(response.data));
-        // 执行查询
+        // execute query
         let s = new Date().getTime();
         let r = db.exec("select count(*) from quant");
         let e = new Date().getTime();
-        console.info("查询数据耗时：" + (e - s) + "ms");
-        // 解析数据
+        console.info("Time consuming to query data：" + (e - s) + "ms");
+        // parse data
         console.info(r[0]['values'][0][0]);
         t = r[0]['values'][0][0];
         })
@@ -168,18 +168,19 @@ async function quantPageCount(){
     return t;
 }
 
-//总共页数
+//TotalPage
 async function updateQuantData(currentRow){
 	let d;
-    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'})
+    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*',
+			'Access-Control-Allow-Headers': '*'}})
     		.then(function (response) {
 			let db = new window.SQL.Database(new Uint8Array(response.data));
 			// 执行查询
 			let s = new Date().getTime();
 			let r = db.exec("select * from quant " + "limit "+ String(currentRow) + ",50");
 			let e = new Date().getTime();
-			console.info("查询数据耗时：" + (e - s) + "ms");
-			// 解析数据
+			console.info("Time consuming to query data：" + (e - s) + "ms");
+			// parse data
 			console.info(r);
 			d = r[0]['values'];
     })
@@ -189,7 +190,7 @@ async function updateQuantData(currentRow){
 	return d;
 }
 
-//显示链接
+//ShowLink
 function quantPreLink(){ quantPreDom.innerHTML = "<a href='javascript:quantPre();'>Previous Page</a>";}
 function quantPreText(){ quantPreDom.innerHTML = "Previous Page";}
 
@@ -247,16 +248,16 @@ function quant_page_jump(){
 
 async function searchData(filter, col, table){
 	let d;
-    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'})
+    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
     		.then(function (response) {
 			let db = new window.SQL.Database(new Uint8Array(response.data));
 
-			// 执行查询
+			// execute query
 			let s = new Date().getTime();
 			let r = db.exec("select * from "+ table  +" where "+ col + " like '%" + String(filter) + "%'");
 			let e = new Date().getTime();
-			console.info("查询数据耗时：" + (e - s) + "ms");
-			// 解析数据
+			console.info("Time consuming to query data：" + (e - s) + "ms");
+			// parse data
             if (r.length == 0) {d = r;}
 			else{d = r[0]['values'];}
 			console.log(d);
@@ -338,7 +339,7 @@ $(document).ready(function () {
     psmPageNum.innerHTML = '1';
 })
 
-    //下一页
+    //NextPage
 function psmNext(){
     currentRow = psmPageSize * psmPage;
     maxRow = currentRow + psmPageSize;
@@ -366,7 +367,7 @@ function psmNext(){
     psmFirstLink();
 }
 
-//上一页
+//PreviousPage
 function psmPre(){
     psmPage--;
     currentRow = psmPageSize * psmPage;
@@ -395,7 +396,7 @@ function psmPre(){
     psmLastLink();
 }
 
-//第一页
+//FirstPage
 function psmFirst(){
     psmPage = 1;
     updatePsmData(0).then(res =>{
@@ -425,7 +426,7 @@ function psmFirst(){
     psmLastLink();
 }
 
-//最后一页
+//LastPage
 function psmLast(){
     psmPage = parseInt(psmLastRows / psmPageSize + 1);
     updatePsmData(psmLastRows).then(res =>{
@@ -455,7 +456,7 @@ function psmLast(){
     psmFirstLink();
 }
 
-//总共页数
+//TotalPage
 async function psmPageCount(){
     let t;
     await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
@@ -470,7 +471,7 @@ async function psmPageCount(){
     return t;
 }
 
-//显示链接
+//ShowLink
 function psmPreLink(){ psmPreDom.innerHTML = "<a href='javascript:psmPre();'>Previous Page</a>";}
 function psmPreText(){ psmPreDom.innerHTML = "Previous Page";}
 
@@ -485,7 +486,7 @@ function psmLastText(){ psmLastDom.innerHTML = "Last Page";}
 
 async function updatePsmData(currentRow){
 	let d;
-    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'})
+    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
     		.then(function (response) {
 			let db = new window.SQL.Database(new Uint8Array(response.data));
 			let r = db.exec("select * from psm " + "limit "+ String(currentRow) + ",50");
