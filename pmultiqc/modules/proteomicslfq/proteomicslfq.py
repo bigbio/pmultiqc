@@ -50,7 +50,7 @@ class MultiqcModule(BaseMultiqcModule):
             target="proteomicslfq",
             anchor='proteomicslfq',
             href='https://github.com/MultiQC/example-plugin',
-            info=" is an example module to show how the MultQC pluginm system works."
+            info=" is an module to show the pipeline performance."
         )
 
         for file in self.find_log_files({'fn': "out_msstats.csv"}):
@@ -521,14 +521,16 @@ class MultiqcModule(BaseMultiqcModule):
             'description': 'MS2 number',
             'color': "#ffffff"
         }
-        headers['MSGF'] = {
-            'description': 'Number of spectra identified by MSGF search engine',
-            'color': "#ffffff"
-        }
-        headers['Comet'] = {
-            'description': 'Number of spectra identified by Comet search engine',
-            'color': "#ffffff"
-        }
+        if 'MSGF' in self.mzml_table.values():
+            headers['MSGF'] = {
+                'description': 'Number of spectra identified by MSGF search engine',
+                'color': "#ffffff"
+            }
+        if 'Comet' in self.mzml_table.values():
+            headers['Comet'] = {
+                'description': 'Number of spectra identified by Comet search engine',
+                'color': "#ffffff"
+            }
         headers['Final result of spectra'] = {
             'description': 'final number of spectra identified ',
             'color': "#ffffff"
