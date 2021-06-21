@@ -521,14 +521,16 @@ class MultiqcModule(BaseMultiqcModule):
             'description': 'MS2 number',
             'color': "#ffffff"
         }
-        headers['MSGF'] = {
-            'description': 'Number of spectra identified by MSGF search engine',
-            'color': "#ffffff"
-        }
-        headers['Comet'] = {
-            'description': 'Number of spectra identified by Comet search engine',
-            'color': "#ffffff"
-        }
+        if 'MSGF' in self.mzml_table.values():
+            headers['MSGF'] = {
+                'description': 'Number of spectra identified by MSGF search engine',
+                'color': "#ffffff"
+            }
+        if 'Comet' in self.mzml_table.values():
+            headers['Comet'] = {
+                'description': 'Number of spectra identified by Comet search engine',
+                'color': "#ffffff"
+            }
         headers['Final result of spectra'] = {
             'description': 'final number of spectra identified ',
             'color': "#ffffff"
