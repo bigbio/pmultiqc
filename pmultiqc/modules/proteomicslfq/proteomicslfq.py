@@ -50,7 +50,7 @@ class MultiqcModule(BaseMultiqcModule):
             target="proteomicslfq",
             anchor='proteomicslfq',
             href='https://github.com/MultiQC/example-plugin',
-            info=" is an example module to show how the MultQC pluginm system works."
+            info=" is an module to show the pipeline performance."
         )
 
         for file in self.find_log_files({'fn': "out_msstats.csv"}):
