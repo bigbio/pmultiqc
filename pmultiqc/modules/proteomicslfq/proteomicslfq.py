@@ -53,7 +53,7 @@ class MultiqcModule(BaseMultiqcModule):
             info=" is an module to show the pipeline performance."
         )
 
-        for file in self.find_log_files({'fn': "out_msstats.csv"}):
+        for file in self.find_log_files({'fn': "out.csv"}):
             self.out_csv_path = os.path.join(config.analysis_dir[0], file['fn'])
 
         for f in self.find_log_files({'fn': 'out.mzTab'}):
@@ -829,7 +829,8 @@ class MultiqcModule(BaseMultiqcModule):
         psm = mztab_data.spectrum_match_table
         global_peps = set(psm['opt_global_cv_MS:1000889_peptidoform_sequence'])
         global_peps_count = len(global_peps)
-        psm = psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
+        if 'opt_global_cv_MS:1002217_decoy_peptide' in psm.columns:
+            psm = psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
         meta_data = dict(mztab_data.metadata)
         psm.loc[:, 'stand_spectra_ref'] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
@@ -935,8 +936,7 @@ class MultiqcModule(BaseMultiqcModule):
             peptides = list(set(data[data['Reference'] == i]['PeptideSequence'].tolist()))
             if config.kwargs['remove_decoy']:
                 while index < len(peptides):
-                    ProteinNames = data[data[data['Reference'] == i]['PeptideSequence'] == peptides[i]][
-                        'ProteinName'].tolist()
+                    ProteinNames = data[data[data['Reference'] == i]['PeptideSequence'] == peptides[i]]['ProteinName'].tolist()
                     for p in ProteinNames:
                         if len(p.split(';')) == 1:
                             if p.startswith('DECOY_'):
@@ -1019,11 +1019,10 @@ class MultiqcModule(BaseMultiqcModule):
         for m in set(psm['stand_spectra_ref'].tolist()):
             if config.kwargs['remove_decoy']:
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                       psm[psm[psm['stand_spectra_ref'] == m]
-                                                           ['opt_global_cv_MS:1002217_decoy_peptide'] != 1][
+                                                       psm[(psm['stand_spectra_ref'] == m) & (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
                                                            'spectra_ref'].tolist()))
-                self.mzml_peptide_map[m] = list(set(psm[psm[psm['stand_spectra_ref'] == m]
-                                                        ['opt_global_cv_MS:1002217_decoy_peptide'] != 1][
+                self.mzml_peptide_map[m] = list(set(psm[(psm['stand_spectra_ref'] == m) &
+                                                        (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
                                                         'sequence'].tolist()))
             else:
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
