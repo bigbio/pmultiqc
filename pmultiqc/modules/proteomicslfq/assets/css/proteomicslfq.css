@@ -53,3 +53,11 @@
     margin-right: 4px;
 }
 
+#quantification_of_peptides .bar{
+    background-color: #ffffff !important;
+}
+
+#peptide_spectrum_match .bar{
+    background-color: #ffffff !important;
+}
+

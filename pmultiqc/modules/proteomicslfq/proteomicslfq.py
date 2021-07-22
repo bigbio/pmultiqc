@@ -16,6 +16,7 @@ from pyteomics import mztab, mzml, openms
 import os
 import sqlite3
 import numpy as np
+import math
 
 # Initialise the main MultiQC logger
 log = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class MultiqcModule(BaseMultiqcModule):
             info=" is an module to show the pipeline performance."
         )
 
-        for file in self.find_log_files({'fn': "out.csv"}):
+        for file in self.find_log_files({'fn': "*.csv"}):
             self.out_csv_path = os.path.join(config.analysis_dir[0], file['fn'])
 
         for f in self.find_log_files({'fn': 'out.mzTab'}):
@@ -99,8 +100,12 @@ class MultiqcModule(BaseMultiqcModule):
 
         # parse input data
         self.CalHeatMapScore()
-        self.parse_out_csv()
-        self.parse_out_mzTab()
+        if config.kwargs['quant_method'] == 'lfq':
+            self.parse_out_csv()
+            self.parse_out_mzTab()
+        else:
+            self.parse_out_tmt()
+
         self.parse_mzml_idx()
 
         self.draw_heatmap()
@@ -147,7 +152,7 @@ class MultiqcModule(BaseMultiqcModule):
         for k, v in self.heatmap_con_score.items():
             ynames.append(k)
             HeatMapScore.append([v, self.heatmap_pep_intensity[k], self.heatmap_charge_score[k],
-                                self.MissedCleavages_heatmap_score[k],
+                                 self.MissedCleavages_heatmap_score[k],
                                  self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
                                  self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
         pconfig = {
@@ -187,21 +192,23 @@ class MultiqcModule(BaseMultiqcModule):
         with open(self.exp_design, 'r') as f:
             data = f.readlines()
             empty_row = data.index('\n')
-            f_table = data[1:empty_row]
+            f_table = [i.replace('\n', '').split('\t') for i in data[1:empty_row]]
+            f_table = pd.DataFrame(f_table)
             s_table = [i.replace('\n', '').split('\t') for i in data[data.index('\n') + 1:]][1:]
             s_header = data[data.index('\n') + 1].replace('\n', '').split('\t')
             s_DataFrame = pd.DataFrame(s_table, columns=s_header)
-            for index in range(len(f_table)):
-                # TODO be improved
-                exp_design_table[f_table[index].split('\t')[2]] = {'Fraction_Group': f_table[index].split('\t')[0]}
-                exp_design_table[f_table[index].split('\t')[2]]['Fraction'] = f_table[index].split('\t')[1]
-                exp_design_table[f_table[index].split('\t')[2]]['Label'] = f_table[index].split('\t')[3]
-                sample = f_table[index].split('\t')[4].replace('\n', '')
-                exp_design_table[f_table[index].split('\t')[2]]['Sample'] = sample
-                exp_design_table[f_table[index].split('\t')[2]]['MSstats_Condition'] = \
-                    s_DataFrame[s_DataFrame['Sample'] == sample]['MSstats_Condition'].tolist()[0]
-                exp_design_table[f_table[index].split('\t')[2]]['MSstats_BioReplicate'] = \
-                    s_DataFrame[s_DataFrame['Sample'] == sample]['MSstats_BioReplicate'].tolist()[0]
+            for file in np.unique(f_table[2].tolist()):
+                exp_design_table[file] = {'Fraction_Group': f_table[f_table[2] == file][0].tolist()[0]}
+                exp_design_table[file]['Fraction'] = f_table[f_table[2] == file][1].tolist()[0]
+                exp_design_table[file]['Label'] = ','.join(f_table[f_table[2] == file][3])
+                sample = f_table[f_table[2] == file][4].tolist()
+                exp_design_table[file]['Sample'] = ','.join(sample)
+                exp_design_table[file]['MSstats_Condition'] = ','.join(
+                    [row['MSstats_Condition'] for _, row in s_DataFrame.iterrows()
+                     if row['Sample'] in sample])
+                exp_design_table[file]['MSstats_BioReplicate'] = ','.join(
+                    [row['MSstats_BioReplicate'] for _, row in s_DataFrame.iterrows()
+                     if row['Sample'] in sample])
 
         # Create table plot
         pconfig = {
@@ -315,10 +322,11 @@ class MultiqcModule(BaseMultiqcModule):
             'description': 'Sample identifier',
             'color': "#ffffff"
         }
-        headers['condition'] = {
-            'description': 'Possible Study Variables',
-            'color': "#ffffff"
-        }
+        if config.kwargs['quant_method'] == 'lfq':
+            headers['condition'] = {
+                'description': 'Possible Study Variables',
+                'color': "#ffffff"
+            }
         headers['fraction'] = {
             'description': 'fraction identifier',
             'color': "#ffffff"
@@ -417,7 +425,7 @@ class MultiqcModule(BaseMultiqcModule):
             t_html += '<option>' + key.replace("[", "_").replace("]", "") + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' \
-                            + table_html[index:]
+                     + table_html[index:]
         table_html = table_html + '''<div class="page_control"><span id="quantFirst">First Page</span><span 
         id="quantPre"> Previous Page</span><span id="quantNext">Next Page </span><span id="quantLast">Last 
         Page</span><span id="quantPageNum"></span>Page/Total <span id="quantTotalPage"></span>Pages <input 
@@ -477,7 +485,7 @@ class MultiqcModule(BaseMultiqcModule):
             t_html += '<option>' + key.replace("[", "_").replace("]", "") + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' \
-                            + table_html[index:]
+                     + table_html[index:]
         table_html = table_html + '''<div class="page_control"><span id="psmFirst">First Page</span><span 
                 id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
                 Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
@@ -808,30 +816,42 @@ class MultiqcModule(BaseMultiqcModule):
 
     def CalHeatMapScore(self):
         log.warning("Calculate Heatmap Score")
-        data = pd.read_csv(self.out_csv_path, sep=',', header=0)
-        data['DECOY'] = data.apply(lambda x: self.dis_decoy(x['ProteinName']), axis=1)
-        total_intensity = sum(data['Intensity'])
-        cont_top = {}
-        for i in np.unique(data[data['DECOY'] == "DECOY"]['ProteinName']):
-            cont_top[i] = np.sum(data[data['ProteinName'] == i]['Intensity']) / total_intensity
-        cont_top_5 = sorted(cont_top.items(), key=lambda item: item[1], reverse=True)
-        dictdata = {}
-        for l in cont_top_5:
-            dictdata[l[0]] = l[1]
-        for i in np.unique(data['Reference']):
-            self.heatmap_con_score[i] = 1 - np.sum(data[(data.Reference == i) & (data['DECOY'] == 'DECOY')]['Intensity']) / \
-                                   np.sum(data[data['Reference'] == i]['Intensity'])
-            pep_median = np.median(data[data['Reference'] == i]['Intensity'])
+        mztab_data = mztab.MzTab(self.out_mzTab_path)
+        psm = mztab_data.spectrum_match_table
+        pep_table = mztab_data.peptide_table
+        meta_data = dict(mztab_data.metadata)
+        pep_table.loc[:, 'stand_spectra_ref'] = pep_table.apply(
+            lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
+        study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
+                                      pep_table.columns.tolist()))
+        # total_intensity = np.sum(pep_table[study_variables])
+        # cont_top = {} if set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1]['accession']) == {
+        # None}: for i in set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1]['sequence']):
+        # cont_top[i] = np.sum(np.sum(pep_table[pep_table['sequence'] == i][study_variables])) / total_intensity
+        # else: for i in set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1]['accession']):
+        # cont_top[i] = np.sum(np.sum(pep_table[pep_table['accession'] == i][study_variables]) / total_intensity)
+        # cont_top_5 = sorted(cont_top.items(), key=lambda item: item[1], reverse=True) dictdata = {} for l in
+        # cont_top_5: dictdata[l[0]] = l[1]
+        for i in np.unique(pep_table['stand_spectra_ref']):
+            self.heatmap_con_score[i] = 1 - np.sum(np.sum(
+                pep_table[(pep_table['stand_spectra_ref'] == i) &
+                          (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1)][study_variables])) / \
+                                        np.sum(np.sum(pep_table[pep_table['stand_spectra_ref'] == i]
+                                                      [study_variables]))
+            if config.kwargs['remove_decoy']:
+                T = sum(pep_table[(pep_table['stand_spectra_ref'] == i)
+                                  & (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables].values. \
+                        tolist(), [])
+            else:
+                T = sum(pep_table[pep_table['stand_spectra_ref'] == i][study_variables].values.tolist(), [])
+            pep_median = np.median([j for j in T if not math.isnan(j) is True])
             self.heatmap_pep_intensity[i] = np.minimum(1.0, pep_median / (2 ** 23))  # Threshold
 
         #  HeatMapMissedCleavages
-        mztab_data = mztab.MzTab(self.out_mzTab_path)
-        psm = mztab_data.spectrum_match_table
         global_peps = set(psm['opt_global_cv_MS:1000889_peptidoform_sequence'])
         global_peps_count = len(global_peps)
-        if 'opt_global_cv_MS:1002217_decoy_peptide' in psm.columns:
+        if config.kwargs['remove_decoy'] and 'opt_global_cv_MS:1002217_decoy_peptide' in psm.columns:
             psm = psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
-        meta_data = dict(mztab_data.metadata)
         psm.loc[:, 'stand_spectra_ref'] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
         psm.loc[:, 'missed_cleavages'] = psm.apply(lambda x: self.cal_MissCleavages(x['sequence']), axis=1)
@@ -884,10 +904,21 @@ class MultiqcModule(BaseMultiqcModule):
 
     @staticmethod
     def dis_decoy(ProteinName):
-        if 'DECOY' in ProteinName:
-            return 'DECOY'
+        if config.kwargs['decoy_affix'] not in ProteinName:
+            return "TARGET"
+        elif ProteinName.split(';') == 1:
+            return "DECOY"
         else:
-            return 'TARGET'
+            if config.kwargs['affix_type'] == 'prefix':
+                if list(filter(lambda x: lambda x: not x.startswith(config.kwargs['decoy_affix']),
+                               ProteinName.split(';'))):
+                    return "TARGET"
+                return "DECOY"
+            else:
+                if list(filter(lambda x: not x.endswith(config.kwargs['decoy_affix']),
+                               ProteinName.split(';'))):
+                    return "TARGET"
+                return "DECOY"
 
     def parse_out_csv(self):
 
@@ -898,68 +929,31 @@ class MultiqcModule(BaseMultiqcModule):
         exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
         exp_data = exp_data.dropna(axis=0)
         Spec_File = exp_data['Spectra_Filepath'].tolist()
+
+        if config.kwargs['remove_decoy']:
+            data['DECOY'] = data.apply(lambda x: self.dis_decoy(x['ProteinName']), axis=1)
+
         for i in Spec_File:
             proteins = []
-            tag = True
-            index = 0
             Sample = list(exp_data[exp_data['Spectra_Filepath'] == i]['Sample'])[0]
             self.cal_num_table_data[i] = {'Sample Name': Sample}
             condition = '-'.join(list(set(data[data['Reference'] == i]['Condition'].tolist())))
             self.cal_num_table_data[i]['condition'] = condition
             fraction = exp_data[exp_data['Spectra_Filepath'] == i]['Fraction'].tolist()[0]
             self.cal_num_table_data[i]['fraction'] = fraction
-            ProteinNames = data[data['Reference'] == i]['ProteinName'].tolist()
-            if config.kwargs['remove_decoy']:
-                for p in ProteinNames:
-                    if len(p.split(';')) == 1:
-                        if p.startswith('DECOY_'):
-                            continue
-                        elif p not in proteins:
-                            proteins.append(p)
-                    else:
-                        for j in p.split(';'):
-                            if j.startswith('DECOY_'):
-                                continue
-                            elif j not in proteins:
-                                proteins.append(j)
-            else:
-                for p in ProteinNames:
-                    if len(p.split(';')) == 1:
-                        if p not in proteins:
-                            proteins.append(p)
-                    else:
-                        for j in p.split(';'):
-                            if j not in proteins:
-                                proteins.append(j)
-            self.cal_num_table_data[i]['protein_num'] = len(proteins)
+            data[data['Reference'] == i]['ProteinName'].apply(lambda x: proteins.extend(x.split(';')))
 
-            peptides = list(set(data[data['Reference'] == i]['PeptideSequence'].tolist()))
             if config.kwargs['remove_decoy']:
-                while index < len(peptides):
-                    ProteinNames = data[data[data['Reference'] == i]['PeptideSequence'] == peptides[i]]['ProteinName'].tolist()
-                    for p in ProteinNames:
-                        if len(p.split(';')) == 1:
-                            if p.startswith('DECOY_'):
-                                continue
-                            else:
-                                tag = False
-                                break
-                        else:
-                            for j in p.split(';'):
-                                if j.startswith('DECOY_'):
-                                    continue
-                                else:
-                                    tag = False
-                                    break
-                            if not tag:
-                                break
-                    if tag:
-                        peptides.remove(peptides[i])
-                    else:
-                        index += 1
-
+                if config.kwargs['affix_type'] == 'prefix':
+                    proteins = list(filter(lambda x: not x.startswith(config.kwargs['decoy_affix']), proteins))
+                else:
+                    proteins = list(filter(lambda x: not x.endswith(config.kwargs['decoy_affix']), proteins))
+                peptides = set(data[(data['Reference'] == i) & (data['DECOY'] == 'TARGET')]['PeptideSequence'].tolist())
             else:
-                self.cal_num_table_data[i]['peptide_num'] = len(peptides)
+                peptides = set(data[data['Reference'] == i]['PeptideSequence'].tolist())
+
+            self.cal_num_table_data[i]['protein_num'] = len(set(proteins))
+            self.cal_num_table_data[i]['peptide_num'] = len(peptides)
 
             modified_pep = list(filter(lambda x: re.match(r'.*?\(.*\).*?', x) is not None, peptides))
             self.cal_num_table_data[i]['modified_peptide_num'] = len(modified_pep)
@@ -970,16 +964,26 @@ class MultiqcModule(BaseMultiqcModule):
         for _, row in data.iterrows():
             ProteinName = row['ProteinName']
             if len(ProteinName.split(';')) == 1:
-                if config.kwargs['remove_decoy'] and ProteinName.startswith('DECOY_'):
-                    continue
+                if config.kwargs['remove_decoy']:
+                    if config.kwargs['affix_type'] == 'prefix':
+                        if ProteinName.startswith(config.kwargs['decoy_affix']):
+                            continue
+                    else:
+                        if ProteinName.endswith(config.kwargs['decoy_affix']):
+                            continue
                 if ProteinName not in prot_pep_map.keys():
                     prot_pep_map[ProteinName] = [row['PeptideSequence']]
                 elif row['PeptideSequence'] not in prot_pep_map[ProteinName]:
                     prot_pep_map[ProteinName].append(row['PeptideSequence'])
             else:
                 for p in ProteinName.split(';'):
-                    if config.kwargs['remove_decoy'] and p.startswith('DECOY_'):
-                        continue
+                    if config.kwargs['remove_decoy']:
+                        if config.kwargs['affix_type'] == 'prefix':
+                            if ProteinName.startswith(config.kwargs['decoy_affix']):
+                                continue
+                        else:
+                            if ProteinName.endswith(config.kwargs['decoy_affix']):
+                                continue
                     if p not in prot_pep_map.keys():
                         prot_pep_map[p] = [row['PeptideSequence']]
                     elif row['PeptideSequence'] not in prot_pep_map[p]:
@@ -1019,7 +1023,8 @@ class MultiqcModule(BaseMultiqcModule):
         for m in set(psm['stand_spectra_ref'].tolist()):
             if config.kwargs['remove_decoy']:
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                       psm[(psm['stand_spectra_ref'] == m) & (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
+                                                       psm[(psm['stand_spectra_ref'] == m) & (
+                                                               psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
                                                            'spectra_ref'].tolist()))
                 self.mzml_peptide_map[m] = list(set(psm[(psm['stand_spectra_ref'] == m) &
                                                         (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
@@ -1303,15 +1308,22 @@ class MultiqcModule(BaseMultiqcModule):
                 mz = openms.idxml.IDXML(os.path.join(raw_ids, raw_id))
 
                 # spectrum matched to target peptide
-                msgf_identified_num = len(set([i['spectrum_reference'] for i in mz
-                                               if i['PeptideHit'][0]['target_decoy'] == 'target']))
+                if config.kwargs['remove_decoy']:
+                    msgf_identified_num = len(set([i['spectrum_reference'] for i in mz
+                                                   if i['PeptideHit'][0]['target_decoy'] == 'target']))
+                else:
+                    msgf_identified_num = len(set([i['spectrum_reference'] for i in mz]))
+
                 mzML_name = raw_id.split('_msgf')[0] + '.mzML'
                 mzml_table[mzML_name]['MSGF'] = msgf_identified_num
 
             if 'comet' in raw_id:
                 mz = openms.idxml.IDXML(os.path.join(raw_ids, raw_id))
-                comet_identified_num = len(set([i['spectrum_reference'] for i in mz
-                                                if i['PeptideHit'][0]['target_decoy'] == 'target']))
+                if config.kwargs['remove_decoy']:
+                    comet_identified_num = len(set([i['spectrum_reference'] for i in mz
+                                                    if i['PeptideHit'][0]['target_decoy'] == 'target']))
+                else:
+                    comet_identified_num = len(set([i['spectrum_reference'] for i in mz]))
                 mzML_name = raw_id.split('_comet')[0] + '.mzML'
                 mzml_table[mzML_name]['Comet'] = comet_identified_num
 
@@ -1319,3 +1331,167 @@ class MultiqcModule(BaseMultiqcModule):
             mzml_table[mzML_name]['Final result of Peptides'] = len(self.mzml_peptide_map[mzML_name])
 
         self.mzml_table = mzml_table
+
+    def parse_out_tmt(self):
+        log.warning("Parsing mzTab file...")
+        exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
+        exp_data = exp_data.dropna(axis=0)
+        Spec_File = exp_data['Spectra_Filepath'].tolist()
+        mztab_data = mztab.MzTab(self.out_mzTab_path)
+        pep_table = mztab_data.peptide_table
+        meta_data = dict(mztab_data.metadata)
+        self.delta_mass['target'] = dict()
+        self.delta_mass['decoy'] = dict()
+
+        # PSM table data
+        psm = mztab_data.spectrum_match_table
+        psm_table = dict()
+        psm['stand_spectra_ref'] = psm.apply(
+            lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
+        pep_table['stand_spectra_ref'] = pep_table.apply(
+            lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
+
+        for i in Spec_File:
+            Sample = list(exp_data[exp_data['Spectra_Filepath'] == i]['Sample'])
+            self.cal_num_table_data[i] = {'Sample Name': '|'.join(Sample)}
+            # condition = '-'.join(list(set(data[data['Reference'] == i]['Condition'].tolist())))
+            # self.cal_num_table_data[i]['condition'] = condition
+            fraction = exp_data[exp_data['Spectra_Filepath'] == i]['Fraction'].tolist()[0]
+            self.cal_num_table_data[i]['fraction'] = fraction
+
+            if config.kwargs['remove_decoy']:
+                proteins = set(pep_table[(pep_table['stand_spectra_ref'] == i) &
+                                         (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]['accession'])
+                peptides = set(pep_table[(pep_table['stand_spectra_ref'] == i) &
+                                         (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]
+                               ['opt_global_cv_MS:1000889_peptidoform_sequence'])
+            else:
+                proteins = set(pep_table[pep_table['stand_spectra_ref'] == i]['accession'])
+                peptides = set(pep_table[pep_table['stand_spectra_ref'] == i]
+                               ['opt_global_cv_MS:1000889_peptidoform_sequence'])
+            if None in proteins:
+                proteins.remove(None)
+            self.cal_num_table_data[i]['protein_num'] = len(set(proteins))
+            self.cal_num_table_data[i]['peptide_num'] = len(peptides)
+
+            modified_pep = list(filter(lambda x: re.match(r'.*?\(.*\).*?', x) is not None, peptides))
+            self.cal_num_table_data[i]['modified_peptide_num'] = len(modified_pep)
+
+        if config.kwargs['remove_decoy']:
+            Total_Protein_Identified = set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
+                                           ['accession'])
+            self.Total_Protein_Identified = len(Total_Protein_Identified)
+        else:
+            Total_Protein_Identified = set(pep_table['accession'])
+            self.Total_Protein_Identified = len(Total_Protein_Identified)
+
+        num_pep_per_protein = dict()
+        percent_pep_per_protein = dict()
+        for protein in Total_Protein_Identified:
+            number = str(len(set(pep_table[pep_table['accession'] == protein]['sequence'])))
+            if number in num_pep_per_protein:
+                num_pep_per_protein[number]['Frequency'] += 1
+                percent_pep_per_protein[number]['Percentage'] = num_pep_per_protein[number]['Frequency'] / \
+                                                                     self.Total_Protein_Identified
+            else:
+                num_pep_per_protein[number] = {'Frequency': 1}
+                percent_pep_per_protein[number] = {'Percentage': 1 / self.Total_Protein_Identified}
+
+        keys = sorted(num_pep_per_protein.items(), key=lambda x: int(x[0]))  # sort
+        for key in keys:
+            self.num_pep_per_protein[key[0]] = key[1]
+            self.percent_pep_per_protein[key[0]] = percent_pep_per_protein[key[0]]
+
+        # PSM information
+        scores = list(filter(lambda x: re.match(r'search_engine_score.*?', x) is not None,
+                             psm.columns.tolist()))
+        t = (' float'.join(scores) + ' float').replace("[", "_").replace("]", "")
+        cur.execute("CREATE TABLE PSM(PSM_ID int, sequence VARCHAR(100), PSM_UNIQUE int, " + t + ")")
+        con.commit()
+
+        mL_spec_ident_final = {}
+        for m in set(psm['stand_spectra_ref'].tolist()):
+            if config.kwargs['remove_decoy']:
+                self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
+                                                       psm[(psm['stand_spectra_ref'] == m) & (
+                                                               psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
+                                                           'spectra_ref'].tolist()))
+                self.mzml_peptide_map[m] = list(set(psm[(psm['stand_spectra_ref'] == m) &
+                                                        (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
+                                                        'sequence'].tolist()))
+            else:
+                self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
+                                                       psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
+                self.mzml_peptide_map[m] = list(set(psm[psm['stand_spectra_ref'] == m]['sequence'].tolist()))
+            mL_spec_ident_final[m] = len(self.identified_spectrum[m])
+
+        psm['relative_diff'] = psm['exp_mass_to_charge'] - psm['calc_mass_to_charge']
+        self.delta_mass['decoy'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 1]
+                                           ['relative_diff'].tolist())
+        self.delta_mass['target'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+                                            ['relative_diff'].tolist())
+
+        sql_t = "(" + ','.join(['?'] * (len(scores) + 3)) + ")"
+        if config.kwargs['remove_decoy']:
+            cur.executemany("INSERT INTO PSM (PSM_ID,sequence,PSM_UNIQUE," +
+                            ','.join(scores).replace("[", "_").replace("]", "") + ") VALUES " + sql_t,
+                            [tuple(x) for x in psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+                            [['PSM_ID', 'sequence', 'unique'] + scores].values])
+        else:
+            cur.executemany("INSERT INTO PSM (PSM_ID,sequence,PSM_UNIQUE," +
+                            ','.join(scores).replace("[", "_").replace("]", "") + ") VALUES " + sql_t,
+                            [tuple(x) for x in psm[['PSM_ID', 'sequence', 'unique'] + scores].values])
+        con.commit()
+        for idx, row in psm.iterrows():
+            if config.kwargs['remove_decoy'] and row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
+                continue
+            else:
+                psm_table[row['PSM_ID']] = {'sequence': row['sequence']}
+                # psm_table[row['PSM_ID']]['spectra_ref'] = row['spectra_ref']
+                psm_table[row['PSM_ID']]['unique'] = row['unique']
+                for score in scores:
+                    psm_table[row['PSM_ID']][score] = row[score]
+            if idx > 48:
+                break
+
+        # extract delta mass
+
+        self.mL_spec_ident_final = mL_spec_ident_final
+        if config.kwargs['remove_decoy']:
+            self.Total_ms2_Spectral_Identified = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+                                                         ['spectra_ref']))
+            self.Total_Peptide_Count = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+                                               ['sequence']))
+        else:
+            self.Total_ms2_Spectral_Identified = len(set(psm['spectra_ref']))
+            self.Total_Peptide_Count = len(set(psm['sequence']))
+        self.PSM_table = psm_table
+
+        # peptide quantification table data
+        pep_quant = dict()
+        study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
+                                      pep_table.columns.tolist()))
+        cur.execute("CREATE TABLE QUANT(ID integer PRIMARY KEY AUTOINCREMENT, sequence VARCHAR(100))")
+        con.commit()
+        sql_col = "sequence"
+        sql_t = "(" + ','.join(['?'] * (len(study_variables) + 1)) + ")"
+
+        for s in study_variables:
+            s = s.replace("[", "_").replace("]", "")
+            cur.execute("ALTER TABLE QUANT ADD " + s + " FLOAT")
+            con.commit()
+            sql_col += "," + s
+        cur.executemany("INSERT INTO QUANT (" + sql_col + ") VALUES " + sql_t,
+                        [tuple(x) for x in pep_table[['sequence'] + study_variables].values])
+        con.commit()
+        for index, row in pep_table.iterrows():
+            if config.kwargs['remove_decoy'] and row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
+                continue
+            else:
+                pep_quant[str(index + 1)] = {'sequence': row['sequence']}  # keep id unique
+                for s in study_variables:
+                    pep_quant[str(index + 1)][s] = row[s]
+            if index > 48:
+                break
+
+        self.pep_quant_table = pep_quant

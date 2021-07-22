@@ -26,6 +26,7 @@ example: ```multiqc --exp_design ./UPS1/experimental_design.tsv --mzMLs ./UPS1/s
 - --sdrf: Sample and Data Relationship Format file path
 - --raw: Keep filenames in experimental design output as raw when exp_design file is provided
 - --condition: Create conditions from provided (e.g., factor) columns when exp_design file is provided
+- --quant_method: quantification method (e.g lfq or tmt. default lfq)
 - --mzMLs: mzMLs file directory
 - --raw_ids: raw identification file dir
 - --remove_decoy: Whether to remove the decoy peptides when counting
