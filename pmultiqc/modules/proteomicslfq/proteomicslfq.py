@@ -1190,7 +1190,8 @@ class MultiqcModule(BaseMultiqcModule):
                             elif charge_state == 1:
                                 self.charge_state_distribution['identified_spectra']['1'] += 1
                         except KeyError:
-                            log.warning("No charge state: {}".format(i['id']))
+                            #log.warning("No charge state: {}".format(i['id']))
+                            pass
 
                     if i['ms level'] == 2:
                         if i['defaultArrayLength'] >= 1000:
@@ -1260,8 +1261,8 @@ class MultiqcModule(BaseMultiqcModule):
                             elif charge_state == 1:
                                 self.charge_state_distribution['unidentified_spectra']['1'] += 1
                         except KeyError:
-                            log.warning("No charge state: {}".format(i['id']))
-                            # print("No charge state: " + i['id'])
+                            #log.warning("No charge state: {}".format(i['id']))
+                            pass
 
                     if i['ms level'] == 2:
                         if i['defaultArrayLength'] >= 1000:
@@ -1288,10 +1289,12 @@ class MultiqcModule(BaseMultiqcModule):
                             self.peak_per_ms2['unidentified_spectra']['0-100'] += 1
                 if 'precursorList' in i.keys():
                     total_charge_num += 1
-                    charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
-                        'charge state']
-                    if charge_state == 2:
-                        charge_2 += 1
+                    try:
+                        charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['charge state']
+                        if charge_state == 2:
+                            charge_2 += 1
+                    except Exception as e:
+                        pass
             heatmap_charge[m] = charge_2 / total_charge_num
             self.Total_ms2_Spectral = self.Total_ms2_Spectral + ms2_number
             mzml_table[m] = {'MS1_Num': ms1_number}
@@ -1303,7 +1306,7 @@ class MultiqcModule(BaseMultiqcModule):
 
         raw_ids = config.kwargs['raw_ids']
         for raw_id in os.listdir(raw_ids):
-            log.warning("Parsing {}...".format(raw_ids))
+            log.warning("Parsing {}...".format(raw_id))
             if 'msgf' in raw_id:
                 mz = openms.idxml.IDXML(os.path.join(raw_ids, raw_id))
 
