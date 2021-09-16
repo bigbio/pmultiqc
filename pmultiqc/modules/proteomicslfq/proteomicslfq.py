@@ -1190,7 +1190,7 @@ class MultiqcModule(BaseMultiqcModule):
                             elif charge_state == 1:
                                 self.charge_state_distribution['identified_spectra']['1'] += 1
                         except KeyError:
-                            #log.warning("No charge state: {}".format(i['id']))
+                            # log.warning("No charge state: {}".format(i['id']))
                             pass
 
                     if i['ms level'] == 2:
@@ -1261,7 +1261,7 @@ class MultiqcModule(BaseMultiqcModule):
                             elif charge_state == 1:
                                 self.charge_state_distribution['unidentified_spectra']['1'] += 1
                         except KeyError:
-                            #log.warning("No charge state: {}".format(i['id']))
+                            # log.warning("No charge state: {}".format(i['id']))
                             pass
 
                     if i['ms level'] == 2:
@@ -1290,7 +1290,8 @@ class MultiqcModule(BaseMultiqcModule):
                 if 'precursorList' in i.keys():
                     total_charge_num += 1
                     try:
-                        charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['charge state']
+                        charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
+                            'charge state']
                         if charge_state == 2:
                             charge_2 += 1
                     except Exception as e:
@@ -1354,48 +1355,22 @@ class MultiqcModule(BaseMultiqcModule):
         pep_table['stand_spectra_ref'] = pep_table.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
 
-        for i in Spec_File:
-            Sample = list(exp_data[exp_data['Spectra_Filepath'] == i]['Sample'])
-            self.cal_num_table_data[i] = {'Sample Name': '|'.join(Sample)}
-            # condition = '-'.join(list(set(data[data['Reference'] == i]['Condition'].tolist())))
-            # self.cal_num_table_data[i]['condition'] = condition
-            fraction = exp_data[exp_data['Spectra_Filepath'] == i]['Fraction'].tolist()[0]
-            self.cal_num_table_data[i]['fraction'] = fraction
-
-            if config.kwargs['remove_decoy']:
-                proteins = set(pep_table[(pep_table['stand_spectra_ref'] == i) &
-                                         (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]['accession'])
-                peptides = set(pep_table[(pep_table['stand_spectra_ref'] == i) &
-                                         (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]
-                               ['opt_global_cv_MS:1000889_peptidoform_sequence'])
-            else:
-                proteins = set(pep_table[pep_table['stand_spectra_ref'] == i]['accession'])
-                peptides = set(pep_table[pep_table['stand_spectra_ref'] == i]
-                               ['opt_global_cv_MS:1000889_peptidoform_sequence'])
-            if None in proteins:
-                proteins.remove(None)
-            self.cal_num_table_data[i]['protein_num'] = len(set(proteins))
-            self.cal_num_table_data[i]['peptide_num'] = len(peptides)
-
-            modified_pep = list(filter(lambda x: re.match(r'.*?\(.*\).*?', x) is not None, peptides))
-            self.cal_num_table_data[i]['modified_peptide_num'] = len(modified_pep)
-
         if config.kwargs['remove_decoy']:
-            Total_Protein_Identified = set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
+            Total_Protein_Identified = set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
                                            ['accession'])
             self.Total_Protein_Identified = len(Total_Protein_Identified)
         else:
-            Total_Protein_Identified = set(pep_table['accession'])
+            Total_Protein_Identified = set(psm['accession'])
             self.Total_Protein_Identified = len(Total_Protein_Identified)
 
         num_pep_per_protein = dict()
         percent_pep_per_protein = dict()
         for protein in Total_Protein_Identified:
-            number = str(len(set(pep_table[pep_table['accession'] == protein]['sequence'])))
+            number = str(len(set(psm[psm['accession'] == protein]['sequence'])))
             if number in num_pep_per_protein:
                 num_pep_per_protein[number]['Frequency'] += 1
                 percent_pep_per_protein[number]['Percentage'] = num_pep_per_protein[number]['Frequency'] / \
-                                                                     self.Total_Protein_Identified
+                                                                self.Total_Protein_Identified
             else:
                 num_pep_per_protein[number] = {'Frequency': 1}
                 percent_pep_per_protein[number] = {'Percentage': 1 / self.Total_Protein_Identified}
@@ -1414,7 +1389,18 @@ class MultiqcModule(BaseMultiqcModule):
 
         mL_spec_ident_final = {}
         for m in set(psm['stand_spectra_ref'].tolist()):
+            Sample = list(exp_data[exp_data['Spectra_Filepath'] == m]['Sample'])
+            self.cal_num_table_data[m] = {'Sample Name': '|'.join(Sample)}
+            fraction = exp_data[exp_data['Spectra_Filepath'] == m]['Fraction'].tolist()[0]
+            self.cal_num_table_data[m]['fraction'] = fraction
+
             if config.kwargs['remove_decoy']:
+                proteins = set(psm[(psm['stand_spectra_ref'] == m) &
+                                   (psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]['accession'])
+                peptides = set(psm[(psm['stand_spectra_ref'] == m) &
+                                   (psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]
+                               ['opt_global_cv_MS:1000889_peptidoform_sequence'])
+
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
                                                        psm[(psm['stand_spectra_ref'] == m) & (
                                                                psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
@@ -1423,9 +1409,22 @@ class MultiqcModule(BaseMultiqcModule):
                                                         (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
                                                         'sequence'].tolist()))
             else:
+                proteins = set(psm[psm['stand_spectra_ref'] == m]['accession'])
+                peptides = set(psm[psm['stand_spectra_ref'] == m]
+                               ['opt_global_cv_MS:1000889_peptidoform_sequence'])
+
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
                                                        psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
                 self.mzml_peptide_map[m] = list(set(psm[psm['stand_spectra_ref'] == m]['sequence'].tolist()))
+
+            if None in proteins:
+                proteins.remove(None)
+            self.cal_num_table_data[m]['protein_num'] = len(set(proteins))
+            self.cal_num_table_data[m]['peptide_num'] = len(peptides)
+
+            modified_pep = list(filter(lambda x: re.match(r'.*?\(.*\).*?', x) is not None, peptides))
+            self.cal_num_table_data[m]['modified_peptide_num'] = len(modified_pep)
+
             mL_spec_ident_final[m] = len(self.identified_spectrum[m])
 
         psm['relative_diff'] = psm['exp_mass_to_charge'] - psm['calc_mass_to_charge']
