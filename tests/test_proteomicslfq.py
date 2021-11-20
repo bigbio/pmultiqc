@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from pmultiqc.modules.proteomicslfq import MultiqcModule
+from pmultiqc.modules.quantms import QuantMSModule
 
 
 class TestMultiqcModule(TestCase):

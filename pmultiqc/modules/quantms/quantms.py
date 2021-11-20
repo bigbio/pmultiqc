@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-""" MultiQC example plugin module """
+""" MultiQC pmultiqc plugin module """
 
 from __future__ import absolute_import
 from collections import OrderedDict
@@ -20,14 +20,15 @@ import math
 
 # Initialise the main MultiQC logger
 log = logging.getLogger(__name__)
+
 if config.output_dir:
     if os.path.exists(config.output_dir):
-        con = sqlite3.connect(os.path.join(config.output_dir, 'proteomicslfq.db'))
+        con = sqlite3.connect(os.path.join(config.output_dir, 'quantms.db'))
     else:
         os.makedirs(config.output_dir)
-        con = sqlite3.connect(os.path.join(config.output_dir, 'proteomicslfq.db'))
+        con = sqlite3.connect(os.path.join(config.output_dir, 'quantms.db'))
 else:
-    con = sqlite3.connect('./proteomicslfq.db')
+    con = sqlite3.connect('./quantms.db')
 
 cur = con.cursor()
 cur.execute("drop table if exists PSM")
@@ -37,22 +38,22 @@ cur.execute("drop table if exists QUANT")
 con.commit()
 
 
-class MultiqcModule(BaseMultiqcModule):
+class QuantMSModule(BaseMultiqcModule):
 
     def __init__(self):
+
+        # Initialise the parent module Class object
+        super(QuantMSModule, self).__init__(
+            name='quantms',
+            target="quantms",
+            anchor='quantms',
+            href='https://github.com/bigbio/pmultiqc',
+            info=" is an module to show the pipeline performance."
+        )
 
         # Halt execution if we've disabled the plugin
         if config.kwargs.get('disable_plugin', True):
             return None
-
-        # Initialise the parent module Class object
-        super(MultiqcModule, self).__init__(
-            name='ProteomicsLFQ',
-            target="proteomicslfq",
-            anchor='proteomicslfq',
-            href='https://github.com/MultiQC/example-plugin',
-            info=" is an module to show the pipeline performance."
-        )
 
         for file in self.find_log_files({'fn': "*.csv"}):
             self.out_csv_path = os.path.join(config.analysis_dir[0], file['fn'])
@@ -66,7 +67,6 @@ class MultiqcModule(BaseMultiqcModule):
             OpenMS().openms_convert(config.kwargs['sdrf'], config.kwargs['raw'],
                                     False, True, False, config.kwargs['condition'])
             self.exp_design = './' + 'experimental_design.tsv'
-
         else:
             raise AttributeError("exp_design and sdrf cannot be empty at the same time")
 
@@ -100,7 +100,7 @@ class MultiqcModule(BaseMultiqcModule):
 
         # parse input data
         self.CalHeatMapScore()
-        if config.kwargs['quant_method'] == 'lfq':
+        if config.kwargs['quant_method'] == 'LFQ':
             self.parse_out_csv()
             self.parse_out_mzTab()
         else:
@@ -114,8 +114,8 @@ class MultiqcModule(BaseMultiqcModule):
 
         self.draw_summary_proten_ident_table()
 
-        # draw_proteomicslfq_identi_num
-        self.draw_proteomicslfq_identi_num()
+        # draw_quantms_identi_num
+        self.draw_quantms_identi_num()
 
         # draw number of peptides per protein
         self.draw_num_pep_per_protein()
@@ -132,12 +132,12 @@ class MultiqcModule(BaseMultiqcModule):
         self.draw_delta_mass()
 
         self.css = {
-            'assets/css/proteomicslfq.css':
-                os.path.join(os.path.dirname(__file__), 'assets', 'css', 'proteomicslfq.css')
+            'assets/css/quantms.css':
+                os.path.join(os.path.dirname(__file__), 'assets', 'css', 'quantms.css')
         }
         self.js = {
-            'assets/js/proteomicslfq.js':
-                os.path.join(os.path.dirname(__file__), 'assets', 'js', 'proteomicslfq.js'),
+            'assets/js/quantms.js':
+                os.path.join(os.path.dirname(__file__), 'assets', 'js', 'quantms.js'),
             'assets/js/axios.min.js':
                 os.path.join(os.path.dirname(__file__), 'assets', 'js', 'axios.min.js'),
             'assets/js/sql-optimized.js':
@@ -147,14 +147,14 @@ class MultiqcModule(BaseMultiqcModule):
     def draw_heatmap(self):
         HeatMapScore = []
         xnames = ['Contaminants', 'Peptide Intensity', 'Charge', 'Missed Cleavages', 'Missed Cleavages Var',
-                  'ID rate over RT', 'MS2 OverSampling', 'Pep Missing Values']
+                    'ID rate over RT', 'MS2 OverSampling', 'Pep Missing Values']
         ynames = []
         for k, v in self.heatmap_con_score.items():
             ynames.append(k)
             HeatMapScore.append([v, self.heatmap_pep_intensity[k], self.heatmap_charge_score[k],
-                                 self.MissedCleavages_heatmap_score[k],
-                                 self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
-                                 self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
+                                self.MissedCleavages_heatmap_score[k],
+                                self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
+                                self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
         pconfig = {
             'title': 'Performance Overview',  # Plot title - should be in format "Module Name: Plot Title"
             'xTitle': 'metrics',  # X-axis title
@@ -166,7 +166,7 @@ class MultiqcModule(BaseMultiqcModule):
         # Add a report section with the heatmap plot
         self.add_section(
             name="HeatMap",
-            anchor="proteomicslfq_heatmap",
+            anchor="quantms_heatmap",
             description='This plot shows the pipeline performance overview',
             helptext='''
                     This plot shows the pipeline performance overview. Some metrics are calculated.
@@ -205,10 +205,10 @@ class MultiqcModule(BaseMultiqcModule):
                 exp_design_table[file]['Sample'] = ','.join(sample)
                 exp_design_table[file]['MSstats_Condition'] = ','.join(
                     [row['MSstats_Condition'] for _, row in s_DataFrame.iterrows()
-                     if row['Sample'] in sample])
+                    if row['Sample'] in sample])
                 exp_design_table[file]['MSstats_BioReplicate'] = ','.join(
                     [row['MSstats_BioReplicate'] for _, row in s_DataFrame.iterrows()
-                     if row['Sample'] in sample])
+                    if row['Sample'] in sample])
 
         # Create table plot
         pconfig = {
@@ -252,7 +252,7 @@ class MultiqcModule(BaseMultiqcModule):
         # Add a report section with the line plot
         self.add_section(
             name="Experimental Design",
-            anchor="proteomicslfq_exp_design",
+            anchor="exp_design",
             description='This plot shows the Proteomics Experimental Design',
             helptext='''
             This plot shows the Proteomics Experimental Design. You can see details about it in 
@@ -297,15 +297,15 @@ class MultiqcModule(BaseMultiqcModule):
         # Add a report section with the line plot
         self.add_section(
             name="Summary Table",
-            anchor="proteomicslfq_summary_table",
-            description='This plot shows the ProteomicsLFQ pipeline summary statistics',
+            anchor="quantms_summary_table",
+            description='This plot shows the quantms pipeline summary statistics',
             helptext='''
-                    This plot shows the ProteomicsLFQ pipeline summary statistics
-                   ''',
+                    This plot shows the quantms pipeline summary statistics
+                    ''',
             plot=table_html
         )
 
-    def draw_proteomicslfq_identi_num(self):
+    def draw_quantms_identi_num(self):
         # Create table plot
         pconfig = {
             'id': 'result statistics',  # ID used for the table
@@ -349,9 +349,9 @@ class MultiqcModule(BaseMultiqcModule):
         self.add_section(
             name="Pipeline Result Statistics",
             anchor="Pipeline Result Statistics",
-            description='This plot shows the ProteomicsLFQ pipeline final result',
+            description='This plot shows the quantms pipeline final result',
             helptext='''
-            This plot shows the ProteomicsLFQ pipeline final result.
+            This plot shows the quantms pipeline final result.
             Including Sample Name、Possible Study Variables、identified the number of peptide in the pipeline、
             and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained 
             from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
@@ -385,7 +385,7 @@ class MultiqcModule(BaseMultiqcModule):
             name="Number of Peptides Per Proteins",
             anchor="num_of_pep_per_prot",
             description='This plot shows the number of peptides per proteins '
-                        'in ProteomicsLFQ pipeline final result',
+                        'in quantms pipeline final result',
             helptext='''
                         This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
                         identifications can constitute more confident results.
@@ -418,14 +418,14 @@ class MultiqcModule(BaseMultiqcModule):
         pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
-                                      'onkeyup="searchQuantFunction()" id="quant_search">' \
-                                      '<select name="quant_search_col" id="quant_search_col"><option value="">' \
-                                      'ID</option>'
+                                    'onkeyup="searchQuantFunction()" id="quant_search">' \
+                                    '<select name="quant_search_col" id="quant_search_col"><option value="">' \
+                                    'ID</option>'
         for key, _ in self.pep_quant_table['1'].items():
             t_html += '<option>' + key.replace("[", "_").replace("]", "") + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' \
-                     + table_html[index:]
+                    + table_html[index:]
         table_html = table_html + '''<div class="page_control"><span id="quantFirst">First Page</span><span 
         id="quantPre"> Previous Page</span><span id="quantNext">Next Page </span><span id="quantLast">Last 
         Page</span><span id="quantPageNum"></span>Page/Total <span id="quantTotalPage"></span>Pages <input 
@@ -436,7 +436,7 @@ class MultiqcModule(BaseMultiqcModule):
             name="Quantification Result",
             anchor="quant_result",
             description='This plot shows the quantification information of peptides'
-                        'in ProteomicsLFQ pipeline final result',
+                        'in quantms pipeline final result',
             helptext='''
                         The quantification information of peptides is obtained from the pep table in the mzTab file. 
                         The table shows the quantitative level of peptides in different study variables.
@@ -477,15 +477,15 @@ class MultiqcModule(BaseMultiqcModule):
         pattern = re.compile(r'<small id="peptide_spectrum_match_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
-                                      'onkeyup="searchPsmFunction()" id="psm_search">' \
-                                      '<select name="psm_search_col" id="psm_search_col"><option value="">' \
-                                      'PSM_ID</option>'
+                                    'onkeyup="searchPsmFunction()" id="psm_search">' \
+                                    '<select name="psm_search_col" id="psm_search_col"><option value="">' \
+                                    'PSM_ID</option>'
 
-        for key, _ in self.PSM_table[1].items():
+        for key, _ in self.PSM_table[list(self.PSM_table.keys())[0]].items():
             t_html += '<option>' + key.replace("[", "_").replace("]", "") + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' \
-                     + table_html[index:]
+                    + table_html[index:]
         table_html = table_html + '''<div class="page_control"><span id="psmFirst">First Page</span><span 
                 id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
                 Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
@@ -497,7 +497,7 @@ class MultiqcModule(BaseMultiqcModule):
             name="Peptide-Spectrum Matches",
             anchor="psm",
             description='This plot shows the PSM information'
-                        'in ProteomicsLFQ pipeline final result',
+                        'in quantms pipeline final result',
             helptext='''
                         This table fully displays the peptide spectrum matching information in the mzTab file:
 
@@ -549,7 +549,7 @@ class MultiqcModule(BaseMultiqcModule):
         self.add_section(
             name="Spectra Tracking",
             anchor="spectra_tracking",
-            description='This plot shows the ProteomicsLFQ pipeline mzML tracking',
+            description='This plot shows the quantms pipeline mzML tracking',
             helptext='''
                     This table shows the changes in the number of spectra corresponding to each input file 
                     during the pipeline operation. And the number of peptides finally identified is obtained from 
@@ -630,15 +630,15 @@ class MultiqcModule(BaseMultiqcModule):
                         This plot can give a general estimation of the noise level of the spectra.
                         ''',
             helptext='''
-                     Generally, one should expect to have a high number of low intensity noise peaks with a low number 
-                     of high intensity signal peaks. 
-                     A disproportionate number of high signal peaks may indicate heavy spectrum pre-filtering or 
-                     potential experimental problems. In the case of data reuse this plot can be useful in 
-                     identifying the requirement for pre-processing of the spectra prior to any downstream analysis. 
-                     The quality of the identifications is not linked to this data as most search engines perform internal 
-                     spectrum pre-processing before matching the spectra. Thus, the spectra reported are not 
-                     necessarily pre-processed since the search engine may have applied the pre-processing step 
-                     internally. This pre-processing is not necessarily reported in the experimental metadata.
+                    Generally, one should expect to have a high number of low intensity noise peaks with a low number 
+                    of high intensity signal peaks. 
+                    A disproportionate number of high signal peaks may indicate heavy spectrum pre-filtering or 
+                    potential experimental problems. In the case of data reuse this plot can be useful in 
+                    identifying the requirement for pre-processing of the spectra prior to any downstream analysis. 
+                    The quality of the identifications is not linked to this data as most search engines perform internal 
+                    spectrum pre-processing before matching the spectra. Thus, the spectra reported are not 
+                    necessarily pre-processed since the search engine may have applied the pre-processing step 
+                    internally. This pre-processing is not necessarily reported in the experimental metadata.
                     ''',
             plot=bar_html
         )
@@ -774,11 +774,11 @@ class MultiqcModule(BaseMultiqcModule):
     def draw_delta_mass(self):
 
         self.delta_mass_percent['target'] = dict(zip(self.delta_mass['target'].keys(),
-                                                     list(map(lambda v: v / len(self.delta_mass['target']),
-                                                              self.delta_mass['target'].values()))))
+                                                    list(map(lambda v: v / len(self.delta_mass['target']),
+                                                            self.delta_mass['target'].values()))))
         self.delta_mass_percent['decoy'] = dict(zip(self.delta_mass['decoy'].keys(),
                                                     list(map(lambda v: v / len(self.delta_mass['decoy']),
-                                                             self.delta_mass['decoy'].values()))))
+                                                            self.delta_mass['decoy'].values()))))
         lineconfig = {
             # Building the plot
             'id': 'delta_mass',  # HTML ID used for plot
@@ -823,7 +823,7 @@ class MultiqcModule(BaseMultiqcModule):
         pep_table.loc[:, 'stand_spectra_ref'] = pep_table.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
         study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
-                                      pep_table.columns.tolist()))
+                                    pep_table.columns.tolist()))
         # total_intensity = np.sum(pep_table[study_variables])
         # cont_top = {} if set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1]['accession']) == {
         # None}: for i in set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1]['sequence']):
@@ -835,12 +835,12 @@ class MultiqcModule(BaseMultiqcModule):
         for i in np.unique(pep_table['stand_spectra_ref']):
             self.heatmap_con_score[i] = 1 - np.sum(np.sum(
                 pep_table[(pep_table['stand_spectra_ref'] == i) &
-                          (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1)][study_variables])) / \
+                        (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1)][study_variables])) / \
                                         np.sum(np.sum(pep_table[pep_table['stand_spectra_ref'] == i]
-                                                      [study_variables]))
+                                                    [study_variables]))
             if config.kwargs['remove_decoy']:
                 T = sum(pep_table[(pep_table['stand_spectra_ref'] == i)
-                                  & (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables].values. \
+                                & (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables].values. \
                         tolist(), [])
             else:
                 T = sum(pep_table[pep_table['stand_spectra_ref'] == i][study_variables].values.tolist(), [])
@@ -893,8 +893,8 @@ class MultiqcModule(BaseMultiqcModule):
 
         median = np.median(list(self.MissedCleavages_heatmap_score.values()))
         self.MissedCleavagesVar_score = dict(zip(self.MissedCleavages_heatmap_score.keys(),
-                                                 list(map(lambda v: 1 - np.abs(v - median),
-                                                          self.MissedCleavages_heatmap_score.values()))))
+                                                list(map(lambda v: 1 - np.abs(v - median),
+                                                        self.MissedCleavages_heatmap_score.values()))))
 
     # if missed.cleavages is not given, it is assumed that trypsin was used for digestion
     @staticmethod
@@ -911,12 +911,12 @@ class MultiqcModule(BaseMultiqcModule):
         else:
             if config.kwargs['affix_type'] == 'prefix':
                 if list(filter(lambda x: lambda x: not x.startswith(config.kwargs['decoy_affix']),
-                               ProteinName.split(';'))):
+                            ProteinName.split(';'))):
                     return "TARGET"
                 return "DECOY"
             else:
                 if list(filter(lambda x: not x.endswith(config.kwargs['decoy_affix']),
-                               ProteinName.split(';'))):
+                            ProteinName.split(';'))):
                     return "TARGET"
                 return "DECOY"
 
@@ -928,6 +928,7 @@ class MultiqcModule(BaseMultiqcModule):
         data = data.astype(str)
         exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
         exp_data = exp_data.dropna(axis=0)
+        exp_data['Spectra_Filepath'] = exp_data.apply(lambda x: os.path.basename(x['Spectra_Filepath']), axis=1)
         Spec_File = exp_data['Spectra_Filepath'].tolist()
 
         if config.kwargs['remove_decoy']:
@@ -1012,7 +1013,7 @@ class MultiqcModule(BaseMultiqcModule):
         psm = mztab_data.spectrum_match_table
         psm_table = dict()
         scores = list(filter(lambda x: re.match(r'search_engine_score.*?', x) is not None,
-                             psm.columns.tolist()))
+                            psm.columns.tolist()))
         t = (' float'.join(scores) + ' float').replace("[", "_").replace("]", "")
         cur.execute("CREATE TABLE PSM(PSM_ID int, sequence VARCHAR(100), PSM_UNIQUE int, " + t + ")")
         con.commit()
@@ -1023,20 +1024,20 @@ class MultiqcModule(BaseMultiqcModule):
         for m in set(psm['stand_spectra_ref'].tolist()):
             if config.kwargs['remove_decoy']:
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                       psm[(psm['stand_spectra_ref'] == m) & (
-                                                               psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
-                                                           'spectra_ref'].tolist()))
+                                                    psm[(psm['stand_spectra_ref'] == m) & (
+                                                            psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
+                                                        'spectra_ref'].tolist()))
                 self.mzml_peptide_map[m] = list(set(psm[(psm['stand_spectra_ref'] == m) &
                                                         (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
                                                         'sequence'].tolist()))
             else:
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                       psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
+                                                    psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
                 self.mzml_peptide_map[m] = list(set(psm[psm['stand_spectra_ref'] == m]['sequence'].tolist()))
             mL_spec_ident_final[m] = len(self.identified_spectrum[m])
         psm['relative_diff'] = psm['exp_mass_to_charge'] - psm['calc_mass_to_charge']
         self.delta_mass['decoy'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 1]
-                                           ['relative_diff'].tolist())
+                                        ['relative_diff'].tolist())
         self.delta_mass['target'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
                                             ['relative_diff'].tolist())
 
@@ -1068,9 +1069,9 @@ class MultiqcModule(BaseMultiqcModule):
         self.mL_spec_ident_final = mL_spec_ident_final
         if config.kwargs['remove_decoy']:
             self.Total_ms2_Spectral_Identified = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                                         ['spectra_ref']))
+                                                        ['spectra_ref']))
             self.Total_Peptide_Count = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                               ['sequence']))
+                                            ['sequence']))
         else:
             self.Total_ms2_Spectral_Identified = len(set(psm['spectra_ref']))
             self.Total_Peptide_Count = len(set(psm['sequence']))
@@ -1079,7 +1080,7 @@ class MultiqcModule(BaseMultiqcModule):
         # peptide quantification table data
         pep_quant = dict()
         study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
-                                      pep_table.columns.tolist()))
+                                    pep_table.columns.tolist()))
         cur.execute("CREATE TABLE QUANT(ID integer PRIMARY KEY AUTOINCREMENT, sequence VARCHAR(100))")
         con.commit()
         sql_col = "sequence"
@@ -1302,8 +1303,8 @@ class MultiqcModule(BaseMultiqcModule):
             mzml_table[m]['MS2_Num'] = ms2_number
         median = np.median(list(heatmap_charge.values()))
         self.heatmap_charge_score = dict(zip(heatmap_charge.keys(),
-                                             list(map(lambda v: 1 - np.abs(v - median),
-                                                      heatmap_charge.values()))))
+                                            list(map(lambda v: 1 - np.abs(v - median),
+                                                    heatmap_charge.values()))))
 
         raw_ids = config.kwargs['raw_ids']
         for raw_id in os.listdir(raw_ids):
@@ -1314,7 +1315,7 @@ class MultiqcModule(BaseMultiqcModule):
                 # spectrum matched to target peptide
                 if config.kwargs['remove_decoy']:
                     msgf_identified_num = len(set([i['spectrum_reference'] for i in mz
-                                                   if i['PeptideHit'][0]['target_decoy'] == 'target']))
+                                                if i['PeptideHit'][0]['target_decoy'] == 'target']))
                 else:
                     msgf_identified_num = len(set([i['spectrum_reference'] for i in mz]))
 
@@ -1340,6 +1341,7 @@ class MultiqcModule(BaseMultiqcModule):
         log.warning("Parsing mzTab file...")
         exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
         exp_data = exp_data.dropna(axis=0)
+        exp_data['Spectra_Filepath'] = exp_data.apply(lambda x: os.path.basename(x['Spectra_Filepath']), axis=1)
         Spec_File = exp_data['Spectra_Filepath'].tolist()
         mztab_data = mztab.MzTab(self.out_mzTab_path)
         pep_table = mztab_data.peptide_table
@@ -1357,7 +1359,7 @@ class MultiqcModule(BaseMultiqcModule):
 
         if config.kwargs['remove_decoy']:
             Total_Protein_Identified = set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
-                                           ['accession'])
+                                        ['accession'])
             self.Total_Protein_Identified = len(Total_Protein_Identified)
         else:
             Total_Protein_Identified = set(psm['accession'])
@@ -1382,7 +1384,7 @@ class MultiqcModule(BaseMultiqcModule):
 
         # PSM information
         scores = list(filter(lambda x: re.match(r'search_engine_score.*?', x) is not None,
-                             psm.columns.tolist()))
+                            psm.columns.tolist()))
         t = (' float'.join(scores) + ' float').replace("[", "_").replace("]", "")
         cur.execute("CREATE TABLE PSM(PSM_ID int, sequence VARCHAR(100), PSM_UNIQUE int, " + t + ")")
         con.commit()
@@ -1396,25 +1398,25 @@ class MultiqcModule(BaseMultiqcModule):
 
             if config.kwargs['remove_decoy']:
                 proteins = set(psm[(psm['stand_spectra_ref'] == m) &
-                                   (psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]['accession'])
+                                (psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]['accession'])
                 peptides = set(psm[(psm['stand_spectra_ref'] == m) &
-                                   (psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]
-                               ['opt_global_cv_MS:1000889_peptidoform_sequence'])
+                                (psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]
+                            ['opt_global_cv_MS:1000889_peptidoform_sequence'])
 
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                       psm[(psm['stand_spectra_ref'] == m) & (
-                                                               psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
-                                                           'spectra_ref'].tolist()))
+                                                    psm[(psm['stand_spectra_ref'] == m) & (
+                                                            psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
+                                                        'spectra_ref'].tolist()))
                 self.mzml_peptide_map[m] = list(set(psm[(psm['stand_spectra_ref'] == m) &
                                                         (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
                                                         'sequence'].tolist()))
             else:
                 proteins = set(psm[psm['stand_spectra_ref'] == m]['accession'])
                 peptides = set(psm[psm['stand_spectra_ref'] == m]
-                               ['opt_global_cv_MS:1000889_peptidoform_sequence'])
+                            ['opt_global_cv_MS:1000889_peptidoform_sequence'])
 
                 self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                       psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
+                                                    psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
                 self.mzml_peptide_map[m] = list(set(psm[psm['stand_spectra_ref'] == m]['sequence'].tolist()))
 
             if None in proteins:
@@ -1429,7 +1431,7 @@ class MultiqcModule(BaseMultiqcModule):
 
         psm['relative_diff'] = psm['exp_mass_to_charge'] - psm['calc_mass_to_charge']
         self.delta_mass['decoy'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 1]
-                                           ['relative_diff'].tolist())
+                                        ['relative_diff'].tolist())
         self.delta_mass['target'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
                                             ['relative_diff'].tolist())
 
@@ -1457,13 +1459,12 @@ class MultiqcModule(BaseMultiqcModule):
                 break
 
         # extract delta mass
-
         self.mL_spec_ident_final = mL_spec_ident_final
         if config.kwargs['remove_decoy']:
             self.Total_ms2_Spectral_Identified = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                                         ['spectra_ref']))
+                                                        ['spectra_ref']))
             self.Total_Peptide_Count = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                               ['sequence']))
+                                            ['sequence']))
         else:
             self.Total_ms2_Spectral_Identified = len(set(psm['spectra_ref']))
             self.Total_Peptide_Count = len(set(psm['sequence']))
@@ -1472,7 +1473,7 @@ class MultiqcModule(BaseMultiqcModule):
         # peptide quantification table data
         pep_quant = dict()
         study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
-                                      pep_table.columns.tolist()))
+                                    pep_table.columns.tolist()))
         cur.execute("CREATE TABLE QUANT(ID integer PRIMARY KEY AUTOINCREMENT, sequence VARCHAR(100))")
         con.commit()
         sql_col = "sequence"
