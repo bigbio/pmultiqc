@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
-ProteomicsLFQ plugin for MultiQC, showing the pipeline result with MultiQC framework.
+pmultiqc plugin for MultiQC, showing the pipeline result with MultiQC framework.
 
 For more information about MultiQC, see http://multiqc.info
 """
 
 from setuptools import setup, find_packages
 
-version = '0.0.8'
+version = '0.0.9'
 
 
 def readme():
@@ -34,16 +34,17 @@ setup(
         'multiqc',
         'pandas',
         'pyteomics',
-        'sdrf-pipelines >= 0.0.17',
+        'sdrf-pipelines >= 0.0.18',
         'numpy'
     ],
     entry_points={
         'multiqc.modules.v1': [
-            'proteomicslfq = pmultiqc.modules.proteomicslfq:MultiqcModule'
+            'quantms = pmultiqc.modules.quantms:QuantMSModule'
         ],
         'multiqc.cli_options.v1': [
             'disable_plugin = pmultiqc.cli:disable_plugin',
             'exp_design = pmultiqc.cli:exp_design',
+            'pmultiqc_version = pmultiqc.cli:pmultiqc_version',
             'sdrf = pmultiqc.cli:sdrf',
             'raw = pmultiqc.cli:raw',
             'condition = pmultiqc.cli:condition',
@@ -55,7 +56,7 @@ setup(
             'affix_type = pmultiqc.cli:affix_type'
         ],
         'multiqc.hooks.v1': [
-            'execution_start = pmultiqc.custom_code:example_plugin_execution_start'
+            'execution_start = pmultiqc.main:pmultiqc_plugin_execution_start'
         ]
     },
     classifiers=[
