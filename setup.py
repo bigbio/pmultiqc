@@ -32,7 +32,7 @@ setup(
     install_requires=[
         'lxml',
         'multiqc',
-        'pandas==1.3.4',
+        'pandas',
         'pyteomics',
         'sdrf-pipelines >= 0.0.18',
         'numpy',
