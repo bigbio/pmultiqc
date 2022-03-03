@@ -31,8 +31,5 @@ def pmultiqc_plugin_execution_start():
     log.info("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 
     # Add to the search patterns used by modules
-    if 'quantms/out_csv' not in config.sp:
-        config.update_dict(config.sp, {'quantms/out_csv': {'fn': "out_msstats.csv"}})
-
     if 'quantms/out_mzTab' not in config.sp:
         config.update_dict(config.sp, {'quantms/out_mzTab': {'fn': 'out.mzTab'}})

@@ -12,7 +12,8 @@ from multiqc.modules.base_module import BaseMultiqcModule
 import pandas as pd
 from collections import Counter
 import re
-from pyteomics import mztab, mzml, openms
+from pyteomics import mztab
+from pyopenms import *
 import os
 import sqlite3
 import numpy as np
@@ -44,9 +45,9 @@ class QuantMSModule(BaseMultiqcModule):
 
         # Initialise the parent module Class object
         super(QuantMSModule, self).__init__(
-            name='quantms',
-            target="quantms",
-            anchor='quantms',
+            name='pmultiqc',
+            target="pmultiqc",
+            anchor='pmultiqc',
             href='https://github.com/bigbio/pmultiqc',
             info=" is an module to show the pipeline performance."
         )
@@ -54,9 +55,6 @@ class QuantMSModule(BaseMultiqcModule):
         # Halt execution if we've disabled the plugin
         if config.kwargs.get('disable_plugin', True):
             return None
-
-        for file in self.find_log_files({'fn': "*.csv"}):
-            self.out_csv_path = os.path.join(config.analysis_dir[0], file['fn'])
 
         for f in self.find_log_files({'fn': 'out.mzTab'}):
             self.out_mzTab_path = os.path.join(config.analysis_dir[0], f['fn'])
@@ -79,6 +77,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.Total_ms2_Spectral_Identified = 0
         self.Total_Peptide_Count = 0
         self.Total_Protein_Identified = 0
+        self.Total_Protein_Quantified = 0
         self.num_pep_per_protein = OrderedDict()
         self.percent_pep_per_protein = OrderedDict()
         self.out_csv_data = dict()
@@ -97,21 +96,18 @@ class QuantMSModule(BaseMultiqcModule):
         self.ID_RT_score = dict()
         self.HeatmapOverSamplingScore = dict()
         self.HeatmapPepMissingScore = dict()
+        self.oversampling = dict()
+        self.exp_design_table = dict()
 
         # parse input data
-        self.CalHeatMapScore()
-        if config.kwargs['quant_method'] == 'LFQ':
-            self.parse_out_csv()
-            self.parse_out_mzTab()
-        else:
-            self.parse_out_tmt()
-
-        self.parse_mzml_idx()
-
-        self.draw_heatmap()
         # draw the experimental design
         self.draw_exp_design()
 
+        self.parse_out_mzTab()
+        self.parse_mzml_idx()
+        self.CalHeatMapScore()
+
+        self.draw_heatmap()
         self.draw_summary_proten_ident_table()
 
         # draw_quantms_identi_num
@@ -129,7 +125,8 @@ class QuantMSModule(BaseMultiqcModule):
         self.draw_precursor_charge_distribution()
         self.draw_peaks_per_ms2()
         self.draw_peak_intensity_distribution()
-        self.draw_delta_mass()
+        self.draw_oversampling()
+        # self.draw_delta_mass()
 
         self.css = {
             'assets/css/quantms.css':
@@ -147,14 +144,14 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_heatmap(self):
         HeatMapScore = []
         xnames = ['Contaminants', 'Peptide Intensity', 'Charge', 'Missed Cleavages', 'Missed Cleavages Var',
-                    'ID rate over RT', 'MS2 OverSampling', 'Pep Missing Values']
+                  'ID rate over RT', 'MS2 OverSampling', 'Pep Missing Values']
         ynames = []
         for k, v in self.heatmap_con_score.items():
             ynames.append(k)
             HeatMapScore.append([v, self.heatmap_pep_intensity[k], self.heatmap_charge_score[k],
-                                self.MissedCleavages_heatmap_score[k],
-                                self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
-                                self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
+                                 self.MissedCleavages_heatmap_score[k],
+                                 self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
+                                 self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
         pconfig = {
             'title': 'Performance Overview',  # Plot title - should be in format "Module Name: Plot Title"
             'xTitle': 'metrics',  # X-axis title
@@ -174,13 +171,25 @@ class QuantMSModule(BaseMultiqcModule):
                     * Heatmap score[Contaminants]: as fraction of summed intensity with 0 = sample full of contaminants; 
                         1 = no contaminants
                     * Heatmap score[Pep Intensity (>23.0)]: Linear scale of the median intensity reaching the threshold, 
-                        i.e. reaching 221 of 223 gives score 0.25.
-                    * Heatmap score[Charge]: Deviation of the charge 2 proportion from a representative Raw file.
+                        i.e. reaching 2^21 of 2^23 gives score 0.25.
+                    * Heatmap score[Charge]: Deviation of the charge 2 proportion from a representative 
+                        Raw file (median). For typtic digests, peptides of charge 2 (one N-terminal and one at 
+                        tryptic C-terminal R or K residue) should be dominant. Ionization issues (voltage?), 
+                        in-source fragmentation, missed cleavages and buffer irregularities can cause a shift 
+                        (see Bittremieux 2017, DOI: 10.1002/mas.21544 ).
                     * Heatmap score [MC]: the fraction (0% - 100%) of fully cleaved peptides per Raw file
                     * Heatmap score [MC Var]: each Raw file is scored for its deviation from the ‘average’ digestion 
                         state of the current study.
-                    * Heatmap score [ID rate over RT]: Scored using ‘Uniform’ scoring function. 
-                    * Heatmap score [MS2 Oversampling]: The percentage of non-oversampled 3D-peaks.
+                    * Heatmap score [ID rate over RT]: Judge column occupancy over retention time. 
+                        Ideally, the LC gradient is chosen such that the number of identifications 
+                        (here, after FDR filtering) is uniform over time, to ensure consistent instrument duty cycles. 
+                        Sharp peaks and uneven distribution of identifications over time indicate potential for LC gradient 
+                        optimization.Scored using ‘Uniform’ scoring function. i.e. constant receives good score, extreme shapes are bad.
+                    * Heatmap score [MS2 Oversampling]: The percentage of non-oversampled 3D-peaks. An oversampled 
+                        3D-peak is defined as a peak whose peptide ion (same sequence and same charge state) was 
+                        identified by at least two distinct MS2 spectra in the same Raw file. For high complexity samples, 
+                        oversampling of individual 3D-peaks automatically leads to undersampling or even omission of other 3D-peaks, 
+                        reducing the number of identified peptides.
                     * Heatmap score [Pep Missing]: Linear scale of the fraction of missing peptides.
                     
                     ''',
@@ -188,7 +197,6 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def draw_exp_design(self):
-        exp_design_table = dict()
         with open(self.exp_design, 'r') as f:
             data = f.readlines()
             empty_row = data.index('\n')
@@ -198,17 +206,18 @@ class QuantMSModule(BaseMultiqcModule):
             s_header = data[data.index('\n') + 1].replace('\n', '').split('\t')
             s_DataFrame = pd.DataFrame(s_table, columns=s_header)
             for file in np.unique(f_table[2].tolist()):
-                exp_design_table[file] = {'Fraction_Group': f_table[f_table[2] == file][0].tolist()[0]}
-                exp_design_table[file]['Fraction'] = f_table[f_table[2] == file][1].tolist()[0]
-                exp_design_table[file]['Label'] = ','.join(f_table[f_table[2] == file][3])
+                stand_file = os.path.basename(file)
+                self.exp_design_table[stand_file] = {'Fraction_Group': f_table[f_table[2] == file][0].tolist()[0]}
+                self.exp_design_table[stand_file]['Fraction'] = f_table[f_table[2] == file][1].tolist()[0]
+                self.exp_design_table[stand_file]['Label'] = '|'.join(f_table[f_table[2] == file][3])
                 sample = f_table[f_table[2] == file][4].tolist()
-                exp_design_table[file]['Sample'] = ','.join(sample)
-                exp_design_table[file]['MSstats_Condition'] = ','.join(
+                self.exp_design_table[stand_file]['Sample'] = '|'.join(sample)
+                self.exp_design_table[stand_file]['MSstats_Condition'] = ','.join(
                     [row['MSstats_Condition'] for _, row in s_DataFrame.iterrows()
-                    if row['Sample'] in sample])
-                exp_design_table[file]['MSstats_BioReplicate'] = ','.join(
+                     if row['Sample'] in sample])
+                self.exp_design_table[stand_file]['MSstats_BioReplicate'] = '|'.join(
                     [row['MSstats_BioReplicate'] for _, row in s_DataFrame.iterrows()
-                    if row['Sample'] in sample])
+                     if row['Sample'] in sample])
 
         # Create table plot
         pconfig = {
@@ -247,7 +256,7 @@ class QuantMSModule(BaseMultiqcModule):
             'description': 'MSstats BioReplicate',
             'color': "#ffffff",
         }
-        table_html = table.plot(exp_design_table, headers, pconfig)
+        table_html = table.plot(self.exp_design_table, headers, pconfig)
 
         # Add a report section with the line plot
         self.add_section(
@@ -268,6 +277,7 @@ class QuantMSModule(BaseMultiqcModule):
         summary_table[self.Total_ms2_Spectral]['Identified MS/MS Spectral Coverage'] = coverage
         summary_table[self.Total_ms2_Spectral]['Total Peptide Count'] = self.Total_Peptide_Count
         summary_table[self.Total_ms2_Spectral]['Total Protein Identified'] = self.Total_Protein_Identified
+        summary_table[self.Total_ms2_Spectral]['Total Protein Quantified'] = self.Total_Protein_Quantified
 
         # Create table plot
         pconfig = {
@@ -322,17 +332,20 @@ class QuantMSModule(BaseMultiqcModule):
             'description': 'Sample identifier',
             'color': "#ffffff"
         }
-        if config.kwargs['quant_method'] == 'lfq':
-            headers['condition'] = {
+        headers['condition'] = {
                 'description': 'Possible Study Variables',
                 'color': "#ffffff"
-            }
+        }
         headers['fraction'] = {
             'description': 'fraction identifier',
             'color': "#ffffff"
         }
         headers['peptide_num'] = {
             'description': 'identified the number of peptide in the pipeline',
+            'color': "#ffffff"
+        }
+        headers['unique_peptide_num'] = {
+            'description': 'identified the number of unique peptide in the pipeline',
             'color': "#ffffff"
         }
         headers['modified_peptide_num'] = {
@@ -418,14 +431,14 @@ class QuantMSModule(BaseMultiqcModule):
         pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
-                                    'onkeyup="searchQuantFunction()" id="quant_search">' \
-                                    '<select name="quant_search_col" id="quant_search_col"><option value="">' \
-                                    'ID</option>'
+                                      'onkeyup="searchQuantFunction()" id="quant_search">' \
+                                      '<select name="quant_search_col" id="quant_search_col"><option value="">' \
+                                      'ID</option>'
         for key, _ in self.pep_quant_table['1'].items():
             t_html += '<option>' + key.replace("[", "_").replace("]", "") + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' \
-                    + table_html[index:]
+                     + table_html[index:]
         table_html = table_html + '''<div class="page_control"><span id="quantFirst">First Page</span><span 
         id="quantPre"> Previous Page</span><span id="quantNext">Next Page </span><span id="quantLast">Last 
         Page</span><span id="quantPageNum"></span>Page/Total <span id="quantTotalPage"></span>Pages <input 
@@ -477,15 +490,15 @@ class QuantMSModule(BaseMultiqcModule):
         pattern = re.compile(r'<small id="peptide_spectrum_match_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
-                                    'onkeyup="searchPsmFunction()" id="psm_search">' \
-                                    '<select name="psm_search_col" id="psm_search_col"><option value="">' \
-                                    'PSM_ID</option>'
+                                      'onkeyup="searchPsmFunction()" id="psm_search">' \
+                                      '<select name="psm_search_col" id="psm_search_col"><option value="">' \
+                                      'PSM_ID</option>'
 
         for key, _ in self.PSM_table[list(self.PSM_table.keys())[0]].items():
             t_html += '<option>' + key.replace("[", "_").replace("]", "") + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' \
-                    + table_html[index:]
+                     + table_html[index:]
         table_html = table_html + '''<div class="page_control"><span id="psmFirst">First Page</span><span 
                 id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
                 Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
@@ -771,14 +784,60 @@ class QuantMSModule(BaseMultiqcModule):
             plot=bar_html
         )
 
+    def draw_oversampling(self):
+
+        # Create bar plot
+        pconfig = {
+            'id': 'Oversampling_Distribution',
+            'cpswitch': False,
+            'title': 'MS2 counts per 3D-peak',
+            'scale': "set3"
+        }
+        cats = OrderedDict()
+        cats['1'] = {
+            'name': '1',
+            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
+                           'one distinct MS2 spectra'
+        }
+        cats['2'] = {
+            'name': '2',
+            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
+                           'two distinct MS2 spectra'
+        }
+        cats['3+'] = {
+            'name': '3+',
+            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
+                           'least three distinct MS2 spectra'
+        }
+
+        bar_html = bargraph.plot(self.oversampling, cats, pconfig)
+
+        # Add a report section with the bar plot
+        self.add_section(
+            name="Oversampling Distribution",
+            anchor="Oversampling (MS/MS counts per 3D-peak)",
+            description='''An oversampled 3D-peak is defined as a peak whose peptide ion 
+                (same sequence and same charge state) was identified by at least two distinct MS2 spectra 
+                in the same Raw file. 
+                                ''',
+            helptext='''For high complexity samples, oversampling of individual 3D-peaks automatically leads to 
+                undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
+                Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
+                exclusion windows for data independent acquisitions.
+                
+                * Heatmap score [EVD: MS2 Oversampling]: The percentage of non-oversampled 3D-peaks.
+                            ''',
+            plot=bar_html
+        )
+
     def draw_delta_mass(self):
 
         self.delta_mass_percent['target'] = dict(zip(self.delta_mass['target'].keys(),
-                                                    list(map(lambda v: v / len(self.delta_mass['target']),
-                                                            self.delta_mass['target'].values()))))
+                                                     list(map(lambda v: v / len(self.delta_mass['target']),
+                                                              self.delta_mass['target'].values()))))
         self.delta_mass_percent['decoy'] = dict(zip(self.delta_mass['decoy'].keys(),
                                                     list(map(lambda v: v / len(self.delta_mass['decoy']),
-                                                            self.delta_mass['decoy'].values()))))
+                                                             self.delta_mass['decoy'].values()))))
         lineconfig = {
             # Building the plot
             'id': 'delta_mass',  # HTML ID used for plot
@@ -823,24 +882,17 @@ class QuantMSModule(BaseMultiqcModule):
         pep_table.loc[:, 'stand_spectra_ref'] = pep_table.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
         study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
-                                    pep_table.columns.tolist()))
-        # total_intensity = np.sum(pep_table[study_variables])
-        # cont_top = {} if set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1]['accession']) == {
-        # None}: for i in set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1]['sequence']):
-        # cont_top[i] = np.sum(np.sum(pep_table[pep_table['sequence'] == i][study_variables])) / total_intensity
-        # else: for i in set(pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1]['accession']):
-        # cont_top[i] = np.sum(np.sum(pep_table[pep_table['accession'] == i][study_variables]) / total_intensity)
-        # cont_top_5 = sorted(cont_top.items(), key=lambda item: item[1], reverse=True) dictdata = {} for l in
-        # cont_top_5: dictdata[l[0]] = l[1]
+                                      pep_table.columns.tolist()))
+
         for i in np.unique(pep_table['stand_spectra_ref']):
             self.heatmap_con_score[i] = 1 - np.sum(np.sum(
                 pep_table[(pep_table['stand_spectra_ref'] == i) &
-                        (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1)][study_variables])) / \
+                          (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1)][study_variables])) / \
                                         np.sum(np.sum(pep_table[pep_table['stand_spectra_ref'] == i]
-                                                    [study_variables]))
+                                                      [study_variables]))
             if config.kwargs['remove_decoy']:
                 T = sum(pep_table[(pep_table['stand_spectra_ref'] == i)
-                                & (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables].values. \
+                                  & (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables].values. \
                         tolist(), [])
             else:
                 T = sum(pep_table[pep_table['stand_spectra_ref'] == i][study_variables].values.tolist(), [])
@@ -855,14 +907,8 @@ class QuantMSModule(BaseMultiqcModule):
         psm.loc[:, 'stand_spectra_ref'] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
         psm.loc[:, 'missed_cleavages'] = psm.apply(lambda x: self.cal_MissCleavages(x['sequence']), axis=1)
-        msms_count_map = {}
-        for name, group in psm.groupby(
-                ['stand_spectra_ref', 'opt_global_cv_MS:1000889_peptidoform_sequence', 'charge']):
-            if name[0] not in msms_count_map:
-                msms_count_map[name[0]] = [len(group)]
-            else:
-                msms_count_map[name[0]].append(len(group))
 
+        # Calculate the ID RT Score
         for name, group in psm.groupby('stand_spectra_ref'):
             sc = group['missed_cleavages'].value_counts()
             self.MissedCleavages_heatmap_score[name] = sc[0] / sc[:].sum()
@@ -878,12 +924,7 @@ class QuantMSModule(BaseMultiqcModule):
                 self.ID_RT_score[name] = (worst - sc) / worst
 
             #  For HeatMapOverSamplingScore
-            if np.max(msms_count_map[name]) >= 3:
-                for i, value in enumerate(msms_count_map[name]):
-                    if value >= 3:
-                        msms_count_map[name][i] = "3+"
-            tt = Counter(msms_count_map[name])
-            self.HeatmapOverSamplingScore[name] = np.minimum(1.0, tt[1] * 1.0 / np.sum(list(tt.values())))
+            self.HeatmapOverSamplingScore[name] = self.oversampling[name]['1'] / np.sum(list(self.oversampling[name].values()))
 
             # For HeatMapPepMissingScore
             idFraction = len(
@@ -893,8 +934,8 @@ class QuantMSModule(BaseMultiqcModule):
 
         median = np.median(list(self.MissedCleavages_heatmap_score.values()))
         self.MissedCleavagesVar_score = dict(zip(self.MissedCleavages_heatmap_score.keys(),
-                                                list(map(lambda v: 1 - np.abs(v - median),
-                                                        self.MissedCleavages_heatmap_score.values()))))
+                                                 list(map(lambda v: 1 - np.abs(v - median),
+                                                          self.MissedCleavages_heatmap_score.values()))))
 
     # if missed.cleavages is not given, it is assumed that trypsin was used for digestion
     @staticmethod
@@ -911,200 +952,14 @@ class QuantMSModule(BaseMultiqcModule):
         else:
             if config.kwargs['affix_type'] == 'prefix':
                 if list(filter(lambda x: lambda x: not x.startswith(config.kwargs['decoy_affix']),
-                            ProteinName.split(';'))):
+                               ProteinName.split(';'))):
                     return "TARGET"
                 return "DECOY"
             else:
                 if list(filter(lambda x: not x.endswith(config.kwargs['decoy_affix']),
-                            ProteinName.split(';'))):
+                               ProteinName.split(';'))):
                     return "TARGET"
                 return "DECOY"
-
-    def parse_out_csv(self):
-
-        # result statistics table
-        log.warning("Parsing out csv file...")
-        data = pd.read_csv(self.out_csv_path, sep=',', header=0)
-        data = data.astype(str)
-        exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
-        exp_data = exp_data.dropna(axis=0)
-        exp_data['Spectra_Filepath'] = exp_data.apply(lambda x: os.path.basename(x['Spectra_Filepath']), axis=1)
-        Spec_File = exp_data['Spectra_Filepath'].tolist()
-
-        if config.kwargs['remove_decoy']:
-            data['DECOY'] = data.apply(lambda x: self.dis_decoy(x['ProteinName']), axis=1)
-
-        for i in Spec_File:
-            proteins = []
-            Sample = list(exp_data[exp_data['Spectra_Filepath'] == i]['Sample'])[0]
-            self.cal_num_table_data[i] = {'Sample Name': Sample}
-            condition = '-'.join(list(set(data[data['Reference'] == i]['Condition'].tolist())))
-            self.cal_num_table_data[i]['condition'] = condition
-            fraction = exp_data[exp_data['Spectra_Filepath'] == i]['Fraction'].tolist()[0]
-            self.cal_num_table_data[i]['fraction'] = fraction
-            data[data['Reference'] == i]['ProteinName'].apply(lambda x: proteins.extend(x.split(';')))
-
-            if config.kwargs['remove_decoy']:
-                if config.kwargs['affix_type'] == 'prefix':
-                    proteins = list(filter(lambda x: not x.startswith(config.kwargs['decoy_affix']), proteins))
-                else:
-                    proteins = list(filter(lambda x: not x.endswith(config.kwargs['decoy_affix']), proteins))
-                peptides = set(data[(data['Reference'] == i) & (data['DECOY'] == 'TARGET')]['PeptideSequence'].tolist())
-            else:
-                peptides = set(data[data['Reference'] == i]['PeptideSequence'].tolist())
-
-            self.cal_num_table_data[i]['protein_num'] = len(set(proteins))
-            self.cal_num_table_data[i]['peptide_num'] = len(peptides)
-
-            modified_pep = list(filter(lambda x: re.match(r'.*?\(.*\).*?', x) is not None, peptides))
-            self.cal_num_table_data[i]['modified_peptide_num'] = len(modified_pep)
-
-        #  table of peptide number per protein
-        prot_pep_map = {}
-        num_pep_per_protein = {}
-        for _, row in data.iterrows():
-            ProteinName = row['ProteinName']
-            if len(ProteinName.split(';')) == 1:
-                if config.kwargs['remove_decoy']:
-                    if config.kwargs['affix_type'] == 'prefix':
-                        if ProteinName.startswith(config.kwargs['decoy_affix']):
-                            continue
-                    else:
-                        if ProteinName.endswith(config.kwargs['decoy_affix']):
-                            continue
-                if ProteinName not in prot_pep_map.keys():
-                    prot_pep_map[ProteinName] = [row['PeptideSequence']]
-                elif row['PeptideSequence'] not in prot_pep_map[ProteinName]:
-                    prot_pep_map[ProteinName].append(row['PeptideSequence'])
-            else:
-                for p in ProteinName.split(';'):
-                    if config.kwargs['remove_decoy']:
-                        if config.kwargs['affix_type'] == 'prefix':
-                            if ProteinName.startswith(config.kwargs['decoy_affix']):
-                                continue
-                        else:
-                            if ProteinName.endswith(config.kwargs['decoy_affix']):
-                                continue
-                    if p not in prot_pep_map.keys():
-                        prot_pep_map[p] = [row['PeptideSequence']]
-                    elif row['PeptideSequence'] not in prot_pep_map[p]:
-                        prot_pep_map[p].append(row['PeptideSequence'])
-
-        for key, value in prot_pep_map.items():
-            if str(len(value)) not in num_pep_per_protein.keys():
-                num_pep_per_protein[str(len(value))] = {'Frequency': 1}
-            else:
-                num_pep_per_protein[str(len(value))]['Frequency'] += 1
-
-        keys = sorted(num_pep_per_protein.items(), key=lambda x: int(x[0]))
-        for k in keys:
-            self.num_pep_per_protein[k[0]] = k[1]
-            self.percent_pep_per_protein[k[0]] = {'Percentage': k[1]['Frequency'] / len(prot_pep_map)}
-        self.Total_Protein_Identified = len(prot_pep_map)
-
-    def parse_out_mzTab(self):
-        log.warning("Parsing mzTab file...")
-        mztab_data = mztab.MzTab(self.out_mzTab_path)
-        pep_table = mztab_data.peptide_table
-        meta_data = dict(mztab_data.metadata)
-        self.delta_mass['target'] = dict()
-        self.delta_mass['decoy'] = dict()
-        # PSM table data
-        psm = mztab_data.spectrum_match_table
-        psm_table = dict()
-        scores = list(filter(lambda x: re.match(r'search_engine_score.*?', x) is not None,
-                            psm.columns.tolist()))
-        t = (' float'.join(scores) + ' float').replace("[", "_").replace("]", "")
-        cur.execute("CREATE TABLE PSM(PSM_ID int, sequence VARCHAR(100), PSM_UNIQUE int, " + t + ")")
-        con.commit()
-
-        mL_spec_ident_final = {}
-        psm['stand_spectra_ref'] = psm.apply(
-            lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
-        for m in set(psm['stand_spectra_ref'].tolist()):
-            if config.kwargs['remove_decoy']:
-                self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                    psm[(psm['stand_spectra_ref'] == m) & (
-                                                            psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
-                                                        'spectra_ref'].tolist()))
-                self.mzml_peptide_map[m] = list(set(psm[(psm['stand_spectra_ref'] == m) &
-                                                        (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
-                                                        'sequence'].tolist()))
-            else:
-                self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                    psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
-                self.mzml_peptide_map[m] = list(set(psm[psm['stand_spectra_ref'] == m]['sequence'].tolist()))
-            mL_spec_ident_final[m] = len(self.identified_spectrum[m])
-        psm['relative_diff'] = psm['exp_mass_to_charge'] - psm['calc_mass_to_charge']
-        self.delta_mass['decoy'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 1]
-                                        ['relative_diff'].tolist())
-        self.delta_mass['target'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                            ['relative_diff'].tolist())
-
-        sql_t = "(" + ','.join(['?'] * (len(scores) + 3)) + ")"
-        if config.kwargs['remove_decoy']:
-            cur.executemany("INSERT INTO PSM (PSM_ID,sequence,PSM_UNIQUE," +
-                            ','.join(scores).replace("[", "_").replace("]", "") + ") VALUES " + sql_t,
-                            [tuple(x) for x in psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                            [['PSM_ID', 'sequence', 'unique'] + scores].values])
-        else:
-            cur.executemany("INSERT INTO PSM (PSM_ID,sequence,PSM_UNIQUE," +
-                            ','.join(scores).replace("[", "_").replace("]", "") + ") VALUES " + sql_t,
-                            [tuple(x) for x in psm[['PSM_ID', 'sequence', 'unique'] + scores].values])
-        con.commit()
-        for idx, row in psm.iterrows():
-            if config.kwargs['remove_decoy'] and row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
-                continue
-            else:
-                psm_table[row['PSM_ID']] = {'sequence': row['sequence']}
-                # psm_table[row['PSM_ID']]['spectra_ref'] = row['spectra_ref']
-                psm_table[row['PSM_ID']]['unique'] = row['unique']
-                for score in scores:
-                    psm_table[row['PSM_ID']][score] = row[score]
-            if idx > 48:
-                break
-
-        # extract delta mass
-
-        self.mL_spec_ident_final = mL_spec_ident_final
-        if config.kwargs['remove_decoy']:
-            self.Total_ms2_Spectral_Identified = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                                        ['spectra_ref']))
-            self.Total_Peptide_Count = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                            ['sequence']))
-        else:
-            self.Total_ms2_Spectral_Identified = len(set(psm['spectra_ref']))
-            self.Total_Peptide_Count = len(set(psm['sequence']))
-        self.PSM_table = psm_table
-
-        # peptide quantification table data
-        pep_quant = dict()
-        study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
-                                    pep_table.columns.tolist()))
-        cur.execute("CREATE TABLE QUANT(ID integer PRIMARY KEY AUTOINCREMENT, sequence VARCHAR(100))")
-        con.commit()
-        sql_col = "sequence"
-        sql_t = "(" + ','.join(['?'] * (len(study_variables) + 1)) + ")"
-
-        for s in study_variables:
-            s = s.replace("[", "_").replace("]", "")
-            cur.execute("ALTER TABLE QUANT ADD " + s + " FLOAT")
-            con.commit()
-            sql_col += "," + s
-        cur.executemany("INSERT INTO QUANT (" + sql_col + ") VALUES " + sql_t,
-                        [tuple(x) for x in pep_table[['sequence'] + study_variables].values])
-        con.commit()
-        for index, row in pep_table.iterrows():
-            if config.kwargs['remove_decoy'] and row['opt_global_cv_MS:1002217_decoy_peptide'] == 1:
-                continue
-            else:
-                pep_quant[str(index + 1)] = {'sequence': row['sequence']}  # keep id unique
-                for s in study_variables:
-                    pep_quant[str(index + 1)][s] = row[s]
-            if index > 48:
-                break
-
-        self.pep_quant_table = pep_quant
 
     def parse_mzml_idx(self):
         self.peak_intensity_distribution['identified_spectra'] = dict(zip(
@@ -1134,201 +989,185 @@ class QuantMSModule(BaseMultiqcModule):
         mzml_table = {}
         mzmls_dir = config.kwargs['mzMLs']
         heatmap_charge = {}
+        exp = MSExperiment()
         for m in os.listdir(mzmls_dir):
-            # print(os.path.join(mzmls_dir, m))
-            log.warning("Parsing {}...".format(os.path.join(mzmls_dir, m)))
             ms1_number = 0
             ms2_number = 0
-            total_charge_num = 0
+            MzMLFile().load(os.path.join(mzmls_dir, m), exp)
+            log.warning("Parsing {}...".format(os.path.join(mzmls_dir, m)))
             charge_2 = 0
-            for i in mzml.MzML(os.path.join(mzmls_dir, m)):
-                if i['ms level'] == 1:
+            for i in exp:
+                if i.getMSLevel() == 1:
                     ms1_number += 1
-                elif i['ms level'] == 2:
+                elif i.getMSLevel() == 2:
                     ms2_number += 1
-                if i['id'] in self.identified_spectrum[m]:
-                    if i['base peak intensity'] > 10000:
-                        self.peak_intensity_distribution['identified_spectra']['>10000'] += 1
-                    elif i['base peak intensity'] > 6000:
-                        self.peak_intensity_distribution['identified_spectra']['6000-10000'] += 1
-                    elif i['base peak intensity'] > 3000:
-                        self.peak_intensity_distribution['identified_spectra']['3000-6000'] += 1
-                    elif i['base peak intensity'] > 1000:
-                        self.peak_intensity_distribution['identified_spectra']['1000-3000'] += 1
-                    elif i['base peak intensity'] > 900:
-                        self.peak_intensity_distribution['identified_spectra']['900-1000'] += 1
-                    elif i['base peak intensity'] > 700:
-                        self.peak_intensity_distribution['identified_spectra']['700-900'] += 1
-                    elif i['base peak intensity'] > 500:
-                        self.peak_intensity_distribution['identified_spectra']['500-700'] += 1
-                    elif i['base peak intensity'] > 300:
-                        self.peak_intensity_distribution['identified_spectra']['300-500'] += 1
-                    elif i['base peak intensity'] > 100:
-                        self.peak_intensity_distribution['identified_spectra']['100-300'] += 1
-                    elif i['base peak intensity'] > 10:
-                        self.peak_intensity_distribution['identified_spectra']['10-100'] += 1
-                    else:
-                        self.peak_intensity_distribution['identified_spectra']['0-10'] += 1
+                    charge_state = i.getPrecursors()[0].getCharge()
+                    peak_per_ms2 = len(i.get_peaks()[0])
+                    base_peak_intensity = i.getMetaValue("base peak intensity")
+                    if charge_state == 2:
+                        charge_2 += 1
 
-                    if 'precursorList' in i.keys():
-                        try:
-                            charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
-                                'charge state']
-                            if charge_state > 7:
-                                self.charge_state_distribution['identified_spectra']['>7'] += 1
-                            elif charge_state == 7:
-                                self.charge_state_distribution['identified_spectra']['7'] += 1
-                            elif charge_state == 6:
-                                self.charge_state_distribution['identified_spectra']['6'] += 1
-                            elif charge_state == 5:
-                                self.charge_state_distribution['identified_spectra']['5'] += 1
-                            elif charge_state == 4:
-                                self.charge_state_distribution['identified_spectra']['4'] += 1
-                            elif charge_state == 3:
-                                self.charge_state_distribution['identified_spectra']['3'] += 1
-                            elif charge_state == 2:
-                                self.charge_state_distribution['identified_spectra']['2'] += 1
-                            elif charge_state == 1:
-                                self.charge_state_distribution['identified_spectra']['1'] += 1
-                        except KeyError:
-                            # log.warning("No charge state: {}".format(i['id']))
-                            pass
+                    if i.getNativeID() in self.identified_spectrum[m]:
+                        if charge_state > 7:
+                            self.charge_state_distribution['identified_spectra']['>7'] += 1
+                        elif charge_state == 7:
+                            self.charge_state_distribution['identified_spectra']['7'] += 1
+                        elif charge_state == 6:
+                            self.charge_state_distribution['identified_spectra']['6'] += 1
+                        elif charge_state == 5:
+                            self.charge_state_distribution['identified_spectra']['5'] += 1
+                        elif charge_state == 4:
+                            self.charge_state_distribution['identified_spectra']['4'] += 1
+                        elif charge_state == 3:
+                            self.charge_state_distribution['identified_spectra']['3'] += 1
+                        elif charge_state == 2:
+                            self.charge_state_distribution['identified_spectra']['2'] += 1
+                        elif charge_state == 1:
+                            self.charge_state_distribution['identified_spectra']['1'] += 1
 
-                    if i['ms level'] == 2:
-                        if i['defaultArrayLength'] >= 1000:
+                        if peak_per_ms2 >= 1000:
                             self.peak_per_ms2['identified_spectra']['>1000'] += 1
-                        elif 900 <= i['defaultArrayLength'] < 1000:
+                        elif 900 <= peak_per_ms2 < 1000:
                             self.peak_per_ms2['identified_spectra']['900-1000'] += 1
-                        elif 800 <= i['defaultArrayLength'] < 900:
+                        elif 800 <= peak_per_ms2 < 900:
                             self.peak_per_ms2['identified_spectra']['800-900'] += 1
-                        elif 700 <= i['defaultArrayLength'] < 800:
+                        elif 700 <= peak_per_ms2 < 800:
                             self.peak_per_ms2['identified_spectra']['700-800'] += 1
-                        elif 600 <= i['defaultArrayLength'] < 700:
+                        elif 600 <= peak_per_ms2 < 700:
                             self.peak_per_ms2['identified_spectra']['600-700'] += 1
-                        elif 500 <= i['defaultArrayLength'] < 600:
+                        elif 500 <= peak_per_ms2 < 600:
                             self.peak_per_ms2['identified_spectra']['500-600'] += 1
-                        elif 400 <= i['defaultArrayLength'] < 500:
+                        elif 400 <= peak_per_ms2 < 500:
                             self.peak_per_ms2['identified_spectra']['400-500'] += 1
-                        elif 300 <= i['defaultArrayLength'] < 400:
+                        elif 300 <= peak_per_ms2 < 400:
                             self.peak_per_ms2['identified_spectra']['300-400'] += 1
-                        elif 200 <= i['defaultArrayLength'] < 300:
+                        elif 200 <= peak_per_ms2 < 300:
                             self.peak_per_ms2['identified_spectra']['200-300'] += 1
-                        elif 100 <= i['defaultArrayLength'] < 200:
+                        elif 100 <= peak_per_ms2 < 200:
                             self.peak_per_ms2['identified_spectra']['100-200'] += 1
                         else:
                             self.peak_per_ms2['identified_spectra']['0-100'] += 1
-                else:
-                    if i['base peak intensity'] > 10000:
-                        self.peak_intensity_distribution['unidentified_spectra']['>10000'] += 1
-                    elif i['base peak intensity'] > 6000:
-                        self.peak_intensity_distribution['unidentified_spectra']['6000-10000'] += 1
-                    elif i['base peak intensity'] > 3000:
-                        self.peak_intensity_distribution['unidentified_spectra']['3000-6000'] += 1
-                    elif i['base peak intensity'] > 1000:
-                        self.peak_intensity_distribution['unidentified_spectra']['1000-3000'] += 1
-                    elif i['base peak intensity'] > 900:
-                        self.peak_intensity_distribution['unidentified_spectra']['900-1000'] += 1
-                    elif i['base peak intensity'] > 700:
-                        self.peak_intensity_distribution['unidentified_spectra']['700-900'] += 1
-                    elif i['base peak intensity'] > 500:
-                        self.peak_intensity_distribution['unidentified_spectra']['500-700'] += 1
-                    elif i['base peak intensity'] > 300:
-                        self.peak_intensity_distribution['unidentified_spectra']['300-500'] += 1
-                    elif i['base peak intensity'] > 100:
-                        self.peak_intensity_distribution['unidentified_spectra']['100-300'] += 1
-                    elif i['base peak intensity'] > 10:
-                        self.peak_intensity_distribution['unidentified_spectra']['10-100'] += 1
+
+                        if base_peak_intensity > 10000:
+                            self.peak_intensity_distribution['identified_spectra']['>10000'] += 1
+                        elif base_peak_intensity > 6000:
+                            self.peak_intensity_distribution['identified_spectra']['6000-10000'] += 1
+                        elif base_peak_intensity > 3000:
+                            self.peak_intensity_distribution['identified_spectra']['3000-6000'] += 1
+                        elif base_peak_intensity > 1000:
+                            self.peak_intensity_distribution['identified_spectra']['1000-3000'] += 1
+                        elif base_peak_intensity > 900:
+                            self.peak_intensity_distribution['identified_spectra']['900-1000'] += 1
+                        elif base_peak_intensity > 700:
+                            self.peak_intensity_distribution['identified_spectra']['700-900'] += 1
+                        elif base_peak_intensity > 500:
+                            self.peak_intensity_distribution['identified_spectra']['500-700'] += 1
+                        elif base_peak_intensity > 300:
+                            self.peak_intensity_distribution['identified_spectra']['300-500'] += 1
+                        elif base_peak_intensity > 100:
+                            self.peak_intensity_distribution['identified_spectra']['100-300'] += 1
+                        elif base_peak_intensity > 10:
+                            self.peak_intensity_distribution['identified_spectra']['10-100'] += 1
+                        else:
+                            self.peak_intensity_distribution['identified_spectra']['0-10'] += 1
+
                     else:
-                        self.peak_intensity_distribution['unidentified_spectra']['0-10'] += 1
+                        if charge_state > 7:
+                            self.charge_state_distribution['unidentified_spectra']['>7'] += 1
+                        elif charge_state == 7:
+                            self.charge_state_distribution['unidentified_spectra']['7'] += 1
+                        elif charge_state == 6:
+                            self.charge_state_distribution['unidentified_spectra']['6'] += 1
+                        elif charge_state == 5:
+                            self.charge_state_distribution['unidentified_spectra']['5'] += 1
+                        elif charge_state == 4:
+                            self.charge_state_distribution['unidentified_spectra']['4'] += 1
+                        elif charge_state == 3:
+                            self.charge_state_distribution['unidentified_spectra']['3'] += 1
+                        elif charge_state == 2:
+                            self.charge_state_distribution['unidentified_spectra']['2'] += 1
+                        elif charge_state == 1:
+                            self.charge_state_distribution['unidentified_spectra']['1'] += 1
 
-                    if 'precursorList' in i.keys():
-                        try:
-                            charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
-                                'charge state']
-                            if charge_state > 7:
-                                self.charge_state_distribution['unidentified_spectra']['>7'] += 1
-                            elif charge_state == 7:
-                                self.charge_state_distribution['unidentified_spectra']['7'] += 1
-                            elif charge_state == 6:
-                                self.charge_state_distribution['unidentified_spectra']['6'] += 1
-                            elif charge_state == 5:
-                                self.charge_state_distribution['unidentified_spectra']['5'] += 1
-                            elif charge_state == 4:
-                                self.charge_state_distribution['unidentified_spectra']['4'] += 1
-                            elif charge_state == 3:
-                                self.charge_state_distribution['unidentified_spectra']['3'] += 1
-                            elif charge_state == 2:
-                                self.charge_state_distribution['unidentified_spectra']['2'] += 1
-                            elif charge_state == 1:
-                                self.charge_state_distribution['unidentified_spectra']['1'] += 1
-                        except KeyError:
-                            # log.warning("No charge state: {}".format(i['id']))
-                            pass
-
-                    if i['ms level'] == 2:
-                        if i['defaultArrayLength'] >= 1000:
+                        if peak_per_ms2 >= 1000:
                             self.peak_per_ms2['unidentified_spectra']['>1000'] += 1
-                        elif 900 <= i['defaultArrayLength'] < 1000:
+                        elif 900 <= peak_per_ms2 < 1000:
                             self.peak_per_ms2['unidentified_spectra']['900-1000'] += 1
-                        elif 800 <= i['defaultArrayLength'] < 900:
+                        elif 800 <= peak_per_ms2 < 900:
                             self.peak_per_ms2['unidentified_spectra']['800-900'] += 1
-                        elif 700 <= i['defaultArrayLength'] < 800:
+                        elif 700 <= peak_per_ms2 < 800:
                             self.peak_per_ms2['unidentified_spectra']['700-800'] += 1
-                        elif 600 <= i['defaultArrayLength'] < 700:
+                        elif 600 <= peak_per_ms2 < 700:
                             self.peak_per_ms2['unidentified_spectra']['600-700'] += 1
-                        elif 500 <= i['defaultArrayLength'] < 600:
+                        elif 500 <= peak_per_ms2 < 600:
                             self.peak_per_ms2['unidentified_spectra']['500-600'] += 1
-                        elif 400 <= i['defaultArrayLength'] < 500:
+                        elif 400 <= peak_per_ms2 < 500:
                             self.peak_per_ms2['unidentified_spectra']['400-500'] += 1
-                        elif 300 <= i['defaultArrayLength'] < 400:
+                        elif 300 <= peak_per_ms2 < 400:
                             self.peak_per_ms2['unidentified_spectra']['300-400'] += 1
-                        elif 200 <= i['defaultArrayLength'] < 300:
+                        elif 200 <= peak_per_ms2 < 300:
                             self.peak_per_ms2['unidentified_spectra']['200-300'] += 1
-                        elif 100 <= i['defaultArrayLength'] < 200:
+                        elif 100 <= peak_per_ms2 < 200:
                             self.peak_per_ms2['unidentified_spectra']['100-200'] += 1
                         else:
                             self.peak_per_ms2['unidentified_spectra']['0-100'] += 1
-                if 'precursorList' in i.keys():
-                    total_charge_num += 1
-                    try:
-                        charge_state = i['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0][
-                            'charge state']
-                        if charge_state == 2:
-                            charge_2 += 1
-                    except Exception as e:
-                        pass
-            heatmap_charge[m] = charge_2 / total_charge_num
+
+                        if base_peak_intensity > 10000:
+                            self.peak_intensity_distribution['unidentified_spectra']['>10000'] += 1
+                        elif base_peak_intensity > 6000:
+                            self.peak_intensity_distribution['unidentified_spectra']['6000-10000'] += 1
+                        elif base_peak_intensity > 3000:
+                            self.peak_intensity_distribution['unidentified_spectra']['3000-6000'] += 1
+                        elif base_peak_intensity > 1000:
+                            self.peak_intensity_distribution['unidentified_spectra']['1000-3000'] += 1
+                        elif base_peak_intensity > 900:
+                            self.peak_intensity_distribution['unidentified_spectra']['900-1000'] += 1
+                        elif base_peak_intensity > 700:
+                            self.peak_intensity_distribution['unidentified_spectra']['700-900'] += 1
+                        elif base_peak_intensity > 500:
+                            self.peak_intensity_distribution['unidentified_spectra']['500-700'] += 1
+                        elif base_peak_intensity > 300:
+                            self.peak_intensity_distribution['unidentified_spectra']['300-500'] += 1
+                        elif base_peak_intensity > 100:
+                            self.peak_intensity_distribution['unidentified_spectra']['100-300'] += 1
+                        elif base_peak_intensity > 10:
+                            self.peak_intensity_distribution['unidentified_spectra']['10-100'] += 1
+                        else:
+                            self.peak_intensity_distribution['unidentified_spectra']['0-10'] += 1
+
+            heatmap_charge[m] = charge_2 / ms2_number
             self.Total_ms2_Spectral = self.Total_ms2_Spectral + ms2_number
             mzml_table[m] = {'MS1_Num': ms1_number}
             mzml_table[m]['MS2_Num'] = ms2_number
         median = np.median(list(heatmap_charge.values()))
         self.heatmap_charge_score = dict(zip(heatmap_charge.keys(),
-                                            list(map(lambda v: 1 - np.abs(v - median),
-                                                    heatmap_charge.values()))))
+                                             list(map(lambda v: 1 - np.abs(v - median),
+                                                      heatmap_charge.values()))))
 
         raw_ids = config.kwargs['raw_ids']
         for raw_id in os.listdir(raw_ids):
             log.warning("Parsing {}...".format(raw_id))
-            if 'msgf' in raw_id:
-                mz = openms.idxml.IDXML(os.path.join(raw_ids, raw_id))
+            protein_ids = []
+            peptide_ids = []
+            IdXMLFile().load(os.path.join(raw_ids, raw_id), protein_ids, peptide_ids)
 
+            if 'msgf' in raw_id:
                 # spectrum matched to target peptide
                 if config.kwargs['remove_decoy']:
-                    msgf_identified_num = len(set([i['spectrum_reference'] for i in mz
-                                                if i['PeptideHit'][0]['target_decoy'] == 'target']))
+                    msgf_identified_num = len(set([i.getMetaValue("spectrum_reference") for i in peptide_ids
+                                                   if i.getHits()[0].getMetaValue("target_decoy") == 'target']))
                 else:
-                    msgf_identified_num = len(set([i['spectrum_reference'] for i in mz]))
+                    msgf_identified_num = len(peptide_ids)
 
                 mzML_name = raw_id.split('_msgf')[0] + '.mzML'
                 mzml_table[mzML_name]['MSGF'] = msgf_identified_num
 
             if 'comet' in raw_id:
-                mz = openms.idxml.IDXML(os.path.join(raw_ids, raw_id))
                 if config.kwargs['remove_decoy']:
-                    comet_identified_num = len(set([i['spectrum_reference'] for i in mz
-                                                    if i['PeptideHit'][0]['target_decoy'] == 'target']))
+                    comet_identified_num = len(set([i.getMetaValue("spectrum_reference") for i in peptide_ids
+                                                    if i.getHits()[0].getMetaValue("target_decoy") == 'target']))
                 else:
-                    comet_identified_num = len(set([i['spectrum_reference'] for i in mz]))
+                    comet_identified_num = len(peptide_ids)
                 mzML_name = raw_id.split('_comet')[0] + '.mzML'
                 mzml_table[mzML_name]['Comet'] = comet_identified_num
 
@@ -1337,38 +1176,48 @@ class QuantMSModule(BaseMultiqcModule):
 
         self.mzml_table = mzml_table
 
-    def parse_out_tmt(self):
+    def parse_out_mzTab(self):
         log.warning("Parsing mzTab file...")
-        exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
-        exp_data = exp_data.dropna(axis=0)
-        exp_data['Spectra_Filepath'] = exp_data.apply(lambda x: os.path.basename(x['Spectra_Filepath']), axis=1)
-        Spec_File = exp_data['Spectra_Filepath'].tolist()
         mztab_data = mztab.MzTab(self.out_mzTab_path)
         pep_table = mztab_data.peptide_table
         meta_data = dict(mztab_data.metadata)
+
         self.delta_mass['target'] = dict()
         self.delta_mass['decoy'] = dict()
 
         # PSM table data
         psm = mztab_data.spectrum_match_table
+        prot = mztab_data.protein_table
         psm_table = dict()
         psm['stand_spectra_ref'] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
         pep_table['stand_spectra_ref'] = pep_table.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
 
+        pro_abundance = list(filter(lambda x: re.match(r'protein_abundance_assay.*?', x) is not None,
+                                    prot.columns.tolist()))
         if config.kwargs['remove_decoy']:
-            Total_Protein_Identified = set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
-                                        ['accession'])
+            pep_table = pep_table[pep_table['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
+            prot_removedecoy = prot[-prot['accession'].str.contains(config.kwargs['decoy_affix'])]
+            Total_Protein_Identified = set(prot_removedecoy['accession'])
             self.Total_Protein_Identified = len(Total_Protein_Identified)
+            prot_removedecoy = prot_removedecoy[pro_abundance].dropna(how='all')
+            Total_Protein_Quantified = set(prot_removedecoy.index)
+            self.Total_Protein_Quantified = len(Total_Protein_Quantified)
+
         else:
-            Total_Protein_Identified = set(psm['accession'])
+            Total_Protein_Identified = set(prot['accession'])
             self.Total_Protein_Identified = len(Total_Protein_Identified)
+            prot = prot[pro_abundance].dropna(how='all')
+            for run in pro_abundance:
+                pass
+            Total_Protein_Quantified = set(prot.index)
+            self.Total_Protein_Quantified = len(Total_Protein_Quantified)
 
         num_pep_per_protein = dict()
         percent_pep_per_protein = dict()
-        for protein in Total_Protein_Identified:
-            number = str(len(set(psm[psm['accession'] == protein]['sequence'])))
+        for protein in np.unique(pep_table['accession']):
+            number = str(len(set(pep_table[pep_table['accession'] == protein]['sequence'])))
             if number in num_pep_per_protein:
                 num_pep_per_protein[number]['Frequency'] += 1
                 percent_pep_per_protein[number]['Percentage'] = num_pep_per_protein[number]['Frequency'] / \
@@ -1384,54 +1233,46 @@ class QuantMSModule(BaseMultiqcModule):
 
         # PSM information
         scores = list(filter(lambda x: re.match(r'search_engine_score.*?', x) is not None,
-                            psm.columns.tolist()))
+                             psm.columns.tolist()))
         t = (' float'.join(scores) + ' float').replace("[", "_").replace("]", "")
         cur.execute("CREATE TABLE PSM(PSM_ID int, sequence VARCHAR(100), PSM_UNIQUE int, " + t + ")")
         con.commit()
 
         mL_spec_ident_final = {}
-        for m in set(psm['stand_spectra_ref'].tolist()):
-            Sample = list(exp_data[exp_data['Spectra_Filepath'] == m]['Sample'])
-            self.cal_num_table_data[m] = {'Sample Name': '|'.join(Sample)}
-            fraction = exp_data[exp_data['Spectra_Filepath'] == m]['Fraction'].tolist()[0]
-            self.cal_num_table_data[m]['fraction'] = fraction
+        for m, group in psm.groupby('stand_spectra_ref'):
+            self.cal_num_table_data[m] = {'Sample Name': self.exp_design_table[m]['Sample']}
+            self.cal_num_table_data[m]['condition'] = self.exp_design_table[m]['MSstats_Condition']
+            self.cal_num_table_data[m]['fraction'] = self.exp_design_table[m]['Fraction']
 
             if config.kwargs['remove_decoy']:
-                proteins = set(psm[(psm['stand_spectra_ref'] == m) &
-                                (psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]['accession'])
-                peptides = set(psm[(psm['stand_spectra_ref'] == m) &
-                                (psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0)]
-                            ['opt_global_cv_MS:1000889_peptidoform_sequence'])
+                group = group[group['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
+            oversamplingcount = Counter(group.value_counts(['sequence', 'charge']).values)
+            self.oversampling[m] = {'1': oversamplingcount[1] if 1 in oversamplingcount else 0}
+            self.oversampling[m]['2'] = oversamplingcount[2] if 2 in oversamplingcount else 0
+            self.oversampling[m]['3+'] = np.sum(list(oversamplingcount.values())) - self.oversampling[m]['1'] - \
+                                         self.oversampling[m]['2']
+            proteins = set(group['accession'])
+            peptides = set(group['opt_global_cv_MS:1000889_peptidoform_sequence'])
+            unique_peptides = set(group[group['unique'] == 1]['opt_global_cv_MS:1000889_peptidoform_sequence'])
 
-                self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                    psm[(psm['stand_spectra_ref'] == m) & (
-                                                            psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
-                                                        'spectra_ref'].tolist()))
-                self.mzml_peptide_map[m] = list(set(psm[(psm['stand_spectra_ref'] == m) &
-                                                        (psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1)][
-                                                        'sequence'].tolist()))
-            else:
-                proteins = set(psm[psm['stand_spectra_ref'] == m]['accession'])
-                peptides = set(psm[psm['stand_spectra_ref'] == m]
-                            ['opt_global_cv_MS:1000889_peptidoform_sequence'])
-
-                self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                    psm[psm['stand_spectra_ref'] == m]['spectra_ref'].tolist()))
-                self.mzml_peptide_map[m] = list(set(psm[psm['stand_spectra_ref'] == m]['sequence'].tolist()))
+            self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
+                                                   group['spectra_ref'].tolist()))
+            self.mzml_peptide_map[m] = list(set(group['sequence'].tolist()))
 
             if None in proteins:
                 proteins.remove(None)
             self.cal_num_table_data[m]['protein_num'] = len(set(proteins))
             self.cal_num_table_data[m]['peptide_num'] = len(peptides)
+            self.cal_num_table_data[m]['unique_peptide_num'] = len(unique_peptides)
 
             modified_pep = list(filter(lambda x: re.match(r'.*?\(.*\).*?', x) is not None, peptides))
             self.cal_num_table_data[m]['modified_peptide_num'] = len(modified_pep)
 
-            mL_spec_ident_final[m] = len(self.identified_spectrum[m])
+            mL_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
 
         psm['relative_diff'] = psm['exp_mass_to_charge'] - psm['calc_mass_to_charge']
         self.delta_mass['decoy'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 1]
-                                        ['relative_diff'].tolist())
+                                           ['relative_diff'].tolist())
         self.delta_mass['target'] = Counter(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
                                             ['relative_diff'].tolist())
 
@@ -1462,9 +1303,9 @@ class QuantMSModule(BaseMultiqcModule):
         self.mL_spec_ident_final = mL_spec_ident_final
         if config.kwargs['remove_decoy']:
             self.Total_ms2_Spectral_Identified = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                                        ['spectra_ref']))
+                                                         ['spectra_ref']))
             self.Total_Peptide_Count = len(set(psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-                                            ['sequence']))
+                                               ['sequence']))
         else:
             self.Total_ms2_Spectral_Identified = len(set(psm['spectra_ref']))
             self.Total_Peptide_Count = len(set(psm['sequence']))
@@ -1473,7 +1314,7 @@ class QuantMSModule(BaseMultiqcModule):
         # peptide quantification table data
         pep_quant = dict()
         study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
-                                    pep_table.columns.tolist()))
+                                      pep_table.columns.tolist()))
         cur.execute("CREATE TABLE QUANT(ID integer PRIMARY KEY AUTOINCREMENT, sequence VARCHAR(100))")
         con.commit()
         sql_col = "sequence"

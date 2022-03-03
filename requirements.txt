@@ -1,6 +1,7 @@
 multiqc
 pandas
 pyteomics
+pyopenms
 sdrf-pipelines
 lxml
 numpy

@@ -1,0 +1,462 @@
+{
+    "report_data_sources": {},
+    "report_general_stats_data": [],
+    "report_general_stats_headers": [],
+    "report_multiqc_command": "C:\\Users\\ChengXin\\MyProgram\\python\\anaconda\\pro\\Scripts\\multiqc --exp_design C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\experimental_design.tsv --mzMLs C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\mzMLs --raw_ids C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\raw_ids C:/Users/ChengXin/PycharmProjects/untitled/pmultiqc_test/test_data/PXD000001",
+    "report_plot_data": {
+        "mqc_hcplot_baigzkuqyj": {
+            "plot_type": "heatmap",
+            "data": [
+                [
+                    0,
+                    0,
+                    1.0
+                ],
+                [
+                    1,
+                    0,
+                    0.005576257826760411
+                ],
+                [
+                    2,
+                    0,
+                    1.0
+                ],
+                [
+                    3,
+                    0,
+                    0.8683559950556242
+                ],
+                [
+                    4,
+                    0,
+                    1.0
+                ],
+                [
+                    5,
+                    0,
+                    0.5683176262688048
+                ],
+                [
+                    6,
+                    0,
+                    0.9349593495934959
+                ],
+                [
+                    7,
+                    0,
+                    1.0
+                ]
+            ],
+            "xcats": [
+                "Contaminants",
+                "Peptide Intensity",
+                "Charge",
+                "Missed Cleavages",
+                "Missed Cleavages Var",
+                "ID rate over RT",
+                "MS2 OverSampling",
+                "Pep Missing Values"
+            ],
+            "ycats": [
+                "TMT_Erwinia_1uLSike_Top10HCD_isol2_45stepped_60min_01.mzML"
+            ],
+            "config": {
+                "title": "Performance Overview",
+                "xTitle": "metrics",
+                "yTitle": "RawName",
+                "square": false,
+                "id": "mqc_hcplot_baigzkuqyj"
+            }
+        },
+        "number_of_peptides_per_proteins": {
+            "plot_type": "bar_graph",
+            "samples": [
+                [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                    "10",
+                    "11",
+                    "12",
+                    "13",
+                    "15"
+                ],
+                [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                    "10",
+                    "11",
+                    "12",
+                    "13",
+                    "15"
+                ]
+            ],
+            "datasets": [
+                [
+                    {
+                        "name": "Frequency",
+                        "data": [
+                            278.0,
+                            78.0,
+                            49.0,
+                            22.0,
+                            13.0,
+                            6.0,
+                            10.0,
+                            7.0,
+                            4.0,
+                            5.0,
+                            1.0,
+                            5.0,
+                            1.0,
+                            1.0
+                        ]
+                    }
+                ],
+                [
+                    {
+                        "name": "Percentage",
+                        "data": [
+                            0.5,
+                            0.14028776978417265,
+                            0.08812949640287769,
+                            0.039568345323741004,
+                            0.023381294964028777,
+                            0.01079136690647482,
+                            0.017985611510791366,
+                            0.012589928057553957,
+                            0.007194244604316547,
+                            0.008992805755395683,
+                            0.0017985611510791368,
+                            0.008992805755395683,
+                            0.0017985611510791368,
+                            0.0017985611510791368
+                        ]
+                    }
+                ]
+            ],
+            "config": {
+                "id": "number_of_peptides_per_proteins",
+                "cpswitch": false,
+                "title": "Number of Peptides identified per Protein",
+                "xlab": "Number of Peptides",
+                "tt_percentages": false,
+                "data_labels": [
+                    {
+                        "name": "count",
+                        "ylab": "Frequency"
+                    },
+                    {
+                        "name": "percentage",
+                        "ylab": "Percentage",
+                        "format": "{:,.2f}",
+                        "suffix": "%"
+                    }
+                ]
+            }
+        },
+        "Precursor_Ion_Charge_Distribution": {
+            "plot_type": "bar_graph",
+            "samples": [
+                [
+                    "identified_spectra",
+                    "unidentified_spectra"
+                ]
+            ],
+            "datasets": [
+                [
+                    {
+                        "name": "2",
+                        "data": [
+                            648.0,
+                            3101.0
+                        ]
+                    },
+                    {
+                        "name": "3",
+                        "data": [
+                            767.0,
+                            1188.0
+                        ]
+                    },
+                    {
+                        "name": "4",
+                        "data": [
+                            167.0,
+                            201.0
+                        ]
+                    },
+                    {
+                        "name": "5",
+                        "data": [
+                            9.0,
+                            16.0
+                        ]
+                    },
+                    {
+                        "name": "6",
+                        "data": [
+                            1.0,
+                            5.0
+                        ]
+                    }
+                ]
+            ],
+            "config": {
+                "id": "Precursor_Ion_Charge_Distribution",
+                "cpswitch": false,
+                "title": "Precursor Ion Charge Distribution"
+            }
+        },
+        "peaks_per_ms2": {
+            "plot_type": "bar_graph",
+            "samples": [
+                [
+                    "identified_spectra",
+                    "unidentified_spectra"
+                ]
+            ],
+            "datasets": [
+                [
+                    {
+                        "name": "0-100",
+                        "data": [
+                            173.0,
+                            1171.0
+                        ]
+                    },
+                    {
+                        "name": "100-200",
+                        "data": [
+                            809.0,
+                            2244.0
+                        ]
+                    },
+                    {
+                        "name": "200-300",
+                        "data": [
+                            505.0,
+                            900.0
+                        ]
+                    },
+                    {
+                        "name": "300-400",
+                        "data": [
+                            80.0,
+                            146.0
+                        ]
+                    },
+                    {
+                        "name": "400-500",
+                        "data": [
+                            14.0,
+                            27.0
+                        ]
+                    },
+                    {
+                        "name": "500-600",
+                        "data": [
+                            5.0,
+                            12.0
+                        ]
+                    },
+                    {
+                        "name": "600-700",
+                        "data": [
+                            2.0,
+                            3.0
+                        ]
+                    },
+                    {
+                        "name": "700-800",
+                        "data": [
+                            1.0,
+                            0.0
+                        ]
+                    },
+                    {
+                        "name": "800-900",
+                        "data": [
+                            0.0,
+                            3.0
+                        ]
+                    },
+                    {
+                        "name": "900-1000",
+                        "data": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    {
+                        "name": ">1000",
+                        "data": [
+                            2.0,
+                            4.0
+                        ]
+                    }
+                ]
+            ],
+            "config": {
+                "id": "peaks_per_ms2",
+                "cpswitch": false,
+                "title": "Number of Peaks per MS/MS spectrum"
+            }
+        },
+        "peak_intensity_distribution": {
+            "plot_type": "bar_graph",
+            "samples": [
+                [
+                    "identified_spectra",
+                    "unidentified_spectra"
+                ]
+            ],
+            "datasets": [
+                [
+                    {
+                        "name": "10-100",
+                        "data": [
+                            0.0,
+                            15.0
+                        ]
+                    },
+                    {
+                        "name": "100-300",
+                        "data": [
+                            0.0,
+                            20.0
+                        ]
+                    },
+                    {
+                        "name": "300-500",
+                        "data": [
+                            0.0,
+                            9.0
+                        ]
+                    },
+                    {
+                        "name": "500-700",
+                        "data": [
+                            0.0,
+                            5.0
+                        ]
+                    },
+                    {
+                        "name": "700-900",
+                        "data": [
+                            0.0,
+                            1.0
+                        ]
+                    },
+                    {
+                        "name": "900-1000",
+                        "data": [
+                            0.0,
+                            1.0
+                        ]
+                    },
+                    {
+                        "name": "1000-3000",
+                        "data": [
+                            0.0,
+                            5.0
+                        ]
+                    },
+                    {
+                        "name": "3000-6000",
+                        "data": [
+                            0.0,
+                            6.0
+                        ]
+                    },
+                    {
+                        "name": "6000-10000",
+                        "data": [
+                            1.0,
+                            9.0
+                        ]
+                    },
+                    {
+                        "name": ">10000",
+                        "data": [
+                            1591.0,
+                            4440.0
+                        ]
+                    }
+                ]
+            ],
+            "config": {
+                "id": "peak_intensity_distribution",
+                "cpswitch": false,
+                "title": "Peak Intensity Distribution"
+            }
+        },
+        "Oversampling_Distribution": {
+            "plot_type": "bar_graph",
+            "samples": [
+                [
+                    "TMT_Erwinia_1uLSike_Top10HCD_isol2_45stepped_60min_01.mzML"
+                ]
+            ],
+            "datasets": [
+                [
+                    {
+                        "name": "1",
+                        "data": [
+                            1380.0
+                        ]
+                    },
+                    {
+                        "name": "2",
+                        "data": [
+                            68.0
+                        ]
+                    },
+                    {
+                        "name": "3+",
+                        "data": [
+                            28.0
+                        ]
+                    }
+                ]
+            ],
+            "config": {
+                "id": "Oversampling_Distribution",
+                "cpswitch": false,
+                "title": "MS2 counts per 3D-peak",
+                "scale": "set3"
+            }
+        }
+    },
+    "report_saved_raw_data": {},
+    "config_analysis_dir_abs": [
+        "C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001"
+    ],
+    "config_analysis_dir": [
+        "C:/Users/ChengXin/PycharmProjects/untitled/pmultiqc_test/test_data/PXD000001"
+    ],
+    "config_creation_date": "2022-03-03, 15:11",
+    "config_git_hash": null,
+    "config_intro_text": null,
+    "config_report_comment": null,
+    "config_report_header_info": null,
+    "config_script_path": "C:\\Users\\ChengXin\\MyProgram\\python\\anaconda\\pro\\lib\\site-packages\\multiqc\\utils",
+    "config_short_version": "1.10",
+    "config_subtitle": null,
+    "config_title": null,
+    "config_version": "1.10"
+}

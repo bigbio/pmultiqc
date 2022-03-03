@@ -7,7 +7,7 @@ For more information about MultiQC, see http://multiqc.info
 
 from setuptools import setup, find_packages
 
-version = '0.0.9'
+version = '0.0.10'
 
 
 def readme():
@@ -35,7 +35,8 @@ setup(
         'pandas',
         'pyteomics',
         'sdrf-pipelines >= 0.0.18',
-        'numpy'
+        'numpy',
+        'pyopenms'
     ],
     entry_points={
         'multiqc.modules.v1': [
@@ -48,7 +49,6 @@ setup(
             'sdrf = pmultiqc.cli:sdrf',
             'raw = pmultiqc.cli:raw',
             'condition = pmultiqc.cli:condition',
-            'quant_method = pmultiqc.cli:quant_method',
             'mzMLs = pmultiqc.cli:mzMLs',
             'raw_ids = pmultiqc.cli:raw_ids',
             'remove_decoy = pmultiqc.cli:remove_decoy',

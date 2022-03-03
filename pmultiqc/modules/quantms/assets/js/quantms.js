@@ -150,7 +150,7 @@ function showPage(pageNum, page){
 //TotalPage
 async function quantPageCount(){
     let t;
-    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
+    await axios.get("quantms.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
         .then(function (response) {
         let db = new window.SQL.Database(new Uint8Array(response.data));
         // execute query
@@ -171,7 +171,7 @@ async function quantPageCount(){
 //TotalPage
 async function updateQuantData(currentRow){
 	let d;
-    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*',
+    await axios.get("quantms.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*',
 			'Access-Control-Allow-Headers': '*'}})
     		.then(function (response) {
 			let db = new window.SQL.Database(new Uint8Array(response.data));
@@ -248,7 +248,7 @@ function quant_page_jump(){
 
 async function searchData(filter, col, table){
 	let d;
-    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
+    await axios.get("quantms.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
     		.then(function (response) {
 			let db = new window.SQL.Database(new Uint8Array(response.data));
 
@@ -459,7 +459,7 @@ function psmLast(){
 //TotalPage
 async function psmPageCount(){
     let t;
-    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
+    await axios.get("quantms.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
         .then(function (response) {
         let db = new window.SQL.Database(new Uint8Array(response.data));
         let r = db.exec("select count(*) from psm");
@@ -486,7 +486,7 @@ function psmLastText(){ psmLastDom.innerHTML = "Last Page";}
 
 async function updatePsmData(currentRow){
 	let d;
-    await axios.get("proteomicslfq.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
+    await axios.get("quantms.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
     		.then(function (response) {
 			let db = new window.SQL.Database(new Uint8Array(response.data));
 			let r = db.exec("select * from psm " + "limit "+ String(currentRow) + ",50");
