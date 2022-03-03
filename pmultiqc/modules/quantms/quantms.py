@@ -56,9 +56,6 @@ class QuantMSModule(BaseMultiqcModule):
         if config.kwargs.get('disable_plugin', True):
             return None
 
-        # for file in self.find_log_files({'fn': "*.csv"}):
-        #     self.out_csv_path = os.path.join(config.analysis_dir[0], file['fn'])
-
         for f in self.find_log_files({'fn': 'out.mzTab'}):
             self.out_mzTab_path = os.path.join(config.analysis_dir[0], f['fn'])
 
@@ -100,17 +97,17 @@ class QuantMSModule(BaseMultiqcModule):
         self.HeatmapOverSamplingScore = dict()
         self.HeatmapPepMissingScore = dict()
         self.oversampling = dict()
-        self.quantification_method = ''
+        self.exp_design_table = dict()
 
         # parse input data
+        # draw the experimental design
+        self.draw_exp_design()
+
         self.parse_out_mzTab()
         self.parse_mzml_idx()
         self.CalHeatMapScore()
 
         self.draw_heatmap()
-        # draw the experimental design
-        self.draw_exp_design()
-
         self.draw_summary_proten_ident_table()
 
         # draw_quantms_identi_num
@@ -200,7 +197,6 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def draw_exp_design(self):
-        exp_design_table = dict()
         with open(self.exp_design, 'r') as f:
             data = f.readlines()
             empty_row = data.index('\n')
@@ -210,15 +206,15 @@ class QuantMSModule(BaseMultiqcModule):
             s_header = data[data.index('\n') + 1].replace('\n', '').split('\t')
             s_DataFrame = pd.DataFrame(s_table, columns=s_header)
             for file in np.unique(f_table[2].tolist()):
-                exp_design_table[file] = {'Fraction_Group': f_table[f_table[2] == file][0].tolist()[0]}
-                exp_design_table[file]['Fraction'] = f_table[f_table[2] == file][1].tolist()[0]
-                exp_design_table[file]['Label'] = ','.join(f_table[f_table[2] == file][3])
+                self.exp_design_table[file] = {'Fraction_Group': f_table[f_table[2] == file][0].tolist()[0]}
+                self.exp_design_table[file]['Fraction'] = f_table[f_table[2] == file][1].tolist()[0]
+                self.exp_design_table[file]['Label'] = '|'.join(f_table[f_table[2] == file][3])
                 sample = f_table[f_table[2] == file][4].tolist()
-                exp_design_table[file]['Sample'] = ','.join(sample)
-                exp_design_table[file]['MSstats_Condition'] = ','.join(
+                self.exp_design_table[file]['Sample'] = '|'.join(sample)
+                self.exp_design_table[file]['MSstats_Condition'] = ','.join(
                     [row['MSstats_Condition'] for _, row in s_DataFrame.iterrows()
                      if row['Sample'] in sample])
-                exp_design_table[file]['MSstats_BioReplicate'] = ','.join(
+                self.exp_design_table[file]['MSstats_BioReplicate'] = '|'.join(
                     [row['MSstats_BioReplicate'] for _, row in s_DataFrame.iterrows()
                      if row['Sample'] in sample])
 
@@ -259,7 +255,7 @@ class QuantMSModule(BaseMultiqcModule):
             'description': 'MSstats BioReplicate',
             'color': "#ffffff",
         }
-        table_html = table.plot(exp_design_table, headers, pconfig)
+        table_html = table.plot(self.exp_design_table, headers, pconfig)
 
         # Add a report section with the line plot
         self.add_section(
@@ -335,11 +331,10 @@ class QuantMSModule(BaseMultiqcModule):
             'description': 'Sample identifier',
             'color': "#ffffff"
         }
-        # if self.quantification_method == 'lfq':
-        #     headers['condition'] = {
-        #         'description': 'Possible Study Variables',
-        #         'color': "#ffffff"
-        #     }
+        headers['condition'] = {
+                'description': 'Possible Study Variables',
+                'color': "#ffffff"
+        }
         headers['fraction'] = {
             'description': 'fraction identifier',
             'color': "#ffffff"
@@ -1182,15 +1177,9 @@ class QuantMSModule(BaseMultiqcModule):
 
     def parse_out_mzTab(self):
         log.warning("Parsing mzTab file...")
-        exp_data = pd.read_csv(self.exp_design, sep='\t', header=0, index_col=None, dtype=str)
-        exp_data = exp_data.dropna(axis=0)
-        exp_data['Spectra_Filepath'] = exp_data.apply(lambda x: os.path.basename(x['Spectra_Filepath']), axis=1)
-        Spec_File = exp_data['Spectra_Filepath'].tolist()
         mztab_data = mztab.MzTab(self.out_mzTab_path)
         pep_table = mztab_data.peptide_table
         meta_data = dict(mztab_data.metadata)
-        if 'label-free' in meta_data['quantification_method']:
-            self.quantification_method = 'lfq'
 
         self.delta_mass['target'] = dict()
         self.delta_mass['decoy'] = dict()
@@ -1250,10 +1239,9 @@ class QuantMSModule(BaseMultiqcModule):
 
         mL_spec_ident_final = {}
         for m, group in psm.groupby('stand_spectra_ref'):
-            Sample = list(exp_data[exp_data['Spectra_Filepath'] == m]['Sample'])
-            self.cal_num_table_data[m] = {'Sample Name': '|'.join(Sample)}
-            fraction = exp_data[exp_data['Spectra_Filepath'] == m]['Fraction'].tolist()[0]
-            self.cal_num_table_data[m]['fraction'] = fraction
+            self.cal_num_table_data[m] = {'Sample Name': self.exp_design_table[m]['Sample']}
+            self.cal_num_table_data[m]['condition'] = self.exp_design_table[m]['MSstats_Condition']
+            self.cal_num_table_data[m]['fraction'] = self.exp_design_table[m]['Fraction']
 
             if config.kwargs['remove_decoy']:
                 group = group[group['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
