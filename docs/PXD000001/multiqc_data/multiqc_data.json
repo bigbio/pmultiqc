@@ -2,9 +2,9 @@
     "report_data_sources": {},
     "report_general_stats_data": [],
     "report_general_stats_headers": [],
-    "report_multiqc_command": "C:\\Users\\ChengXin\\MyProgram\\python\\anaconda\\pro\\Scripts\\multiqc --exp_design C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\experimental_design.tsv --mzMLs C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\mzMLs --raw_ids C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\raw_ids C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001",
+    "report_multiqc_command": "C:\\Users\\ChengXin\\MyProgram\\python\\anaconda\\pro\\Scripts\\multiqc --exp_design C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\experimental_design.tsv --mzMLs C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\mzMLs --raw_ids C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001\\raw_ids C:/Users/ChengXin/PycharmProjects/untitled/pmultiqc_test/test_data/PXD000001",
     "report_plot_data": {
-        "mqc_hcplot_xepmvbfthz": {
+        "mqc_hcplot_baigzkuqyj": {
             "plot_type": "heatmap",
             "data": [
                 [
@@ -66,7 +66,7 @@
                 "xTitle": "metrics",
                 "yTitle": "RawName",
                 "square": false,
-                "id": "mqc_hcplot_xepmvbfthz"
+                "id": "mqc_hcplot_baigzkuqyj"
             }
         },
         "number_of_peptides_per_proteins": {
@@ -447,9 +447,9 @@
         "C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001"
     ],
     "config_analysis_dir": [
-        "C:\\Users\\ChengXin\\PycharmProjects\\untitled\\pmultiqc_test\\test_data\\PXD000001"
+        "C:/Users/ChengXin/PycharmProjects/untitled/pmultiqc_test/test_data/PXD000001"
     ],
-    "config_creation_date": "2022-03-03, 10:24",
+    "config_creation_date": "2022-03-03, 15:11",
     "config_git_hash": null,
     "config_intro_text": null,
     "config_report_comment": null,

@@ -45,9 +45,9 @@ class QuantMSModule(BaseMultiqcModule):
 
         # Initialise the parent module Class object
         super(QuantMSModule, self).__init__(
-            name='quantms',
-            target="quantms",
-            anchor='quantms',
+            name='pmultiqc',
+            target="pmultiqc",
+            anchor='pmultiqc',
             href='https://github.com/bigbio/pmultiqc',
             info=" is an module to show the pipeline performance."
         )
