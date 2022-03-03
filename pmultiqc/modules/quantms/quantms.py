@@ -206,16 +206,16 @@ class QuantMSModule(BaseMultiqcModule):
             s_header = data[data.index('\n') + 1].replace('\n', '').split('\t')
             s_DataFrame = pd.DataFrame(s_table, columns=s_header)
             for file in np.unique(f_table[2].tolist()):
-                file = os.path.basename(file)
-                self.exp_design_table[file] = {'Fraction_Group': f_table[f_table[2] == file][0].tolist()[0]}
-                self.exp_design_table[file]['Fraction'] = f_table[f_table[2] == file][1].tolist()[0]
-                self.exp_design_table[file]['Label'] = '|'.join(f_table[f_table[2] == file][3])
+                stand_file = os.path.basename(file)
+                self.exp_design_table[stand_file] = {'Fraction_Group': f_table[f_table[2] == file][0].tolist()[0]}
+                self.exp_design_table[stand_file]['Fraction'] = f_table[f_table[2] == file][1].tolist()[0]
+                self.exp_design_table[stand_file]['Label'] = '|'.join(f_table[f_table[2] == file][3])
                 sample = f_table[f_table[2] == file][4].tolist()
-                self.exp_design_table[file]['Sample'] = '|'.join(sample)
-                self.exp_design_table[file]['MSstats_Condition'] = ','.join(
+                self.exp_design_table[stand_file]['Sample'] = '|'.join(sample)
+                self.exp_design_table[stand_file]['MSstats_Condition'] = ','.join(
                     [row['MSstats_Condition'] for _, row in s_DataFrame.iterrows()
                      if row['Sample'] in sample])
-                self.exp_design_table[file]['MSstats_BioReplicate'] = '|'.join(
+                self.exp_design_table[stand_file]['MSstats_BioReplicate'] = '|'.join(
                     [row['MSstats_BioReplicate'] for _, row in s_DataFrame.iterrows()
                      if row['Sample'] in sample])
 
