@@ -206,6 +206,7 @@ class QuantMSModule(BaseMultiqcModule):
             s_header = data[data.index('\n') + 1].replace('\n', '').split('\t')
             s_DataFrame = pd.DataFrame(s_table, columns=s_header)
             for file in np.unique(f_table[2].tolist()):
+                file = os.path.basename(file)
                 self.exp_design_table[file] = {'Fraction_Group': f_table[f_table[2] == file][0].tolist()[0]}
                 self.exp_design_table[file]['Fraction'] = f_table[f_table[2] == file][1].tolist()[0]
                 self.exp_design_table[file]['Label'] = '|'.join(f_table[f_table[2] == file][3])
