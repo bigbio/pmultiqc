@@ -225,6 +225,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def draw_exp_design(self):
+        # only support two-table format in pipeline
         with open(self.exp_design, 'r') as f:
             data = f.readlines()
             s_row = False
@@ -1377,7 +1378,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.PSM_table = psm_table
 
         if pep_table.empty != True:    
-            self.pep_table_exists = TRUE        
+            self.pep_table_exists = True
             # peptide quantification table data
             pep_table['stand_spectra_ref'] = pep_table.apply(
                 lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
