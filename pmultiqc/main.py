@@ -4,11 +4,9 @@
 """
 
 from __future__ import print_function
-from hashlib import sha1
 from pkg_resources import get_distribution
 import logging
 from multiqc.utils import config
-from sqlalchemy import false
 
 # Initialise the main MultiQC logger
 log = logging.getLogger('pmultiqc')
