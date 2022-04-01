@@ -56,9 +56,6 @@ class QuantMSModule(BaseMultiqcModule):
         if config.kwargs.get('disable_plugin', True):
             return None
 
-        for f in self.find_log_files({'fn': 'out.mzTab'}):
-            self.out_mzTab_path = os.path.join(config.analysis_dir[0], f['fn'])
-
         if config.kwargs['exp_design']:
             self.exp_design = config.kwargs['exp_design']
         elif config.kwargs['sdrf']:
@@ -103,29 +100,32 @@ class QuantMSModule(BaseMultiqcModule):
         # draw the experimental design
         self.draw_exp_design()
         self.pep_table_exists = False
-
-        for f in self.find_log_files({'fn': 'out.mzTab'}):
+        for f in self.find_log_files("quantms/mztab"):
             self.out_mzTab_path = os.path.join(config.analysis_dir[0], f['fn'])
             self.parse_out_mzTab()
             self.enable_dia = False
 
-        for report in self.find_log_files({'fn': 'report*'}):
-            if report["fn"] == "report.tsv":
-                self.diann_report_path = os.path.join(config.analysis_dir[0], report["fn"])
-            elif report["fn"] == "report.stats.tsv":
-                self.diann_stats_path = os.path.join(config.analysis_dir[0], report["fn"])
+        for report in self.find_log_files("quantms/diann_report"):
+            self.diann_report_path = os.path.join(config.analysis_dir[0], report["fn"])
             self.enable_dia = True
+
+        self.mzML_paths = []
+        for mzML_file in self.find_log_files("quantms/mzML"):
+            self.mzML_paths.append(os.path.join(config.analysis_dir[0], mzML_file['fn']))
+
+        mt = self.parse_mzml()
+        self.idx_paths = []
+        for idx_file in self.find_log_files("quantms/idXML"):
+            self.idx_paths.append(os.path.join(config.analysis_dir[0], idx_file['fn']))
 
         #TODO In Construction
         if self.enable_dia:
-            self.parse_diann_report()       
-            mt = self.parse_mzml()
+            self.parse_diann_report()
             self.draw_summary_proten_ident_table()
             self.draw_quantms_identi_num()
             self.draw_num_pep_per_protein()
             self.draw_pep_quant_info()
         else:
-            mt = self.parse_mzml()
             self.parse_idxml(mt)
             self.CalHeatMapScore()
             self.draw_heatmap()
@@ -1045,14 +1045,14 @@ class QuantMSModule(BaseMultiqcModule):
         ))
 
         mzml_table = {}
-        mzmls_dir = config.kwargs['mzMLs']
         heatmap_charge = {}
         exp = MSExperiment()
-        for m in os.listdir(mzmls_dir):
+        for m in self.mzML_paths:
             ms1_number = 0
             ms2_number = 0
-            log.warning("Parsing {}...".format(os.path.join(mzmls_dir, m)))
-            MzMLFile().load(os.path.join(mzmls_dir, m), exp)
+            log.warning("Parsing {}...".format(m))
+            MzMLFile().load(m, exp)            
+            m = os.path.basename(m)
             charge_2 = 0
             for i in exp:
                 if i.getMSLevel() == 1:
@@ -1206,13 +1206,12 @@ class QuantMSModule(BaseMultiqcModule):
         return mzml_table
                                 
     def parse_idxml(self, mzml_table):
-        raw_ids = config.kwargs['raw_ids']
-        for raw_id in os.listdir(raw_ids):
+        for raw_id in self.idx_paths:
             log.warning("Parsing {}...".format(raw_id))
             protein_ids = []
             peptide_ids = []
-            IdXMLFile().load(os.path.join(raw_ids, raw_id), protein_ids, peptide_ids)
-
+            IdXMLFile().load(raw_id, protein_ids, peptide_ids)
+            raw_id = os.path.basename(raw_id)
             if config.kwargs['remove_decoy']:
                 identified_num = len(set([i.getMetaValue("spectrum_reference") for i in peptide_ids
                                                     if i.getHits()[0].getMetaValue("target_decoy") == 'target']))

@@ -49,8 +49,6 @@ setup(
             'sdrf = pmultiqc.cli:sdrf',
             'raw = pmultiqc.cli:raw',
             'condition = pmultiqc.cli:condition',
-            'mzMLs = pmultiqc.cli:mzMLs',
-            'raw_ids = pmultiqc.cli:raw_ids',
             'remove_decoy = pmultiqc.cli:remove_decoy',
             'decoy_affix = pmultiqc.cli:decoy_affix',
             'affix_type = pmultiqc.cli:affix_type'
