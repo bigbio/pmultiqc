@@ -5,10 +5,10 @@
 A library for proteomics QC report based on MultiQC framework. The library generates a QC report for the [quantms pipeline](https://github.com/nf-core/quantms). The library read the input of the quantms pipeline, with the following structure:
 
 - exp_design          : experimental design in two-table format
-- mzMLs               : mzML spectra files
-- raw_ids             : Identification results from search + percolator
 - pipelines_results   : Final results of the pipeline
   - out.mzTab         : mzTab with results of the identification
+  - *.mzML            : mzML spectra files
+  - *.idXML           : Identification results from search + percolator
   - *.yml             : summary software information and parameters of quantms pipeline
 
 ## Usage
@@ -21,8 +21,6 @@ example: ```multiqc --exp_design ./UPS1/experimental_design.tsv --mzMLs ./UPS1/s
 - --sdrf: Sample and Data Relationship Format file path
 - --raw: Keep filenames in experimental design output as raw when exp_design file is provided
 - --condition: Create conditions from provided (e.g., factor) columns when exp_design file is provided
-- --mzMLs: mzMLs file directory
-- --raw_ids: raw identification file dir
 - --remove_decoy: Whether to remove the decoy peptides when counting
 - --decoy_affix: Pre- or suffix of decoy proteins in their accession
 - --affix_type: Location of the decoy marker string in the fasta accession. Before (prefix) or after (suffix)

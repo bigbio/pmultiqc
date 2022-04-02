@@ -31,5 +31,14 @@ def pmultiqc_plugin_execution_start():
     log.info("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 
     # Add to the search patterns used by modules
-    if 'quantms/out_mzTab' not in config.sp:
-        config.update_dict(config.sp, {'quantms/out_mzTab': {'fn': 'out.mzTab'}})
+    if 'quantms/mztab' not in config.sp:
+        config.update_dict(config.sp, {'quantms/mztab': {'fn': '*.mzTab'}})
+
+    if 'quantms/mzML' not in config.sp:
+        config.update_dict(config.sp, {'quantms/mzML': {'fn': '*.mzML'}})
+
+    if 'quantms/idXML' not in config.sp:
+        config.update_dict(config.sp, {'quantms/idXML': {'fn': '*.idXML'}})
+
+    if 'quantms/diann_report' not in config.sp:
+        config.update_dict(config.sp, {'quantms/diann_report': {'fn': '*.tsv', 'shared': False}})
