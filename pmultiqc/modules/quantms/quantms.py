@@ -125,6 +125,9 @@ class QuantMSModule(BaseMultiqcModule):
             self.draw_quantms_identi_num()
             self.draw_num_pep_per_protein()
             self.draw_pep_quant_info()
+            self.draw_precursor_charge_distribution()
+            self.draw_peaks_per_ms2()
+            self.draw_peak_intensity_distribution()
         else:
             self.parse_idxml(mt)
             self.CalHeatMapScore()
@@ -135,7 +138,6 @@ class QuantMSModule(BaseMultiqcModule):
             # draw number of peptides per protein
             self.draw_num_pep_per_protein()
             if self.pep_table_exists:
-                # draw peptides quantification information
                 self.draw_pep_quant_info()
             self.draw_psm_table()
             self.draw_mzml_ms()
@@ -313,14 +315,27 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def draw_summary_proten_ident_table(self):
-        summary_table = {
-            self.Total_ms2_Spectral: {"Total MS/MS Spectral Identified": self.Total_ms2_Spectral_Identified}}
-        coverage = self.Total_ms2_Spectral_Identified / self.Total_ms2_Spectral * 100
-        summary_table[self.Total_ms2_Spectral]['Identified MS/MS Spectral Coverage'] = coverage
-        summary_table[self.Total_ms2_Spectral]['Total Peptide Identified'] = self.Total_Peptide_Count
-        summary_table[self.Total_ms2_Spectral]['Total Protein Identified'] = self.Total_Protein_Identified
-        summary_table[self.Total_ms2_Spectral]['Total Protein Quantified'] = self.Total_Protein_Quantified
-
+        headers = OrderedDict()
+        if self.enable_dia:
+            summary_table = {
+                self.Total_ms2_Spectral: {"Total Peptide Quantified": self.Total_Peptide_Count}}
+            summary_table[self.Total_ms2_Spectral]['Total Protein Quantified'] = self.Total_Protein_Quantified    
+        else:
+            summary_table = {
+                self.Total_ms2_Spectral: {"Total MS/MS Spectral Identified": self.Total_ms2_Spectral_Identified}}
+            coverage = self.Total_ms2_Spectral_Identified / self.Total_ms2_Spectral * 100
+            summary_table[self.Total_ms2_Spectral]['Identified MS/MS Spectral Coverage'] = coverage
+            summary_table[self.Total_ms2_Spectral]['Total Peptide Identified'] = self.Total_Peptide_Count
+            summary_table[self.Total_ms2_Spectral]['Total Protein Identified'] = self.Total_Protein_Identified
+            summary_table[self.Total_ms2_Spectral]['Total Protein Quantified'] = self.Total_Protein_Quantified
+            headers['Total MS/MS Spectral Identified'] = {
+                'description': 'Total MS/MS Spectral Identified',
+            }
+            headers['Identified MS/MS Spectral Coverage'] = {
+                'description': 'Identified MS/MS Spectral Coverage',
+                'format': '{:,.2f}',
+                "suffix": "%"
+            }
         # Create table plot
         pconfig = {
             'id': 'identificaion summary table',  # ID used for the table
@@ -333,17 +348,6 @@ class QuantMSModule(BaseMultiqcModule):
             'format': '{:,.0f}',  # The header used for the first column
             "scale": "Set1"
         }
-        headers = OrderedDict()
-
-        headers['Total MS/MS Spectral Identified'] = {
-            'description': 'Total MS/MS Spectral Identified',
-        }
-        headers['Identified MS/MS Spectral Coverage'] = {
-            'description': 'Identified MS/MS Spectral Coverage',
-            'format': '{:,.2f}',
-            "suffix": "%"
-        }
-
         table_html = table.plot(summary_table, headers, pconfig)
 
         # Add a report section with the line plot
@@ -906,7 +910,7 @@ class QuantMSModule(BaseMultiqcModule):
                 'title': 'Delta m/z',  # Plot title - should be in format "Module Name: Plot Title"
                 'xlab': 'Experimental m/z - Theoretical m/z',  # X axis label
                 'ylab': 'Relative Frequency',  # Y axis label
-                'colors': {'target': '#b2df8a', 'decoy': '#DC143C'},
+                'colors': {'target': '#b2df8a'},
                 'xmax': max(list(self.delta_mass['target'].keys())) + 0.01,
                 'xmin': min((list(self.delta_mass['target'].keys()))) - 0.01,
                 "data_labels": [{"name": "Counts", "ylab": "Count"},
@@ -1020,29 +1024,42 @@ class QuantMSModule(BaseMultiqcModule):
                 return "DECOY"
 
     def parse_mzml(self):
-        self.peak_intensity_distribution['identified_spectra'] = dict(zip(
-            ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
-             '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
-        ))
-        self.peak_intensity_distribution['unidentified_spectra'] = dict(zip(
-            ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
-             '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
-        ))
-        self.charge_state_distribution['identified_spectra'] = dict(zip(
-            ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
-        ))
-        self.charge_state_distribution['unidentified_spectra'] = dict(zip(
-            ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
-        ))
-        self.peak_per_ms2['identified_spectra'] = dict(zip(
-            ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
-             '300-400', '200-300', '100-200', '0-100'], [0] * 11
-        ))
+        if self.enable_dia:
+            self.peak_intensity_distribution['Whole Experiment'] = dict(zip(
+                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
+                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
+            ))
+            self.charge_state_distribution['Whole Experiment'] = dict(zip(
+                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
+            ))
+            self.peak_per_ms2['Whole Experiment'] = dict(zip(
+                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
+                '300-400', '200-300', '100-200', '0-100'], [0] * 11
+            ))
+        else:
+            self.peak_intensity_distribution['identified_spectra'] = dict(zip(
+                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
+                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
+            ))
+            self.peak_intensity_distribution['unidentified_spectra'] = dict(zip(
+                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
+                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
+            ))
+            self.charge_state_distribution['identified_spectra'] = dict(zip(
+                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
+            ))
+            self.charge_state_distribution['unidentified_spectra'] = dict(zip(
+                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
+            ))
+            self.peak_per_ms2['identified_spectra'] = dict(zip(
+                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
+                '300-400', '200-300', '100-200', '0-100'], [0] * 11
+            ))
 
-        self.peak_per_ms2['unidentified_spectra'] = dict(zip(
-            ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
-             '300-400', '200-300', '100-200', '0-100'], [0] * 11
-        ))
+            self.peak_per_ms2['unidentified_spectra'] = dict(zip(
+                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
+                '300-400', '200-300', '100-200', '0-100'], [0] * 11
+            ))
 
         mzml_table = {}
         heatmap_charge = {}
@@ -1066,7 +1083,70 @@ class QuantMSModule(BaseMultiqcModule):
                         charge_2 += 1
                     
                     if self.enable_dia:
+                        if charge_state > 7:
+                            self.charge_state_distribution['Whole Experiment']['>7'] += 1
+                        elif charge_state == 7:
+                            self.charge_state_distribution['Whole Experiment']['7'] += 1
+                        elif charge_state == 6:
+                            self.charge_state_distribution['Whole Experiment']['6'] += 1
+                        elif charge_state == 5:
+                            self.charge_state_distribution['Whole Experiment']['5'] += 1
+                        elif charge_state == 4:
+                            self.charge_state_distribution['Whole Experiment']['4'] += 1
+                        elif charge_state == 3:
+                            self.charge_state_distribution['Whole Experiment']['3'] += 1
+                        elif charge_state == 2:
+                            self.charge_state_distribution['Whole Experiment']['2'] += 1
+                        elif charge_state == 1:
+                            self.charge_state_distribution['Whole Experiment']['1'] += 1
+
+                        if peak_per_ms2 >= 1000:
+                            self.peak_per_ms2['Whole Experiment']['>1000'] += 1
+                        elif 900 <= peak_per_ms2 < 1000:
+                            self.peak_per_ms2['Whole Experiment']['900-1000'] += 1
+                        elif 800 <= peak_per_ms2 < 900:
+                            self.peak_per_ms2['Whole Experiment']['800-900'] += 1
+                        elif 700 <= peak_per_ms2 < 800:
+                            self.peak_per_ms2['Whole Experiment']['700-800'] += 1
+                        elif 600 <= peak_per_ms2 < 700:
+                            self.peak_per_ms2['Whole Experiment']['600-700'] += 1
+                        elif 500 <= peak_per_ms2 < 600:
+                            self.peak_per_ms2['Whole Experiment']['500-600'] += 1
+                        elif 400 <= peak_per_ms2 < 500:
+                            self.peak_per_ms2['Whole Experiment']['400-500'] += 1
+                        elif 300 <= peak_per_ms2 < 400:
+                            self.peak_per_ms2['Whole Experiment']['300-400'] += 1
+                        elif 200 <= peak_per_ms2 < 300:
+                            self.peak_per_ms2['Whole Experiment']['200-300'] += 1
+                        elif 100 <= peak_per_ms2 < 200:
+                            self.peak_per_ms2['Whole Experiment']['100-200'] += 1
+                        else:
+                            self.peak_per_ms2['Whole Experiment']['0-100'] += 1
+
+                        if base_peak_intensity > 10000:
+                            self.peak_intensity_distribution['Whole Experiment']['>10000'] += 1
+                        elif base_peak_intensity > 6000:
+                            self.peak_intensity_distribution['Whole Experiment']['6000-10000'] += 1
+                        elif base_peak_intensity > 3000:
+                            self.peak_intensity_distribution['Whole Experiment']['3000-6000'] += 1
+                        elif base_peak_intensity > 1000:
+                            self.peak_intensity_distribution['Whole Experiment']['1000-3000'] += 1
+                        elif base_peak_intensity > 900:
+                            self.peak_intensity_distribution['Whole Experiment']['900-1000'] += 1
+                        elif base_peak_intensity > 700:
+                            self.peak_intensity_distribution['Whole Experiment']['700-900'] += 1
+                        elif base_peak_intensity > 500:
+                            self.peak_intensity_distribution['Whole Experiment']['500-700'] += 1
+                        elif base_peak_intensity > 300:
+                            self.peak_intensity_distribution['Whole Experiment']['300-500'] += 1
+                        elif base_peak_intensity > 100:
+                            self.peak_intensity_distribution['Whole Experiment']['100-300'] += 1
+                        elif base_peak_intensity > 10:
+                            self.peak_intensity_distribution['Whole Experiment']['10-100'] += 1
+                        else:
+                            self.peak_intensity_distribution['Whole Experiment']['0-10'] += 1
                         continue
+
                     if i.getNativeID() in self.identified_spectrum[m]:
                         if charge_state > 7:
                             self.charge_state_distribution['identified_spectra']['>7'] += 1
@@ -1416,9 +1496,7 @@ class QuantMSModule(BaseMultiqcModule):
         pattern = re.compile(r"\(.*?\)")
         report_data = pd.read_csv(self.diann_report_path, header=0, sep="\t")
         report_data["sequence"] = report_data.apply(lambda x: re.sub(pattern,"",x["Modified.Sequence"]), axis=1)
-        self.Total_Protein_Identified = len(set(report_data["Protein.Names"]))
         self.Total_Protein_Quantified = len(set(report_data["Protein.Names"]))
-        self.Total_ms2_Spectral_Identified = len(set(report_data["MS2.Scan"]))
         self.Total_Peptide_Count = len(set(report_data["sequence"]))
 
         protein_pep_map = report_data.groupby('Protein.Group').sequence.apply(list).to_dict()
@@ -1429,10 +1507,10 @@ class QuantMSModule(BaseMultiqcModule):
             if number in num_pep_per_protein:
                 num_pep_per_protein[number]['Frequency'] += 1
                 percent_pep_per_protein[number]['Percentage'] = num_pep_per_protein[number]['Frequency'] / \
-                                                                self.Total_Protein_Identified
+                                                                self.Total_Protein_Quantified
             else:
                 num_pep_per_protein[number] = {'Frequency': 1}
-                percent_pep_per_protein[number] = {'Percentage': 1 / self.Total_Protein_Identified}
+                percent_pep_per_protein[number] = {'Percentage': 1 / self.Total_Protein_Quantified}
 
         keys = sorted(num_pep_per_protein.items(), key=lambda x: int(x[0]))  # sort
         for key in keys:
