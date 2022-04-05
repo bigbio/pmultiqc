@@ -30,6 +30,12 @@ def pmultiqc_plugin_execution_start():
 
     log.info("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 
+    if 'quantms/exp_design' not in config.sp:
+        config.update_dict(config.sp, {'quantms/exp_design': {'fn': 'experimental_design.tsv'}, 'shared': False})
+
+    if 'quantms/sdrf' not in config.sp:
+        config.update_dict(config.sp, {'quantms/sdrf': {'fn': '*.sdrf.tsv'}, 'shared': False})
+
     # Add to the search patterns used by modules
     if 'quantms/mztab' not in config.sp:
         config.update_dict(config.sp, {'quantms/mztab': {'fn': '*.mzTab'}})
