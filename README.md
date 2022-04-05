@@ -2,19 +2,20 @@
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
 [![Upload Python Package](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml)
 
-A library for proteomics QC report based on MultiQC framework. The library generates a QC report for the [quantms pipeline](https://github.com/nf-core/quantms). The library read the input of the quantms pipeline, with the following structure:
+A library for proteomics QC report based on MultiQC framework. The library generates a QC report for the [quantms pipeline](https://github.com/nf-core/quantms). The library read the input of the quantms pipeline by specified analysis dir, with the following structure:
 
-- exp_design          : experimental design in two-table format
-- pipelines_results   : Final results of the pipeline
+- analysis_dir        : Final results of the pipeline
+  - exp_design        : experimental design in two-table format
   - out.mzTab         : mzTab with results of the identification
   - *.mzML            : mzML spectra files
   - *.idXML           : Identification results from search + percolator
-  - *.yml             : summary software information and parameters of quantms pipeline
+  - *.yml             : summary software information and parameters of quantms pipeline (optional)
+  - diann_report.tsv  : DIA-NN main report file. Only for DIA analysis.
 
 ## Usage
-```multiqc --exp_design/sdrf {expdesign_file/sdrf file} {pipelines results dir} -o {output dir}```
+```multiqc {analysis_dir} -o {output dir}```
 
-example: ```multiqc --exp_design ./UPS1/experimental_design.tsv  ./UPS1/shared-peptides-star-align-stricter-pep-protein-FDR/proteomics_lfq -o ./shared-peptides-star-align-stricter-pep-protein-FDR-statistics ```
+example: ```multiqc resources/LFQ -o ./```
 
 ### parameters
 - --exp_design: The experimental design file path, the most entries can be derived from the sdrf file

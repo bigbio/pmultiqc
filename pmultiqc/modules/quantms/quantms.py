@@ -59,11 +59,11 @@ class QuantMSModule(BaseMultiqcModule):
         self.enable_exp = False
         self.enable_sdrf = False
         for f in self.find_log_files("quantms/exp_design"):
-            self.exp_design = os.path.join(config.analysis_dir[0], f['fn'])
+            self.exp_design = os.path.join(f["root"], f['fn'])
             self.enable_exp = True
         if self.enable_exp == False:
             for f in self.find_log_files("quantms/sdrf"):
-                self.sdrf = os.path.join(config.analysis_dir[0], f['fn'])
+                self.sdrf = os.path.join(f["root"], f['fn'])
                 OpenMS().openms_convert(self.sdrf, config.kwargs['raw'],
                                     False, True, False, config.kwargs['condition'])
                 self.enable_sdrf = True
@@ -105,24 +105,24 @@ class QuantMSModule(BaseMultiqcModule):
         # parse input data
         # draw the experimental design
         self.draw_exp_design()
-        self.pep_table_exists = False
+        self.pep_table_exists = False            
+        self.enable_dia = False
         for f in self.find_log_files("quantms/mztab"):
-            self.out_mzTab_path = os.path.join(config.analysis_dir[0], f['fn'])
+            self.out_mzTab_path = os.path.join(f["root"], f['fn'])
             self.parse_out_mzTab()
-            self.enable_dia = False
 
         for report in self.find_log_files("quantms/diann_report"):
-            self.diann_report_path = os.path.join(config.analysis_dir[0], report["fn"])
+            self.diann_report_path = os.path.join(report["root"], report["fn"])
             self.enable_dia = True
 
         self.mzML_paths = []
         for mzML_file in self.find_log_files("quantms/mzML"):
-            self.mzML_paths.append(os.path.join(config.analysis_dir[0], mzML_file['fn']))
+            self.mzML_paths.append(os.path.join(mzML_file["root"], mzML_file['fn']))
 
         mt = self.parse_mzml()
         self.idx_paths = []
         for idx_file in self.find_log_files("quantms/idXML"):
-            self.idx_paths.append(os.path.join(config.analysis_dir[0], idx_file['fn']))
+            self.idx_paths.append(os.path.join(idx_file["root"], idx_file['fn']))
 
         #TODO In Construction
         if self.enable_dia:
