@@ -4,13 +4,13 @@
 
 A library for proteomics QC report based on MultiQC framework. The library generates a QC report for the [quantms pipeline](https://github.com/nf-core/quantms). The library read the input of the quantms pipeline by specified analysis dir, with the following structure:
 
-- analysis_dir        : Final results of the pipeline
-  - exp_design        : experimental design in two-table format
-  - out.mzTab         : mzTab with results of the identification
-  - *.mzML            : mzML spectra files
-  - *.idXML           : Identification results from search + percolator
-  - *.yml             : summary software information and parameters of quantms pipeline (optional)
-  - diann_report.tsv  : DIA-NN main report file. Only for DIA analysis.
+- analysis_dir                  : Final results of the pipeline
+  - experimental_design.tsv     : experimental design file in two-table format
+  - out.mzTab                   : mzTab with results of the identification
+  - *.mzML                      : mzML spectra files
+  - *.idXML                     : Identification results from search + percolator
+  - *.yml                       : summary software information and parameters of quantms pipeline (optional)
+  - diann_report.tsv            : DIA-NN main report file. Only for DIA analysis.
 
 ## Usage
 ```multiqc {analysis_dir} -o {output dir}```
@@ -18,19 +18,18 @@ A library for proteomics QC report based on MultiQC framework. The library gener
 example: ```multiqc resources/LFQ -o ./```
 
 ### parameters
-- --exp_design: The experimental design file path, the most entries can be derived from the sdrf file
-- --sdrf: Sample and Data Relationship Format file path
 - --raw: Keep filenames in experimental design output as raw when exp_design file is provided
 - --condition: Create conditions from provided (e.g., factor) columns when exp_design file is provided
 - --remove_decoy: Whether to remove the decoy peptides when counting
 - --decoy_affix: Pre- or suffix of decoy proteins in their accession
+- --contaminant_affix: The contaminant prefix or suffix used or to be used
 - --affix_type: Location of the decoy marker string in the fasta accession. Before (prefix) or after (suffix)
 - --disable_plugin: disable pmultiqc plugin
 
 
 An example report can be found in [multiqc_report.html](http://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html)
 
-Most of the metrics are compute based on the `out.mzTab` and the `raw_ids` which contains the peptides and protein identifications.
+Most of the metrics are compute based on the `out.mzTab` and the `*.idXML` which contains the peptides and protein identifications.
 
 ## Metrics
 
