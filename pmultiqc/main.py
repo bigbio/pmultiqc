@@ -48,3 +48,5 @@ def pmultiqc_plugin_execution_start():
 
     if 'quantms/diann_report' not in config.sp:
         config.update_dict(config.sp, {'quantms/diann_report': {'fn': 'diann_report.tsv', 'shared': False}})
+
+    config.update({'log_filesize_limit': 20000000000, 'thousandsSep_format': ''})
