@@ -56,13 +56,19 @@ class QuantMSModule(BaseMultiqcModule):
         if config.kwargs.get('disable_plugin', True):
             return None
 
-        if config.kwargs['exp_design']:
-            self.exp_design = config.kwargs['exp_design']
-        elif config.kwargs['sdrf']:
-            OpenMS().openms_convert(config.kwargs['sdrf'], config.kwargs['raw'],
+        self.enable_exp = False
+        self.enable_sdrf = False
+        for f in self.find_log_files("quantms/exp_design"):
+            self.exp_design = os.path.join(f["root"], f['fn'])
+            self.enable_exp = True
+        if self.enable_exp == False:
+            for f in self.find_log_files("quantms/sdrf"):
+                self.sdrf = os.path.join(f["root"], f['fn'])
+                OpenMS().openms_convert(self.sdrf, config.kwargs['raw'],
                                     False, True, False, config.kwargs['condition'])
-            self.exp_design = './' + 'experimental_design.tsv'
-        else:
+                self.enable_sdrf = True
+
+        if self.enable_sdrf == False and self.enable_exp == False:
             raise AttributeError("exp_design and sdrf cannot be empty at the same time")
 
         self.PSM_table = dict()
@@ -99,24 +105,24 @@ class QuantMSModule(BaseMultiqcModule):
         # parse input data
         # draw the experimental design
         self.draw_exp_design()
-        self.pep_table_exists = False
+        self.pep_table_exists = False            
+        self.enable_dia = False
         for f in self.find_log_files("quantms/mztab"):
-            self.out_mzTab_path = os.path.join(config.analysis_dir[0], f['fn'])
+            self.out_mzTab_path = os.path.join(f["root"], f['fn'])
             self.parse_out_mzTab()
-            self.enable_dia = False
 
         for report in self.find_log_files("quantms/diann_report"):
-            self.diann_report_path = os.path.join(config.analysis_dir[0], report["fn"])
+            self.diann_report_path = os.path.join(report["root"], report["fn"])
             self.enable_dia = True
 
         self.mzML_paths = []
         for mzML_file in self.find_log_files("quantms/mzML"):
-            self.mzML_paths.append(os.path.join(config.analysis_dir[0], mzML_file['fn']))
+            self.mzML_paths.append(os.path.join(mzML_file["root"], mzML_file['fn']))
 
         mt = self.parse_mzml()
         self.idx_paths = []
         for idx_file in self.find_log_files("quantms/idXML"):
-            self.idx_paths.append(os.path.join(config.analysis_dir[0], idx_file['fn']))
+            self.idx_paths.append(os.path.join(idx_file["root"], idx_file['fn']))
 
         #TODO In Construction
         if self.enable_dia:
@@ -946,20 +952,17 @@ class QuantMSModule(BaseMultiqcModule):
             study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
                                         pep_table.columns.tolist()))
 
-            for i in np.unique(pep_table['stand_spectra_ref']):
-                self.heatmap_con_score[i] = 1 - np.sum(np.sum(
-                    pep_table[(pep_table['stand_spectra_ref'] == i) &
-                            (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 1)][study_variables])) / \
-                                            np.sum(np.sum(pep_table[pep_table['stand_spectra_ref'] == i]
-                                                        [study_variables]))
+            for name, group in pep_table.groupby("stand_spectra_ref"):
+                self.heatmap_con_score[name] = 1 - np.sum(np.sum(
+                    group[group['accession'].str.contains(config.kwargs["contaminant_affix"])][study_variables])) / \
+                                            np.sum(np.sum(group[study_variables]))
                 if config.kwargs['remove_decoy']:
-                    T = sum(pep_table[(pep_table['stand_spectra_ref'] == i)
-                                    & (pep_table['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables].values. \
+                    T = sum(group[(group['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables].values. \
                             tolist(), [])
                 else:
-                    T = sum(pep_table[pep_table['stand_spectra_ref'] == i][study_variables].values.tolist(), [])
+                    T = sum(group[study_variables].values.tolist(), [])
                 pep_median = np.median([j for j in T if not math.isnan(j) is True])
-                self.heatmap_pep_intensity[i] = np.minimum(1.0, pep_median / (2 ** 23))  # Threshold
+                self.heatmap_pep_intensity[name] = np.minimum(1.0, pep_median / (2 ** 23))  # Threshold
 
         #  HeatMapMissedCleavages
         global_peps = set(psm['opt_global_cv_MS:1000889_peptidoform_sequence'])

@@ -44,13 +44,12 @@ setup(
         ],
         'multiqc.cli_options.v1': [
             'disable_plugin = pmultiqc.cli:disable_plugin',
-            'exp_design = pmultiqc.cli:exp_design',
             'pmultiqc_version = pmultiqc.cli:pmultiqc_version',
-            'sdrf = pmultiqc.cli:sdrf',
             'raw = pmultiqc.cli:raw',
             'condition = pmultiqc.cli:condition',
             'remove_decoy = pmultiqc.cli:remove_decoy',
             'decoy_affix = pmultiqc.cli:decoy_affix',
+            'contaminant_affix = pmultiqc.cli:contaminant_affix',
             'affix_type = pmultiqc.cli:affix_type'
         ],
         'multiqc.hooks.v1': [
