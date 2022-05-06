@@ -286,7 +286,6 @@ class QuantMSModule(BaseMultiqcModule):
         maxnr = len(f_table.index)
         set3_colors = set3_scale.get_colours(name="Set3")
         colors = dict( (str(i+1), set3_colors[i % len(set3_colors)]) for i in range(maxnr) )
-        print(colors)
 
         headers['Fraction_Group'] = {
             'description': 'Fraction_Group',
