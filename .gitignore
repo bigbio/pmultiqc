@@ -1,3 +1,8 @@
+# Repo specific
+tests/multiqc_data*
+tests/multiqc_report*
+tests/quantms.db
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

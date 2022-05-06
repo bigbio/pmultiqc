@@ -3,14 +3,14 @@
 """ MultiQC pmultiqc plugin module """
 
 from __future__ import absolute_import
-from collections import OrderedDict
+from collections import Counter, defaultdict, OrderedDict
 import logging
 from sdrf_pipelines.openms.openms import OpenMS
 from multiqc import config
 from multiqc.plots import table, bargraph, linegraph, heatmap
 from multiqc.modules.base_module import BaseMultiqcModule
+from multiqc.utils.mqc_colour import mqc_colour_scale
 import pandas as pd
-from collections import Counter
 import re
 from pyteomics import mztab
 from pyopenms import IdXMLFile, MzMLFile, MSExperiment
@@ -127,7 +127,7 @@ class QuantMSModule(BaseMultiqcModule):
         #TODO In Construction
         if self.enable_dia:
             self.parse_diann_report()
-            self.draw_summary_proten_ident_table()
+            self.draw_summary_protein_ident_table()
             self.draw_quantms_identi_num()
             self.draw_num_pep_per_protein()
             self.draw_pep_quant_info()
@@ -138,7 +138,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.parse_idxml(mt)
             self.CalHeatMapScore()
             self.draw_heatmap()
-            self.draw_summary_proten_ident_table()
+            self.draw_summary_protein_ident_table()
             # draw_quantms_identi_num
             self.draw_quantms_identi_num()
             # draw number of peptides per protein
@@ -233,7 +233,8 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def draw_exp_design(self):
-        # only support two-table format in pipeline
+        # Currently this only supports the OpenMS two-table format (default in quantms pipeline)
+        # One table format would actually be even easier. You can just use pandas.read_tsv
         with open(self.exp_design, 'r') as f:
             data = f.readlines()
             s_row = False
@@ -258,7 +259,7 @@ class QuantMSModule(BaseMultiqcModule):
                 stand_file = os.path.basename(file)
                 file_index = f_table[f_table["Spectra_Filepath"] == file]
                 self.exp_design_table[stand_file] = {'Fraction_Group': file_index["Fraction_Group"].tolist()[0]}
-                self.exp_design_table[stand_file]['Fraction'] =file_index["Fraction"].tolist()[0]
+                self.exp_design_table[stand_file]['Fraction'] = file_index["Fraction"].tolist()[0]
                 self.exp_design_table[stand_file]['Label'] = '|'.join(file_index["Label"])
                 sample = file_index["Sample"].tolist()
                 self.exp_design_table[stand_file]['Sample'] = '|'.join(sample)
@@ -281,30 +282,35 @@ class QuantMSModule(BaseMultiqcModule):
             'format': '{:,.0f}',  # The header used for the first column
         }
         headers = OrderedDict()
+        set3_scale = mqc_colour_scale(name="Set3")
+        maxnr = len(f_table.index)
+        set3_colors = set3_scale.get_colours(name="Set3")
+        colors = dict( (str(i+1), set3_colors[i % len(set3_colors)]) for i in range(maxnr) )
+        print(colors)
 
         headers['Fraction_Group'] = {
             'description': 'Fraction_Group',
-            'color': "#ffffff",
+            'bgcols': colors,
         }
         headers['Fraction'] = {
             'description': 'Fraction identifier',
-            'color': "#ffffff",
+            'bgcols': colors,
         }
         headers['Label'] = {
             'description': 'Label',
-            'color': "#ffffff",
+            'bgcols': colors,
         }
         headers['Sample'] = {
             'description': 'Sample Name',
-            'color': "#ffffff",
+            'bgcols': colors,
         }
         headers['MSstats_Condition'] = {
             'description': 'MSstats Condition',
-            'color': "#ffffff",
+            'bgcols': colors,
         }
         headers['MSstats_BioReplicate'] = {
             'description': 'MSstats BioReplicate',
-            'color': "#ffffff",
+            'bgcols': colors,
         }
         table_html = table.plot(self.exp_design_table, headers, pconfig)
 
@@ -320,7 +326,7 @@ class QuantMSModule(BaseMultiqcModule):
             plot=table_html
         )
 
-    def draw_summary_proten_ident_table(self):
+    def draw_summary_protein_ident_table(self):
         headers = OrderedDict()
         if self.enable_dia:
             summary_table = {
@@ -1335,34 +1341,25 @@ class QuantMSModule(BaseMultiqcModule):
 
         pro_abundance = list(filter(lambda x: re.match(r'protein_abundance_assay.*?', x) is not None,
                                     prot.columns.tolist()))
+
         if config.kwargs['remove_decoy']:
             psm = psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] != 1]
-            prot_removedecoy = prot[-prot['accession'].str.contains(config.kwargs['decoy_affix'])]
-            Total_Protein_Identified = set(prot_removedecoy['accession'])
-            self.Total_Protein_Identified = len(Total_Protein_Identified)
-            prot_removedecoy = prot_removedecoy[pro_abundance].dropna(how='all')
-            Total_Protein_Quantified = set(prot_removedecoy.index)
-            self.Total_Protein_Quantified = len(Total_Protein_Quantified)
+            prot = prot[~prot['accession'].str.contains(config.kwargs['decoy_affix'])]
 
-        else:
-            Total_Protein_Identified = set(prot['accession'])
-            self.Total_Protein_Identified = len(Total_Protein_Identified)
-            prot = prot[pro_abundance].dropna(how='all')
-            Total_Protein_Quantified = set(prot.index)
-            self.Total_Protein_Quantified = len(Total_Protein_Quantified)
+        prot = prot[prot['opt_global_result_type'] != 'protein_details']
+        self.Total_Protein_Identified = len(prot.index)
+        prot.dropna(how='all',subset=pro_abundance, inplace=True)
+        self.Total_Protein_Quantified = len(prot.index)
 
-        num_pep_per_protein = dict()
-        percent_pep_per_protein = dict()
-        for protein in np.unique(psm['accession']):
-            number = str(len(set(psm[psm['accession'] == protein]['sequence'])))
-            if number in num_pep_per_protein:
-                num_pep_per_protein[number]['Frequency'] += 1
-                percent_pep_per_protein[number]['Percentage'] = num_pep_per_protein[number]['Frequency'] / \
-                                                                self.Total_Protein_Identified
-            else:
-                num_pep_per_protein[number] = {'Frequency': 1}
-                percent_pep_per_protein[number] = {'Percentage': 1 / self.Total_Protein_Identified}
+        num_pep_per_protein = defaultdict(lambda: defaultdict(int))
+        percent_pep_per_protein = defaultdict(lambda: defaultdict(float))
+        for protein in prot['accession']:
+            number = sum(pep_table.apply(lambda x: all(p in x['accession'] for p in protein.split(",")),axis=1))
+            num_pep_per_protein[number]['Frequency'] += 1
 
+        for number in num_pep_per_protein.keys():
+            percent_pep_per_protein[number]['Percentage'] = num_pep_per_protein[number]['Frequency'] / \
+                                                            self.Total_Protein_Identified
         keys = sorted(num_pep_per_protein.items(), key=lambda x: int(x[0]))  # sort
         for key in keys:
             self.num_pep_per_protein[key[0]] = key[1]
