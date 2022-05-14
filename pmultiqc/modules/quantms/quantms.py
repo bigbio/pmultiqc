@@ -643,51 +643,15 @@ class QuantMSModule(BaseMultiqcModule):
             'title': 'Peak Intensity Distribution',
             # 'xlab': 'Peak Intensity'
         }
+        peak_intensity_list = ['0-10', '10-100'] + [str(i) + '-' + str(i + 200) 
+                                for i in range(100, 900, 200)] + ['900-1000', '1000-3000', '3000-6000', '6000-10000', '>10000']
         cats = OrderedDict()
-        cats['0-10'] = {
-            'name': '0-10',
-            'description': 'Peak intensity is between 0 and 10'
-        }
-        cats['10-100'] = {
-            'name': '10-100',
-            'description': 'Peak intensity is between 10 and 100'
-        }
-        cats['100-300'] = {
-            'name': '100-300',
-            'description': 'Peak intensity is between 100 and 300'
-        }
-        cats['300-500'] = {
-            'name': '300-500',
-            'description': 'Peak intensity is between 300 and 500'
-        }
-        cats['500-700'] = {
-            'name': '500-700',
-            'description': 'Peak intensity is between 500 and 700'
-        }
-        cats['700-900'] = {
-            'name': '700-900',
-            'description': 'Peak intensity is between 700 and 900'
-        }
-        cats['900-1000'] = {
-            'name': '900-1000',
-            'description': 'Peak intensity is between 900 and 1000'
-        }
-        cats['1000-3000'] = {
-            'name': '1000-3000',
-            'description': 'Peak intensity is between 1000 and 3000'
-        }
-        cats['3000-6000'] = {
-            'name': '3000-6000',
-            'description': 'Peak intensity is between 3000 and 6000'
-        }
-        cats['6000-10000'] = {
-            'name': '6000-10000',
-            'description': 'Peak intensity is between 6000 and 10000'
-        }
-        cats['>10000'] = {
-            'name': '>10000',
-            'description': 'peak intensity > 10000'
-        }
+        for i in peak_intensity_list:
+            cats[i] = {
+                    'name': i,
+                    'description': 'Peak intensity ' + 
+                                    ('> 10000' if i == '>10000' else 'is between ' +  i.split('-')[0] + ' and ' + i.split('-')[1])
+            }
 
         bar_html = bargraph.plot(self.peak_intensity_distribution, cats, pconfig)
         # Add a report section with the line plot
@@ -720,39 +684,15 @@ class QuantMSModule(BaseMultiqcModule):
             'cpswitch': False,
             'title': 'Precursor Ion Charge Distribution',
         }
+
+        charge_list = [str(i) for i in range(1, 8)]
+        charge_list.append('>7')
         cats = OrderedDict()
-        cats['1'] = {
-            'name': '1',
-            'description': 'Precursor charge state is 1'
-        }
-        cats['2'] = {
-            'name': '2',
-            'description': 'Precursor charge state is 2'
-        }
-        cats['3'] = {
-            'name': '3',
-            'description': 'Precursor charge state is 3'
-        }
-        cats['4'] = {
-            'name': '4',
-            'description': 'Precursor charge state is 4'
-        }
-        cats['5'] = {
-            'name': '5',
-            'description': 'Precursor charge state is 5'
-        }
-        cats['6'] = {
-            'name': '6',
-            'description': 'Precursor charge state is 6'
-        }
-        cats['7'] = {
-            'name': '7',
-            'description': 'Precursor charge state is 7'
-        }
-        cats['>7'] = {
-            'name': '>7',
-            'description': 'Precursor charge state >7'
-        }
+        for i in charge_list:
+            cats[i] = {
+                    'name': i,
+                    'description': 'Precursor charge state ' + ('>7' if i == '>7' else 'is ' + i) 
+            }
 
         bar_html = bargraph.plot(self.charge_state_distribution, cats, pconfig)
 
@@ -779,51 +719,15 @@ class QuantMSModule(BaseMultiqcModule):
             'cpswitch': False,
             'title': 'Number of Peaks per MS/MS spectrum',
         }
+        peaks_list = [str(i) + '-' + str(i + 100) for i in range(0, 1000, 100)]
+        peaks_list.append('>1000')
         cats = OrderedDict()
-        cats['0-100'] = {
-            'name': '0-100',
-            'description': 'Number of Peaks per MS/MS spectrum is between 0 and 100'
-        }
-        cats['100-200'] = {
-            'name': '100-200',
-            'description': 'Number of Peaks per MS/MS spectrum is between 100 and 200'
-        }
-        cats['200-300'] = {
-            'name': '200-300',
-            'description': 'Number of Peaks per MS/MS spectrum is between 200 and 300'
-        }
-        cats['300-400'] = {
-            'name': '300-400',
-            'description': 'Number of Peaks per MS/MS spectrum is between 300 and 400'
-        }
-        cats['400-500'] = {
-            'name': '400-500',
-            'description': 'Number of Peaks per MS/MS spectrum is between 400 and 500'
-        }
-        cats['500-600'] = {
-            'name': '500-600',
-            'description': 'Number of Peaks per MS/MS spectrum is between 500 and 600'
-        }
-        cats['600-700'] = {
-            'name': '600-700',
-            'description': 'Number of Peaks per MS/MS spectrum is between 600 and 700'
-        }
-        cats['700-800'] = {
-            'name': '700-800',
-            'description': 'Number of Peaks per MS/MS spectrum is between 700 and 800'
-        }
-        cats['800-900'] = {
-            'name': '800-900',
-            'description': 'Number of Peaks per MS/MS spectrum is between 800 and 900'
-        }
-        cats['900-1000'] = {
-            'name': '900-1000',
-            'description': 'Number of Peaks per MS/MS spectrum is between 900 and 1000'
-        }
-        cats['>1000'] = {
-            'name': '>1000',
-            'description': 'Number of Peaks per MS/MS spectrum > 1000'
-        }
+        for i in peaks_list:
+            cats[i] = {
+                    'name': i,
+                    'description': 'Number of Peaks per MS/MS spectrum ' + 
+                                    ('> 1000' if i == '>1000' else 'is between ' + i.split('-')[0] + ' and ' + i.split('-')[1])
+            }
 
         bar_html = bargraph.plot(self.peak_per_ms2, cats, pconfig)
 
@@ -850,22 +754,15 @@ class QuantMSModule(BaseMultiqcModule):
             'title': 'MS2 counts per 3D-peak',
             'scale': "set3"
         }
+        oversampling_list = [str(i) for i in range(1, 4)]
+        oversampling_list[2] = oversampling_list[2] + '+'
         cats = OrderedDict()
-        cats['1'] = {
-            'name': '1',
+        for i in oversampling_list:
+            cats[i] = {
+            'name': i,
             'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
                         'one distinct MS2 spectra'
-        }
-        cats['2'] = {
-            'name': '2',
-            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
-                        'two distinct MS2 spectra'
-        }
-        cats['3+'] = {
-            'name': '3+',
-            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
-                        'least three distinct MS2 spectra'
-        }
+            }
 
         bar_html = bargraph.plot(self.oversampling, cats, pconfig)
 
@@ -1032,42 +929,28 @@ class QuantMSModule(BaseMultiqcModule):
                 return "DECOY"
 
     def parse_mzml(self):
+        spectra_dict = dict(zip(
+                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
+                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
+            ))
+        charge_dict = dict(zip(
+                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
+            ))
+        peak_dict = dict(zip(
+                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
+                '300-400', '200-300', '100-200', '0-100'], [0] * 11
+            ))
         if self.enable_dia:
-            self.peak_intensity_distribution['Whole Experiment'] = dict(zip(
-                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
-                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
-            ))
-            self.charge_state_distribution['Whole Experiment'] = dict(zip(
-                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
-            ))
-            self.peak_per_ms2['Whole Experiment'] = dict(zip(
-                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
-                '300-400', '200-300', '100-200', '0-100'], [0] * 11
-            ))
+            self.peak_intensity_distribution['Whole Experiment'] = spectra_dict.copy()
+            self.charge_state_distribution['Whole Experiment'] = charge_dict.copy()
+            self.peak_per_ms2['Whole Experiment'] = peak_dict.copy()
         else:
-            self.peak_intensity_distribution['identified_spectra'] = dict(zip(
-                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
-                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
-            ))
-            self.peak_intensity_distribution['unidentified_spectra'] = dict(zip(
-                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
-                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
-            ))
-            self.charge_state_distribution['identified_spectra'] = dict(zip(
-                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
-            ))
-            self.charge_state_distribution['unidentified_spectra'] = dict(zip(
-                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
-            ))
-            self.peak_per_ms2['identified_spectra'] = dict(zip(
-                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
-                '300-400', '200-300', '100-200', '0-100'], [0] * 11
-            ))
-
-            self.peak_per_ms2['unidentified_spectra'] = dict(zip(
-                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
-                '300-400', '200-300', '100-200', '0-100'], [0] * 11
-            ))
+            self.peak_intensity_distribution['identified_spectra'] = spectra_dict.copy()
+            self.peak_intensity_distribution['unidentified_spectra'] = spectra_dict.copy()
+            self.charge_state_distribution['identified_spectra'] = charge_dict.copy()
+            self.charge_state_distribution['unidentified_spectra'] = charge_dict.copy()
+            self.peak_per_ms2['identified_spectra'] = peak_dict.copy()
+            self.peak_per_ms2['unidentified_spectra'] = peak_dict.copy()
 
         mzml_table = {}
         heatmap_charge = {}
@@ -1091,197 +974,74 @@ class QuantMSModule(BaseMultiqcModule):
                         charge_2 += 1
                     
                     if self.enable_dia:
-                        if charge_state > 7:
-                            self.charge_state_distribution['Whole Experiment']['>7'] += 1
-                        elif charge_state == 7:
-                            self.charge_state_distribution['Whole Experiment']['7'] += 1
-                        elif charge_state == 6:
-                            self.charge_state_distribution['Whole Experiment']['6'] += 1
-                        elif charge_state == 5:
-                            self.charge_state_distribution['Whole Experiment']['5'] += 1
-                        elif charge_state == 4:
-                            self.charge_state_distribution['Whole Experiment']['4'] += 1
-                        elif charge_state == 3:
-                            self.charge_state_distribution['Whole Experiment']['3'] += 1
-                        elif charge_state == 2:
-                            self.charge_state_distribution['Whole Experiment']['2'] += 1
-                        elif charge_state == 1:
-                            self.charge_state_distribution['Whole Experiment']['1'] += 1
-
-                        if peak_per_ms2 >= 1000:
-                            self.peak_per_ms2['Whole Experiment']['>1000'] += 1
-                        elif 900 <= peak_per_ms2 < 1000:
-                            self.peak_per_ms2['Whole Experiment']['900-1000'] += 1
-                        elif 800 <= peak_per_ms2 < 900:
-                            self.peak_per_ms2['Whole Experiment']['800-900'] += 1
-                        elif 700 <= peak_per_ms2 < 800:
-                            self.peak_per_ms2['Whole Experiment']['700-800'] += 1
-                        elif 600 <= peak_per_ms2 < 700:
-                            self.peak_per_ms2['Whole Experiment']['600-700'] += 1
-                        elif 500 <= peak_per_ms2 < 600:
-                            self.peak_per_ms2['Whole Experiment']['500-600'] += 1
-                        elif 400 <= peak_per_ms2 < 500:
-                            self.peak_per_ms2['Whole Experiment']['400-500'] += 1
-                        elif 300 <= peak_per_ms2 < 400:
-                            self.peak_per_ms2['Whole Experiment']['300-400'] += 1
-                        elif 200 <= peak_per_ms2 < 300:
-                            self.peak_per_ms2['Whole Experiment']['200-300'] += 1
-                        elif 100 <= peak_per_ms2 < 200:
-                            self.peak_per_ms2['Whole Experiment']['100-200'] += 1
+                        threshold = len(self.charge_state_distribution['Whole Experiment'])
+                        charge_state = charge_state if charge_state < threshold else threshold
+                        if charge_state < 8:
+                            self.charge_state_distribution['Whole Experiment'][str(charge_state)] += 1
                         else:
-                            self.peak_per_ms2['Whole Experiment']['0-100'] += 1
+                            self.charge_state_distribution['Whole Experiment']['>7'] += 1
 
+                        peak_per_ms2 = peak_per_ms2 // 100 * 100
+                        if peak_per_ms2 < 1000: 
+                            self.peak_per_ms2['Whole Experiment'][str(peak_per_ms2) + '-' + str(peak_per_ms2 + 100)] += 1
+                        else:
+                            self.peak_per_ms2['Whole Experiment']['>1000'] += 1
+
+                        peak_intensity_range = [0, 10] + [i for i in range(100, 901, 200)] + [1000, 3000, 6000, 10000]
                         if base_peak_intensity > 10000:
                             self.peak_intensity_distribution['Whole Experiment']['>10000'] += 1
-                        elif base_peak_intensity > 6000:
-                            self.peak_intensity_distribution['Whole Experiment']['6000-10000'] += 1
-                        elif base_peak_intensity > 3000:
-                            self.peak_intensity_distribution['Whole Experiment']['3000-6000'] += 1
-                        elif base_peak_intensity > 1000:
-                            self.peak_intensity_distribution['Whole Experiment']['1000-3000'] += 1
-                        elif base_peak_intensity > 900:
-                            self.peak_intensity_distribution['Whole Experiment']['900-1000'] += 1
-                        elif base_peak_intensity > 700:
-                            self.peak_intensity_distribution['Whole Experiment']['700-900'] += 1
-                        elif base_peak_intensity > 500:
-                            self.peak_intensity_distribution['Whole Experiment']['500-700'] += 1
-                        elif base_peak_intensity > 300:
-                            self.peak_intensity_distribution['Whole Experiment']['300-500'] += 1
-                        elif base_peak_intensity > 100:
-                            self.peak_intensity_distribution['Whole Experiment']['100-300'] += 1
-                        elif base_peak_intensity > 10:
-                            self.peak_intensity_distribution['Whole Experiment']['10-100'] += 1
                         else:
-                            self.peak_intensity_distribution['Whole Experiment']['0-10'] += 1
+                            for i in range(len(peak_intensity_range) - 1):
+                                left, right = peak_intensity_range[i], peak_intensity_range[i + 1]
+                                if left <= base_peak_intensity < right:
+                                    self.peak_intensity_distribution['Whole Experiment'][str(left) + '-' + str(right)] += 1
                         continue
 
                     if i.getNativeID() in self.identified_spectrum[m]:
-                        if charge_state > 7:
-                            self.charge_state_distribution['identified_spectra']['>7'] += 1
-                        elif charge_state == 7:
-                            self.charge_state_distribution['identified_spectra']['7'] += 1
-                        elif charge_state == 6:
-                            self.charge_state_distribution['identified_spectra']['6'] += 1
-                        elif charge_state == 5:
-                            self.charge_state_distribution['identified_spectra']['5'] += 1
-                        elif charge_state == 4:
-                            self.charge_state_distribution['identified_spectra']['4'] += 1
-                        elif charge_state == 3:
-                            self.charge_state_distribution['identified_spectra']['3'] += 1
-                        elif charge_state == 2:
-                            self.charge_state_distribution['identified_spectra']['2'] += 1
-                        elif charge_state == 1:
-                            self.charge_state_distribution['identified_spectra']['1'] += 1
-
-                        if peak_per_ms2 >= 1000:
-                            self.peak_per_ms2['identified_spectra']['>1000'] += 1
-                        elif 900 <= peak_per_ms2 < 1000:
-                            self.peak_per_ms2['identified_spectra']['900-1000'] += 1
-                        elif 800 <= peak_per_ms2 < 900:
-                            self.peak_per_ms2['identified_spectra']['800-900'] += 1
-                        elif 700 <= peak_per_ms2 < 800:
-                            self.peak_per_ms2['identified_spectra']['700-800'] += 1
-                        elif 600 <= peak_per_ms2 < 700:
-                            self.peak_per_ms2['identified_spectra']['600-700'] += 1
-                        elif 500 <= peak_per_ms2 < 600:
-                            self.peak_per_ms2['identified_spectra']['500-600'] += 1
-                        elif 400 <= peak_per_ms2 < 500:
-                            self.peak_per_ms2['identified_spectra']['400-500'] += 1
-                        elif 300 <= peak_per_ms2 < 400:
-                            self.peak_per_ms2['identified_spectra']['300-400'] += 1
-                        elif 200 <= peak_per_ms2 < 300:
-                            self.peak_per_ms2['identified_spectra']['200-300'] += 1
-                        elif 100 <= peak_per_ms2 < 200:
-                            self.peak_per_ms2['identified_spectra']['100-200'] += 1
+                        threshold = len(self.charge_state_distribution['identified_spectra'])
+                        charge_state = charge_state if charge_state < threshold else threshold
+                        if charge_state < 8:
+                            self.charge_state_distribution['identified_spectra'][str(charge_state)] += 1
                         else:
-                            self.peak_per_ms2['identified_spectra']['0-100'] += 1
+                            self.charge_state_distribution['identified_spectra']['>7'] += 1
 
+                        peak_per_ms2 = peak_per_ms2 // 100 * 100
+                        if peak_per_ms2 < 1000: 
+                            self.peak_per_ms2['identified_spectra'][str(peak_per_ms2) + '-' + str(peak_per_ms2 + 100)] += 1
+                        else:
+                            self.peak_per_ms2['identified_spectra']['>1000'] += 1
+
+                        peak_intensity_range = [0, 10] + [i for i in range(100, 901, 200)] + [1000, 3000, 6000, 10000]
                         if base_peak_intensity > 10000:
                             self.peak_intensity_distribution['identified_spectra']['>10000'] += 1
-                        elif base_peak_intensity > 6000:
-                            self.peak_intensity_distribution['identified_spectra']['6000-10000'] += 1
-                        elif base_peak_intensity > 3000:
-                            self.peak_intensity_distribution['identified_spectra']['3000-6000'] += 1
-                        elif base_peak_intensity > 1000:
-                            self.peak_intensity_distribution['identified_spectra']['1000-3000'] += 1
-                        elif base_peak_intensity > 900:
-                            self.peak_intensity_distribution['identified_spectra']['900-1000'] += 1
-                        elif base_peak_intensity > 700:
-                            self.peak_intensity_distribution['identified_spectra']['700-900'] += 1
-                        elif base_peak_intensity > 500:
-                            self.peak_intensity_distribution['identified_spectra']['500-700'] += 1
-                        elif base_peak_intensity > 300:
-                            self.peak_intensity_distribution['identified_spectra']['300-500'] += 1
-                        elif base_peak_intensity > 100:
-                            self.peak_intensity_distribution['identified_spectra']['100-300'] += 1
-                        elif base_peak_intensity > 10:
-                            self.peak_intensity_distribution['identified_spectra']['10-100'] += 1
                         else:
-                            self.peak_intensity_distribution['identified_spectra']['0-10'] += 1
+                            for i in range(len(peak_intensity_range) - 1):
+                                left, right = peak_intensity_range[i], peak_intensity_range[i + 1]
+                                if left <= base_peak_intensity < right:
+                                    self.peak_intensity_distribution['identified_spectra'][str(left) + '-' + str(right)] += 1
 
                     else:
-                        if charge_state > 7:
-                            self.charge_state_distribution['unidentified_spectra']['>7'] += 1
-                        elif charge_state == 7:
-                            self.charge_state_distribution['unidentified_spectra']['7'] += 1
-                        elif charge_state == 6:
-                            self.charge_state_distribution['unidentified_spectra']['6'] += 1
-                        elif charge_state == 5:
-                            self.charge_state_distribution['unidentified_spectra']['5'] += 1
-                        elif charge_state == 4:
-                            self.charge_state_distribution['unidentified_spectra']['4'] += 1
-                        elif charge_state == 3:
-                            self.charge_state_distribution['unidentified_spectra']['3'] += 1
-                        elif charge_state == 2:
-                            self.charge_state_distribution['unidentified_spectra']['2'] += 1
-                        elif charge_state == 1:
-                            self.charge_state_distribution['unidentified_spectra']['1'] += 1
-
-                        if peak_per_ms2 >= 1000:
-                            self.peak_per_ms2['unidentified_spectra']['>1000'] += 1
-                        elif 900 <= peak_per_ms2 < 1000:
-                            self.peak_per_ms2['unidentified_spectra']['900-1000'] += 1
-                        elif 800 <= peak_per_ms2 < 900:
-                            self.peak_per_ms2['unidentified_spectra']['800-900'] += 1
-                        elif 700 <= peak_per_ms2 < 800:
-                            self.peak_per_ms2['unidentified_spectra']['700-800'] += 1
-                        elif 600 <= peak_per_ms2 < 700:
-                            self.peak_per_ms2['unidentified_spectra']['600-700'] += 1
-                        elif 500 <= peak_per_ms2 < 600:
-                            self.peak_per_ms2['unidentified_spectra']['500-600'] += 1
-                        elif 400 <= peak_per_ms2 < 500:
-                            self.peak_per_ms2['unidentified_spectra']['400-500'] += 1
-                        elif 300 <= peak_per_ms2 < 400:
-                            self.peak_per_ms2['unidentified_spectra']['300-400'] += 1
-                        elif 200 <= peak_per_ms2 < 300:
-                            self.peak_per_ms2['unidentified_spectra']['200-300'] += 1
-                        elif 100 <= peak_per_ms2 < 200:
-                            self.peak_per_ms2['unidentified_spectra']['100-200'] += 1
+                        threshold = len(self.charge_state_distribution['unidentified_spectra'])
+                        charge_state = charge_state if charge_state < threshold else threshold
+                        if charge_state < 8:
+                            self.charge_state_distribution['unidentified_spectra'][str(charge_state)] += 1
                         else:
-                            self.peak_per_ms2['unidentified_spectra']['0-100'] += 1
+                            self.charge_state_distribution['unidentified_spectra']['>7'] += 1
 
+                        peak_per_ms2 = peak_per_ms2 // 100 * 100
+                        if peak_per_ms2 < 1000: 
+                            self.peak_per_ms2['unidentified_spectra'][str(peak_per_ms2) + '-' + str(peak_per_ms2 + 100)] += 1
+                        else:
+                            self.peak_per_ms2['unidentified_spectra']['>1000'] += 1
+
+                        peak_intensity_range = [0, 10] + [i for i in range(100, 901, 200)] + [1000, 3000, 6000, 10000]
                         if base_peak_intensity > 10000:
                             self.peak_intensity_distribution['unidentified_spectra']['>10000'] += 1
-                        elif base_peak_intensity > 6000:
-                            self.peak_intensity_distribution['unidentified_spectra']['6000-10000'] += 1
-                        elif base_peak_intensity > 3000:
-                            self.peak_intensity_distribution['unidentified_spectra']['3000-6000'] += 1
-                        elif base_peak_intensity > 1000:
-                            self.peak_intensity_distribution['unidentified_spectra']['1000-3000'] += 1
-                        elif base_peak_intensity > 900:
-                            self.peak_intensity_distribution['unidentified_spectra']['900-1000'] += 1
-                        elif base_peak_intensity > 700:
-                            self.peak_intensity_distribution['unidentified_spectra']['700-900'] += 1
-                        elif base_peak_intensity > 500:
-                            self.peak_intensity_distribution['unidentified_spectra']['500-700'] += 1
-                        elif base_peak_intensity > 300:
-                            self.peak_intensity_distribution['unidentified_spectra']['300-500'] += 1
-                        elif base_peak_intensity > 100:
-                            self.peak_intensity_distribution['unidentified_spectra']['100-300'] += 1
-                        elif base_peak_intensity > 10:
-                            self.peak_intensity_distribution['unidentified_spectra']['10-100'] += 1
                         else:
-                            self.peak_intensity_distribution['unidentified_spectra']['0-10'] += 1
+                            for i in range(len(peak_intensity_range) - 1):
+                                left, right = peak_intensity_range[i], peak_intensity_range[i + 1]
+                                if left <= base_peak_intensity < right:
+                                    self.peak_intensity_distribution['unidentified_spectra'][str(left) + '-' + str(right)] += 1
 
             heatmap_charge[m] = charge_2 / ms2_number
             self.Total_ms2_Spectral = self.Total_ms2_Spectral + ms2_number
@@ -1389,12 +1149,12 @@ class QuantMSModule(BaseMultiqcModule):
             unique_peptides = set(group[group['unique'] == 1]['opt_global_cv_MS:1000889_peptidoform_sequence'])
 
             self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                group['spectra_ref'].tolist()))
+                                                group['spectra_ref']))
             self.mzml_peptide_map[m] = list(set(group['sequence'].tolist()))
 
             if None in proteins:
                 proteins.remove(None)
-            self.cal_num_table_data[m]['protein_num'] = len(set(proteins))
+            self.cal_num_table_data[m]['protein_num'] = len(proteins)
             self.cal_num_table_data[m]['peptide_num'] = len(peptides)
             self.cal_num_table_data[m]['unique_peptide_num'] = len(unique_peptides)
 
