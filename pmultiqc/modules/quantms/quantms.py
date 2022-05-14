@@ -760,7 +760,7 @@ class QuantMSModule(BaseMultiqcModule):
         for i in oversampling_list:
             cats[i] = {
             'name': i,
-            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
+             'description': f'A peak whose peptide ion (same sequence and same charge state) was identified by {i}'
                         'distinct MS2 spectra'
             }
 
