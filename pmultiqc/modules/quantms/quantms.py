@@ -761,7 +761,7 @@ class QuantMSModule(BaseMultiqcModule):
             cats[i] = {
             'name': i,
             'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
-                        'one distinct MS2 spectra'
+                        'distinct MS2 spectra'
             }
 
         bar_html = bargraph.plot(self.oversampling, cats, pconfig)
