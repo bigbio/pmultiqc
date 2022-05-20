@@ -1,192 +1,119 @@
-from multiqc.plots import bargraph
-from collections import OrderedDict
-from multiqc.modules.base_module import BaseMultiqcModule
+from collections import OrderedDict, defaultdict
 
-class Histogram(BaseMultiqcModule):
-    def __init__(self):
+class Histogram:
 
-        # Initialise the parent module Class object
-        super(Histogram, self).__init__()
+    def classify(self, plot_cat, with_remains = False, data_cats = None):
+        # with_remains -> Whether there are any remaining values outside the statistical range.
+        # data_cats -> Make statistics and display according to different data categories.
+        # plot_cat = 'frequency' -> Count the number of occurrences of different values.
+        # plot_cat = 'range' -> Count the frequency with which a value occurs over several consecutive ranges.
+        # plot_cat = 'record' -> Assigns values in order according to the different ranges provided.
 
-    # draw number of peptides per proteins
-    def draw_num_pep_per_protein(self):
-        # Create table plot
-        pconfig = {
-            'id': 'number_of_peptides_per_proteins',  # ID used for the table
-            'cpswitch': False,
-            'title': 'Number of Peptides identified per Protein',
-            'xlab': 'Number of Peptides',
-            'tt_percentages': False,
-            'data_labels': [
-                {'name': 'count', 'ylab': 'Frequency'},
-                {'name': 'percentage', 'ylab': 'Percentage', 'format': '{:,.2f}', 'suffix': '%'}
-            ]
-        }
-        headers = OrderedDict()
-        headers['Frequency'] = {
-            'name': 'Frequency',
-            'description': 'number of peptides per proteins'
-        }
+        self.data = dict()
+        self.data_cats = data_cats
+        if plot_cat == 'frequency':
+            if with_remains:
+                self.plot_cat = 2
+            else:
+                self.plot_cat = 1
+                self.frequency = dict()
+        elif plot_cat == 'range':
+            self.plot_cat = 3
+        elif plot_cat == 'record':
+            self.plot_cat = 4
 
-        bar_html = bargraph.plot([self.num_pep_per_protein, self.percent_pep_per_protein], headers, pconfig)
-        # Add a report section with the line plot
-        self.add_section(
-            name="Number of Peptides Per Proteins",
-            anchor="num_of_pep_per_prot",
-            description='This plot shows the number of peptides per proteins '
-                        'in quantms pipeline final result',
-            helptext='''
-                        This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
-                        identifications can constitute more confident results.
-                    ''',
-            plot=bar_html
-        )
+    def setBreaks(self, breaks = None):
 
-    def draw_peak_intensity_distribution(self):
-        # Create table plot
-        pconfig = {
-            'id': 'peak_intensity_distribution',  # ID used for the table
-            'cpswitch': False,
-            'title': 'Peak Intensity Distribution',
-            # 'xlab': 'Peak Intensity'
-        }
-        peak_intensity_list = ['0-10', '10-100'] + [str(i) + '-' + str(i + 200) 
-                                for i in range(100, 900, 200)] + ['900-1000', '1000-3000', '3000-6000', '6000-10000', '>10000']
-        cats = OrderedDict()
-        for i in peak_intensity_list:
-            cats[i] = {
-                    'name': i,
-                    'description': 'Peak intensity ' + 
-                                    ('> 10000' if i == '>10000' else 'is between ' +  i.split('-')[0] + ' and ' + i.split('-')[1])
-            }
+        if breaks:
+            self.breaks = breaks
+        else:
+            self.breaks = []
+            self.bins = []
 
-        bar_html = bargraph.plot(self.peak_intensity_distribution, cats, pconfig)
-        # Add a report section with the line plot
-        self.add_section(
-            name="Peak Intensity Distribution",
-            anchor="Peak Intensity Distribution",
-            description='''This is a histogram representing the ion intensity vs.
-                        the frequency for all MS2 spectra in a whole given experiment.
-                        It is possible to filter the information for all, identified and unidentified spectra.
-                        This plot can give a general estimation of the noise level of the spectra.
-                        ''',
-            helptext='''
-                    Generally, one should expect to have a high number of low intensity noise peaks with a low number 
-                    of high intensity signal peaks. 
-                    A disproportionate number of high signal peaks may indicate heavy spectrum pre-filtering or 
-                    potential experimental problems. In the case of data reuse this plot can be useful in 
-                    identifying the requirement for pre-processing of the spectra prior to any downstream analysis. 
-                    The quality of the identifications is not linked to this data as most search engines perform internal 
-                    spectrum pre-processing before matching the spectra. Thus, the spectra reported are not 
-                    necessarily pre-processed since the search engine may have applied the pre-processing step 
-                    internally. This pre-processing is not necessarily reported in the experimental metadata.
-                    ''',
-            plot=bar_html
-        )
+        if self.plot_cat == 2 or self.plot_cat == 4:
+            self.bins = [str(i) for i in range(1, len(breaks))]
+            # if self.with_remains = True
+            self.last_bin = '>= ' + str(self.breaks[-1])
+            self.bins.append(self.last_bin)
+        elif self.plot_cat == 3:
+            self.bins = [(str(breaks[i]) + '-' + str(breaks[i+1])) for i in range(len(breaks) - 1)]
+            # if self.with_remains = True
+            self.last_bin = '>= ' + str(self.breaks[-1])
+            self.bins.append(self.last_bin)
+            
+        if self.data_cats:
+            for i in self.data_cats:
+                self.data[i] = dict()
+                for j in self.bins:
+                    self.data[i][j] = None if self.plot_cat == 4 else 0
 
-    def draw_precursor_charge_distribution(self):
-        # Create table plot
-        pconfig = {
-            'id': 'Precursor_Ion_Charge_Distribution',  # ID used for the table
-            'cpswitch': False,
-            'title': 'Precursor Ion Charge Distribution',
-        }
+    def addValue(self, value, total, data_cat = None):
+        self.total = total
+        self.data_cat = data_cat
+        
+        if self.plot_cat == 3:
+            self.add_compareValue(value)
+        elif self.plot_cat == 1 or self.plot_cat == 2:
+            self.add_countValue(value)
+        else:
+            for i in self.data[self.data_cat].keys():
+                if self.data[self.data_cat][i] == None:
+                    self.data[self.data_cat][i] = value
+                    break
 
-        charge_list = [str(i) for i in range(1, 8)]
-        charge_list.append('>7')
-        cats = OrderedDict()
-        for i in charge_list:
-            cats[i] = {
-                    'name': i,
-                    'description': 'Precursor charge state ' + ('>7' if i == '>7' else 'is ' + i) 
-            }
 
-        bar_html = bargraph.plot(self.charge_state_distribution, cats, pconfig)
+    def add_compareValue(self, value):
+        if value >= self.breaks[-1]:
+            bin = self.last_bin
+        for i in range(len(self.breaks) - 1):
+            left, right = self.breaks[i], self.breaks[i + 1]
+            if left <= value < right:
+                bin = str(left) + '-' + str(right)
+        self.data[self.data_cat][bin] += 1
 
-        # Add a report section with the line plot
-        self.add_section(
-            name="Distribution of precursor charges",
-            anchor="Distribution of precursor charges",
-            description='''This is a bar chart representing the distribution of the precursor ion charges 
-                        for a given whole experiment. 
-                        ''',
-            helptext='''This information can be used to identify potential ionization problems 
-                        including many 1+ charges from an ESI ionization source or an unexpected 
-                        distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ 
-                        charged ions. An unexpected charge distribution may furthermore be caused by specific search 
-                        engine parameter settings such as limiting the search to specific ion charges.
-                    ''',
-            plot=bar_html
-        )
+    def add_countValue(self, value):
+        if self.plot_cat == 2:
+            if value in self.breaks[0: -1]:
+                bin = str(value)
+            else:
+                bin = self.last_bin
+            self.data[self.data_cat][bin] += 1
+            
+        else:
+            if value in self.breaks:
+                self.frequency[value]['Frequency'] += 1
+            else:
+                self.bins.append(str(value))
+                self.breaks.append(value)
+                self.breaks.sort()
+                self.frequency[value] = dict()
+                self.frequency[value]['Frequency'] = 1
 
-    def draw_peaks_per_ms2(self):
-        # Create table plot
-        pconfig = {
-            'id': 'peaks_per_ms2',  # ID used for the table
-            'cpswitch': False,
-            'title': 'Number of Peaks per MS/MS spectrum',
-        }
-        peaks_list = [str(i) + '-' + str(i + 100) for i in range(0, 1000, 100)]
-        peaks_list.append('>1000')
-        cats = OrderedDict()
-        for i in peaks_list:
-            cats[i] = {
-                    'name': i,
-                    'description': 'Number of Peaks per MS/MS spectrum ' + 
-                                    ('> 1000' if i == '>1000' else 'is between ' + i.split('-')[0] + ' and ' + i.split('-')[1])
-            }
+    def add_cats(self, cats = None):
+        if cats:
+            self.cats = cats
+        else:
+            self.cats = OrderedDict()
+            for i in self.bins:
+                self.cats[i] = dict()
+                self.cats[i]['name'] = i
+                self.cats[i]['description'] = ''
 
-        bar_html = bargraph.plot(self.peak_per_ms2, cats, pconfig)
+    def to_dict(self):
+        self.dict = dict()
+        if self.plot_cat == 1:
+            self.dict['data'] = dict()
+            self.dict['data']['frequency'] = OrderedDict()
+            self.dict['data']['percentage'] = OrderedDict()
+            keys = sorted(self.frequency)  # sort
+            for key in keys:
+                self.dict['data']['frequency'][key] = defaultdict(int)
+                self.dict['data']['frequency'][key]['Frequency'] = self.frequency[key]['Frequency']
+                self.dict['data']['percentage'][key] = defaultdict(float)
+                self.dict['data']['percentage'][key]['Percentage'] = round(self.frequency[key]['Frequency'] / \
+                                                                self.total * 100, 2)
+        else:
+            self.dict['data'] = self.data
 
-        self.add_section(
-            name="Number of Peaks per MS/MS spectrum",
-            anchor="Number of Peaks per MS/MS spectrum",
-            description='''This chart represents a histogram containing the number of peaks per MS/MS spectrum 
-            in a given experiment. This chart assumes centroid data. Too few peaks can identify poor fragmentation 
-            or a detector fault, as opposed to a large number of peaks representing very noisy spectra. 
-            This chart is extensively dependent on the pre-processing steps performed to the spectra 
-            (centroiding, deconvolution, peak picking approach, etc).
-                        ''',
-            helptext='''
-                    ''',
-            plot=bar_html
-        )
-
-    def draw_oversampling(self):
-
-        # Create bar plot
-        pconfig = {
-            'id': 'Oversampling_Distribution',
-            'cpswitch': False,
-            'title': 'MS2 counts per 3D-peak',
-            'scale': "set3"
-        }
-        oversampling_list = [str(i) for i in range(1, 4)]
-        oversampling_list[2] = oversampling_list[2] + '+'
-        cats = OrderedDict()
-        for i in oversampling_list:
-            cats[i] = {
-            'name': i,
-             'description': f'A peak whose peptide ion (same sequence and same charge state) was identified by {i} '
-                        'distinct MS2 spectra'
-            }
-
-        bar_html = bargraph.plot(self.oversampling, cats, pconfig)
-
-        # Add a report section with the bar plot
-        self.add_section(
-            name="Oversampling Distribution",
-            anchor="Oversampling (MS/MS counts per 3D-peak)",
-            description='''An oversampled 3D-peak is defined as a peak whose peptide ion 
-                (same sequence and same charge state) was identified by at least two distinct MS2 spectra 
-                in the same Raw file. 
-                                ''',
-            helptext='''For high complexity samples, oversampling of individual 3D-peaks automatically leads to 
-                undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
-                Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
-                exclusion windows for data independent acquisitions.
-                
-                * Heatmap score [EVD: MS2 Oversampling]: The percentage of non-oversampled 3D-peaks.
-                            ''',
-            plot=bar_html
-        )
+        self.dict['bins'] = self.bins
+        self.dict['cats'] = self.cats
