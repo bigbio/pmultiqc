@@ -19,8 +19,6 @@ import sqlite3
 import numpy as np
 import math
 import copy
-
-from sqlalchemy import true
 from .histogram import Histogram
 
 # Initialise the main MultiQC logger
