@@ -1,43 +1,22 @@
 from collections import OrderedDict
 
 class Histogram:
+    '''The histogram class categorizes instances by 'description' and 'plot_category', it sets up 
+    histogram bins according to 'breaks' for accurate data statistics.
+
+    :param description: Declare the objects counted by the instance and use them to build 'cats', 
+        a dictionary needed by plotting functions
+    :type description: str, optional
+    :param plot_category: Two ploting types, 'frequency' refers to count the frequency of different 
+        data, and 'range' refers to count the frequency of different ranges of data
+    :type plot_category: str, optional
+    :param breaks: The list of counted values or range intercepts, defaults to None
+    :type breaks: list, optional
     '''
-    The histogram class categorizes instances by 'description' and 'plot_category', it sets up histogram bins 
-    according to 'breaks' for accurate data statistics.
-
-    ### __init__(self, description, plot_category, breaks = None)  
-    Initialize parameters that include descriptions, data dictionaries, breaks, bins, cats, and nested 
-    dictionaries generated from them.
-    * self.description --> Declare the objects counted by the instance and use them to build self.cats.
-    * self.plot_category --> Two kinds of histograms. One is to count the frequency of different data, and 
-    the other is to count the frequency of different ranges of data.
-    * self.cats --> A dictionary containing two keys needed by plotting functions, key 'name' representing 
-    the name of bin and key 'description' representing the description of bin.
-    * self.data --> A dictionary used to store statistics. The keys are bins and the values are statistics.
-    * self.breaks --> The list of counted values or range intercepts, default to None.
-    * self.bins --> The list of bins that represent the internal composition of the histogram.
-    * self.dict --> A nested dictionary that the key 'data' corresponds to data statistics and the key 'cats' 
-    corresponds to the dictionary used for plotting functions.
-
-    ### addValue(self, value)  
-    Update the value of the corresponding bin according to different plotting categorys.
-    * self.threshold --> Any data greater than or equal to the threshold is counted into the last bin.
-
-    ### to_dict(self, percentage = False, cats = None)
-    Integrate statistical results and the dictionary 'cats' for ploting into a nested dictionary.
-    '''
+    
     def __init__(self, description, plot_category, breaks = None):
-        '''
-        Initialize parameters that include descriptions, data dictionaries, breaks, bins, cats, and nested 
-        dictionaries generated from them.
-
-        * description --> Declare the objects counted by the instance and use them to build A dictionary 
-        containing two keys needed by plotting functions.
-
-        * plot_category --> There are two ploting types, 'frequency' and 'range'. One is to count the frequency 
-        of different data, and the other is to count the frequency of different ranges of data. 
-
-        * breaks --> The list of counted values or range intercepts, default to None.
+        '''Constructor method. This will also create two dictionaries named 'bins' and 'data', which 
+        represent the internal composition of the histogram.
         '''
         # Initialise some parameters
         self.description = description
@@ -71,12 +50,11 @@ class Histogram:
         else: pass
 
     def addValue(self, value):
-        '''
-        Update the value of the corresponding bin according to different plotting methods.
+        '''Update the value of the corresponding bin according to different plotting methods.
 
-        * value --> Statistics.
+        :param value: Data to be counted
+        :type value: int, optional
         '''
-
         if self.plot_category == 1:
             if self.breaks:
                 if value < self.threshold:
@@ -108,18 +86,16 @@ class Histogram:
 
 
     def to_dict(self, percentage = False, cats = None):
+        '''Integrate statistical results and the 'cats' dictionary for ploting into a nested dictionary.
+
+        :param percentage: `True` if calculate the percentage of data representing each bins, defaults 
+            to `False`
+        :type percentage: bool, optional
+
+        :param cats: A dictionary needed by plotting functions, it contains the name and the description 
+            of bins, defaults to None
+        :type cats: dict, optional
         '''
-        Integrate statistical results and the 'cats' dictionary for ploting into a nested dictionary.
-
-        * percentage --> Whether to calculate the percentage of data representing each bins. Default is False, 
-        and when True, dict['data'] is a nested dictionary of two keys, 'frequency' and 'percentage'. 
-        According to the frequency of different bins in the histogram, the corresponding percentage is 
-        generated and put into the nested dictionary dict['data']['percentage'].
-
-        * cats --> A dictionary containing two keys needed by plotting functions, key 'name' representing the 
-        name of bin and key 'description' representing the description of bin. Default is None.
-        '''
-
         if percentage:
             total = sum(self.data.values())
             self.dict['data']['frequency'] = OrderedDict()
