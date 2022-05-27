@@ -3,7 +3,7 @@
 """ MultiQC pmultiqc plugin module """
 
 from __future__ import absolute_import
-from collections import Counter, defaultdict, OrderedDict
+from collections import OrderedDict
 import logging
 from sdrf_pipelines.openms.openms import OpenMS
 from multiqc import config
@@ -18,6 +18,8 @@ import os
 import sqlite3
 import numpy as np
 import math
+import copy
+from .histogram import Histogram
 
 # Initialise the main MultiQC logger
 log = logging.getLogger(__name__)
@@ -40,7 +42,6 @@ con.commit()
 
 
 class QuantMSModule(BaseMultiqcModule):
-
     def __init__(self):
 
         # Initialise the parent module Class object
@@ -81,14 +82,9 @@ class QuantMSModule(BaseMultiqcModule):
         self.Total_Peptide_Count = 0
         self.Total_Protein_Identified = 0
         self.Total_Protein_Quantified = 0
-        self.num_pep_per_protein = OrderedDict()
-        self.percent_pep_per_protein = OrderedDict()
         self.out_csv_data = dict()
         self.cal_num_table_data = dict()
         self.mL_spec_ident_final = dict()
-        self.peak_intensity_distribution = dict()
-        self.charge_state_distribution = dict()
-        self.peak_per_ms2 = dict()
         self.delta_mass = dict()
         self.delta_mass_percent = dict()
         self.heatmap_con_score = dict()
@@ -99,8 +95,12 @@ class QuantMSModule(BaseMultiqcModule):
         self.ID_RT_score = dict()
         self.HeatmapOverSamplingScore = dict()
         self.HeatmapPepMissingScore = dict()
-        self.oversampling = dict()
         self.exp_design_table = dict()
+        self.mzml_info = dict()
+        self.mzml_info['charge_distribution'] = dict()
+        self.mzml_info['peaks_per_ms2'] = dict()
+        self.mzml_info['peak_distribution'] = dict()
+        self.oversampling = dict()
 
         # parse input data
         # draw the experimental design
@@ -437,10 +437,11 @@ class QuantMSModule(BaseMultiqcModule):
             'cpswitch': False,
             'title': 'Number of Peptides identified per Protein',
             'xlab': 'Number of Peptides',
-            'tt_percentages': False,
+            'tt_percentages': False, 
+            'tt_decimals': 2,
             'data_labels': [
                 {'name': 'count', 'ylab': 'Frequency'},
-                {'name': 'percentage', 'ylab': 'Percentage', 'format': '{:,.2f}', 'suffix': '%'}
+                {'name': 'percentage', 'ylab': 'Percentage(%)'}
             ]
         }
         headers = OrderedDict()
@@ -448,8 +449,7 @@ class QuantMSModule(BaseMultiqcModule):
             'name': 'Frequency',
             'description': 'number of peptides per proteins'
         }
-
-        bar_html = bargraph.plot([self.num_pep_per_protein, self.percent_pep_per_protein], headers, pconfig)
+        bar_html = bargraph.plot([self.pep_plot.dict['data']['frequency'], self.pep_plot.dict['data']['percentage']], headers, pconfig)
         # Add a report section with the line plot
         self.add_section(
             name="Number of Peptides Per Proteins",
@@ -635,6 +635,7 @@ class QuantMSModule(BaseMultiqcModule):
             plot=table_html
         )
 
+
     def draw_peak_intensity_distribution(self):
         # Create table plot
         pconfig = {
@@ -643,53 +644,9 @@ class QuantMSModule(BaseMultiqcModule):
             'title': 'Peak Intensity Distribution',
             # 'xlab': 'Peak Intensity'
         }
-        cats = OrderedDict()
-        cats['0-10'] = {
-            'name': '0-10',
-            'description': 'Peak intensity is between 0 and 10'
-        }
-        cats['10-100'] = {
-            'name': '10-100',
-            'description': 'Peak intensity is between 10 and 100'
-        }
-        cats['100-300'] = {
-            'name': '100-300',
-            'description': 'Peak intensity is between 100 and 300'
-        }
-        cats['300-500'] = {
-            'name': '300-500',
-            'description': 'Peak intensity is between 300 and 500'
-        }
-        cats['500-700'] = {
-            'name': '500-700',
-            'description': 'Peak intensity is between 500 and 700'
-        }
-        cats['700-900'] = {
-            'name': '700-900',
-            'description': 'Peak intensity is between 700 and 900'
-        }
-        cats['900-1000'] = {
-            'name': '900-1000',
-            'description': 'Peak intensity is between 900 and 1000'
-        }
-        cats['1000-3000'] = {
-            'name': '1000-3000',
-            'description': 'Peak intensity is between 1000 and 3000'
-        }
-        cats['3000-6000'] = {
-            'name': '3000-6000',
-            'description': 'Peak intensity is between 3000 and 6000'
-        }
-        cats['6000-10000'] = {
-            'name': '6000-10000',
-            'description': 'Peak intensity is between 6000 and 10000'
-        }
-        cats['>10000'] = {
-            'name': '>10000',
-            'description': 'peak intensity > 10000'
-        }
+        cats = self.mzml_peak_distribution_plot.dict['cats']
+        bar_html = bargraph.plot(self.mzml_info['peak_distribution'], cats, pconfig)
 
-        bar_html = bargraph.plot(self.peak_intensity_distribution, cats, pconfig)
         # Add a report section with the line plot
         self.add_section(
             name="Peak Intensity Distribution",
@@ -720,41 +677,8 @@ class QuantMSModule(BaseMultiqcModule):
             'cpswitch': False,
             'title': 'Precursor Ion Charge Distribution',
         }
-        cats = OrderedDict()
-        cats['1'] = {
-            'name': '1',
-            'description': 'Precursor charge state is 1'
-        }
-        cats['2'] = {
-            'name': '2',
-            'description': 'Precursor charge state is 2'
-        }
-        cats['3'] = {
-            'name': '3',
-            'description': 'Precursor charge state is 3'
-        }
-        cats['4'] = {
-            'name': '4',
-            'description': 'Precursor charge state is 4'
-        }
-        cats['5'] = {
-            'name': '5',
-            'description': 'Precursor charge state is 5'
-        }
-        cats['6'] = {
-            'name': '6',
-            'description': 'Precursor charge state is 6'
-        }
-        cats['7'] = {
-            'name': '7',
-            'description': 'Precursor charge state is 7'
-        }
-        cats['>7'] = {
-            'name': '>7',
-            'description': 'Precursor charge state >7'
-        }
-
-        bar_html = bargraph.plot(self.charge_state_distribution, cats, pconfig)
+        cats = self.mzml_charge_plot.dict['cats']
+        bar_html = bargraph.plot(self.mzml_info['charge_distribution'], cats, pconfig)
 
         # Add a report section with the line plot
         self.add_section(
@@ -779,53 +703,8 @@ class QuantMSModule(BaseMultiqcModule):
             'cpswitch': False,
             'title': 'Number of Peaks per MS/MS spectrum',
         }
-        cats = OrderedDict()
-        cats['0-100'] = {
-            'name': '0-100',
-            'description': 'Number of Peaks per MS/MS spectrum is between 0 and 100'
-        }
-        cats['100-200'] = {
-            'name': '100-200',
-            'description': 'Number of Peaks per MS/MS spectrum is between 100 and 200'
-        }
-        cats['200-300'] = {
-            'name': '200-300',
-            'description': 'Number of Peaks per MS/MS spectrum is between 200 and 300'
-        }
-        cats['300-400'] = {
-            'name': '300-400',
-            'description': 'Number of Peaks per MS/MS spectrum is between 300 and 400'
-        }
-        cats['400-500'] = {
-            'name': '400-500',
-            'description': 'Number of Peaks per MS/MS spectrum is between 400 and 500'
-        }
-        cats['500-600'] = {
-            'name': '500-600',
-            'description': 'Number of Peaks per MS/MS spectrum is between 500 and 600'
-        }
-        cats['600-700'] = {
-            'name': '600-700',
-            'description': 'Number of Peaks per MS/MS spectrum is between 600 and 700'
-        }
-        cats['700-800'] = {
-            'name': '700-800',
-            'description': 'Number of Peaks per MS/MS spectrum is between 700 and 800'
-        }
-        cats['800-900'] = {
-            'name': '800-900',
-            'description': 'Number of Peaks per MS/MS spectrum is between 800 and 900'
-        }
-        cats['900-1000'] = {
-            'name': '900-1000',
-            'description': 'Number of Peaks per MS/MS spectrum is between 900 and 1000'
-        }
-        cats['>1000'] = {
-            'name': '>1000',
-            'description': 'Number of Peaks per MS/MS spectrum > 1000'
-        }
-
-        bar_html = bargraph.plot(self.peak_per_ms2, cats, pconfig)
+        cats = self.mzml_peaks_ms2_plot.dict['cats']
+        bar_html = bargraph.plot(self.mzml_info['peaks_per_ms2'], cats, pconfig)
 
         self.add_section(
             name="Number of Peaks per MS/MS spectrum",
@@ -850,23 +729,7 @@ class QuantMSModule(BaseMultiqcModule):
             'title': 'MS2 counts per 3D-peak',
             'scale': "set3"
         }
-        cats = OrderedDict()
-        cats['1'] = {
-            'name': '1',
-            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
-                        'one distinct MS2 spectra'
-        }
-        cats['2'] = {
-            'name': '2',
-            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
-                        'two distinct MS2 spectra'
-        }
-        cats['3+'] = {
-            'name': '3+',
-            'description': 'A peak whose peptide ion (same sequence and same charge state) was identified by at '
-                        'least three distinct MS2 spectra'
-        }
-
+        cats = self.oversampling_plot.dict['cats']
         bar_html = bargraph.plot(self.oversampling, cats, pconfig)
 
         # Add a report section with the bar plot
@@ -1032,42 +895,20 @@ class QuantMSModule(BaseMultiqcModule):
                 return "DECOY"
 
     def parse_mzml(self):
-        if self.enable_dia:
-            self.peak_intensity_distribution['Whole Experiment'] = dict(zip(
-                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
-                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
-            ))
-            self.charge_state_distribution['Whole Experiment'] = dict(zip(
-                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
-            ))
-            self.peak_per_ms2['Whole Experiment'] = dict(zip(
-                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
-                '300-400', '200-300', '100-200', '0-100'], [0] * 11
-            ))
-        else:
-            self.peak_intensity_distribution['identified_spectra'] = dict(zip(
-                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
-                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
-            ))
-            self.peak_intensity_distribution['unidentified_spectra'] = dict(zip(
-                ['>10000', '6000-10000', '3000-6000', '1000-3000', '900-1000', '700-900',
-                '500-700', '300-500', '100-300', '10-100', '0-10'], [0] * 11
-            ))
-            self.charge_state_distribution['identified_spectra'] = dict(zip(
-                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
-            ))
-            self.charge_state_distribution['unidentified_spectra'] = dict(zip(
-                ['>7', '7', '6', '5', '4', '3', '2', '1'], [0] * 8
-            ))
-            self.peak_per_ms2['identified_spectra'] = dict(zip(
-                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
-                '300-400', '200-300', '100-200', '0-100'], [0] * 11
-            ))
 
-            self.peak_per_ms2['unidentified_spectra'] = dict(zip(
-                ['>1000', '900-1000', '800-900', '700-800', '600-700', '500-600', '400-500',
-                '300-400', '200-300', '100-200', '0-100'], [0] * 11
-            ))
+        self.mzml_peak_distribution_plot = Histogram('Peak intensity', plot_category='range', breaks=[
+                                                        0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000])
+
+        self.mzml_charge_plot = Histogram('Precursor charge state', plot_category='frequency', breaks=[
+                                            i for i in range(1, 8)])
+
+        self.mzml_peaks_ms2_plot = Histogram('Number of Peaks per MS/MS spectrum', plot_category='range', breaks=[
+                                            i for i in range(0, 1001, 100)])
+
+        # New instances are used for dictionary construction.
+        self.mzml_peak_distribution_plot_1 = copy.deepcopy(self.mzml_peak_distribution_plot)
+        self.mzml_charge_plot_1 = copy.deepcopy(self.mzml_charge_plot)
+        self.mzml_peaks_ms2_plot_1 = copy.deepcopy(self.mzml_peaks_ms2_plot)
 
         mzml_table = {}
         heatmap_charge = {}
@@ -1089,204 +930,58 @@ class QuantMSModule(BaseMultiqcModule):
                     base_peak_intensity = i.getMetaValue("base peak intensity")
                     if charge_state == 2:
                         charge_2 += 1
-                    
+
                     if self.enable_dia:
-                        if charge_state > 7:
-                            self.charge_state_distribution['Whole Experiment']['>7'] += 1
-                        elif charge_state == 7:
-                            self.charge_state_distribution['Whole Experiment']['7'] += 1
-                        elif charge_state == 6:
-                            self.charge_state_distribution['Whole Experiment']['6'] += 1
-                        elif charge_state == 5:
-                            self.charge_state_distribution['Whole Experiment']['5'] += 1
-                        elif charge_state == 4:
-                            self.charge_state_distribution['Whole Experiment']['4'] += 1
-                        elif charge_state == 3:
-                            self.charge_state_distribution['Whole Experiment']['3'] += 1
-                        elif charge_state == 2:
-                            self.charge_state_distribution['Whole Experiment']['2'] += 1
-                        elif charge_state == 1:
-                            self.charge_state_distribution['Whole Experiment']['1'] += 1
-
-                        if peak_per_ms2 >= 1000:
-                            self.peak_per_ms2['Whole Experiment']['>1000'] += 1
-                        elif 900 <= peak_per_ms2 < 1000:
-                            self.peak_per_ms2['Whole Experiment']['900-1000'] += 1
-                        elif 800 <= peak_per_ms2 < 900:
-                            self.peak_per_ms2['Whole Experiment']['800-900'] += 1
-                        elif 700 <= peak_per_ms2 < 800:
-                            self.peak_per_ms2['Whole Experiment']['700-800'] += 1
-                        elif 600 <= peak_per_ms2 < 700:
-                            self.peak_per_ms2['Whole Experiment']['600-700'] += 1
-                        elif 500 <= peak_per_ms2 < 600:
-                            self.peak_per_ms2['Whole Experiment']['500-600'] += 1
-                        elif 400 <= peak_per_ms2 < 500:
-                            self.peak_per_ms2['Whole Experiment']['400-500'] += 1
-                        elif 300 <= peak_per_ms2 < 400:
-                            self.peak_per_ms2['Whole Experiment']['300-400'] += 1
-                        elif 200 <= peak_per_ms2 < 300:
-                            self.peak_per_ms2['Whole Experiment']['200-300'] += 1
-                        elif 100 <= peak_per_ms2 < 200:
-                            self.peak_per_ms2['Whole Experiment']['100-200'] += 1
-                        else:
-                            self.peak_per_ms2['Whole Experiment']['0-100'] += 1
-
-                        if base_peak_intensity > 10000:
-                            self.peak_intensity_distribution['Whole Experiment']['>10000'] += 1
-                        elif base_peak_intensity > 6000:
-                            self.peak_intensity_distribution['Whole Experiment']['6000-10000'] += 1
-                        elif base_peak_intensity > 3000:
-                            self.peak_intensity_distribution['Whole Experiment']['3000-6000'] += 1
-                        elif base_peak_intensity > 1000:
-                            self.peak_intensity_distribution['Whole Experiment']['1000-3000'] += 1
-                        elif base_peak_intensity > 900:
-                            self.peak_intensity_distribution['Whole Experiment']['900-1000'] += 1
-                        elif base_peak_intensity > 700:
-                            self.peak_intensity_distribution['Whole Experiment']['700-900'] += 1
-                        elif base_peak_intensity > 500:
-                            self.peak_intensity_distribution['Whole Experiment']['500-700'] += 1
-                        elif base_peak_intensity > 300:
-                            self.peak_intensity_distribution['Whole Experiment']['300-500'] += 1
-                        elif base_peak_intensity > 100:
-                            self.peak_intensity_distribution['Whole Experiment']['100-300'] += 1
-                        elif base_peak_intensity > 10:
-                            self.peak_intensity_distribution['Whole Experiment']['10-100'] += 1
-                        else:
-                            self.peak_intensity_distribution['Whole Experiment']['0-10'] += 1
+                        self.mzml_charge_plot.addValue(charge_state)
+                        self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                        self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
                         continue
 
                     if i.getNativeID() in self.identified_spectrum[m]:
-                        if charge_state > 7:
-                            self.charge_state_distribution['identified_spectra']['>7'] += 1
-                        elif charge_state == 7:
-                            self.charge_state_distribution['identified_spectra']['7'] += 1
-                        elif charge_state == 6:
-                            self.charge_state_distribution['identified_spectra']['6'] += 1
-                        elif charge_state == 5:
-                            self.charge_state_distribution['identified_spectra']['5'] += 1
-                        elif charge_state == 4:
-                            self.charge_state_distribution['identified_spectra']['4'] += 1
-                        elif charge_state == 3:
-                            self.charge_state_distribution['identified_spectra']['3'] += 1
-                        elif charge_state == 2:
-                            self.charge_state_distribution['identified_spectra']['2'] += 1
-                        elif charge_state == 1:
-                            self.charge_state_distribution['identified_spectra']['1'] += 1
-
-                        if peak_per_ms2 >= 1000:
-                            self.peak_per_ms2['identified_spectra']['>1000'] += 1
-                        elif 900 <= peak_per_ms2 < 1000:
-                            self.peak_per_ms2['identified_spectra']['900-1000'] += 1
-                        elif 800 <= peak_per_ms2 < 900:
-                            self.peak_per_ms2['identified_spectra']['800-900'] += 1
-                        elif 700 <= peak_per_ms2 < 800:
-                            self.peak_per_ms2['identified_spectra']['700-800'] += 1
-                        elif 600 <= peak_per_ms2 < 700:
-                            self.peak_per_ms2['identified_spectra']['600-700'] += 1
-                        elif 500 <= peak_per_ms2 < 600:
-                            self.peak_per_ms2['identified_spectra']['500-600'] += 1
-                        elif 400 <= peak_per_ms2 < 500:
-                            self.peak_per_ms2['identified_spectra']['400-500'] += 1
-                        elif 300 <= peak_per_ms2 < 400:
-                            self.peak_per_ms2['identified_spectra']['300-400'] += 1
-                        elif 200 <= peak_per_ms2 < 300:
-                            self.peak_per_ms2['identified_spectra']['200-300'] += 1
-                        elif 100 <= peak_per_ms2 < 200:
-                            self.peak_per_ms2['identified_spectra']['100-200'] += 1
-                        else:
-                            self.peak_per_ms2['identified_spectra']['0-100'] += 1
-
-                        if base_peak_intensity > 10000:
-                            self.peak_intensity_distribution['identified_spectra']['>10000'] += 1
-                        elif base_peak_intensity > 6000:
-                            self.peak_intensity_distribution['identified_spectra']['6000-10000'] += 1
-                        elif base_peak_intensity > 3000:
-                            self.peak_intensity_distribution['identified_spectra']['3000-6000'] += 1
-                        elif base_peak_intensity > 1000:
-                            self.peak_intensity_distribution['identified_spectra']['1000-3000'] += 1
-                        elif base_peak_intensity > 900:
-                            self.peak_intensity_distribution['identified_spectra']['900-1000'] += 1
-                        elif base_peak_intensity > 700:
-                            self.peak_intensity_distribution['identified_spectra']['700-900'] += 1
-                        elif base_peak_intensity > 500:
-                            self.peak_intensity_distribution['identified_spectra']['500-700'] += 1
-                        elif base_peak_intensity > 300:
-                            self.peak_intensity_distribution['identified_spectra']['300-500'] += 1
-                        elif base_peak_intensity > 100:
-                            self.peak_intensity_distribution['identified_spectra']['100-300'] += 1
-                        elif base_peak_intensity > 10:
-                            self.peak_intensity_distribution['identified_spectra']['10-100'] += 1
-                        else:
-                            self.peak_intensity_distribution['identified_spectra']['0-10'] += 1
-
+                        self.mzml_charge_plot.addValue(charge_state)
+                        self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                        self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
                     else:
-                        if charge_state > 7:
-                            self.charge_state_distribution['unidentified_spectra']['>7'] += 1
-                        elif charge_state == 7:
-                            self.charge_state_distribution['unidentified_spectra']['7'] += 1
-                        elif charge_state == 6:
-                            self.charge_state_distribution['unidentified_spectra']['6'] += 1
-                        elif charge_state == 5:
-                            self.charge_state_distribution['unidentified_spectra']['5'] += 1
-                        elif charge_state == 4:
-                            self.charge_state_distribution['unidentified_spectra']['4'] += 1
-                        elif charge_state == 3:
-                            self.charge_state_distribution['unidentified_spectra']['3'] += 1
-                        elif charge_state == 2:
-                            self.charge_state_distribution['unidentified_spectra']['2'] += 1
-                        elif charge_state == 1:
-                            self.charge_state_distribution['unidentified_spectra']['1'] += 1
-
-                        if peak_per_ms2 >= 1000:
-                            self.peak_per_ms2['unidentified_spectra']['>1000'] += 1
-                        elif 900 <= peak_per_ms2 < 1000:
-                            self.peak_per_ms2['unidentified_spectra']['900-1000'] += 1
-                        elif 800 <= peak_per_ms2 < 900:
-                            self.peak_per_ms2['unidentified_spectra']['800-900'] += 1
-                        elif 700 <= peak_per_ms2 < 800:
-                            self.peak_per_ms2['unidentified_spectra']['700-800'] += 1
-                        elif 600 <= peak_per_ms2 < 700:
-                            self.peak_per_ms2['unidentified_spectra']['600-700'] += 1
-                        elif 500 <= peak_per_ms2 < 600:
-                            self.peak_per_ms2['unidentified_spectra']['500-600'] += 1
-                        elif 400 <= peak_per_ms2 < 500:
-                            self.peak_per_ms2['unidentified_spectra']['400-500'] += 1
-                        elif 300 <= peak_per_ms2 < 400:
-                            self.peak_per_ms2['unidentified_spectra']['300-400'] += 1
-                        elif 200 <= peak_per_ms2 < 300:
-                            self.peak_per_ms2['unidentified_spectra']['200-300'] += 1
-                        elif 100 <= peak_per_ms2 < 200:
-                            self.peak_per_ms2['unidentified_spectra']['100-200'] += 1
-                        else:
-                            self.peak_per_ms2['unidentified_spectra']['0-100'] += 1
-
-                        if base_peak_intensity > 10000:
-                            self.peak_intensity_distribution['unidentified_spectra']['>10000'] += 1
-                        elif base_peak_intensity > 6000:
-                            self.peak_intensity_distribution['unidentified_spectra']['6000-10000'] += 1
-                        elif base_peak_intensity > 3000:
-                            self.peak_intensity_distribution['unidentified_spectra']['3000-6000'] += 1
-                        elif base_peak_intensity > 1000:
-                            self.peak_intensity_distribution['unidentified_spectra']['1000-3000'] += 1
-                        elif base_peak_intensity > 900:
-                            self.peak_intensity_distribution['unidentified_spectra']['900-1000'] += 1
-                        elif base_peak_intensity > 700:
-                            self.peak_intensity_distribution['unidentified_spectra']['700-900'] += 1
-                        elif base_peak_intensity > 500:
-                            self.peak_intensity_distribution['unidentified_spectra']['500-700'] += 1
-                        elif base_peak_intensity > 300:
-                            self.peak_intensity_distribution['unidentified_spectra']['300-500'] += 1
-                        elif base_peak_intensity > 100:
-                            self.peak_intensity_distribution['unidentified_spectra']['100-300'] += 1
-                        elif base_peak_intensity > 10:
-                            self.peak_intensity_distribution['unidentified_spectra']['10-100'] += 1
-                        else:
-                            self.peak_intensity_distribution['unidentified_spectra']['0-10'] += 1
+                        self.mzml_charge_plot_1.addValue(charge_state)
+                        self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
+                        self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
 
             heatmap_charge[m] = charge_2 / ms2_number
             self.Total_ms2_Spectral = self.Total_ms2_Spectral + ms2_number
             mzml_table[m] = {'MS1_Num': ms1_number}
             mzml_table[m]['MS2_Num'] = ms2_number
+        
+        self.mzml_charge_plot.to_dict()
+        self.mzml_peaks_ms2_plot.to_dict()
+        self.mzml_peak_distribution_plot.to_dict()
+        # Construct compound dictionaries to apply to drawing functions.
+        if self.enable_dia:
+            self.mzml_info['charge_distribution'] = {
+                'Whole Experiment': self.mzml_charge_plot.dict['data']
+            }
+            self.mzml_info['peaks_per_ms2'] = {
+                'Whole Experiment': self.mzml_peaks_ms2_plot.dict['data']
+            }
+            self.mzml_info['peak_distribution'] = {
+                'Whole Experiment': self.mzml_peak_distribution_plot.dict['data']
+            }
+        else:
+            self.mzml_charge_plot_1.to_dict()
+            self.mzml_peaks_ms2_plot_1.to_dict()
+            self.mzml_peak_distribution_plot_1.to_dict()
+            self.mzml_info['charge_distribution'] = {
+                'identified_spectra': self.mzml_charge_plot.dict['data'],
+                'unidentified_spectra': self.mzml_charge_plot_1.dict['data']
+            }
+            self.mzml_info['peaks_per_ms2'] = {
+                'identified_spectra': self.mzml_peaks_ms2_plot.dict['data'],
+                'unidentified_spectra': self.mzml_peaks_ms2_plot_1.dict['data']
+            }
+            self.mzml_info['peak_distribution'] = {
+                'identified_spectra': self.mzml_peak_distribution_plot.dict['data'],
+                'unidentified_spectra': self.mzml_peak_distribution_plot_1.dict['data']
+            }
+
         median = np.median(list(heatmap_charge.values()))
         self.heatmap_charge_score = dict(zip(heatmap_charge.keys(),
                                             list(map(lambda v: 1 - np.abs(v - median),
@@ -1350,19 +1045,18 @@ class QuantMSModule(BaseMultiqcModule):
         prot.dropna(how='all',subset=pro_abundance, inplace=True)
         self.Total_Protein_Quantified = len(prot.index)
 
-        num_pep_per_protein = defaultdict(lambda: defaultdict(int))
-        percent_pep_per_protein = defaultdict(lambda: defaultdict(float))
+        self.pep_plot = Histogram('number of peptides per proteins', plot_category = 'frequency')
+
         for protein in prot['accession']:
             number = sum(pep_table.apply(lambda x: all(p in x['accession'] for p in protein.split(",")),axis=1))
-            num_pep_per_protein[number]['Frequency'] += 1
-
-        for number in num_pep_per_protein.keys():
-            percent_pep_per_protein[number]['Percentage'] = num_pep_per_protein[number]['Frequency'] / \
-                                                            self.Total_Protein_Identified
-        keys = sorted(num_pep_per_protein.items(), key=lambda x: int(x[0]))  # sort
-        for key in keys:
-            self.num_pep_per_protein[key[0]] = key[1]
-            self.percent_pep_per_protein[key[0]] = percent_pep_per_protein[key[0]]
+            self.pep_plot.addValue(number)
+        
+        categorys = OrderedDict()
+        categorys['Frequency'] = {
+            'name': 'Frequency',
+            'description': 'number of peptides per proteins'
+        }
+        self.pep_plot.to_dict(percentage = True, cats = categorys)
 
         # PSM information
         scores = list(filter(lambda x: re.match(r'search_engine_score.*?', x) is not None,
@@ -1372,6 +1066,7 @@ class QuantMSModule(BaseMultiqcModule):
         con.commit()
 
         mL_spec_ident_final = {}
+
         for m, group in psm.groupby('stand_spectra_ref'):
             self.cal_num_table_data[m] = {'Sample Name': self.exp_design_table[m]['Sample']}
             self.cal_num_table_data[m]['condition'] = self.exp_design_table[m]['MSstats_Condition']
@@ -1379,22 +1074,26 @@ class QuantMSModule(BaseMultiqcModule):
 
             if config.kwargs['remove_decoy']:
                 group = group[group['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
-            oversamplingcount = Counter(group.value_counts(['sequence', 'charge']).values)
-            self.oversampling[m] = {'1': oversamplingcount[1] if 1 in oversamplingcount else 0}
-            self.oversampling[m]['2'] = oversamplingcount[2] if 2 in oversamplingcount else 0
-            self.oversampling[m]['3+'] = np.sum(list(oversamplingcount.values())) - self.oversampling[m]['1'] - \
-                                        self.oversampling[m]['2']
+            # Each loop resets the instance.
+            self.oversampling_plot = Histogram('MS/MS counts per 3D-peak', plot_category = 'frequency', breaks = [1, 2, 3])
+
+            for i in group.value_counts(['sequence', 'charge']).values:
+                self.oversampling_plot.addValue(i)
+
+            self.oversampling_plot.to_dict()
+            self.oversampling[m] = self.oversampling_plot.dict['data']
+
             proteins = set(group['accession'])
             peptides = set(group['opt_global_cv_MS:1000889_peptidoform_sequence'])
             unique_peptides = set(group[group['unique'] == 1]['opt_global_cv_MS:1000889_peptidoform_sequence'])
 
             self.identified_spectrum[m] = list(map(lambda x: x.split(':')[1],
-                                                group['spectra_ref'].tolist()))
+                                                group['spectra_ref']))
             self.mzml_peptide_map[m] = list(set(group['sequence'].tolist()))
 
             if None in proteins:
                 proteins.remove(None)
-            self.cal_num_table_data[m]['protein_num'] = len(set(proteins))
+            self.cal_num_table_data[m]['protein_num'] = len(proteins)
             self.cal_num_table_data[m]['peptide_num'] = len(peptides)
             self.cal_num_table_data[m]['unique_peptide_num'] = len(unique_peptides)
 
@@ -1402,6 +1101,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.cal_num_table_data[m]['modified_peptide_num'] = len(modified_pep)
 
             mL_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
+        
 
         target_bin_data = {}
         decoy_bin_data = {}
@@ -1497,24 +1197,21 @@ class QuantMSModule(BaseMultiqcModule):
         report_data["sequence"] = report_data.apply(lambda x: re.sub(pattern,"",x["Modified.Sequence"]), axis=1)
         self.Total_Protein_Quantified = len(set(report_data["Protein.Names"]))
         self.Total_Peptide_Count = len(set(report_data["sequence"]))
-
         protein_pep_map = report_data.groupby('Protein.Group').sequence.apply(list).to_dict()
-        num_pep_per_protein = dict()
-        percent_pep_per_protein = dict()
-        for _, peps in protein_pep_map.items():
-            number = str(len(set(peps)))
-            if number in num_pep_per_protein:
-                num_pep_per_protein[number]['Frequency'] += 1
-                percent_pep_per_protein[number]['Percentage'] = num_pep_per_protein[number]['Frequency'] / \
-                                                                self.Total_Protein_Quantified
-            else:
-                num_pep_per_protein[number] = {'Frequency': 1}
-                percent_pep_per_protein[number] = {'Percentage': 1 / self.Total_Protein_Quantified}
 
-        keys = sorted(num_pep_per_protein.items(), key=lambda x: int(x[0]))  # sort
-        for key in keys:
-            self.num_pep_per_protein[key[0]] = key[1]
-            self.percent_pep_per_protein[key[0]] = percent_pep_per_protein[key[0]]
+        self.pep_plot = Histogram('number of peptides per proteins', plot_category = 'frequency')
+
+        for _, peps in protein_pep_map.items():
+            number = len(set(peps))
+            self.pep_plot.addValue(number)
+        
+        categorys = OrderedDict()
+        categorys['Frequency'] = {
+            'name': 'Frequency',
+            'description': 'number of peptides per proteins'
+        }
+        self.pep_plot.to_dict(percentage = True, cats = categorys)
+
         for run_file, group in report_data.groupby("File.Name"):
             run_file = os.path.basename(run_file)
             self.cal_num_table_data[run_file] = {'Sample Name': self.exp_design_table[run_file]['Sample']}
@@ -1553,4 +1250,6 @@ class QuantMSModule(BaseMultiqcModule):
             if index > 48:
                 break
         self.pep_quant_table = pep_quant
+
+
 
