@@ -1,4 +1,5 @@
 include pmultiqc/modules/quantms/assets/css/quantms.css
 include pmultiqc/modules/quantms/assets/js/quantms.js
+include pmultiqc/modules/quantms/assets/js/highcharts.js
 include pmultiqc/modules/quantms/assets/js/axios.min.js
 include pmultiqc/modules/quantms/assets/js/sql-optimized.js

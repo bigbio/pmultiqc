@@ -3,6 +3,14 @@
     white-space: nowrap;
 }
 
+.table th{
+    z-index: 999;
+}
+
+.data-sparkline .highcharts-container {
+    z-index: -10 !important;
+}
+
 #Experimental_Design tr td .wrapper .bar{
     background-color: #ffffff !important;
 }
@@ -41,7 +49,7 @@
     width: 100px;
 }
 
-#quant_search_col, #psm_search_col{
+#quant_search_col, #prot_search_col{
     border: 1px solid #cccccc;
     border-radius: 3px;
     padding: 5px 10px;
@@ -52,12 +60,3 @@
     height: 29.92px;
     margin-right: 4px;
 }
-
-#quantification_of_peptides .bar{
-    background-color: #ffffff !important;
-}
-
-#peptide_spectrum_match .bar{
-    background-color: #ffffff !important;
-}
-

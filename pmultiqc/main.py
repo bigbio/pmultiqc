@@ -46,6 +46,9 @@ def pmultiqc_plugin_execution_start():
     if 'quantms/idXML' not in config.sp:
         config.update_dict(config.sp, {'quantms/idXML': {'fn': '*.idXML'}})
 
+    if 'quantms/msstats' not in config.sp:
+        config.update_dict(config.sp, {'quantms/msstats': {'fn': '*msstats*csv'}})
+
     if 'quantms/diann_report' not in config.sp:
         config.update_dict(config.sp, {'quantms/diann_report': {'fn': '*report.tsv', 'shared': False}})
 
