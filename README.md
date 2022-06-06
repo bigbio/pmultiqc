@@ -7,6 +7,7 @@ A library for proteomics QC report based on MultiQC framework. The library gener
 - analysis_dir                  : Final results of the pipeline
   - experimental_design.tsv     : experimental design file in two-table format
   - out.mzTab                   : mzTab with results of the identification
+  - *msstats\*csv               : MSstats/MSstatsTMT input file
   - *.mzML                      : mzML spectra files
   - *.idXML                     : Identification results from search + percolator
   - *.yml                       : summary software information and parameters of quantms pipeline (optional)
