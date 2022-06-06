@@ -1274,7 +1274,7 @@ class QuantMSModule(BaseMultiqcModule):
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
                                     'onkeyup="searchProtFunction()" id="prot_search">' \
                                     '<select name="prot_search_col" id="prot_search_col">'
-        for key in ["ProteinName", "PeptideSequence"]:
+        for key in ["ProteinName"]:
             t_html += '<option>' + key + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' \

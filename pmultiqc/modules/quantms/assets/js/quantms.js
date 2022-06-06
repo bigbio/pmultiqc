@@ -144,9 +144,9 @@ $(document).ready(function () {
     var quant_table = document.getElementById("quantification_of_peptides");
     var thead = quant_table.getElementsByTagName("thead")[0];
     var tr = thead.getElementsByTagName("tr")[0];
-    header_ths = tr.getElementsByTagName("th");
-    for(i=0; i<header_ths.length; i++){
-        $(header_ths[i]).unbind("click");
+    pep_header_ths = tr.getElementsByTagName("th");
+    for(i=0; i<pep_header_ths.length; i++){
+        $(pep_header_ths[i]).unbind("click");
     };
     var quantTable = quant_table.getElementsByTagName("tbody")[0];
     var quantTotalPage = document.getElementById("quantTotalPage");
@@ -177,18 +177,35 @@ $(document).ready(function () {
     $(".col-condition-sparkline").css("display", "none");
 
     $("#quantification_of_peptides .header").click(function() {
-        span = this.getElementsByTagName("span").innerText;
-
+        if(this.getAttribute("class").indexOf("rowheader") != -1){
+            var span = "ID";
+        } else{
+            var span = this.getElementsByTagName("span")[0].innerText;
+        };
+        
         if((this.getAttribute("class").indexOf("headerSortUp") == -1) && (this.getAttribute("class").indexOf("headerSortDown") == -1)){
-            this.class = this.class + " headerSortUp";
+            $(this).attr('class', $(this).attr('class') + " headerSortUp");
             sortOrder = "headerSortUp";
         } else if(this.getAttribute("class").indexOf("headerSortUp") != -1) {
-            this.class = this.class.replace("headerSortUp", "headerSortDown");
+            $(this).attr('class', $(this).attr('class').replace("headerSortUp", "headerSortDown"));
             sortOrder = "headerSortDown";
         } else{
-            this.class = this.class.replace("headerSortDown", "headerSortUp");
+            $(this).attr('class', $(this).attr('class').replace("headerSortDown", "headerSortUp"));
             sortOrder = "headerSortUp";
         };
+        
+        for(i=0; i<pep_header_ths.length; i++){
+            if(i==0){
+                previous_span = "ID"
+            } else {
+                previous_span = pep_header_ths[i].getElementsByTagName("span")[0].innerText;
+            }
+            
+            if(previous_span != span){
+                pep_header_ths[i].setAttribute('class', pep_header_ths[i].className.replace(" headerSortUp", "").replace(" headerSortDown", ""));
+            };
+        };
+
         quantFirst(sortOrder, span);
     });
 
@@ -552,18 +569,35 @@ $(document).ready(function () {
     protPageNum.innerHTML = '1';
 
     $("#quantification_of_protein .header").click(function() {
-        span = this.getElementsByTagName("span").innerText;
-    
+        if(this.getAttribute("class").indexOf("rowheader") != -1){
+            var span = "ProteinName";
+        } else {
+            var span = this.getElementsByTagName("span")[0].innerText;
+        };
+        
         if((this.getAttribute("class").indexOf("headerSortUp") == -1) && (this.getAttribute("class").indexOf("headerSortDown") == -1)){
-            this.class = this.class + " headerSortUp";
+            $(this).attr('class', $(this).attr('class') + " headerSortUp");
             sortOrder = "headerSortUp";
         } else if(this.getAttribute("class").indexOf("headerSortUp") != -1) {
-            this.class = this.class.replace("headerSortUp", "headerSortDown");
+            $(this).attr('class', $(this).attr('class').replace("headerSortUp", "headerSortDown"));
             sortOrder = "headerSortDown";
         } else{
-            this.class = this.class.replace("headerSortDown", "headerSortUp");
+            $(this).attr('class', $(this).attr('class').replace("headerSortDown", "headerSortUp"));
             sortOrder = "headerSortUp";
         };
+
+        for(i=0; i<header_ths.length; i++){
+            if(i==0){
+                previous_span = "ProteinName";
+            }else{
+                previous_span = header_ths[i].getElementsByTagName("span")[0].innerText;
+            };
+
+            if(previous_span != span){
+                header_ths[i].setAttribute('class', header_ths[i].className.replace(" headerSortUp", "").replace(" headerSortDown", ""));
+            };
+        };
+
         protFirst(sortOrder, span);
     });
     
