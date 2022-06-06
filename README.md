@@ -89,3 +89,14 @@ The [Delta Mass](https://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter
 ```Note: Because DIA-NN has much difference in output file !!! So some metrics are difficult to calculate```
 
 ```Note: If you want to disable this plugin and use the multiqc function, please set disable_plugin```
+
+## Development quick start
+
+In short, for development, follow these steps:
+
+- `git clone https://github.com/bigbio/pmultiqc && cd pmultiqc`
+- `pip install -r requirements.txt`
+- Code and make your changes
+- `pip install . -e`
+- `cd tests && multiqc resources/LFQ -o ./`
+- Contribute by forking and creating a PR from your fork against bigbio
