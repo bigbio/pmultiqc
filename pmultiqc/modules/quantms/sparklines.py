@@ -266,12 +266,12 @@ def make_table(dt):
                         t_rows[s_name] = dict()
                     if "_distribution" in rid:
                         if valstring == "":
-                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\"{v}\""></td>'.format(
+                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\"{v}\"></td>'.format(
                                 rid=rid, h=hide, v=valstring
                             )
                         else:
                             valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])                        
-                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\"{v}\""></td>'.format(
+                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\"{v}\"></td>'.format(
                                 rid=rid, h=hide, v=valstring
                             )
                     elif header["title"] in fixed_col:

@@ -1124,13 +1124,13 @@ class QuantMSModule(BaseMultiqcModule):
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" FLOAT")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
-            headers[s] = {'name': s}
+            headers[str(s)] = {'name': s}
 
         for s in list(map(lambda x: str(x) + "_distribution", conditions)):
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + s + "\" VARCHAR(100)")
             con.commit()
             sql_col += ", \"" + s + "\""
-            headers[s] = {'name': s}
+            headers[str(s)] = {'name': s}
 
         all_term = ["ProteinName", "PeptideSequence", "BestSearchScore", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
         cur.executemany("INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
@@ -1242,13 +1242,13 @@ class QuantMSModule(BaseMultiqcModule):
             cur.execute("ALTER TABLE PROTQUANT ADD \"" + str(s) + "\" FLOAT")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
-            headers[s] = {'name': s}
+            headers[str(s)] = {'name': s}
 
         for s in list(map(lambda x: str(x) + "_distribution", conditions)):
             cur.execute("ALTER TABLE PROTQUANT ADD \"" + s + "\" VARCHAR(100)")
             con.commit()
             sql_col += ", \"" + s + "\""
-            headers[s] = {'name': s}
+            headers[str(s)] = {'name': s}
 
         all_term = ["Peptides_Number", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
         cur.executemany("INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,

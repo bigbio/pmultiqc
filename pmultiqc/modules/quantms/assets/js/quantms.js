@@ -127,16 +127,11 @@ function draw_sparkline(){
             });
         
             n += 1;
-        
-            // If the process takes too much time, run a timeout to allow interaction with the browser
-            if (new Date() - time > 500) {
-                sparkline_tds.splice(0, i + 1);
-                setTimeout(doChunk, 0);
-                break;
-            }
+
         }
     }
     doChunk();
+    console.log("111111111");
 }
 
 
@@ -227,12 +222,12 @@ $(document).ready(function () {
 
 
 //NextPage
-function quantNext(order, column){
+async function quantNext(order, column){
     order = order||'original';
     currentRow = quantPageSize * quantPage;
     maxRow = currentRow + quantPageSize;
     if ( maxRow > numberRowsInQuantTable ) maxRow = numberRowsInQuantTable;
-    updateQuantData(currentRow, order, column).then(res =>{
+    await updateQuantData(currentRow, order, column).then(res =>{
 		for(i=0; i<res.length; i++){
 			console.log(res[i]);
 			tds = quant_trs[i].getElementsByTagName("td");
@@ -249,23 +244,24 @@ function quantNext(order, column){
 			}
 		}
 	});
-    draw_sparkline();
+    
     quantPage++;
 
     if ( maxRow == numberRowsInQuantTable ) { quantNextText(); quantLastText(); }
     showPage(quantPageNum, quantPage);
     quantPreLink();
     quantFirstLink();
+    draw_sparkline(); 
 }
 
 //PreviousPage
-function quantPre(order, column){
+async function quantPre(order, column){
     order = order||'original';
     quantPage--;
     currentRow = quantPageSize * quantPage;
     maxRow = currentRow - quantPageSize;
     if ( currentRow > numberRowsInQuantTable ) currentRow = numberRowsInQuantTable;
-	updateQuantData(currentRow - quantPageSize, order, column).then(res =>{
+	await updateQuantData(currentRow - quantPageSize, order, column).then(res =>{
 		for(i=0; i<res.length; i++){
 			console.log(res[i]);
 			tds = quant_trs[i].getElementsByTagName("td");
@@ -283,18 +279,18 @@ function quantPre(order, column){
 		}
 	});
 
-    draw_sparkline();
     if ( maxRow === 0 ){ quantPreText(); quantFirstText(); }
     showPage(quantPageNum, quantPage);
     quantNextLink();
-    quantLastLink();
+    quantLastLink(); 
+    draw_sparkline();
 }
 
 //FirstPage
-function quantFirst(order, column){
+async function quantFirst(order, column){
     order = order||'original';
     quantPage = 1;
-    updateQuantData(0, order, column).then(res =>{
+    await updateQuantData(0, order, column).then(res =>{
         for(i=0; i<res.length; i++){
             console.log(res[i]);
             tds = quant_trs[i].getElementsByTagName("td");
@@ -317,17 +313,17 @@ function quantFirst(order, column){
 
     });
     showPage(quantPageNum, quantPage);
-    draw_sparkline();
     quantPreText();
     quantNextLink();
     quantLastLink();
+    draw_sparkline();
 }
 
 //LastPage
-function quantLast(order, column){
+async function quantLast(order, column){
     order = order||'original';
     quantPage = parseInt(quantLastRows / quantPageSize + 1);
-    updateQuantData(quantLastRows, order, column).then(res =>{
+    await updateQuantData(quantLastRows, order, column).then(res =>{
         for(i=0; i<res.length; i++){
             console.log(res[i]);
             tds = quant_trs[i].getElementsByTagName("td");
@@ -350,10 +346,10 @@ function quantLast(order, column){
 		}
     });
     showPage(quantPageNum, quantPage);
-    draw_sparkline();
     quantPreLink();
     quantNextText();
     quantFirstLink();
+    draw_sparkline();
 }
 
 function showPage(pageNum, page){
@@ -424,18 +420,18 @@ function quantFirstText(){ quantFirstDom.innerHTML = "First Page";}
 function quantLastLink(){ quantLastDom.innerHTML = "<a href='javascript:quantLast();'>Last Page</a>";}
 function quantLastText(){ quantLastDom.innerHTML = "Last Page";}
 
-function quant_page_jump(order, column){
+async function quant_page_jump(order, column){
 	if(event.keyCode === 13){
         order = order||'original';
 		quantPage = document.getElementById("pep_page").value;
 		if (quantPage > parseInt(numberRowsInQuantTable / 50 + 1) || quantPage === ""){
 			alert("not valid page!");
 		} else if(quantPage === parseInt(numberRowsInQuantTable / 50 + 1)){
-			quantLast(order, column);
+			await quantLast(order, column);
 		} else{
 			currentRow = quantPageSize * quantPage;
 			maxRow = currentRow - quantPageSize;
-			updateQuantData(currentRow - quantPageSize, order, column).then(res =>{
+			await updateQuantData(currentRow - quantPageSize, order, column).then(res =>{
                 for(i=0; i<res.length; i++){
                     console.log(res[i]);
                     tds = quant_trs[i].getElementsByTagName("td");
@@ -460,11 +456,11 @@ function quant_page_jump(order, column){
 
 			if ( maxRow === 0 ){ quantPreText(); quantFirstText(); }
 			showPage(quantPageNum, quantPage);
-            draw_sparkline();
 			quantPreLink();
 			quantNextLink();
 			quantFirstLink();
 			quantLastLink();
+            draw_sparkline();
 		}
 	}
 }
@@ -493,7 +489,7 @@ async function searchData(filter, col, table){
 }
 
 
-function searchQuantFunction() {
+async function searchQuantFunction() {
     if (event.keyCode === 13) {
         var myInput=document.getElementById("quant_search");
         var filter=myInput.value.toUpperCase();
@@ -501,7 +497,7 @@ function searchQuantFunction() {
         var index = search_col.selectedIndex;
         var value = search_col.options[index].text;
 
-        searchData(filter, value, 'PEPQUANT').then(res =>{
+        await searchData(filter, value, 'PEPQUANT').then(res =>{
         for(i=0; i<res.length; i++){
             if(i>=50){
                 break;
@@ -618,12 +614,12 @@ $(document).ready(function () {
 
 
 //NextPage
-function protNext(order, column){
+async function protNext(order, column){
     order = order||'original';
     currentRow = protPageSize * protPage;
     maxRow = currentRow + protPageSize;
     if ( maxRow > numberRowsInProtTable ) maxRow = numberRowsInProtTable;
-        updateProtData(currentRow, order, column).then(res =>{
+        await updateProtData(currentRow, order, column).then(res =>{
 		for(i=0; i<res.length; i++){
 			console.log(res[i]);
 			tds = prot_trs[i].getElementsByTagName("td");
@@ -650,13 +646,13 @@ function protNext(order, column){
 }
 
 //PreviousPage
-function protPre(order, column){
+async function protPre(order, column){
     order = order||'original';
     protPage--;
     currentRow = protPageSize * protPage;
     maxRow = currentRow - protPageSize;
     if ( currentRow > numberRowsInProtTable ) currentRow = numberRowsInProtTable;
-	updateProtData(currentRow - protPageSize, order, column).then(res =>{
+	await updateProtData(currentRow - protPageSize, order, column).then(res =>{
 		for(i=0; i<res.length; i++){
 			console.log(res[i]);
 			tds = prot_trs[i].getElementsByTagName("td");
@@ -683,10 +679,10 @@ function protPre(order, column){
 }
 
 //FirstPage
-function protFirst(order, column){
+async function protFirst(order, column){
     order = order||'original';
     protPage = 1;
-    updateProtData(0, order, column).then(res =>{
+    await updateProtData(0, order, column).then(res =>{
         for(i=0; i<res.length; i++){
             console.log(res[i]);
             tds = prot_trs[i].getElementsByTagName("td");
@@ -716,10 +712,10 @@ function protFirst(order, column){
 }
 
 //LastPage
-function protLast(order, column){
+async function protLast(order, column){
     order = order||'original';
     protPage = parseInt(protLastRows / protPageSize + 1);
-    updateProtData(protLastRows, order, column).then(res =>{
+    await updateProtData(protLastRows, order, column).then(res =>{
         for(i=0; i<res.length; i++){
             console.log(res[i]);
             tds = prot_trs[i].getElementsByTagName("td");
@@ -798,7 +794,7 @@ async function updateProtData(currentRow, order, column){
 	return d;
 }
 
-function prot_page_jump(order, column){
+async function prot_page_jump(order, column){
 	if(event.keyCode === 13){
         order = order||'original';
 		protPage = document.getElementById("prot_page").value;
@@ -807,11 +803,11 @@ function prot_page_jump(order, column){
 		}
 
 		else if(protPage === parseInt(numberRowsInProtTable / 50 + 1)){
-			protLast(order, column);
+			await protLast(order, column);
 		} else{
 			currentRow = protPageSize * protPage;
 			maxRow = currentRow - protPageSize;
-			updateProtData(currentRow - protPageSize, order, column).then(res =>{
+			await updateProtData(currentRow - protPageSize, order, column).then(res =>{
                 for(i=0; i<res.length; i++){
                     tds = prot_trs[i].getElementsByTagName("td");
                     prot_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
@@ -842,7 +838,7 @@ function prot_page_jump(order, column){
 	}
 }
 
-function searchProtFunction() {
+async function searchProtFunction() {
     if (event.keyCode === 13) {
         var myInput=document.getElementById("prot_search");
         var filter=myInput.value.toUpperCase();
@@ -850,7 +846,7 @@ function searchProtFunction() {
         var index = search_col.selectedIndex;
         var value = search_col.options[index].text;
 
-        searchData(filter, value, 'PROTQUANT').then(res =>{
+        await searchData(filter, value, 'PROTQUANT').then(res =>{
             for(i=0; i<res.length; i++){
                 if(i>=50){
                     break;
