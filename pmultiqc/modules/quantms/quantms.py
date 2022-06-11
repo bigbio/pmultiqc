@@ -1171,7 +1171,7 @@ class QuantMSModule(BaseMultiqcModule):
         # Add a report section with the line plot
         self.add_section(
             name="Peptides Quantification Table",
-            anchor="quant_quant_result",
+            anchor="peptides_quant_result",
             description='This plot shows the quantification information of peptides'
                         'in quantms pipeline final result',
             helptext='''

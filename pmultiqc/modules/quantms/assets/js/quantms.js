@@ -131,7 +131,6 @@ function draw_sparkline(){
         }
     }
     doChunk();
-    console.log("111111111");
 }
 
 
@@ -171,7 +170,7 @@ $(document).ready(function () {
 
     $(".col-condition-sparkline").css("display", "none");
 
-    $("#quantification_of_peptides .header").click(function() {
+    $("#quantification_of_peptides .header").click(async function() {
         if(this.getAttribute("class").indexOf("rowheader") != -1){
             var span = "ID";
         } else{
@@ -201,7 +200,7 @@ $(document).ready(function () {
             };
         };
 
-        quantFirst(sortOrder, span);
+        await quantFirst(sortOrder, span);
     });
 
 
@@ -243,6 +242,11 @@ async function quantNext(order, column){
 				}
 			}
 		}
+        if ( i <= quant_trs.length - 1){
+			for (k = i; k < quant_trs.length; k++){
+				quant_trs[k].style.display = 'none';
+			}
+		}
 	});
     
     quantPage++;
@@ -276,6 +280,10 @@ async function quantPre(order, column){
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
 			}
+		}
+
+        for (k = 1; k < 50; k++){
+			quant_trs[k].style.display = '';
 		}
 	});
 
@@ -449,7 +457,11 @@ async function quant_page_jump(order, column){
                 }
                 console.log(i);
                 for (k = 1; k < 50; k++){
-                    quant_trs[k].style.display = '';
+                    if (k>=i) {
+                        quant_trs[k].style.display = 'none';
+                    } else{
+                        quant_trs[k].style.display = '';
+                    }
                 }
 
             });
@@ -564,7 +576,7 @@ $(document).ready(function () {
     protLastLink();
     protPageNum.innerHTML = '1';
 
-    $("#quantification_of_protein .header").click(function() {
+    $("#quantification_of_protein .header").click(async function() {
         if(this.getAttribute("class").indexOf("rowheader") != -1){
             var span = "ProteinName";
         } else {
@@ -594,7 +606,7 @@ $(document).ready(function () {
             };
         };
 
-        protFirst(sortOrder, span);
+        await protFirst(sortOrder, span);
     });
     
     $("#protein-distribution-button").click(function() {
@@ -635,6 +647,11 @@ async function protNext(order, column){
 				}
 			}
 		}
+        if ( i <= prot_trs.length - 1){
+			for (k = i; k < prot_trs.length; k++){
+				prot_trs[k].style.display = 'none';
+			}
+		}
 	});
     protPage++;
 
@@ -667,6 +684,9 @@ async function protPre(order, column){
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
 			}
+		}
+        for (k = 1; k < 50; k++){
+			prot_trs[k].style.display = '';
 		}
 	});
 
@@ -823,7 +843,11 @@ async function prot_page_jump(order, column){
                     }
                 }
                 for (k = 1; k < 50; k++){
-                    prot_trs[k].style.display = '';
+                    if (k>=i) {
+                        prot_trs[k].style.display = 'none';
+                    } else{
+                        prot_trs[k].style.display = '';
+                    }
                 }
             });
 

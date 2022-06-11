@@ -87,6 +87,14 @@ The [Oversampling Distribution] aims to show the OverSampling information. An ov
 
 The [Delta Mass](https://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html#delta_mass-1) aims to show the Peak instensity in the MS2 spectra for all the experiment but also for the identified spectra. The plot split the intesity in chunks of 0-10, 10-100, 100-300, ... 6k-10k, >10k. Mass deltas close to zero reflect more accurate identifications and also that the reporting of the amino acid modifications and charges have been done accurately. This plot can highlight systematic bias if not centered on zero. Other distributions can reflect modifications not being reported properly. Also it is easy to see the different between the target and the decoys identifications.
 
+### Peptides Quantification Table
+
+The [Peptides Quantification Table](https://github.com/bigbio/pmultiqc/tree/main/docs/example_dia/multiqc_report.html#peptides_quant_result) aims to show the quantitative level and distribution of peptides in different study variables, run and peptiforms. The distribution show all the intensity values in a bar plot above and below the average intensity for all the fractions, runs and peptiforms.
+
+### Protein Quantification Table
+
+The [Protein Quantification Table](https://github.com/bigbio/pmultiqc/tree/main/docs/example_dia/multiqc_report.html#protein_quant_result) also aims to the quantitative level and distribution of proteins in different study variables. The distribution show all the intensity values in a bar plot above and below the average intensity for all runs.
+
 ```Note: Because DIA-NN has much difference in output file !!! So some metrics are difficult to calculate```
 
 ```Note: If you want to disable this plugin and use the multiqc function, please set disable_plugin```
