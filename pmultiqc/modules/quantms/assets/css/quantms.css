@@ -1,4 +1,4 @@
-.table tr td {
+.table tr .data-coloured {
     overflow-y: hidden;
     white-space: nowrap;
 }

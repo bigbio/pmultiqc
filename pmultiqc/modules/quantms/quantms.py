@@ -1071,39 +1071,70 @@ class QuantMSModule(BaseMultiqcModule):
             msstats_data_dict[index]['ProteinName'] = group["ProteinName"].values[0]
 
             # aggregate intensity of fraction and peptidoforms, then average technical/biological replicates intensity
+            sample_condition_intensities = {}
+            rel_condition = []
             for condition, c_group in group.groupby("Condition"):
-                condition_intensities = []
                 if "Channel" in list(c_group):
                     for _, channel_group in c_group.groupby(["Channel","Fraction_Group"]):
-                        condition_intensities.append(channel_group["Intensity"].sum())
+                        BioReplicate = channel_group["BioReplicate"].values[0]
+                        if channel_group["Intensity"].sum() == 0.0 :
+                            continue
+                        if condition not in sample_condition_intensities:
+                            sample_condition_intensities[condition] = {BioReplicate: [channel_group["Intensity"].sum()]}
+                        elif BioReplicate in sample_condition_intensities[condition]:
+                            sample_condition_intensities[condition][BioReplicate].append(channel_group["Intensity"].sum())
+                        else:
+                            sample_condition_intensities[condition][BioReplicate] = [channel_group["Intensity"].sum()]
+
                 else:
                     for _, f_group in c_group.groupby("Fraction_Group"):
-                        condition_intensities.append(f_group["Intensity"].sum())
+                        if c_group["Intensity"].sum() == 0.0 :
+                            continue
+                        BioReplicate = f_group["BioReplicate"].values[0]
+                        if condition not in sample_condition_intensities:
+                            sample_condition_intensities[condition] = {BioReplicate: [f_group["Intensity"].sum()]}
+                        elif BioReplicate in sample_condition_intensities[condition]:
+                            sample_condition_intensities[condition][BioReplicate].append(f_group["Intensity"].sum())
+                        else:
+                            sample_condition_intensities[condition][BioReplicate] = [f_group["Intensity"].sum()]
+                
+                if condition in sample_condition_intensities:
+                    for biorep, values in sample_condition_intensities[condition].items():
+                        # mean intensity of technical replicates
+                        sample_condition_intensities[condition][biorep] = np.mean(values)
 
-                msstats_data_dict[index][str(condition)] = np.mean(condition_intensities)
+                    # mean intensity of biological replicates
+                    msstats_data_dict[index][str(condition)] = np.mean(list(sample_condition_intensities[condition].values()))
+                    rel_condition.append(str(condition))
+                    for prot in np.unique(group["ProteinName"]):
+                        msstats_data_dict[index]["BestSearchScore"] = 1 - self.prot_search_score[prot]
+                        if prot not in pep_intensity:
+                            pep_intensity[prot] = {str(condition): sample_condition_intensities[condition]}
+                        elif str(condition) not in pep_intensity[prot]:
+                            pep_intensity[prot][str(condition)] = sample_condition_intensities[condition]
+                        else:
+                            for biorep, values in sample_condition_intensities[condition].items():
+                                # summarize peptide intensity for each protein in a sample
+                                if biorep in pep_intensity[prot][str(condition)]:
+                                    pep_intensity[prot][str(condition)][biorep] += values
+                                else:
+                                    pep_intensity[prot][str(condition)][biorep] = values
             
-                for prot in np.unique(group["ProteinName"]):
-                    msstats_data_dict[index]["BestSearchScore"] = 1 - self.prot_search_score[prot]
-                    if prot not in pep_intensity:
-                        pep_intensity[prot] = {str(condition): [np.mean(condition_intensities)]}
-                    elif str(condition) not in pep_intensity[prot]:
-                        pep_intensity[prot][str(condition)] = [np.mean(condition_intensities)]
-                    else:
-                        pep_intensity[prot][str(condition)].append(np.mean(condition_intensities))
-            
-            rc = list(map(str,(set(group["Condition"]))))
-            aic = itemgetter(*rc)(msstats_data_dict[index])
             try:
-                msstats_data_dict[index]["Average Intensity"] = np.mean(list(aic))
+                aic = itemgetter(*rel_condition)(msstats_data_dict[index])
+                if type(aic) == tuple:
+                    msstats_data_dict[index]["Average Intensity"] = np.mean(list(aic))
+                else:
+                    msstats_data_dict[index]["Average Intensity"] = aic
             except Exception as e:
-                msstats_data_dict[index]["Average Intensity"] = aic
+                msstats_data_dict[index]["Average Intensity"] = 0.0
             for c in conditions:
                 if str(c) not in msstats_data_dict[index]:
-                    msstats_data_dict[index][str(c)] = np.NaN
+                    msstats_data_dict[index][str(c)] = 0.0
                     msstats_data_dict[index][str(c) + "_distribution"] = ""
                 else:
-                    gc = group[group["Condition"] == c]
-                    intensity_distribution = (gc["Intensity"] - msstats_data_dict[index]["Average Intensity"]).tolist()
+                    # intensity_distribution = [x - msstats_data_dict[index]["Average Intensity"] for x in list(sample_condition_intensities[c].values())]
+                    intensity_distribution = list(sample_condition_intensities[c].values())
                     intensity_distribution_str = list(map(str, intensity_distribution))
                     msstats_data_dict[index][str(c) + "_distribution"] = ", ".join(intensity_distribution_str) + " ; column"
             
@@ -1187,33 +1218,30 @@ class QuantMSModule(BaseMultiqcModule):
         plot_prot = dict()
         for prot, group in msstats_data.groupby("ProteinName"):
             msstats_data_prot[prot] = {"Peptides_Number": len(np.unique(group["PeptideSequence"]))}
+            rel_condition = []
             for condition, c_group in group.groupby("Condition"):
-                msstats_data_prot[prot][str(condition)] = np.sum(pep_intensity[prot][str(condition)])
+                if str(condition) in pep_intensity[prot]:
+                    # mean protein intensity for biological replicates
+                    rel_condition.append(str(condition))
+                    msstats_data_prot[prot][str(condition)] = np.mean(list(pep_intensity[prot][str(condition)].values()))
 
-            rc = list(map(str,(set(group["Condition"]))))
-            aic = itemgetter(*rc)(msstats_data_prot[prot])
             try:
-                msstats_data_prot[prot]["Average Intensity"] = np.mean(list(aic))
+                aip = itemgetter(*rel_condition)(msstats_data_prot[prot])
+                if type(aip) == tuple:
+                    msstats_data_prot[prot]["Average Intensity"] = np.mean(list(aip))
+                else:
+                    msstats_data_prot[prot]["Average Intensity"] = aip
             except Exception as e:
-                msstats_data_prot[prot]["Average Intensity"] = aic
+                msstats_data_prot[prot]["Average Intensity"] = 0.0
 
             for c in conditions:
                 if str(c) not in msstats_data_prot[prot]:
-                    msstats_data_prot[prot][str(c)] = np.NaN
+                    msstats_data_prot[prot][str(c)] = 0.0
                     msstats_data_prot[prot][str(c) + "_distribution"] = ""
                 else:
-                    gc = group[group["Condition"] == c]
-                    intensity_distribution_str = []
-                    if "Channel" in list(msstats_data):
-                        for _, ref_group in gc.groupby("Run"):
-                            channel_intensities = []
-                            for _, prot_channel_group in ref_group.groupby("Channel"):
-                                channel_intensities.append(np.sum(prot_channel_group["Intensity"]))
-                            intensity_distribution_str.append(str(np.mean(channel_intensities) - msstats_data_prot[prot]["Average Intensity"]))
-                    else:
-                        for _, ref_group in gc.groupby("Run"):
-                            intensity_distribution =(np.sum(ref_group["Intensity"]) - msstats_data_prot[prot]["Average Intensity"]).tolist()
-                            intensity_distribution_str.append(str(intensity_distribution))
+                    # intensity_distribution = [x - msstats_data_prot[prot]["Average Intensity"] for x in list(pep_intensity[prot][str(c)].values())]
+                    intensity_distribution = list(pep_intensity[prot][str(c)].values())
+                    intensity_distribution_str = list(map(str, intensity_distribution))
                     msstats_data_prot[prot][str(c) + "_distribution"] = ", ".join(intensity_distribution_str) + " ; column"
 
             if index < 51:

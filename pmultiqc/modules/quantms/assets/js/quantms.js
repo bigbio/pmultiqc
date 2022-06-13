@@ -4,82 +4,85 @@ function draw_sparkline(){
         let options = arguments[hasRenderToArg ? 1 : 0];
         const defaultOptions = {
             chart: {
-            renderTo: (options.chart && options.chart.renderTo) || (hasRenderToArg && a),
-            backgroundColor: null,
-            borderWidth: 0,
-            type: 'area',
-            margin: [2, 0, 2, 0],
-            width: 120,
-            height: 20,
-            style: {
-                overflow: 'visible'
-            },
-            // small optimalization, saves 1-2 ms each sparkline
-            skipClone: true
+                renderTo: (options.chart && options.chart.renderTo) || (hasRenderToArg && a),
+                backgroundColor: null,
+                borderWidth: 0,
+                type: 'area',
+                margin: [2, 0, 2, 0],
+                width: 120,
+                height: 20,
+                style: {
+                    overflow: 'visible'
+                },
+                // small optimalization, saves 1-2 ms each sparkline
+                skipClone: true
             },
             title: {
-            text: ''
+                text: ''
             },
             credits: {
-            enabled: false
+                enabled: false
             },
             xAxis: {
-            labels: {
-                enabled: false
-            },
-            title: {
-                text: null
-            },
-            startOnTick: false,
-            endOnTick: false,
-            tickPositions: []
+                labels: {
+                    enabled: false
+                },
+                title: {
+                    text: null
+                },
+                startOnTick: false,
+                endOnTick: false,
+                tickPositions: [],
+                lineColor: '#FFFFFF',
+                lineWidth: 0
             },
             yAxis: {
-            endOnTick: false,
-            startOnTick: false,
-            labels: {
-                enabled: false
-            },
-            title: {
-                text: null
-            },
-            tickPositions: [0]
+                endOnTick: false,
+                startOnTick: false,
+                labels: {
+                    enabled: false
+                },
+                title: {
+                    text: null
+                },
+                tickPositions: [0],
+                gridLineWidth: 2
             },
             legend: {
-            enabled: false
+                enabled: false
             },
             tooltip: {
-            hideDelay: 0,
-            outside: true,
-            shared: true
+                hideDelay: 0,
+                outside: true,
+                shared: true
             },
             exporting: {
                 enabled: false
             },
             plotOptions: {
-            series: {
-                animation: false,
-                lineWidth: 1,
-                shadow: false,
-                states: {
-                hover: {
-                    lineWidth: 1
-                }
+                series: {
+                    animation: false,
+                    lineWidth: 1,
+                    shadow: false,
+                    states: {
+                        hover: {
+                            lineWidth: 1
+                        }
+                    },
+                    marker: {
+                        radius: 1,
+                        states: {
+                            hover: {
+                            radius: 2
+                            }
+                        }
+                    },
+                    fillOpacity: 0.25
                 },
-                marker: {
-                radius: 1,
-                states: {
-                    hover: {
-                    radius: 2
-                    }
+                column: {
+                    negativeColor: 'rgb(163,237,186)',
+                    borderColor: 'silver'
                 }
-                },
-                fillOpacity: 0.25
-            },
-            column: {
-                negativeColor: 'rgb(163,237,186)',
-                borderColor: 'silver'
-            }
             }
         };
         
