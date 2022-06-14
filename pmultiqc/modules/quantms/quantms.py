@@ -256,7 +256,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             self.f_table = pd.DataFrame(self.f_table, columns=f_header)
             self.f_table["Run"] = self.f_table.apply(lambda x: os.path.splitext(os.path.basename(x["Spectra_Filepath"]))[0], axis=1)
-            s_DataFrame = pd.DataFrame(s_table, columns=s_header)
+            self.s_DataFrame = pd.DataFrame(s_table, columns=s_header)
             for file in np.unique(self.f_table["Spectra_Filepath"].tolist()):
                 stand_file = os.path.basename(file)
                 file_index = self.f_table[self.f_table["Spectra_Filepath"] == file]
@@ -266,10 +266,10 @@ class QuantMSModule(BaseMultiqcModule):
                 sample = file_index["Sample"].tolist()
                 self.exp_design_table[stand_file]['Sample'] = '|'.join(sample)
                 self.exp_design_table[stand_file]['MSstats_Condition'] = ','.join(
-                    [row['MSstats_Condition'] for _, row in s_DataFrame.iterrows()
+                    [row['MSstats_Condition'] for _, row in self.s_DataFrame.iterrows()
                     if row['Sample'] in sample])
                 self.exp_design_table[stand_file]['MSstats_BioReplicate'] = '|'.join(
-                    [row['MSstats_BioReplicate'] for _, row in s_DataFrame.iterrows()
+                    [row['MSstats_BioReplicate'] for _, row in self.s_DataFrame.iterrows()
                     if row['Sample'] in sample])
 
         # Create table plot
@@ -1076,7 +1076,7 @@ class QuantMSModule(BaseMultiqcModule):
             for condition, c_group in group.groupby("Condition"):
                 if "Channel" in list(c_group):
                     for _, channel_group in c_group.groupby(["Channel","Fraction_Group"]):
-                        BioReplicate = channel_group["BioReplicate"].values[0]
+                        BioReplicate = str(channel_group["BioReplicate"].values[0])
                         if channel_group["Intensity"].sum() == 0.0 :
                             continue
                         if condition not in sample_condition_intensities:
@@ -1090,7 +1090,7 @@ class QuantMSModule(BaseMultiqcModule):
                     for _, f_group in c_group.groupby("Fraction_Group"):
                         if c_group["Intensity"].sum() == 0.0 :
                             continue
-                        BioReplicate = f_group["BioReplicate"].values[0]
+                        BioReplicate = str(f_group["BioReplicate"].values[0])
                         if condition not in sample_condition_intensities:
                             sample_condition_intensities[condition] = {BioReplicate: [f_group["Intensity"].sum()]}
                         elif BioReplicate in sample_condition_intensities[condition]:
@@ -1133,8 +1133,14 @@ class QuantMSModule(BaseMultiqcModule):
                     msstats_data_dict[index][str(c)] = 0.0
                     msstats_data_dict[index][str(c) + "_distribution"] = ""
                 else:
-                    # intensity_distribution = [x - msstats_data_dict[index]["Average Intensity"] for x in list(sample_condition_intensities[c].values())]
-                    intensity_distribution = list(sample_condition_intensities[c].values())
+                    bios = self.s_DataFrame[self.s_DataFrame["MSstats_Condition"] == str(c)]["MSstats_BioReplicate"].tolist()
+                    intensity_distribution = OrderedDict()
+                    for i in bios:
+                        if i in sample_condition_intensities[c]:
+                            intensity_distribution[i] = sample_condition_intensities[c][i]
+                        else:
+                            intensity_distribution[i] = 0.0
+                    intensity_distribution = list(intensity_distribution.values())
                     intensity_distribution_str = list(map(str, intensity_distribution))
                     msstats_data_dict[index][str(c) + "_distribution"] = ", ".join(intensity_distribution_str) + " ; column"
             
@@ -1149,13 +1155,13 @@ class QuantMSModule(BaseMultiqcModule):
 
         headers = OrderedDict()
         headers = {'ProteinName': {'name': 'ProteinName'}, 'PeptideSequence': {'name': 'PeptideSequence'},
-                    'BestSearchScore': {'name': 'BestSearchScore'}, 'Average Intensity': {'name': 'Average Intensity'}}
+                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.9f}'}, 'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
         
         for s in conditions:
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" FLOAT")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
-            headers[str(s)] = {'name': s}
+            headers[str(s)] = {'name': s, 'format': '{:,.3f}'}
 
         for s in list(map(lambda x: str(x) + "_distribution", conditions)):
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + s + "\" VARCHAR(100)")
@@ -1178,7 +1184,6 @@ class QuantMSModule(BaseMultiqcModule):
             'sortRows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'index',
-            'format': '{:,.3f}',
             'no_beeswarm': True
         }
 
@@ -1239,8 +1244,14 @@ class QuantMSModule(BaseMultiqcModule):
                     msstats_data_prot[prot][str(c)] = 0.0
                     msstats_data_prot[prot][str(c) + "_distribution"] = ""
                 else:
-                    # intensity_distribution = [x - msstats_data_prot[prot]["Average Intensity"] for x in list(pep_intensity[prot][str(c)].values())]
-                    intensity_distribution = list(pep_intensity[prot][str(c)].values())
+                    bios = self.s_DataFrame[self.s_DataFrame["MSstats_Condition"] == str(c)]["MSstats_BioReplicate"].tolist()
+                    intensity_distribution = OrderedDict()
+                    for i in bios:
+                        if i in pep_intensity[prot][str(c)]:
+                            intensity_distribution[i] = pep_intensity[prot][str(c)][i]
+                        else:
+                            intensity_distribution[i] = 0.0
+                    intensity_distribution = list(intensity_distribution.values())
                     intensity_distribution_str = list(map(str, intensity_distribution))
                     msstats_data_prot[prot][str(c) + "_distribution"] = ", ".join(intensity_distribution_str) + " ; column"
 

@@ -33,8 +33,8 @@ function draw_sparkline(){
                 startOnTick: false,
                 endOnTick: false,
                 tickPositions: [],
-                lineColor: '#FFFFFF',
-                lineWidth: 0
+                lineWidth: 2,
+                lineColor: '#C0D0E0'
             },
             yAxis: {
                 endOnTick: false,
