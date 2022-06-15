@@ -22,7 +22,6 @@ import numpy as np
 import math
 import copy
 
-from sqlalchemy import true
 from .histogram import Histogram
 from . import sparklines
 
