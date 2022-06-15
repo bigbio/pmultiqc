@@ -1,4 +1,4 @@
-function draw_sparkline(){
+function draw_sparkline(table_dict){
     Highcharts.SparkLine = function (a, b, c) {
         const hasRenderToArg = typeof a === 'string' || a.nodeName;
         let options = arguments[hasRenderToArg ? 1 : 0];
@@ -37,6 +37,8 @@ function draw_sparkline(){
                 lineColor: '#C0D0E0'
             },
             yAxis: {
+                min: 0.0,
+                max: table_dict["maxValue"],
                 endOnTick: false,
                 startOnTick: false,
                 labels: {
@@ -93,17 +95,12 @@ function draw_sparkline(){
             new Highcharts.Chart(options, b);
     };
 
-    const start = +new Date(),
-    sparkline_tds = Array.from(document.querySelectorAll('td[data-sparkline]')),
-    fullLen = sparkline_tds.length;
-        
-    let n = 0;
-        
-    // Creating 153 sparkline charts is quite fast in modern browsers, but IE8 and mobile
-    // can take some seconds, so we split the input into chunks and apply them in timeouts
-    // in order avoid locking up the browser process and allow interaction.
+    sparkline_tds = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td[data-sparkline]'));
+    sparkline_tds_cell = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td.data-sparkline'));
+    len_tds_tr = Array.from(document.querySelectorAll('th.col-condition-sparkline')).length / 2;
+    average_intensity_col = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td.Average_Intensity > .wrapper > .val'));
+
     function doChunk() {
-        const time = +new Date(),
         len = sparkline_tds.length;
         
         for (let i = 0; i < len; i += 1) {
@@ -129,8 +126,14 @@ function draw_sparkline(){
             chart: chart
             });
         
-            n += 1;
+            average_intensity = parseFloat(average_intensity_col[parseInt(i / len_tds_tr)].innerText);
+            rects = sparkline_tds_cell[i].querySelectorAll("svg > .highcharts-series-group > .highcharts-series > rect");
 
+            for(let g = 0; g < rects.length; g++){
+                if(data[g] < average_intensity){
+                    rects[g].setAttribute("fill", "#910000");
+                }
+            };
         }
     }
     doChunk();
@@ -168,8 +171,10 @@ $(document).ready(function () {
     quantNextLink();
     quantLastLink();
     quantPageNum.innerHTML = '1';
+    pep_maxValue = quant_table.getAttribute("data-dmax");
+    peptide_table_dict = {'name': '#quantification_of_peptides', 'maxValue': pep_maxValue};
 
-    draw_sparkline();
+    draw_sparkline(peptide_table_dict);
 
     $(".col-condition-sparkline").css("display", "none");
 
@@ -258,7 +263,7 @@ async function quantNext(order, column){
     showPage(quantPageNum, quantPage);
     quantPreLink();
     quantFirstLink();
-    draw_sparkline(); 
+    draw_sparkline(peptide_table_dict); 
 }
 
 //PreviousPage
@@ -294,7 +299,7 @@ async function quantPre(order, column){
     showPage(quantPageNum, quantPage);
     quantNextLink();
     quantLastLink(); 
-    draw_sparkline();
+    draw_sparkline(peptide_table_dict);
 }
 
 //FirstPage
@@ -327,7 +332,7 @@ async function quantFirst(order, column){
     quantPreText();
     quantNextLink();
     quantLastLink();
-    draw_sparkline();
+    draw_sparkline(peptide_table_dict);
 }
 
 //LastPage
@@ -360,7 +365,7 @@ async function quantLast(order, column){
     quantPreLink();
     quantNextText();
     quantFirstLink();
-    draw_sparkline();
+    draw_sparkline(peptide_table_dict);
 }
 
 function showPage(pageNum, page){
@@ -475,7 +480,7 @@ async function quant_page_jump(order, column){
 			quantNextLink();
 			quantFirstLink();
 			quantLastLink();
-            draw_sparkline();
+            draw_sparkline(peptide_table_dict);
 		}
 	}
 }
@@ -539,7 +544,7 @@ async function searchQuantFunction() {
             }
             }
         });
-        draw_sparkline();
+        draw_sparkline(peptide_table_dict);
     }
 }
 
@@ -578,6 +583,10 @@ $(document).ready(function () {
     protNextLink();
     protLastLink();
     protPageNum.innerHTML = '1';
+    prot_maxValue = prot_table.getAttribute("data-dmax");
+    protein_table_dict = {'name': '#quantification_of_protein', 'maxValue': prot_maxValue};
+
+    draw_sparkline(protein_table_dict);
 
     $("#quantification_of_protein .header").click(async function() {
         if(this.getAttribute("class").indexOf("rowheader") != -1){
@@ -660,7 +669,7 @@ async function protNext(order, column){
 
     if ( maxRow == numberRowsInProtTable ) { protNextText(); protLastText(); }
     showPage(protPageNum, protPage);
-    draw_sparkline();
+    draw_sparkline(protein_table_dict);
     protPreLink();
     protFirstLink();
 }
@@ -696,7 +705,7 @@ async function protPre(order, column){
 
     if ( maxRow === 0 ){ protPreText(); protFirstText(); }
     showPage(protPageNum, protPage);
-    draw_sparkline();
+    draw_sparkline(protein_table_dict);
     protNextLink();
     protLastLink();
 }
@@ -728,7 +737,7 @@ async function protFirst(order, column){
 
     });
     showPage(protPageNum, protPage);
-    draw_sparkline();
+    draw_sparkline(protein_table_dict);
     protPreText();
     protNextLink();
     protLastLink();
@@ -761,7 +770,7 @@ async function protLast(order, column){
 		}
     });
     showPage(protPageNum, protPage);
-    draw_sparkline();
+    draw_sparkline(protein_table_dict);
     protPreLink();
     protNextText();
     protFirstLink();
@@ -856,7 +865,7 @@ async function prot_page_jump(order, column){
 
 			if ( maxRow === 0 ){ protPreText(); protFirstText(); }
 			showPage(protPageNum, protPage);
-            draw_sparkline();
+            draw_sparkline(protein_table_dict);
 			protPreLink();
 			protNextLink();
 			protFirstLink();
@@ -900,6 +909,6 @@ async function searchProtFunction() {
                 }
             }
         });
-        draw_sparkline();
+        draw_sparkline(protein_table_dict);
     }
 }

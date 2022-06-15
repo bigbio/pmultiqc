@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 letters = "abcdefghijklmnopqrstuvwxyz"
 
 
-def plot(data, headers=None, pconfig=None):
+def plot(data, headers=None, pconfig=None, maxValue=0.0):
     """Return HTML for a MultiQC table.
     :param data: 2D dict, first keys as sample names, then x:y data pairs
     :param headers: list of optional dicts with column config in key:value pairs.
@@ -48,10 +48,10 @@ def plot(data, headers=None, pconfig=None):
         )
         return warning + beeswarm.make_plot(dt)
     else:
-        return make_table(dt)
+        return make_table(dt, maxValue)
 
 
-def make_table(dt):
+def make_table(dt, maxValue):
     """
     Build the HTML needed for a MultiQC table.
     :param data: MultiQC datatable object
@@ -275,9 +275,14 @@ def make_table(dt):
                                 rid=rid, h=hide, v=valstring
                             )
                     elif header["title"] in fixed_col:
-                        t_rows[s_name][rid] = '<td class="data-coloured {rid} {h}">{c}</td>'.format(
-                            rid=rid, h=hide, c=wrapper_html
-                        )
+                        if "Average_Intensity-1" in rid:
+                            t_rows[s_name][rid] = '<td class="data-coloured Average_Intensity {h}">{c}</td>'.format(
+                                h=hide, c=wrapper_html
+                            )
+                        else:
+                            t_rows[s_name][rid] = '<td class="data-coloured {rid} {h}">{c}</td>'.format(
+                                rid=rid, h=hide, c=wrapper_html
+                            )
                     else:
                         t_rows[s_name][rid] = '<td class="data-coloured col-condition {rid} {h}">{c}</td>'.format(
                             rid=rid, h=hide, c=wrapper_html
@@ -387,9 +392,9 @@ def make_table(dt):
     html += """
         <div id="{tid}_container" class="mqc_table_container">
             <div class="table-responsive mqc-table-responsive {cc}">
-                <table id="{tid}" class="table table-condensed mqc_table" data-title="{title}">
+                <table id="{tid}" class="table table-condensed mqc_table" data-title="{title}" data-dmax="{dmax}" >
         """.format(
-        tid=table_id, title=table_title, cc=collapse_class
+        tid=table_id, title=table_title, cc=collapse_class, dmax=maxValue
     )
 
     # Build the header row

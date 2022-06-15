@@ -6,7 +6,8 @@ from __future__ import absolute_import
 from collections import OrderedDict
 from operator import itemgetter
 import logging
-from sdrf_pipelines.openms.openms import OpenMS
+from pickle import TRUE
+from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc import config
 from multiqc.plots import table, bargraph, linegraph, heatmap
 from multiqc.modules.base_module import BaseMultiqcModule
@@ -20,6 +21,8 @@ import sqlite3
 import numpy as np
 import math
 import copy
+
+from sqlalchemy import true
 from .histogram import Histogram
 from . import sparklines
 
@@ -61,6 +64,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         self.enable_exp = False
         self.enable_sdrf = False
+        msstats_input_valid = False
         for f in self.find_log_files("quantms/exp_design"):
             self.exp_design = os.path.join(f["root"], f['fn'])
             self.enable_exp = True
@@ -73,6 +77,12 @@ class QuantMSModule(BaseMultiqcModule):
 
         if self.enable_sdrf == False and self.enable_exp == False:
             raise AttributeError("exp_design and sdrf cannot be empty at the same time")
+
+        for msstats_input in self.find_log_files("quantms/msstats"):
+            self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
+            msstats_input_valid = True
+        if msstats_input_valid == False:
+            raise AttributeError("Please provide msstats input file!")
 
         self.PSM_table = dict()
         self.mzml_peptide_map = dict()
@@ -116,9 +126,6 @@ class QuantMSModule(BaseMultiqcModule):
         for report in self.find_log_files("quantms/diann_report"):
             self.diann_report_path = os.path.join(report["root"], report["fn"])
             self.enable_dia = True
-
-        for msstats_input in self.find_log_files("quantms/msstats"):
-            self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
 
         self.mzML_paths = []
         for mzML_file in self.find_log_files("quantms/mzML"):
@@ -928,8 +935,12 @@ class QuantMSModule(BaseMultiqcModule):
             prot = prot[~prot['accession'].str.contains(config.kwargs['decoy_affix'])]
         prot = prot[prot['opt_global_result_type'] != 'protein_details']
         prot["protein_group"] = prot.apply(lambda x: x["ambiguity_members"].replace(",", ";"), axis=1)
-        self.prot_search_score = dict(zip(prot["protein_group"], prot["best_search_engine_score[1]"]))
+        
+        peptide_score = pep_table[["opt_global_cv_MS:1000889_peptidoform_sequence", "best_search_engine_score[1]"]]
+        peptide_score = peptide_score.sort_values('best_search_engine_score[1]', ascending=TRUE).drop_duplicates('opt_global_cv_MS:1000889_peptidoform_sequence')
+        self.peptide_search_score = dict(zip(peptide_score["opt_global_cv_MS:1000889_peptidoform_sequence"], peptide_score["best_search_engine_score[1]"]))
         self.Total_Protein_Identified = len(prot.index)
+
         prot.dropna(how='all',subset=pro_abundance, inplace=True)
         self.Total_Protein_Quantified = len(prot.index)
 
@@ -1027,9 +1038,19 @@ class QuantMSModule(BaseMultiqcModule):
             number = len(set(peps))
             self.pep_plot.addValue(number)
 
-        self.prot_search_score = dict()
-        for prot, group in report_data.groupby("Protein.Names"):
-            self.prot_search_score[prot] = 1 - np.min(group["Q.Value"])
+        self.peptide_search_score = dict()
+        pattern = re.compile(r"\((.*?)\)")
+        unimod_data = UnimodDatabase()
+        for peptide, group in report_data.groupby("Modified.Sequence"):
+            origianl_mods = re.findall(pattern, peptide)
+            for mod in set(origianl_mods):
+                name = unimod_data.get_by_accession(mod.upper()).get_name()
+                peptide = peptide.replace(mod, name)
+            if peptide.startswith("("):
+                peptide = peptide + "."
+
+            self.peptide_search_score[peptide] = np.min(group["Q.Value"])
+
         categorys = OrderedDict()
         categorys['Frequency'] = {
             'name': 'Frequency',
@@ -1063,17 +1084,20 @@ class QuantMSModule(BaseMultiqcModule):
         msstats_data_prot = dict()
         pep_intensity = dict()
         index = 1
+        max_pep_intensity = 0.0
         conditions = list(set(msstats_data["Condition"].tolist()))
         for pep, group in msstats_data.groupby("PeptideSequence"):
             if config.kwargs["remove_decoy"] and config.kwargs["decoy_affix"] in group["ProteinName"].values[0]:
                 continue
             msstats_data_dict[index] = {'PeptideSequence': pep} 
             msstats_data_dict[index]['ProteinName'] = group["ProteinName"].values[0]
+            msstats_data_dict[index]["BestSearchScore"] = 1 - self.peptide_search_score[pep]
 
             # aggregate intensity of fraction and peptidoforms, then average technical/biological replicates intensity
             sample_condition_intensities = {}
             rel_condition = []
             for condition, c_group in group.groupby("Condition"):
+                # For labeled/label free experiments, aggregate intensity of intersity across fractions
                 if "Channel" in list(c_group):
                     for _, channel_group in c_group.groupby(["Channel","Fraction_Group"]):
                         BioReplicate = str(channel_group["BioReplicate"].values[0])
@@ -1103,11 +1127,10 @@ class QuantMSModule(BaseMultiqcModule):
                         # mean intensity of technical replicates
                         sample_condition_intensities[condition][biorep] = np.mean(values)
 
-                    # mean intensity of biological replicates
-                    msstats_data_dict[index][str(condition)] = np.mean(list(sample_condition_intensities[condition].values()))
+                    # mean intensity of biological replicates and log intensity
+                    msstats_data_dict[index][str(condition)] = np.log10(np.mean(list(sample_condition_intensities[condition].values())))
                     rel_condition.append(str(condition))
                     for prot in np.unique(group["ProteinName"]):
-                        msstats_data_dict[index]["BestSearchScore"] = 1 - self.prot_search_score[prot]
                         if prot not in pep_intensity:
                             pep_intensity[prot] = {str(condition): sample_condition_intensities[condition]}
                         elif str(condition) not in pep_intensity[prot]:
@@ -1137,10 +1160,15 @@ class QuantMSModule(BaseMultiqcModule):
                     intensity_distribution = OrderedDict()
                     for i in bios:
                         if i in sample_condition_intensities[c]:
-                            intensity_distribution[i] = sample_condition_intensities[c][i]
+                            intensity_distribution[i] = np.log10(sample_condition_intensities[c][i])
                         else:
                             intensity_distribution[i] = 0.0
                     intensity_distribution = list(intensity_distribution.values())
+
+                    # Get max intensity value so that adjust bar scale
+                    if max(intensity_distribution) > max_pep_intensity :
+                        max_pep_intensity = max(intensity_distribution)
+
                     intensity_distribution_str = list(map(str, intensity_distribution))
                     msstats_data_dict[index][str(c) + "_distribution"] = ", ".join(intensity_distribution_str) + " ; column"
             
@@ -1155,13 +1183,13 @@ class QuantMSModule(BaseMultiqcModule):
 
         headers = OrderedDict()
         headers = {'ProteinName': {'name': 'ProteinName'}, 'PeptideSequence': {'name': 'PeptideSequence'},
-                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.9f}'}, 'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
+                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'}, 'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
         
         for s in conditions:
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" FLOAT")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
-            headers[str(s)] = {'name': s, 'format': '{:,.3f}'}
+            headers[str(s)] = {'name': s, 'format': '{:,.5f}'}
 
         for s in list(map(lambda x: str(x) + "_distribution", conditions)):
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + s + "\" VARCHAR(100)")
@@ -1187,7 +1215,7 @@ class QuantMSModule(BaseMultiqcModule):
             'no_beeswarm': True
         }
 
-        table_html = sparklines.plot(msstats_data_pep, headers, pconfig=pconfig)
+        table_html = sparklines.plot(msstats_data_pep, headers, pconfig=pconfig, maxValue=max_pep_intensity)
         pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
@@ -1211,24 +1239,30 @@ class QuantMSModule(BaseMultiqcModule):
             description='This plot shows the quantification information of peptides'
                         'in quantms pipeline final result',
             helptext='''
-                        The quantification information of peptides is obtained from the MSstats input file. 
-                        The table shows the quantitative level and distribution of peptides in different study variables, run and peptiforms. The distribution show all the intensity values in a bar plot above and below the average intensity for all the fractions, runs and peptiforms.
-                            ''',
+                    The quantification information of peptides is obtained from the MSstats input file. 
+                    The table shows the quantitative level and distribution of peptides in different study variables, run and peptiforms. The distribution show all the intensity values in a bar plot above and below the average intensity for all the fractions, runs and peptiforms.
+
+                    * BestSearchScore: It is equal to 1 - min(Q.Value) for DIA datasets. Then it is equal to 1 - min(best_search_engine_score[1]), which is from best_search_engine_score[1] column in mzTab peptide table for DDA datasets.
+                    * Average Intensity: Average intensity of each peptide sequence across all conditions with NA=0 or NA ignored.
+                    * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, and then mean intensity in technical replicates/biological replicates separately. Click `distribution` to switch to bar plots.
+
+                    ''',
             plot=table_html
         )
 
 
         # plot protein table
         index = 1
+        max_prot_intensity = 0.0
         plot_prot = dict()
         for prot, group in msstats_data.groupby("ProteinName"):
             msstats_data_prot[prot] = {"Peptides_Number": len(np.unique(group["PeptideSequence"]))}
             rel_condition = []
             for condition, c_group in group.groupby("Condition"):
                 if str(condition) in pep_intensity[prot]:
-                    # mean protein intensity for biological replicates
+                    # mean protein intensity for biological replicates and log intensity
                     rel_condition.append(str(condition))
-                    msstats_data_prot[prot][str(condition)] = np.mean(list(pep_intensity[prot][str(condition)].values()))
+                    msstats_data_prot[prot][str(condition)] = np.log10(np.mean(list(pep_intensity[prot][str(condition)].values())))
 
             try:
                 aip = itemgetter(*rel_condition)(msstats_data_prot[prot])
@@ -1248,10 +1282,13 @@ class QuantMSModule(BaseMultiqcModule):
                     intensity_distribution = OrderedDict()
                     for i in bios:
                         if i in pep_intensity[prot][str(c)]:
-                            intensity_distribution[i] = pep_intensity[prot][str(c)][i]
+                            intensity_distribution[i] = np.log10(pep_intensity[prot][str(c)][i])
                         else:
                             intensity_distribution[i] = 0.0
                     intensity_distribution = list(intensity_distribution.values())
+                    # Get max intensity value so that adjust bar scale
+                    if max(intensity_distribution) > max_prot_intensity :
+                        max_prot_intensity = max(intensity_distribution)
                     intensity_distribution_str = list(map(str, intensity_distribution))
                     msstats_data_prot[prot][str(c) + "_distribution"] = ", ".join(intensity_distribution_str) + " ; column"
 
@@ -1303,11 +1340,11 @@ class QuantMSModule(BaseMultiqcModule):
             'sortRows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'ProteinName',
-            'format': '{:,.3f}',
+            'format': '{:,.5f}',
             'no_beeswarm': True
         }
 
-        table_html = sparklines.plot(plot_prot, headers, pconfig=pconfig)
+        table_html = sparklines.plot(plot_prot, headers, pconfig=pconfig, maxValue=max_prot_intensity)
         pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
@@ -1330,9 +1367,13 @@ class QuantMSModule(BaseMultiqcModule):
             description='This plot shows the quantification information of proteins'
                         'in quantms pipeline final result',
             helptext='''
-                        The quantification information of proteins is obtained from the msstats input file. 
-                        The table shows the quantitative level and distribution of proteins in different study variables and run.
-                            ''',
+                    The quantification information of proteins is obtained from the msstats input file. 
+                    The table shows the quantitative level and distribution of proteins in different study variables and run.
+
+                    * Peptides_Number: The number of peptides for each protein.
+                    * Average Intensity: Average intensity of each protein across all conditions with NA=0 or NA ignored.
+                    * Protein intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of peptides.Click `distribution` to switch to bar plots.
+                    ''',
             plot=table_html
         )
 
