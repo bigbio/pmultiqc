@@ -6,7 +6,6 @@ from __future__ import absolute_import
 from collections import OrderedDict
 from operator import itemgetter
 import logging
-from pickle import TRUE
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc import config
 from multiqc.plots import table, bargraph, linegraph, heatmap
@@ -936,7 +935,7 @@ class QuantMSModule(BaseMultiqcModule):
         prot["protein_group"] = prot.apply(lambda x: x["ambiguity_members"].replace(",", ";"), axis=1)
         
         peptide_score = pep_table[["opt_global_cv_MS:1000889_peptidoform_sequence", "best_search_engine_score[1]"]]
-        peptide_score = peptide_score.sort_values('best_search_engine_score[1]', ascending=TRUE).drop_duplicates('opt_global_cv_MS:1000889_peptidoform_sequence')
+        peptide_score = peptide_score.sort_values('best_search_engine_score[1]', ascending=True).drop_duplicates('opt_global_cv_MS:1000889_peptidoform_sequence')
         self.peptide_search_score = dict(zip(peptide_score["opt_global_cv_MS:1000889_peptidoform_sequence"], peptide_score["best_search_engine_score[1]"]))
         self.Total_Protein_Identified = len(prot.index)
 
@@ -1090,7 +1089,7 @@ class QuantMSModule(BaseMultiqcModule):
                 continue
             msstats_data_dict[index] = {'PeptideSequence': pep} 
             msstats_data_dict[index]['ProteinName'] = group["ProteinName"].values[0]
-            msstats_data_dict[index]["BestSearchScore"] = 1 - self.peptide_search_score[pep]
+            msstats_data_dict[index]["BestSearchScore"] = "{:.5f}".format(round(1 - self.peptide_search_score[pep], 5))
 
             # aggregate intensity of fraction and peptidoforms, then average technical/biological replicates intensity
             sample_condition_intensities = {}
@@ -1127,7 +1126,7 @@ class QuantMSModule(BaseMultiqcModule):
                         sample_condition_intensities[condition][biorep] = np.mean(values)
 
                     # mean intensity of biological replicates and log intensity
-                    msstats_data_dict[index][str(condition)] = np.log10(np.mean(list(sample_condition_intensities[condition].values())))
+                    msstats_data_dict[index][str(condition)] = "{:.5f}".format(round(np.log10(np.mean(list(sample_condition_intensities[condition].values()))), 5))
                     rel_condition.append(str(condition))
                     for prot in np.unique(group["ProteinName"]):
                         if prot not in pep_intensity:
@@ -1145,14 +1144,15 @@ class QuantMSModule(BaseMultiqcModule):
             try:
                 aic = itemgetter(*rel_condition)(msstats_data_dict[index])
                 if type(aic) == tuple:
-                    msstats_data_dict[index]["Average Intensity"] = np.mean(list(aic))
+                    aic = list(map(float, list(aic)))
+                    msstats_data_dict[index]["Average Intensity"] = "{:.5f}".format(round(np.mean(aic), 5))
                 else:
-                    msstats_data_dict[index]["Average Intensity"] = aic
+                    msstats_data_dict[index]["Average Intensity"] = "{:.5f}".format(round(float(aic), 5))
             except Exception as e:
-                msstats_data_dict[index]["Average Intensity"] = 0.0
+                msstats_data_dict[index]["Average Intensity"] = "0.00000"
             for c in conditions:
                 if str(c) not in msstats_data_dict[index]:
-                    msstats_data_dict[index][str(c)] = 0.0
+                    msstats_data_dict[index][str(c)] = "0.00000"
                     msstats_data_dict[index][str(c) + "_distribution"] = ""
                 else:
                     bios = self.s_DataFrame[self.s_DataFrame["MSstats_Condition"] == str(c)]["MSstats_BioReplicate"].tolist()
@@ -1175,17 +1175,17 @@ class QuantMSModule(BaseMultiqcModule):
                 msstats_data_pep[index] = msstats_data_dict[index]
             index += 1
 
-        cur.execute("CREATE TABLE PEPQUANT(ID integer PRIMARY KEY AUTOINCREMENT, ProteinName VARCHAR(100), PeptideSequence VARCHAR(100), BestSearchScore FLOAT(4,3), \"Average Intensity\" FLOAT(4,3))")
+        cur.execute("CREATE TABLE PEPQUANT(ID integer PRIMARY KEY AUTOINCREMENT, ProteinName VARCHAR(100), PeptideSequence VARCHAR(100), BestSearchScore VARCHAR, \"Average Intensity\" VARCHAR)")
         con.commit()
         sql_col = "ProteinName,PeptideSequence,BestSearchScore, \"Average Intensity\""
         sql_t = "(" + ','.join(['?'] * (len(conditions) *2 + 4)) + ")"
 
         headers = OrderedDict()
         headers = {'ProteinName': {'name': 'ProteinName'}, 'PeptideSequence': {'name': 'PeptideSequence'},
-                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'}, 'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
+                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'}, 'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.5f}'}}
         
         for s in conditions:
-            cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" FLOAT")
+            cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" VARCHAR")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
             headers[str(s)] = {'name': s, 'format': '{:,.5f}'}
@@ -1261,20 +1261,21 @@ class QuantMSModule(BaseMultiqcModule):
                 if str(condition) in pep_intensity[prot]:
                     # mean protein intensity for biological replicates and log intensity
                     rel_condition.append(str(condition))
-                    msstats_data_prot[prot][str(condition)] = np.log10(np.mean(list(pep_intensity[prot][str(condition)].values())))
+                    msstats_data_prot[prot][str(condition)] = "{:.5f}".format(round(np.log10(np.mean(list(pep_intensity[prot][str(condition)].values()))), 5))
 
             try:
                 aip = itemgetter(*rel_condition)(msstats_data_prot[prot])
                 if type(aip) == tuple:
-                    msstats_data_prot[prot]["Average Intensity"] = np.mean(list(aip))
+                    aip = list(map(float, list(aip)))
+                    msstats_data_prot[prot]["Average Intensity"] = "{:.5f}".format(round(np.mean(aip), 5))
                 else:
-                    msstats_data_prot[prot]["Average Intensity"] = aip
+                    msstats_data_prot[prot]["Average Intensity"] = "{:.5f}".format(round(float(aip), 5))
             except Exception as e:
-                msstats_data_prot[prot]["Average Intensity"] = 0.0
+                msstats_data_prot[prot]["Average Intensity"] = "0.00000"
 
             for c in conditions:
                 if str(c) not in msstats_data_prot[prot]:
-                    msstats_data_prot[prot][str(c)] = 0.0
+                    msstats_data_prot[prot][str(c)] = "0.00000"
                     msstats_data_prot[prot][str(c) + "_distribution"] = ""
                 else:
                     bios = self.s_DataFrame[self.s_DataFrame["MSstats_Condition"] == str(c)]["MSstats_BioReplicate"].tolist()
@@ -1308,13 +1309,13 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
         # upload protein table to sqlite database
-        cur.execute("CREATE TABLE PROTQUANT(ProteinName VARCHAR(100), Peptides_Number INT(100), \"Average Intensity\" FLOAT(4,3))")
+        cur.execute("CREATE TABLE PROTQUANT(ProteinName VARCHAR(100), Peptides_Number INT(100), \"Average Intensity\" VARCHAR)")
         con.commit()
         sql_col = "ProteinName,Peptides_Number,\"Average Intensity\""
         sql_t = "(" + ','.join(['?'] * (len(conditions)*2 + 3)) + ")"
 
         for s in conditions:
-            cur.execute("ALTER TABLE PROTQUANT ADD \"" + str(s) + "\" FLOAT")
+            cur.execute("ALTER TABLE PROTQUANT ADD \"" + str(s) + "\" VARCHAR")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
             headers[str(s)] = {'name': s}
