@@ -38,9 +38,9 @@ jobs:
     - name: Test LFQ dataset
       run: |
         wget http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/lfq/lfq.zip
-        unzip lfq.zip
+        unzip -d ./lfq lfq.zip
         python setup.py install
-        multiqc -f . --config  multiqc_config.yml -o ./results_lfq
+        multiqc -f ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
     - uses: actions/upload-artifact@v1
       if: always()
       name: Upload results
