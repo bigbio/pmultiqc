@@ -37,8 +37,8 @@ jobs:
         python tests/test_proteomicslfq.py
     - name: Test LFQ dataset
       run: |
-        wget http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/lfq/lfq.tar.gz
+        curl http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/lfq/lfq.tar.gz
         tar xvzf lfq.tar.gz
         python install setup.py
-        multiqc . -o ./
+        multiqc -f . --config  multiqc_config.yml -o ./results_lfq
 
