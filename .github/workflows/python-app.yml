@@ -39,6 +39,6 @@ jobs:
       run: |
         wget http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/lfq/lfq.zip
         unzip lfq.zip
-        python install setup.py
+        python setup.py install
         multiqc -f . --config  multiqc_config.yml -o ./results_lfq
 
