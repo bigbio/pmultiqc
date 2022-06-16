@@ -47,4 +47,29 @@ jobs:
       with:
         name: results_lfq
         path: ./results_lfq
+    - name: Test TMT dataset
+      run: |
+        wget http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/tmt/tmt.zip
+        unzip tmt.zip
+        python setup.py install
+        multiqc -f . --config  multiqc_config.yml -o ./results_tmt
+    - uses: actions/upload-artifact@v1
+      if: always()
+      name: Upload results
+      with:
+        name: results_tmt
+        path: ./results_tmt
+    - name: Test DIA dataset
+      run: |
+        wget http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/dia/dia.zip
+        unzip dia.zip
+        python setup.py install
+        multiqc -f . --config  multiqc_config.yml -o ./results_dia
+    - uses: actions/upload-artifact@v1
+      if: always()
+      name: Upload results
+      with:
+        name: results_dia
+        path: ./results_dia
+
 
