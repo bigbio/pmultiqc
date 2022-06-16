@@ -130,7 +130,7 @@ function draw_sparkline(table_dict){
             rects = sparkline_tds_cell[i].querySelectorAll("svg > .highcharts-series-group > .highcharts-series > rect");
 
             for(let g = 0; g < rects.length; g++){
-                if(data[g] < average_intensity){
+                if(parseFloat(data[g]) < average_intensity){
                     rects[g].setAttribute("fill", "#910000");
                 }
             };
