@@ -41,4 +41,9 @@ jobs:
         unzip lfq.zip
         python setup.py install
         multiqc -f . --config  multiqc_config.yml -o ./results_lfq
+    - name: Load LFQ results
+      uses: actions/upload-artifact@v3
+      with:
+        name: pmultiqc_lfq
+        path: ./results_lfq # or path/to/artifact
 
