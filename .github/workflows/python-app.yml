@@ -35,3 +35,41 @@ jobs:
       run: |
         python setup.py install
         python tests/test_proteomicslfq.py
+    - name: Test LFQ dataset
+      run: |
+        wget -nv http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/lfq/lfq.zip
+        unzip -d ./lfq lfq.zip
+        python setup.py install
+        multiqc -f ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
+    - uses: actions/upload-artifact@v1
+      if: always()
+      name: Upload results
+      with:
+        name: results_lfq
+        path: ./results_lfq
+    - name: Test TMT dataset
+      run: |
+        wget -nv http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/tmt/tmt.zip
+        unzip -d ./tmt tmt.zip
+        python setup.py install
+        multiqc -f ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
+    - uses: actions/upload-artifact@v1
+      if: always()
+      name: Upload results
+      with:
+        name: results_tmt
+        path: ./results_tmt
+    - name: Test DIA dataset
+      run: |
+        wget -nv http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/dia/dia.zip
+        unzip -d ./dia dia.zip
+        python setup.py install
+        multiqc -f ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
+    - uses: actions/upload-artifact@v1
+      if: always()
+      name: Upload results
+      with:
+        name: results_dia
+        path: ./results_dia
+
+

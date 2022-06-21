@@ -7,7 +7,6 @@ from collections import OrderedDict
 import itertools
 from operator import itemgetter
 import logging
-from pickle import TRUE
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc import config
 from multiqc.plots import table, bargraph, linegraph, heatmap
@@ -1090,6 +1089,7 @@ class QuantMSModule(BaseMultiqcModule):
             gdict.update(dict.fromkeys(conditions_dists, '{}'))
             gdict["ProteinName"] = g["ProteinName"].iloc[0]
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
+            ## TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
             condGrp = g.groupby(["Condition","BioReplicate"])["Intensity"].mean().reset_index().groupby("Condition").apply(fillDict)
             condGrp.index = [str(c) + "_distribution" for c in condGrp.index]
             gdict.update(condGrp.to_dict())
@@ -1100,12 +1100,14 @@ class QuantMSModule(BaseMultiqcModule):
             gdict.update(condGrpMean.to_dict())
             return pd.Series(gdict)
 
+
         msstats_data_pep_agg = msstats_data.groupby(["PeptideSequence"]).apply(getIntyAcrossBioRepsAsStr)#.unstack()
         ## TODO Can we guarantee that the score was always PEP? I don't think so!
         msstats_data_pep_agg["BestSearchScore"] = 1 - msstats_data_pep_agg.index.map(self.peptide_search_score)
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict('index')
         msstats_data_dict_pep_init = dict(itertools.islice(msstats_data_dict_pep_full.items(), 50))
         msstats_data_pep_agg.reset_index(inplace=True)
+
 
         cur.execute("CREATE TABLE PEPQUANT(PeptideSequence VARCHAR(100) PRIMARY KEY, ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), \"Average Intensity\" FLOAT(4,3))")
         con.commit()
@@ -1117,9 +1119,10 @@ class QuantMSModule(BaseMultiqcModule):
                     'ProteinName': {'name': 'ProteinName'},
                     'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'},
                     'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
+
         
         for s in conditions:
-            cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" FLOAT")
+            cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" VARCHAR")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
             headers[str(s)] = {'name': s, 'format': '{:,.5f}'}
@@ -1210,11 +1213,11 @@ class QuantMSModule(BaseMultiqcModule):
         del(msstats_data_pep_agg)
         msstats_data_prot.rename(columns={"PeptideSequence": "Peptides_Number"},inplace=True)
         msstats_data_dict_prot_full = msstats_data_prot.to_dict('index')
-        #print(msstats_data_dict_prot_full)
 
         msstats_data_dict_prot_init = dict(itertools.islice(msstats_data_dict_prot_full.items(), 50))
 
         headers = OrderedDict()
+        # This will be the rowheader/index
         #headers['ProteinName'] = {
         #    'name': 'Protein Name',
         #    'description': 'Name/Identifier(s) of the protein (group)',
@@ -1232,13 +1235,13 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
         # upload protein table to sqlite database
-        cur.execute("CREATE TABLE PROTQUANT(ProteinName VARCHAR(100), Peptides_Number INT(100), \"Average Intensity\" FLOAT(4,3))")
+        cur.execute("CREATE TABLE PROTQUANT(ProteinName VARCHAR(100), Peptides_Number INT(100), \"Average Intensity\" VARCHAR)")
         con.commit()
         sql_col = "ProteinName,Peptides_Number,\"Average Intensity\""
         sql_t = "(" + ','.join(['?'] * (len(conditions)*2 + 3)) + ")"
 
         for s in conditions:
-            cur.execute("ALTER TABLE PROTQUANT ADD \"" + str(s) + "\" FLOAT")
+            cur.execute("ALTER TABLE PROTQUANT ADD \"" + str(s) + "\" VARCHAR")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
             headers[str(s)] = {'name': s}
