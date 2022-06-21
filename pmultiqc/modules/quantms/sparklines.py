@@ -3,6 +3,7 @@
 from collections import defaultdict, OrderedDict
 import logging
 import random
+import textwrap
 
 from multiqc.utils import config, report, util_functions, mqc_colour
 from multiqc.plots import table_object, beeswarm
@@ -69,7 +70,7 @@ def make_table(dt, maxValue):
     if table_title is None:
         table_title = table_id.replace("_", " ").title()
 
-    fixed_col = ["ProteinName", "BestSearchScore", "PeptideSequence", "Average Intensity", "Peptides_Number"]
+    fixed_col = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity", "Peptides_Number"]
     for idx, k, header in dt.get_headers_in_order():
 
         rid = header["rid"]
@@ -91,13 +92,17 @@ def make_table(dt, maxValue):
             header["dmax"], header["dmin"], header["namespace"], shared_key
         )
 
+        cont = ' '.join(textwrap.wrap(header["title"], 30))
+
         cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
-            header["namespace"], header["description"], header["title"]
+            header["namespace"], header["description"], cont
         )
 
         if k not in fixed_col and "distribution" in k:
+            header["title"].replace("_distribution", "")
+            cont = ' '.join(textwrap.wrap(header["title"], 30))
             cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
-                header["namespace"], header["description"], header["title"].replace("_distribution", "")
+                header["namespace"], header["description"], cont
             )
             t_headers[rid] = '<th id="header_{rid}" class="{rid} {h} col-condition-sparkline" {da}>{c}</th>'.format(
                 rid=rid, h=hide, da=data_attr, c=cell_contents
@@ -266,12 +271,12 @@ def make_table(dt, maxValue):
                         t_rows[s_name] = dict()
                     if "_distribution" in rid:
                         if valstring == "":
-                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\"{v}\"></td>'.format(
+                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
                                 rid=rid, h=hide, v=valstring
                             )
                         else:
-                            valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])                        
-                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\"{v}\"></td>'.format(
+                            #valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])                        
+                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
                                 rid=rid, h=hide, v=valstring
                             )
                     elif header["title"] in fixed_col:
@@ -412,7 +417,8 @@ def make_table(dt, maxValue):
         row_hidden = ' style="display:none"' if all(t_rows_empty[s_name].values()) else ""
         html += "<tr{}>".format(row_hidden)
         # Sample name row header
-        html += '<th class="rowheader" data-original-sn="{sn}">{sn}</th>'.format(sn=s_name)
+        content = ' '.join(textwrap.wrap(s_name, 40))
+        html += '<th class="rowheader" data-original-sn="{sn}">{sn}</th>'.format(sn=content)
         for k in t_headers:
             html += t_rows[s_name].get(k, empty_cells[k])
         html += "</tr>"

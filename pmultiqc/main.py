@@ -31,25 +31,26 @@ def pmultiqc_plugin_execution_start():
     log.info("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 
     if 'quantms/exp_design' not in config.sp:
-        config.update_dict(config.sp, {'quantms/exp_design': {'fn': 'experimental_design.tsv'}, 'shared': False})
+        config.update_dict(config.sp, {'quantms/exp_design': {'fn': 'experimental_design.tsv', 'num_lines': 0}, 'shared': False})
 
     if 'quantms/sdrf' not in config.sp:
-        config.update_dict(config.sp, {'quantms/sdrf': {'fn': '*.sdrf.tsv'}, 'shared': False})
+        config.update_dict(config.sp, {'quantms/sdrf': {'fn': '*.sdrf.tsv', 'num_lines': 0}, 'shared': False})
 
     # Add to the search patterns used by modules
     if 'quantms/mztab' not in config.sp:
-        config.update_dict(config.sp, {'quantms/mztab': {'fn': '*.mzTab'}})
+        config.update_dict(config.sp, {'quantms/mztab': {'fn': '*.mzTab', 'num_lines': 0}})
 
     if 'quantms/mzML' not in config.sp:
-        config.update_dict(config.sp, {'quantms/mzML': {'fn': '*.mzML'}})
+        config.update_dict(config.sp, {'quantms/mzML': {'fn': '*.mzML', 'num_lines': 0}})
 
     if 'quantms/idXML' not in config.sp:
-        config.update_dict(config.sp, {'quantms/idXML': {'fn': '*.idXML'}})
+        config.update_dict(config.sp, {'quantms/idXML': {'fn': '*.idXML', 'num_lines': 0}})
 
     if 'quantms/msstats' not in config.sp:
-        config.update_dict(config.sp, {'quantms/msstats': {'fn': '*msstats*csv'}})
+        config.update_dict(config.sp, {'quantms/msstats': {'fn': '*msstats.csv', 'num_lines': 0}})
 
     if 'quantms/diann_report' not in config.sp:
-        config.update_dict(config.sp, {'quantms/diann_report': {'fn': '*report.tsv', 'shared': False}})
+        # TODO Why is the 'shared' suddenly inside the dict???
+        config.update_dict(config.sp, {'quantms/diann_report': {'fn': '*report.tsv', 'num_lines': 0, 'shared': False}})
 
     config.update({'log_filesize_limit': 20000000000, 'thousandsSep_format': ''})

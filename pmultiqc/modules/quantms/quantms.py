@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 from collections import OrderedDict
+import itertools
 from operator import itemgetter
 import logging
 from pickle import TRUE
@@ -13,6 +14,9 @@ from multiqc.plots import table, bargraph, linegraph, heatmap
 from multiqc.modules.base_module import BaseMultiqcModule
 from multiqc.utils.mqc_colour import mqc_colour_scale
 import pandas as pd
+import math
+from functools import reduce
+from collections import Counter
 import re
 from pyteomics import mztab
 from pyopenms import IdXMLFile, MzMLFile, MSExperiment
@@ -21,6 +25,7 @@ import sqlite3
 import numpy as np
 import math
 import copy
+import json
 
 from .histogram import Histogram
 from . import sparklines
@@ -64,20 +69,23 @@ class QuantMSModule(BaseMultiqcModule):
         self.enable_exp = False
         self.enable_sdrf = False
         msstats_input_valid = False
-        for f in self.find_log_files("quantms/exp_design"):
+        # TODO what if multiple are found??
+        for f in self.find_log_files("quantms/exp_design", filecontents=False):
             self.exp_design = os.path.join(f["root"], f['fn'])
             self.enable_exp = True
         if self.enable_exp == False:
-            for f in self.find_log_files("quantms/sdrf"):
+            for f in self.find_log_files("quantms/sdrf", filecontents=False):
                 self.sdrf = os.path.join(f["root"], f['fn'])
+                # TODO why is it converted if it is never used?
                 OpenMS().openms_convert(self.sdrf, config.kwargs['raw'],
                                     False, True, False, config.kwargs['condition'])
+                self.exp_design = os.path.join(f["root"], f['experimental_design.tsv'])
                 self.enable_sdrf = True
 
         if self.enable_sdrf == False and self.enable_exp == False:
             raise AttributeError("exp_design and sdrf cannot be empty at the same time")
 
-        for msstats_input in self.find_log_files("quantms/msstats"):
+        for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
             self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
             msstats_input_valid = True
         if msstats_input_valid == False:
@@ -118,21 +126,21 @@ class QuantMSModule(BaseMultiqcModule):
         self.draw_exp_design()
         self.pep_table_exists = False            
         self.enable_dia = False
-        for f in self.find_log_files("quantms/mztab"):
+        for f in self.find_log_files("quantms/mztab", filecontents=False):
             self.out_mzTab_path = os.path.join(f["root"], f['fn'])
             self.parse_out_mzTab()
 
-        for report in self.find_log_files("quantms/diann_report"):
+        for report in self.find_log_files("quantms/diann_report", filecontents=False):
             self.diann_report_path = os.path.join(report["root"], report["fn"])
             self.enable_dia = True
 
         self.mzML_paths = []
-        for mzML_file in self.find_log_files("quantms/mzML"):
+        for mzML_file in self.find_log_files("quantms/mzML", filecontents=False):
             self.mzML_paths.append(os.path.join(mzML_file["root"], mzML_file['fn']))
 
         mt = self.parse_mzml()
         self.idx_paths = []
-        for idx_file in self.find_log_files("quantms/idXML"):
+        for idx_file in self.find_log_files("quantms/idXML", filecontents=False):
             self.idx_paths.append(os.path.join(idx_file["root"], idx_file['fn']))
 
         if self.enable_dia:
@@ -242,41 +250,22 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_exp_design(self):
         # Currently this only supports the OpenMS two-table format (default in quantms pipeline)
         # One table format would actually be even easier. You can just use pandas.read_tsv
-        with open(self.exp_design, 'r') as f:
-            data = f.readlines()
-            s_row = False
-            self.f_table = []
-            s_table = []
-            for row in data:
-                if row == "\n":
-                    continue                
-                if "MSstats_Condition" in row:
-                    s_row = True
-                    s_header = row.replace('\n', '').split('\t')
-                elif s_row:
-                    s_table.append(row.replace('\n', '').split('\t'))
-                elif "Spectra_Filepath" in row:
-                    f_header = row.replace('\n', '').split('\t')
-                else:
-                    self.f_table.append(row.replace('\n', '').split('\t'))
+        self.sample_df, self.file_df  = read_openms_design(self.exp_design)
 
-            self.f_table = pd.DataFrame(self.f_table, columns=f_header)
-            self.f_table["Run"] = self.f_table.apply(lambda x: os.path.splitext(os.path.basename(x["Spectra_Filepath"]))[0], axis=1)
-            self.s_DataFrame = pd.DataFrame(s_table, columns=s_header)
-            for file in np.unique(self.f_table["Spectra_Filepath"].tolist()):
-                stand_file = os.path.basename(file)
-                file_index = self.f_table[self.f_table["Spectra_Filepath"] == file]
-                self.exp_design_table[stand_file] = {'Fraction_Group': file_index["Fraction_Group"].tolist()[0]}
-                self.exp_design_table[stand_file]['Fraction'] = file_index["Fraction"].tolist()[0]
-                self.exp_design_table[stand_file]['Label'] = '|'.join(file_index["Label"])
-                sample = file_index["Sample"].tolist()
-                self.exp_design_table[stand_file]['Sample'] = '|'.join(sample)
-                self.exp_design_table[stand_file]['MSstats_Condition'] = ','.join(
-                    [row['MSstats_Condition'] for _, row in self.s_DataFrame.iterrows()
-                    if row['Sample'] in sample])
-                self.exp_design_table[stand_file]['MSstats_BioReplicate'] = '|'.join(
-                    [row['MSstats_BioReplicate'] for _, row in self.s_DataFrame.iterrows()
-                    if row['Sample'] in sample])
+        for file in np.unique(self.file_df["Spectra_Filepath"].tolist()):
+            stand_file = os.path.basename(file)
+            file_index = self.file_df[self.file_df["Spectra_Filepath"] == file]
+            self.exp_design_table[stand_file] = {'Fraction_Group': file_index["Fraction_Group"].tolist()[0]}
+            self.exp_design_table[stand_file]['Fraction'] = file_index["Fraction"].tolist()[0]
+            self.exp_design_table[stand_file]['Label'] = '|'.join(file_index["Label"])
+            sample = file_index["Sample"].tolist()
+            self.exp_design_table[stand_file]['Sample'] = '|'.join(sample)
+            self.exp_design_table[stand_file]['MSstats_Condition'] = ','.join(
+                [row['MSstats_Condition'] for _, row in self.sample_df.iterrows()
+                if row['Sample'] in sample])
+            self.exp_design_table[stand_file]['MSstats_BioReplicate'] = '|'.join(
+                [row['MSstats_BioReplicate'] for _, row in self.sample_df.iterrows()
+                if row['Sample'] in sample])
 
         # Create table plot
         pconfig = {
@@ -291,7 +280,7 @@ class QuantMSModule(BaseMultiqcModule):
         }
         headers = OrderedDict()
         set3_scale = mqc_colour_scale(name="Set3")
-        maxnr = len(self.f_table.index)
+        maxnr = len(self.file_df.index)
         set3_colors = set3_scale.get_colours(name="Set3")
         colors = dict( (str(i+1), set3_colors[i % len(set3_colors)]) for i in range(maxnr) )
 
@@ -936,7 +925,7 @@ class QuantMSModule(BaseMultiqcModule):
         prot["protein_group"] = prot.apply(lambda x: x["ambiguity_members"].replace(",", ";"), axis=1)
         
         peptide_score = pep_table[["opt_global_cv_MS:1000889_peptidoform_sequence", "best_search_engine_score[1]"]]
-        peptide_score = peptide_score.sort_values('best_search_engine_score[1]', ascending=TRUE).drop_duplicates('opt_global_cv_MS:1000889_peptidoform_sequence')
+        peptide_score = peptide_score.sort_values('best_search_engine_score[1]', ascending=True).drop_duplicates('opt_global_cv_MS:1000889_peptidoform_sequence')
         self.peptide_search_score = dict(zip(peptide_score["opt_global_cv_MS:1000889_peptidoform_sequence"], peptide_score["best_search_engine_score[1]"]))
         self.Total_Protein_Identified = len(prot.index)
 
@@ -1072,117 +1061,62 @@ class QuantMSModule(BaseMultiqcModule):
             self.cal_num_table_data[run_file]['modified_peptide_num'] = len(modified_pep)
 
     def parse_msstats_input(self):
-        print("Parsing MSstats input file......")
+        print("Parsing MSstats input file " + self.msstats_input_path)
         msstats_data = pd.read_csv(self.msstats_input_path)
-        msstats_data["Run"] = msstats_data.apply(lambda x: os.path.splitext(os.path.basename(x["Reference"]))[0], axis=1)
-        f_table = self.f_table.drop_duplicates(subset="Run", inplace=False)
-        f_table = f_table[["Fraction_Group", "Run"]]
-        msstats_data = msstats_data.merge(f_table, on="Run")
-        msstats_data_dict = dict()
-        msstats_data_pep  = dict()
-        msstats_data_prot = dict()
-        pep_intensity = dict()
-        index = 1
+        ## TODO we probably shouldn't even write out 0-intensity values to MSstats csv
+        msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
+
+        # multiQC requires weird dicts
+        msstats_data_dict_pep_full = dict()
+        msstats_data_dict_pep_init  = dict()
+        msstats_data_dict_prot_full = dict()
+        msstats_data_dict_prot_init = dict()
+
         max_pep_intensity = 0.0
-        conditions = list(set(msstats_data["Condition"].tolist()))
-        for pep, group in msstats_data.groupby("PeptideSequence"):
-            if config.kwargs["remove_decoy"] and config.kwargs["decoy_affix"] in group["ProteinName"].values[0]:
-                continue
-            msstats_data_dict[index] = {'PeptideSequence': pep} 
-            msstats_data_dict[index]['ProteinName'] = group["ProteinName"].values[0]
-            msstats_data_dict[index]["BestSearchScore"] = 1 - self.peptide_search_score[pep]
 
-            # aggregate intensity of fraction and peptidoforms, then average technical/biological replicates intensity
-            sample_condition_intensities = {}
-            rel_condition = []
-            for condition, c_group in group.groupby("Condition"):
-                # For labeled/label free experiments, aggregate intensity of intersity across fractions
-                if "Channel" in list(c_group):
-                    for _, channel_group in c_group.groupby(["Channel","Fraction_Group"]):
-                        BioReplicate = str(channel_group["BioReplicate"].values[0])
-                        if channel_group["Intensity"].sum() == 0.0 :
-                            continue
-                        if condition not in sample_condition_intensities:
-                            sample_condition_intensities[condition] = {BioReplicate: [channel_group["Intensity"].sum()]}
-                        elif BioReplicate in sample_condition_intensities[condition]:
-                            sample_condition_intensities[condition][BioReplicate].append(channel_group["Intensity"].sum())
-                        else:
-                            sample_condition_intensities[condition][BioReplicate] = [channel_group["Intensity"].sum()]
+        repsPerCondition = self.sample_df.groupby("MSstats_Condition")["MSstats_BioReplicate"].agg(list).to_dict()
+        conditions = list(self.sample_df["MSstats_Condition"].unique())
+        conditions_str = [str(c) for c in conditions]
+        conditions_dists = [str(c) + "_distribution" for c in conditions]
+        cond_and_dist_cols = conditions_str + conditions_dists
 
-                else:
-                    for _, f_group in c_group.groupby("Fraction_Group"):
-                        if c_group["Intensity"].sum() == 0.0 :
-                            continue
-                        BioReplicate = str(f_group["BioReplicate"].values[0])
-                        if condition not in sample_condition_intensities:
-                            sample_condition_intensities[condition] = {BioReplicate: [f_group["Intensity"].sum()]}
-                        elif BioReplicate in sample_condition_intensities[condition]:
-                            sample_condition_intensities[condition][BioReplicate].append(f_group["Intensity"].sum())
-                        else:
-                            sample_condition_intensities[condition][BioReplicate] = [f_group["Intensity"].sum()]
-                
-                if condition in sample_condition_intensities:
-                    for biorep, values in sample_condition_intensities[condition].items():
-                        # mean intensity of technical replicates
-                        sample_condition_intensities[condition][biorep] = np.mean(values)
+        def fillDict(g):
+            d = dict.fromkeys(repsPerCondition[str(g.name)], None)
+            d.update(zip(g["BioReplicate"].astype(str), np.log10(g["Intensity"])))
+            return json.dumps(d)
 
-                    # mean intensity of biological replicates and log intensity
-                    msstats_data_dict[index][str(condition)] = np.log10(np.mean(list(sample_condition_intensities[condition].values())))
-                    rel_condition.append(str(condition))
-                    for prot in np.unique(group["ProteinName"]):
-                        if prot not in pep_intensity:
-                            pep_intensity[prot] = {str(condition): sample_condition_intensities[condition]}
-                        elif str(condition) not in pep_intensity[prot]:
-                            pep_intensity[prot][str(condition)] = sample_condition_intensities[condition]
-                        else:
-                            for biorep, values in sample_condition_intensities[condition].items():
-                                # summarize peptide intensity for each protein in a sample
-                                if biorep in pep_intensity[prot][str(condition)]:
-                                    pep_intensity[prot][str(condition)][biorep] += values
-                                else:
-                                    pep_intensity[prot][str(condition)][biorep] = values
-            
-            try:
-                aic = itemgetter(*rel_condition)(msstats_data_dict[index])
-                if type(aic) == tuple:
-                    msstats_data_dict[index]["Average Intensity"] = np.mean(list(aic))
-                else:
-                    msstats_data_dict[index]["Average Intensity"] = aic
-            except Exception as e:
-                msstats_data_dict[index]["Average Intensity"] = 0.0
-            for c in conditions:
-                if str(c) not in msstats_data_dict[index]:
-                    msstats_data_dict[index][str(c)] = 0.0
-                    msstats_data_dict[index][str(c) + "_distribution"] = ""
-                else:
-                    bios = self.s_DataFrame[self.s_DataFrame["MSstats_Condition"] == str(c)]["MSstats_BioReplicate"].tolist()
-                    intensity_distribution = OrderedDict()
-                    for i in bios:
-                        if i in sample_condition_intensities[c]:
-                            intensity_distribution[i] = np.log10(sample_condition_intensities[c][i])
-                        else:
-                            intensity_distribution[i] = 0.0
-                    intensity_distribution = list(intensity_distribution.values())
+        def getIntyAcrossBioRepsAsStr(g):
+            gdict = dict.fromkeys(conditions_str, 0.0)
+            gdict.update(dict.fromkeys(conditions_dists, '{}'))
+            gdict["ProteinName"] = g["ProteinName"].iloc[0]
+            gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
+            condGrp = g.groupby(["Condition","BioReplicate"])["Intensity"].mean().reset_index().groupby("Condition").apply(fillDict)
+            condGrp.index = [str(c) + "_distribution" for c in condGrp.index]
+            gdict.update(condGrp.to_dict())
+            mean = g.groupby(["Condition"])["Intensity"].mean()
+            #print(mean)
+            condGrpMean = np.log10(mean)
+            condGrpMean.index = condGrpMean.index.map(str)
+            gdict.update(condGrpMean.to_dict())
+            return pd.Series(gdict)
 
-                    # Get max intensity value so that adjust bar scale
-                    if max(intensity_distribution) > max_pep_intensity :
-                        max_pep_intensity = max(intensity_distribution)
+        msstats_data_pep_agg = msstats_data.groupby(["PeptideSequence"]).apply(getIntyAcrossBioRepsAsStr)#.unstack()
+        ## TODO Can we guarantee that the score was always PEP? I don't think so!
+        msstats_data_pep_agg["BestSearchScore"] = 1 - msstats_data_pep_agg.index.map(self.peptide_search_score)
+        msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict('index')
+        msstats_data_dict_pep_init = dict(itertools.islice(msstats_data_dict_pep_full.items(), 50))
+        msstats_data_pep_agg.reset_index(inplace=True)
 
-                    intensity_distribution_str = list(map(str, intensity_distribution))
-                    msstats_data_dict[index][str(c) + "_distribution"] = ", ".join(intensity_distribution_str) + " ; column"
-            
-            if index < 51:
-                msstats_data_pep[index] = msstats_data_dict[index]
-            index += 1
-
-        cur.execute("CREATE TABLE PEPQUANT(ID integer PRIMARY KEY AUTOINCREMENT, ProteinName VARCHAR(100), PeptideSequence VARCHAR(100), BestSearchScore FLOAT(4,3), \"Average Intensity\" FLOAT(4,3))")
+        cur.execute("CREATE TABLE PEPQUANT(PeptideSequence VARCHAR(100) PRIMARY KEY, ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), \"Average Intensity\" FLOAT(4,3))")
         con.commit()
-        sql_col = "ProteinName,PeptideSequence,BestSearchScore, \"Average Intensity\""
+        sql_col = "PeptideSequence,ProteinName,BestSearchScore, \"Average Intensity\""
         sql_t = "(" + ','.join(['?'] * (len(conditions) *2 + 4)) + ")"
 
         headers = OrderedDict()
-        headers = {'ProteinName': {'name': 'ProteinName'}, 'PeptideSequence': {'name': 'PeptideSequence'},
-                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'}, 'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
+        headers = { #'PeptideSequence': {'name': 'PeptideSequence'}, # this is the index
+                    'ProteinName': {'name': 'ProteinName'},
+                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'},
+                    'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
         
         for s in conditions:
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" FLOAT")
@@ -1196,9 +1130,10 @@ class QuantMSModule(BaseMultiqcModule):
             sql_col += ", \"" + s + "\""
             headers[str(s)] = {'name': s}
 
-        all_term = ["ProteinName", "PeptideSequence", "BestSearchScore", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
+        # PeptideSequence is index
+        all_term = ["ProteinName", "BestSearchScore", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
         cur.executemany("INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
-                        [itemgetter(*all_term)(x[1]) for x in msstats_data_dict.items()])
+                        [(k, *itemgetter(*all_term)(v)) for k,v in msstats_data_dict_pep_full.items()])
         con.commit()
 
 
@@ -1210,11 +1145,13 @@ class QuantMSModule(BaseMultiqcModule):
             'raw_data_fn': 'multiqc_quantification_of_peptides_table',  # File basename to use for raw data file
             'sortRows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
-            'col1_header': 'index',
-            'no_beeswarm': True
+            'col1_header': 'PeptideSequence',
+            'no_beeswarm': True,
+            'shared_key': None
         }
 
-        table_html = sparklines.plot(msstats_data_pep, headers, pconfig=pconfig, maxValue=max_pep_intensity)
+        # only use the first 50 lines for the table
+        table_html = sparklines.plot(msstats_data_dict_pep_init, headers, pconfig=pconfig, maxValue=max_pep_intensity)
         pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
@@ -1249,62 +1186,49 @@ class QuantMSModule(BaseMultiqcModule):
             plot=table_html
         )
 
+        # Helper functions for pandas
+        def jsonToDict(s):
+            if type(s) is str:
+                return json.loads(s)
+            else:
+                return {}
 
-        # plot protein table
-        index = 1
-        max_prot_intensity = 0.0
-        plot_prot = dict()
-        for prot, group in msstats_data.groupby("ProteinName"):
-            msstats_data_prot[prot] = {"Peptides_Number": len(np.unique(group["PeptideSequence"]))}
-            rel_condition = []
-            for condition, c_group in group.groupby("Condition"):
-                if str(condition) in pep_intensity[prot]:
-                    # mean protein intensity for biological replicates and log intensity
-                    rel_condition.append(str(condition))
-                    msstats_data_prot[prot][str(condition)] = np.log10(np.mean(list(pep_intensity[prot][str(condition)].values())))
+        def reducer(accumulator, element):
+            for key, value in jsonToDict(element).items():
+                accumulator[key] = accumulator.get(key, 0) + value
+            return accumulator
 
-            try:
-                aip = itemgetter(*rel_condition)(msstats_data_prot[prot])
-                if type(aip) == tuple:
-                    msstats_data_prot[prot]["Average Intensity"] = np.mean(list(aip))
-                else:
-                    msstats_data_prot[prot]["Average Intensity"] = aip
-            except Exception as e:
-                msstats_data_prot[prot]["Average Intensity"] = 0.0
+        def myDictSum(series):
+            return json.dumps(reduce(reducer, series, {}))
 
-            for c in conditions:
-                if str(c) not in msstats_data_prot[prot]:
-                    msstats_data_prot[prot][str(c)] = 0.0
-                    msstats_data_prot[prot][str(c) + "_distribution"] = ""
-                else:
-                    bios = self.s_DataFrame[self.s_DataFrame["MSstats_Condition"] == str(c)]["MSstats_BioReplicate"].tolist()
-                    intensity_distribution = OrderedDict()
-                    for i in bios:
-                        if i in pep_intensity[prot][str(c)]:
-                            intensity_distribution[i] = np.log10(pep_intensity[prot][str(c)][i])
-                        else:
-                            intensity_distribution[i] = 0.0
-                    intensity_distribution = list(intensity_distribution.values())
-                    # Get max intensity value so that adjust bar scale
-                    if max(intensity_distribution) > max_prot_intensity :
-                        max_prot_intensity = max(intensity_distribution)
-                    intensity_distribution_str = list(map(str, intensity_distribution))
-                    msstats_data_prot[prot][str(c) + "_distribution"] = ", ".join(intensity_distribution_str) + " ; column"
+        max_prot_intensity = 0
+        agg_funs = dict.fromkeys(conditions_dists, myDictSum)
+        agg_funs.update(dict.fromkeys(conditions_str, 'sum'))
+        agg_funs["PeptideSequence"] = 'count'
+        agg_funs["Average Intensity"] = 'sum'
+        msstats_data_prot = msstats_data_pep_agg.groupby("ProteinName").agg(agg_funs)#.reset_index()
+        del(msstats_data_pep_agg)
+        msstats_data_prot.rename(columns={"PeptideSequence": "Peptides_Number"},inplace=True)
+        msstats_data_dict_prot_full = msstats_data_prot.to_dict('index')
+        #print(msstats_data_dict_prot_full)
 
-            if index < 51:
-                plot_prot[prot] = msstats_data_prot[prot]
-            index += 1
-
+        msstats_data_dict_prot_init = dict(itertools.islice(msstats_data_dict_prot_full.items(), 50))
 
         headers = OrderedDict()
+        #headers['ProteinName'] = {
+        #    'name': 'Protein Name',
+        #    'description': 'Name/Identifier(s) of the protein (group)',
+        #    'format': '{:,.0f}'
+        #}
         headers['Peptides_Number'] = {
-            'name': 'Number Peptides',
-            'description': 'number of peptides per proteins',
+            'name': 'Number of Peptides',
+            'description': 'Number of peptides per proteins',
             'format': '{:,.0f}'
         }
         headers['Average Intensity'] = {
             'name': 'Average Intensity',
-            'description': 'average intensity across all condition'
+            'description': 'Average intensity across all conditions',
+            'format': '{:,.0f}'
         }
 
         # upload protein table to sqlite database
@@ -1325,9 +1249,10 @@ class QuantMSModule(BaseMultiqcModule):
             sql_col += ", \"" + s + "\""
             headers[str(s)] = {'name': s}
 
+        # ProteinName is index
         all_term = ["Peptides_Number", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
         cur.executemany("INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
-                        [tuple([x[0]]) + itemgetter(*all_term)(x[1]) for x in msstats_data_prot.items()])
+        [(k, *itemgetter(*all_term)(v)) for k,v in msstats_data_dict_prot_full.items()])
         con.commit()
 
         pconfig = {
@@ -1343,7 +1268,7 @@ class QuantMSModule(BaseMultiqcModule):
             'no_beeswarm': True
         }
 
-        table_html = sparklines.plot(plot_prot, headers, pconfig=pconfig, maxValue=max_prot_intensity)
+        table_html = sparklines.plot(msstats_data_dict_prot_init, headers, pconfig=pconfig, maxValue=max_prot_intensity)
         pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
@@ -1376,3 +1301,27 @@ class QuantMSModule(BaseMultiqcModule):
             plot=table_html
         )
 
+def read_openms_design(desfile): 
+        with open(desfile, 'r') as f:
+            data = f.readlines()
+            s_row = False
+            f_table = []
+            s_table = []
+            for row in data:
+                if row == "\n":
+                    continue                
+                if "MSstats_Condition" in row:
+                    s_row = True
+                    s_header = row.replace('\n', '').split('\t')
+                elif s_row:
+                    s_table.append(row.replace('\n', '').split('\t'))
+                elif "Spectra_Filepath" in row:
+                    f_header = row.replace('\n', '').split('\t')
+                else:
+                    f_table.append(row.replace('\n', '').split('\t'))
+
+            f_table = pd.DataFrame(f_table, columns=f_header)
+            f_table["Run"] = f_table.apply(lambda x: os.path.splitext(os.path.basename(x["Spectra_Filepath"]))[0], axis=1)
+            s_DataFrame = pd.DataFrame(s_table, columns=s_header)
+
+        return s_DataFrame, f_table

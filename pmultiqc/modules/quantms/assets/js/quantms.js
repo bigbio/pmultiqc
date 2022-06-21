@@ -8,13 +8,13 @@ function draw_sparkline(table_dict){
                 backgroundColor: null,
                 borderWidth: 0,
                 type: 'area',
-                margin: [2, 0, 2, 0],
+                margin: [0, 0, 0, 0],
                 width: 120,
-                height: 20,
+                height: 40,
                 style: {
                     overflow: 'visible'
                 },
-                // small optimalization, saves 1-2 ms each sparkline
+                // small optimization, saves 1-2 ms each sparkline
                 skipClone: true
             },
             title: {
@@ -33,8 +33,9 @@ function draw_sparkline(table_dict){
                 startOnTick: false,
                 endOnTick: false,
                 tickPositions: [],
-                lineWidth: 2,
-                lineColor: '#C0D0E0'
+                lineWidth: 1,
+                lineColor: '#C0D0E0',
+                gridLineWidth: 0
             },
             yAxis: {
                 min: 0.0,
@@ -48,27 +49,34 @@ function draw_sparkline(table_dict){
                     text: null
                 },
                 tickPositions: [0],
-                gridLineWidth: 2
+                gridLineWidth: 0
             },
             legend: {
                 enabled: false
             },
+            dataLabels: {
+                enabled: true,
+                color: '#000000',
+                nullFormat: 'N/A'
+            },
             tooltip: {
                 hideDelay: 0,
                 outside: true,
-                shared: true
+                nullFormat: 'N/A',
+                backgroundColor: '#fff'
             },
             exporting: {
                 enabled: false
             },
             plotOptions: {
                 series: {
+                    enableMouseTracking: true,
                     animation: false,
                     lineWidth: 1,
                     shadow: false,
                     states: {
                         hover: {
-                            lineWidth: 1
+                            lineWidth: 3
                         }
                     },
                     marker: {
@@ -89,6 +97,7 @@ function draw_sparkline(table_dict){
         };
         
         options = Highcharts.merge(defaultOptions, options);
+        console.log(options)
         
         return hasRenderToArg ?
             new Highcharts.Chart(a, options, c) :
@@ -106,22 +115,28 @@ function draw_sparkline(table_dict){
         for (let i = 0; i < len; i += 1) {
             const td = sparkline_tds[i];
             const stringdata = td.dataset.sparkline;
-            const arr = stringdata.split('; ');
-            const data = arr[0].split(', ').map(parseFloat);
-            const chart = {};
-        
-            if (arr[1]) {
-                chart.type = arr[1];
+            //TODO figure out when None and when nan happens
+            if (stringdata === "nan" || stringdata === "None") continue;
+            const data = JSON.parse(stringdata)
+            const series = []
+            for (const sample in data)
+            {
+                series.push({data: [data[sample]], name: sample})
             }
+            const chart = {};
+            chart.type = 'column'
         
             Highcharts.SparkLine(td, {
-            series: [{
-                data: data,
-                pointStart: 1
-            }],
+            series: series,
             tooltip: {
-                headerFormat: '<span style="font-size: 10px">' + td.parentElement.querySelector('th').innerText + ', Q{point.x}:</span><br/>',
-                pointFormat: '<b>{point.y}.000</b> USD'
+                padding: 2,
+                style:
+                {
+                    fontSize: "10px"
+                },
+                outside: true,
+                headerFormat: '{series.name}: ',
+                pointFormat: '<b>{point.y}</b>'
             },
             chart: chart
             });
