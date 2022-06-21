@@ -47,7 +47,7 @@ def pmultiqc_plugin_execution_start():
         config.update_dict(config.sp, {'quantms/idXML': {'fn': '*.idXML', 'num_lines': 0}})
 
     if 'quantms/msstats' not in config.sp:
-        config.update_dict(config.sp, {'quantms/msstats': {'fn': '*msstats.csv', 'num_lines': 0}})
+        config.update_dict(config.sp, {'quantms/msstats': {'fn': '*msstats_in.csv', 'num_lines': 0}})
 
     if 'quantms/diann_report' not in config.sp:
         # TODO Why is the 'shared' suddenly inside the dict???

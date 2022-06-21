@@ -228,12 +228,12 @@ $(document).ready(function () {
 
 
     $("#peptide-distribution-button").click(function() {
-        if(this.innerText == "distribution"){
-            this.innerText = "intensity";        
+        if(this.innerText == " Show replicates"){
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
             $("#quantification_of_peptides .col-condition").css("display", "none");
             $("#quantification_of_peptides .col-condition-sparkline").css("display", "table-cell");
         } else{
-            this.innerText = "distribution";
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
             $("#quantification_of_peptides .col-condition").css("display", "table-cell");
             $("#quantification_of_peptides .col-condition-sparkline").css("display", "none");
         }
