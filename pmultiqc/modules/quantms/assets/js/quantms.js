@@ -117,7 +117,8 @@ function draw_sparkline(table_dict){
             const stringdata = td.dataset.sparkline;
             //TODO figure out when None and when nan happens
             if (stringdata === "nan" || stringdata === "None") continue;
-            const data = JSON.parse(stringdata)
+            // decode commas etc
+            const data = JSON.parse(decodeURIComponent(stringdata))
             const series = []
             for (const sample in data)
             {

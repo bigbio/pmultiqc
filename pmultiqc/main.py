@@ -28,7 +28,7 @@ def pmultiqc_plugin_execution_start():
     if config.kwargs.get('disable_plugin', True):
         return None
 
-    log.info("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
+    log.warning("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 
     if 'quantms/exp_design' not in config.sp:
         config.update_dict(config.sp, {'quantms/exp_design': {'fn': 'experimental_design.tsv', 'num_lines': 0}, 'shared': False})

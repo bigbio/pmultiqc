@@ -100,8 +100,8 @@ def make_table(dt, maxValue):
         )
 
         if k not in fixed_col and "distribution" in k:
-            header["title"].replace("_distribution", "")
-            cont = '&#8203;'.join(textwrap.wrap(header["title"], 30))
+            cont = header["title"].replace("_distribution", "")
+            cont = '&#8203;'.join(textwrap.wrap(cont, 30))
             cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
                 header["namespace"], header["description"], cont
             )
@@ -199,10 +199,13 @@ def make_table(dt, maxValue):
                     config.thousandsSep_format = '<span class="mqc_thousandSep"></span>'
                 if config.decimalPoint_format is None:
                     config.decimalPoint_format = "."
-                valstring = valstring.replace(".", "DECIMAL").replace(",", "THOUSAND")
-                valstring = valstring.replace("DECIMAL", config.decimalPoint_format).replace(
-                    "THOUSAND", config.thousandsSep_format
-                )
+                
+                # This replaces commas everywhere and I cannot find where to disable it.
+                #  so we comment it out. It is useless anyway.
+                #valstring = valstring.replace(".", "DECIMAL").replace(",", "THOUSAND")
+                #valstring = valstring.replace("DECIMAL", config.decimalPoint_format).replace(
+                #    "THOUSAND", config.thousandsSep_format
+                #)
 
                 # Percentage suffixes etc
                 valstring += header.get("suffix", "")
@@ -276,6 +279,7 @@ def make_table(dt, maxValue):
                                 rid=rid, h=hide, v=valstring
                             )
                         else:
+                            valstring.replace(",","&#44;")
                             #valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])                        
                             t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
                                 rid=rid, h=hide, v=valstring
