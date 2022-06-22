@@ -49,7 +49,7 @@ jobs:
         path: ./results_lfq
     - name: Test TMT dataset
       run: |
-        wget -nv http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/tmt/tmt.zip
+        wget -nv http://ftp.pride.ebi.ac.uk/pride/data/proteomes/pmultiqc/tmt-replicates/tmt-replicates.zip
         unzip -d ./tmt tmt.zip
         python setup.py install
         multiqc -f ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
