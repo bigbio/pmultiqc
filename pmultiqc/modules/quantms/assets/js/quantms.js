@@ -9,8 +9,8 @@ function draw_sparkline(table_dict){
                 borderWidth: 0,
                 type: 'area',
                 margin: [0, 0, 0, 0],
-                width: 120,
-                height: 40,
+                //width: 120,
+                //height: 40,
                 style: {
                     overflow: 'visible'
                 },
@@ -39,7 +39,7 @@ function draw_sparkline(table_dict){
             },
             yAxis: {
                 min: 0.0,
-                max: table_dict["maxValue"],
+                //max: table_dict["maxValue"],
                 endOnTick: false,
                 startOnTick: false,
                 labels: {
@@ -73,6 +73,7 @@ function draw_sparkline(table_dict){
                     enableMouseTracking: true,
                     animation: false,
                     lineWidth: 1,
+                    minPointLength: 2,
                     shadow: false,
                     states: {
                         hover: {
@@ -126,6 +127,7 @@ function draw_sparkline(table_dict){
             }
             const chart = {};
             chart.type = 'column'
+            chart.width = 25 * series.length //25px per bar.
         
             Highcharts.SparkLine(td, {
             series: series,
@@ -230,10 +232,12 @@ $(document).ready(function () {
 
     $("#peptide-distribution-button").click(function() {
         if(this.innerText == " Show replicates"){
+            $("#quantification_of_peptides tr").css("height", "50px");
             this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
             $("#quantification_of_peptides .col-condition").css("display", "none");
             $("#quantification_of_peptides .col-condition-sparkline").css("display", "table-cell");
         } else{
+            $("#quantification_of_peptides tr").css("height", "100%");
             this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
             $("#quantification_of_peptides .col-condition").css("display", "table-cell");
             $("#quantification_of_peptides .col-condition-sparkline").css("display", "none");
@@ -638,16 +642,17 @@ $(document).ready(function () {
     });
     
     $("#protein-distribution-button").click(function() {
-        if(this.innerText == "distribution"){
-            this.innerText = "intensity";        
+        if(this.innerText == " Show replicates"){
+            $("#quantification_of_protein tr").css("height", "50px");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
             $("#quantification_of_protein .col-condition").css("display", "none");
             $("#quantification_of_protein .col-condition-sparkline").css("display", "table-cell");
         } else{
-            this.innerText = "distribution";
+            $("#quantification_of_protein tr").css("height", "100%");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
             $("#quantification_of_protein .col-condition").css("display", "table-cell");
             $("#quantification_of_protein .col-condition-sparkline").css("display", "none");
         }
-
     });
 
 })
