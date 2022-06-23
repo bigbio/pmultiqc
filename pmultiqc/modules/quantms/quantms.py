@@ -389,17 +389,17 @@ class QuantMSModule(BaseMultiqcModule):
 
         ## TODO BIG! We desperately need rules for naming columns!
 
-        headers['Sample Name'] = {
+        headers['sample_name'] = {
             'title': 'Sample Name',
             'description': 'Sample identifier',
             'color': "#ffffff"
         }
-        headers['Condition'] = {
+        headers['condition'] = {
                 'title': 'Condition',
-                'description': 'Possible Study Variables',
+                'description': 'Combination of possible study variables',
                 'color': "#ffffff"
         }
-        headers['Fraction'] = {
+        headers['fraction'] = {
             'title': 'Fraction',
             'description': 'Fraction identifier',
             'color': "#ffffff"
@@ -1001,9 +1001,9 @@ class QuantMSModule(BaseMultiqcModule):
         mL_spec_ident_final = {}
 
         for m, group in psm.groupby('stand_spectra_ref'):
-            self.cal_num_table_data[m] = {'Sample Name': self.exp_design_table[m]['Sample']}
-            self.cal_num_table_data[m]['Condition'] = self.exp_design_table[m]['MSstats_Condition']
-            self.cal_num_table_data[m]['Fraction'] = self.exp_design_table[m]['Fraction']
+            self.cal_num_table_data[m] = {'sample_name': self.exp_design_table[m]['Sample']}
+            self.cal_num_table_data[m]['condition'] = self.exp_design_table[m]['MSstats_Condition']
+            self.cal_num_table_data[m]['fraction'] = self.exp_design_table[m]['Fraction']
 
             if config.kwargs['remove_decoy']:
                 group = group[group['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
@@ -1106,7 +1106,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         for run_file, group in report_data.groupby("File.Name"):
             run_file = os.path.basename(run_file)
-            self.cal_num_table_data[run_file] = {'Sample Name': self.exp_design_table[run_file]['Sample']}
+            self.cal_num_table_data[run_file] = {'sample_name': self.exp_design_table[run_file]['Sample']}
             self.cal_num_table_data[run_file]['condition'] = self.exp_design_table[run_file]['MSstats_Condition']
             self.cal_num_table_data[run_file]['fraction'] = self.exp_design_table[run_file]['Fraction']
             self.cal_num_table_data[run_file]['protein_num'] = len(set(group["Protein.Ids"]))
@@ -1239,14 +1239,15 @@ class QuantMSModule(BaseMultiqcModule):
             name="Peptides Quantification Table",
             anchor="peptides_quant_result",
             description='This plot shows the quantification information of peptides'
-                        'in quantms pipeline final result',
+                        ' in the final result (mainly the mzTab file).',
             helptext='''
                     The quantification information of peptides is obtained from the MSstats input file. 
                     The table shows the quantitative level and distribution of peptides in different study variables, run and peptiforms. The distribution show all the intensity values in a bar plot above and below the average intensity for all the fractions, runs and peptiforms.
 
                     * BestSearchScore: It is equal to 1 - min(Q.Value) for DIA datasets. Then it is equal to 1 - min(best_search_engine_score[1]), which is from best_search_engine_score[1] column in mzTab peptide table for DDA datasets.
                     * Average Intensity: Average intensity of each peptide sequence across all conditions with NA=0 or NA ignored.
-                    * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, and then mean intensity in technical replicates/biological replicates separately. Click `distribution` to switch to bar plots.
+                    * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, and then mean intensity in technical replicates/biological replicates separately.
+                    Click `Show replicates` to switch to bar plots for every replicate.
 
                     ''',
             plot=table_html
@@ -1355,7 +1356,7 @@ class QuantMSModule(BaseMultiqcModule):
             name="Protein Quantification Table",
             anchor="protein_quant_result",
             description='This plot shows the quantification information of proteins'
-                        ' in final result (mainly the mzTab file).',
+                        ' in the final result (mainly the mzTab file).',
             helptext='''
                     The quantification information of proteins is obtained from the msstats input file. 
                     The table shows the quantitative level and distribution of proteins in different study variables and run.

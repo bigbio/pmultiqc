@@ -3,6 +3,10 @@
     white-space: nowrap;
 }
 
+.highcharts-container:hover {
+    z-index: 1 !important;
+}
+
 #quantification_of_peptides thead th{
     white-space: break-spaces;
 }

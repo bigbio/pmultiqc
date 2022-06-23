@@ -98,7 +98,6 @@ function draw_sparkline(table_dict){
         };
         
         options = Highcharts.merge(defaultOptions, options);
-        console.log(options)
         
         return hasRenderToArg ?
             new Highcharts.Chart(a, options, c) :
@@ -127,8 +126,11 @@ function draw_sparkline(table_dict){
             }
             const chart = {};
             chart.type = 'column'
-            chart.width = 25 * series.length //25px per bar.
         
+            td.setAttribute("width", series.length * 30)
+            chart.width = td.getAttribute('width')
+            chart.height = 50
+
             Highcharts.SparkLine(td, {
             series: series,
             tooltip: {
@@ -143,6 +145,7 @@ function draw_sparkline(table_dict){
             },
             chart: chart
             });
+            
         
             average_intensity = parseFloat(average_intensity_col[parseInt(i / len_tds_tr)].innerText);
             rects = sparkline_tds_cell[i].querySelectorAll("svg > .highcharts-series-group > .highcharts-series > rect");
