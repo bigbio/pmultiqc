@@ -1,0 +1,2 @@
+Sample	6000-10000	>= 10000
+Whole Experiment	23486.0	549814.0

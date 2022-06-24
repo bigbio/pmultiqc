@@ -1,0 +1,3 @@
+Sample	1000-3000	3000-6000	6000-10000	>= 10000
+identified_spectra	1.0	8.0	28.0	1120.0
+unidentified_spectra	232.0	619.0	847.0	10015.0

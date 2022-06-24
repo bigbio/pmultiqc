@@ -7,6 +7,7 @@ A library for proteomics QC report based on MultiQC framework. The library gener
 - analysis_dir                  : Final results of the pipeline
   - experimental_design.tsv     : experimental design file in two-table format
   - out.mzTab                   : mzTab with results of the identification
+  - *msstats\*csv               : MSstats/MSstatsTMT input file
   - *.mzML                      : mzML spectra files
   - *.idXML                     : Identification results from search + percolator
   - *.yml                       : summary software information and parameters of quantms pipeline (optional)
@@ -68,9 +69,11 @@ A table called [Spectra Tracking](http://bigbio.xyz/pmultiqc/shared-peptides-sta
 - Final result of Peptides: Final number of Peptides identified in the mzTab
 
 ### Precursor Charges Distribution
+
 The [Precursor Charges Distribution](http://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html#Distribution_of_precursor_charges) aims to show the distribution of the precursor ion charges for a given whole experiment, but also for the identified spectra and unidentified spectra. This information can be used to identify potential ionization problems including many 1+ charges from an ESI ionization source or an unexpected distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ charged ions. An unexpected charge distribution may furthermore be caused by specific search engine parameter settings such as limiting the search to specific ion charges.
 
 ### Number of Peaks per MS/MS spectrum
+
 The [Number of Peaks per MS/MS spectrum](https://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html#Number_of_Peaks_per_MS_MS_spectrum) aims to show the number of peaks per MS/MS spectrum in a given experiment. Too few peaks can identify poor fragmentation or a detector fault, as opposed to a large number of peaks representing very noisy spectra. This chart is extensively dependent on the pre-processing steps performed to the spectra (centroiding, deconvolution, peak picking approach, etc).
 
 ### Peak Intensity Distribution
@@ -80,11 +83,29 @@ The [Peak Intensity Distribution](http://bigbio.xyz/pmultiqc/shared-peptides-sta
 This is a histogram representing the ion intensity vs. the frequency for all MS2 spectra in a whole given experiment. It is possible to filter the information for all, identified and unidentified spectra. This plot can give a general estimation of the noise level of the spectra. Generally, one should expect to have a high number of low intensity noise peaks with a low number of high intensity signal peaks. A disproportionate number of high signal peaks may indicate heavy spectrum pre-filtering or potential experimental problems. In the case of data reuse this plot can be useful in identifying the requirement for pre-processing of the spectra prior to any downstream analysis. The quality of the identifications is not linked to this data as most search engines perform internal spectrum pre-processing before matching the spectra. Thus, the spectra reported are not necessarily pre-processed since the search engine may have applied the pre-processing step internally. This pre-processing is not necessarily reported in the experimental metadata.
 
 ### Oversampling Distribution
+
 The [Oversampling Distribution] aims to show the OverSampling information. An oversampled 3D-peak is defined as a peak whose peptide ion (same sequence and same charge state) was identified by at least two distinct MS2 spectra in the same Raw file. For high complexity samples, oversampling of individual 3D-peaks automatically leads to undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic exclusion windows for data independent acquisitions.
 
 ### Delta Mass
 
 The [Delta Mass](https://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html#delta_mass-1) aims to show the Peak instensity in the MS2 spectra for all the experiment but also for the identified spectra. The plot split the intesity in chunks of 0-10, 10-100, 100-300, ... 6k-10k, >10k. Mass deltas close to zero reflect more accurate identifications and also that the reporting of the amino acid modifications and charges have been done accurately. This plot can highlight systematic bias if not centered on zero. Other distributions can reflect modifications not being reported properly. Also it is easy to see the different between the target and the decoys identifications.
+
+### Peptides Quantification Table
+
+The [Peptides Quantification Table](https://github.com/bigbio/pmultiqc/tree/main/docs/example_dia/multiqc_report.html#peptides_quant_result) aims to show the quantitative level and distribution of peptides in different study variables, run and peptiforms. The distribution show all the intensity values in a bar plot above(blue) and below(red) the average intensity for all the samples. All intensities are log values.
+
+- BestSearchScore: It is equal to `1 - min(Q.Value)` for DIA datasets. Then It is equal to `1 - min(best_search_engine_score[1])`, which is from `best_search_engine_score[1]` column in mzTab peptide table for DDA datasets.
+- Average Intensity: Average intensity of each peptide sequence across all conditions with NA=0 or NA ignored.
+- Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, and then mean intensity in technical replicates/biological replicates separately. Click `distribution` to switch to bar plots
+
+### Protein Quantification Table
+
+The [Protein Quantification Table](https://github.com/bigbio/pmultiqc/tree/main/docs/example_dia/multiqc_report.html#protein_quant_result) also aims to show the quantitative level and distribution of proteins in different study variables. The distribution show all the intensity values in a bar plot above(blue) and below(red) the average intensity for all samples. All intensities are log values.
+
+- Peptides_Number: The number of peptides for each protein
+- Average Intensity: Average intensity of each protein across all conditions with NA=0 or NA ignored.
+- Protein intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of peptides.Click `distribution` to switch to bar plots
+
 
 ```Note: Because DIA-NN has much difference in output file !!! So some metrics are difficult to calculate```
 

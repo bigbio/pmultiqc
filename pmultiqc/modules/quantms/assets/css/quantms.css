@@ -1,6 +1,37 @@
-.table tr td {
+.table tr .data-coloured {
     overflow-y: hidden;
     white-space: nowrap;
+}
+
+.highcharts-container:hover {
+    z-index: 1 !important;
+}
+
+#quantification_of_peptides thead th{
+    white-space: break-spaces;
+}
+#quantification_of_peptides tbody th.rowheader{
+    white-space: break-spaces;
+}
+
+#quantification_of_protein thead th{
+    white-space: break-spaces;
+}
+#quantification_of_protein tbody th.rowheader{
+    white-space: break-spaces;
+}
+
+.table thead{
+    z-index: 999;
+    position: relative;
+}
+
+.data-sparkline path.highcharts-grid-line {
+    stroke-dasharray: 4
+}
+
+.data-sparkline path.highcharts-axis-line {
+    stroke-dasharray: 4
 }
 
 #Experimental_Design tr td .wrapper .bar{
@@ -41,7 +72,7 @@
     width: 100px;
 }
 
-#quant_search_col, #psm_search_col{
+#quant_search_col, #prot_search_col{
     border: 1px solid #cccccc;
     border-radius: 3px;
     padding: 5px 10px;
@@ -52,12 +83,3 @@
     height: 29.92px;
     margin-right: 4px;
 }
-
-#quantification_of_peptides .bar{
-    background-color: #ffffff !important;
-}
-
-#peptide_spectrum_match .bar{
-    background-color: #ffffff !important;
-}
-

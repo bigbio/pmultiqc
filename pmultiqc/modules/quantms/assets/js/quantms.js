@@ -1,5 +1,174 @@
+function draw_sparkline(table_dict){
+    Highcharts.SparkLine = function (a, b, c) {
+        const hasRenderToArg = typeof a === 'string' || a.nodeName;
+        let options = arguments[hasRenderToArg ? 1 : 0];
+        const defaultOptions = {
+            chart: {
+                renderTo: (options.chart && options.chart.renderTo) || (hasRenderToArg && a),
+                backgroundColor: null,
+                borderWidth: 0,
+                type: 'area',
+                margin: [0, 0, 0, 0],
+                //width: 120,
+                //height: 40,
+                style: {
+                    overflow: 'visible'
+                },
+                // small optimization, saves 1-2 ms each sparkline
+                skipClone: true
+            },
+            title: {
+                text: ''
+            },
+            credits: {
+                enabled: false
+            },
+            xAxis: {
+                labels: {
+                    enabled: false
+                },
+                title: {
+                    text: null
+                },
+                startOnTick: false,
+                endOnTick: false,
+                tickPositions: [],
+                lineWidth: 1,
+                lineColor: '#C0D0E0',
+                gridLineWidth: 0
+            },
+            yAxis: {
+                min: 0.0,
+                //max: table_dict["maxValue"],
+                endOnTick: false,
+                startOnTick: false,
+                labels: {
+                    enabled: false
+                },
+                title: {
+                    text: null
+                },
+                tickPositions: [0],
+                gridLineWidth: 0
+            },
+            legend: {
+                enabled: false
+            },
+            dataLabels: {
+                enabled: true,
+                color: '#000000',
+                nullFormat: 'N/A'
+            },
+            tooltip: {
+                hideDelay: 0,
+                outside: true,
+                nullFormat: 'N/A',
+                backgroundColor: '#fff'
+            },
+            exporting: {
+                enabled: false
+            },
+            plotOptions: {
+                series: {
+                    enableMouseTracking: true,
+                    animation: false,
+                    lineWidth: 1,
+                    minPointLength: 2,
+                    shadow: false,
+                    states: {
+                        hover: {
+                            lineWidth: 3
+                        }
+                    },
+                    marker: {
+                        radius: 1,
+                        states: {
+                            hover: {
+                            radius: 2
+                            }
+                        }
+                    },
+                    fillOpacity: 0.25
+                },
+                column: {
+                    negativeColor: 'rgb(163,237,186)',
+                    borderColor: 'silver'
+                }
+            }
+        };
+        
+        options = Highcharts.merge(defaultOptions, options);
+        
+        return hasRenderToArg ?
+            new Highcharts.Chart(a, options, c) :
+            new Highcharts.Chart(options, b);
+    };
+
+    sparkline_tds = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td[data-sparkline]'));
+    sparkline_tds_cell = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td.data-sparkline'));
+    len_tds_tr = Array.from(document.querySelectorAll('th.col-condition-sparkline')).length / 2;
+    average_intensity_col = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td.Average_Intensity > .wrapper > .val'));
+
+    function doChunk() {
+        len = sparkline_tds.length;
+        
+        for (let i = 0; i < len; i += 1) {
+            const td = sparkline_tds[i];
+            const stringdata = td.dataset.sparkline;
+            //TODO figure out when None and when nan happens
+            if (stringdata === "nan" || stringdata === "None") continue;
+            // decode commas etc
+            const data = JSON.parse(decodeURIComponent(stringdata))
+            const series = []
+            for (const sample in data)
+            {
+                series.push({data: [data[sample]], name: sample})
+            }
+            const chart = {};
+            chart.type = 'column'
+        
+            td.setAttribute("width", series.length * 30)
+            chart.width = td.getAttribute('width')
+            chart.height = 50
+
+            Highcharts.SparkLine(td, {
+            series: series,
+            tooltip: {
+                padding: 2,
+                style:
+                {
+                    fontSize: "10px"
+                },
+                outside: true,
+                headerFormat: '{series.name}: ',
+                pointFormat: '<b>{point.y}</b>'
+            },
+            chart: chart
+            });
+            
+        
+            average_intensity = parseFloat(average_intensity_col[parseInt(i / len_tds_tr)].innerText);
+            rects = sparkline_tds_cell[i].querySelectorAll("svg > .highcharts-series-group > .highcharts-series > rect");
+
+            for(let g = 0; g < rects.length; g++){
+                if(parseFloat(data[g]) < average_intensity){
+                    rects[g].setAttribute("fill", "#910000");
+                }
+            };
+        }
+    }
+    doChunk();
+}
+
+
 $(document).ready(function () {
     var quant_table = document.getElementById("quantification_of_peptides");
+    var thead = quant_table.getElementsByTagName("thead")[0];
+    var tr = thead.getElementsByTagName("tr")[0];
+    pep_header_ths = tr.getElementsByTagName("th");
+    for(i=0; i<pep_header_ths.length; i++){
+        $(pep_header_ths[i]).unbind("click");
+    };
     var quantTable = quant_table.getElementsByTagName("tbody")[0];
     var quantTotalPage = document.getElementById("quantTotalPage");
     var quantPageNum = document.getElementById("quantPageNum");
@@ -23,20 +192,80 @@ $(document).ready(function () {
     quantNextLink();
     quantLastLink();
     quantPageNum.innerHTML = '1';
+    pep_maxValue = quant_table.getAttribute("data-dmax");
+    peptide_table_dict = {'name': '#quantification_of_peptides', 'maxValue': pep_maxValue};
+
+    draw_sparkline(peptide_table_dict);
+
+    $(".col-condition-sparkline").css("display", "none");
+
+    $("#quantification_of_peptides .header").click(async function() {
+        if(this.getAttribute("class").indexOf("rowheader") != -1){
+            var span = "ID";
+        } else{
+            var span = this.getElementsByTagName("span")[0].innerText;
+        };
+        
+        if((this.getAttribute("class").indexOf("headerSortUp") == -1) && (this.getAttribute("class").indexOf("headerSortDown") == -1)){
+            $(this).attr('class', $(this).attr('class') + " headerSortUp");
+            sortOrder = "headerSortUp";
+        } else if(this.getAttribute("class").indexOf("headerSortUp") != -1) {
+            $(this).attr('class', $(this).attr('class').replace("headerSortUp", "headerSortDown"));
+            sortOrder = "headerSortDown";
+        } else{
+            $(this).attr('class', $(this).attr('class').replace("headerSortDown", "headerSortUp"));
+            sortOrder = "headerSortUp";
+        };
+        
+        for(i=0; i<pep_header_ths.length; i++){
+            if(i==0){
+                previous_span = "ID"
+            } else {
+                previous_span = pep_header_ths[i].getElementsByTagName("span")[0].innerText;
+            }
+            
+            if(previous_span != span){
+                pep_header_ths[i].setAttribute('class', pep_header_ths[i].className.replace(" headerSortUp", "").replace(" headerSortDown", ""));
+            };
+        };
+
+        await quantFirst(sortOrder, span);
+    });
+
+
+    $("#peptide-distribution-button").click(function() {
+        if(this.innerText == " Show replicates"){
+            $("#quantification_of_peptides tr").css("height", "50px");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
+            $("#quantification_of_peptides .col-condition").css("display", "none");
+            $("#quantification_of_peptides .col-condition-sparkline").css("display", "table-cell");
+        } else{
+            $("#quantification_of_peptides tr").css("height", "100%");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
+            $("#quantification_of_peptides .col-condition").css("display", "table-cell");
+            $("#quantification_of_peptides .col-condition-sparkline").css("display", "none");
+        }
+
+    });
+
 })
 
+
 //NextPage
-function quantNext(){
+async function quantNext(order, column){
+    order = order||'original';
     currentRow = quantPageSize * quantPage;
     maxRow = currentRow + quantPageSize;
     if ( maxRow > numberRowsInQuantTable ) maxRow = numberRowsInQuantTable;
-    updateQuantData(currentRow).then(res =>{
+    await updateQuantData(currentRow, order, column).then(res =>{
 		for(i=0; i<res.length; i++){
 			console.log(res[i]);
 			tds = quant_trs[i].getElementsByTagName("td");
 			quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
 			for(j=0; j<tds.length; j++){
-    			if(res[i][j + 1] == null){
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				}
 				else{
@@ -44,28 +273,38 @@ function quantNext(){
 				}
 			}
 		}
+        if ( i <= quant_trs.length - 1){
+			for (k = i; k < quant_trs.length; k++){
+				quant_trs[k].style.display = 'none';
+			}
+		}
 	});
+    
     quantPage++;
 
     if ( maxRow == numberRowsInQuantTable ) { quantNextText(); quantLastText(); }
     showPage(quantPageNum, quantPage);
     quantPreLink();
     quantFirstLink();
+    draw_sparkline(peptide_table_dict); 
 }
 
 //PreviousPage
-function quantPre(){
+async function quantPre(order, column){
+    order = order||'original';
     quantPage--;
     currentRow = quantPageSize * quantPage;
     maxRow = currentRow - quantPageSize;
     if ( currentRow > numberRowsInQuantTable ) currentRow = numberRowsInQuantTable;
-	updateQuantData(currentRow - quantPageSize).then(res =>{
+	await updateQuantData(currentRow - quantPageSize, order, column).then(res =>{
 		for(i=0; i<res.length; i++){
 			console.log(res[i]);
 			tds = quant_trs[i].getElementsByTagName("td");
 			quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
 			for(j=0; j<tds.length; j++){
-    			if(res[i][j + 1] == null){
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				}
 				else{
@@ -73,32 +312,39 @@ function quantPre(){
 				}
 			}
 		}
-	});
 
+        for (k = 1; k < 50; k++){
+			quant_trs[k].style.display = '';
+		}
+	});
 
     if ( maxRow === 0 ){ quantPreText(); quantFirstText(); }
     showPage(quantPageNum, quantPage);
     quantNextLink();
-    quantLastLink();
+    quantLastLink(); 
+    draw_sparkline(peptide_table_dict);
 }
 
 //FirstPage
-function quantFirst(){
+async function quantFirst(order, column){
+    order = order||'original';
     quantPage = 1;
-    updateQuantData(0).then(res =>{
-    	for(i=0; i<res.length; i++){
-    		console.log(res[i]);
-    		tds = quant_trs[i].getElementsByTagName("td");
-    		quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
-    		for(j=0; j<tds.length; j++){
-    			if(res[i][j + 1] == null){
+    await updateQuantData(0, order, column).then(res =>{
+        for(i=0; i<res.length; i++){
+            console.log(res[i]);
+            tds = quant_trs[i].getElementsByTagName("td");
+            quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+            for(j=0; j<tds.length; j++){
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				}
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
-    		}
-    	}
+            }
+        }
 		console.log(i);
 		for (k = 1; k < 50; k++){
 			quant_trs[k].style.display = '';
@@ -106,40 +352,43 @@ function quantFirst(){
 
     });
     showPage(quantPageNum, quantPage);
-
     quantPreText();
     quantNextLink();
     quantLastLink();
+    draw_sparkline(peptide_table_dict);
 }
 
 //LastPage
-function quantLast(){
+async function quantLast(order, column){
+    order = order||'original';
     quantPage = parseInt(quantLastRows / quantPageSize + 1);
-    updateQuantData(quantLastRows).then(res =>{
-    	for(i=0; i<res.length; i++){
-    		console.log(res[i]);
-    		tds = quant_trs[i].getElementsByTagName("td");
-    		quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
-    		for(j=0; j<tds.length; j++){
-    			if(res[i][j + 1] == null){
+    await updateQuantData(quantLastRows, order, column).then(res =>{
+        for(i=0; i<res.length; i++){
+            console.log(res[i]);
+            tds = quant_trs[i].getElementsByTagName("td");
+            quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+            for(j=0; j<tds.length; j++){
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				}
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
-    		}
-    	}
+            }
+        }
 		if ( i <= quant_trs.length - 1){
 			for (k = i; k < quant_trs.length; k++){
-				        quant_trs[k].style.display = 'none';
+				quant_trs[k].style.display = 'none';
 			}
 		}
     });
     showPage(quantPageNum, quantPage);
-
     quantPreLink();
     quantNextText();
     quantFirstLink();
+    draw_sparkline(peptide_table_dict);
 }
 
 function showPage(pageNum, page){
@@ -155,11 +404,9 @@ async function quantPageCount(){
         let db = new window.SQL.Database(new Uint8Array(response.data));
         // execute query
         let s = new Date().getTime();
-        let r = db.exec("select count(*) from quant");
+        let r = db.exec("select count(*) from PEPQUANT");
         let e = new Date().getTime();
         console.info("Time consuming to query data：" + (e - s) + "ms");
-        // parse data
-        console.info(r[0]['values'][0][0]);
         t = r[0]['values'][0][0];
         })
         .catch(function (error) {
@@ -169,15 +416,23 @@ async function quantPageCount(){
 }
 
 //TotalPage
-async function updateQuantData(currentRow){
+async function updateQuantData(currentRow, order, column){
 	let d;
+    let r;
     await axios.get("quantms.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*',
 			'Access-Control-Allow-Headers': '*'}})
-    		.then(function (response) {
+                .then(function (response) {
 			let db = new window.SQL.Database(new Uint8Array(response.data));
-			// 执行查询
+			// query
 			let s = new Date().getTime();
-			let r = db.exec("select * from quant " + "limit "+ String(currentRow) + ",50");
+            if(order == "original"){
+                r = db.exec("select * from PEPQUANT " + "limit "+ String(currentRow) + ",50" );
+            } else if(order == "headerSortUp"){
+                r = db.exec("select * from PEPQUANT " + "ORDER BY \"" + column + "\" DESC limit "+ String(currentRow) + ",50");
+            } else{
+                r = db.exec("select * from PEPQUANT " + "ORDER BY \"" + column + "\" ASC limit "+ String(currentRow) + ",50");
+            }
+			
 			let e = new Date().getTime();
 			console.info("Time consuming to query data：" + (e - s) + "ms");
 			// parse data
@@ -185,7 +440,8 @@ async function updateQuantData(currentRow){
 			d = r[0]['values'];
     })
     .catch(function (error) {
-                console.info(error);
+        console.info(error);
+        alert("Please set your browser to allow cross-domain requests.");
     });
 	return d;
 }
@@ -203,38 +459,43 @@ function quantFirstText(){ quantFirstDom.innerHTML = "First Page";}
 function quantLastLink(){ quantLastDom.innerHTML = "<a href='javascript:quantLast();'>Last Page</a>";}
 function quantLastText(){ quantLastDom.innerHTML = "Last Page";}
 
-function quant_page_jump(){
+async function quant_page_jump(order, column){
 	if(event.keyCode === 13){
+        order = order||'original';
 		quantPage = document.getElementById("pep_page").value;
 		if (quantPage > parseInt(numberRowsInQuantTable / 50 + 1) || quantPage === ""){
 			alert("not valid page!");
-		}
-
-		else if(quantPage === parseInt(numberRowsInQuantTable / 50 + 1)){
-			quantLast();
+		} else if(quantPage === parseInt(numberRowsInQuantTable / 50 + 1)){
+			await quantLast(order, column);
 		} else{
 			currentRow = quantPageSize * quantPage;
 			maxRow = currentRow - quantPageSize;
-			updateQuantData(currentRow - quantPageSize).then(res =>{
-  				for(i=0; i<res.length; i++){
-  					console.log(res[i]);
-  					tds = quant_trs[i].getElementsByTagName("td");
-  					quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
-  					for(j=0; j<tds.length; j++){
-  						if(res[i][j + 1] == null){
-					        tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-  						}
-				        else{
-					        tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
-				        }
-  					}
-  				}
-  				console.log(i);
-  				for (k = 1; k < 50; k++){
-  					quant_trs[k].style.display = '';
-  				}
+			await updateQuantData(currentRow - quantPageSize, order, column).then(res =>{
+                for(i=0; i<res.length; i++){
+                    console.log(res[i]);
+                    tds = quant_trs[i].getElementsByTagName("td");
+                    quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+                    for(j=0; j<tds.length; j++){
+                        if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                            tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                        } else if(res[i][j + 1] == null){
+                            tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
+                        }
+                        else{
+                            tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
+                        }
+                    }
+                }
+                console.log(i);
+                for (k = 1; k < 50; k++){
+                    if (k>=i) {
+                        quant_trs[k].style.display = 'none';
+                    } else{
+                        quant_trs[k].style.display = '';
+                    }
+                }
 
-  			});
+            });
 
 			if ( maxRow === 0 ){ quantPreText(); quantFirstText(); }
 			showPage(quantPageNum, quantPage);
@@ -242,6 +503,7 @@ function quant_page_jump(){
 			quantNextLink();
 			quantFirstLink();
 			quantLastLink();
+            draw_sparkline(peptide_table_dict);
 		}
 	}
 }
@@ -264,14 +526,13 @@ async function searchData(filter, col, table){
     })
     .catch(function (error) {
         console.info(error);
+        alert("Please set your browser to allow cross-domain requests.");
     });
 	return d;
 }
 
 
-
-
-function searchQuantFunction() {
+async function searchQuantFunction() {
     if (event.keyCode === 13) {
         var myInput=document.getElementById("quant_search");
         var filter=myInput.value.toUpperCase();
@@ -279,7 +540,7 @@ function searchQuantFunction() {
         var index = search_col.selectedIndex;
         var value = search_col.options[index].text;
 
-        searchData(filter, value, 'quant').then(res =>{
+        await searchData(filter, value, 'PEPQUANT').then(res =>{
         for(i=0; i<res.length; i++){
             if(i>=50){
                 break;
@@ -287,12 +548,14 @@ function searchQuantFunction() {
             quant_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
             tds = quant_trs[i].getElementsByTagName("td");
             for(j=0; j<tds.length; j++){
-                if(res[i][j + 1] == null){
-                    tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-                }
-                else{
-                    tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
-                }
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
+					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
+				}
+				else{
+					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
+				}
             }
 
         }
@@ -304,53 +567,115 @@ function searchQuantFunction() {
             }
             }
         });
+        draw_sparkline(peptide_table_dict);
     }
 }
 
 
-
-
+// Protein Quantification Table
 $(document).ready(function () {
-    var psm_table = document.getElementById("peptide_spectrum_match");
-    psmTable = psm_table.getElementsByTagName("tbody")[0];
+    var prot_table = document.getElementById("quantification_of_protein");
+    protTable = prot_table.getElementsByTagName("tbody")[0];
+    var thead = prot_table.getElementsByTagName("thead")[0];
+    var tr = thead.getElementsByTagName("tr")[0];
+    header_ths = tr.getElementsByTagName("th");
+    for(i=0; i<header_ths.length; i++){
+        $(header_ths[i]).unbind("click");
+    };
 
-    psmTotalPage = document.getElementById("psmTotalPage");
-    psmPageNum = document.getElementById("psmPageNum");
+    protTotalPage = document.getElementById("protTotalPage");
+    protPageNum = document.getElementById("protPageNum");
 
-    psmPreDom = document.getElementById("psmPre");
-    psmNextDom = document.getElementById("psmNext");
-    psmFirstDom = document.getElementById("psmFirst");
-    psmLastDom = document.getElementById("psmLast");
-    psm_numrows = document.getElementById("peptide_spectrum_match_numrows_text");
-    psm_sub = psm_numrows.getElementsByTagName("sub")[0];
-    psm_trs = psmTable.getElementsByTagName("tr");
+    protPreDom = document.getElementById("protPre");
+    protNextDom = document.getElementById("protNext");
+    protFirstDom = document.getElementById("protFirst");
+    protLastDom = document.getElementById("protLast");
+    prot_numrows = document.getElementById("quantification_of_protein_numrows_text");
+    prot_sub = prot_numrows.getElementsByTagName("sub")[0];
+    prot_trs = protTable.getElementsByTagName("tr");
 
-    numberRowsInPsmTable = 0;
-    psmPageSize = 50;
-    psmPage = 1;
+    numberRowsInProtTable = 0;
+    protPageSize = 50;
+    protPage = 1;
 
-    psmPageCount().then(res => { psmTotalPage.innerHTML = parseInt(res / 50 + 1);
-        psm_sub.innerHTML = res;
-        numberRowsInPsmTable = res;
-        psmLastRows = psmPageSize * (parseInt(res / 50 + 1) - 1);
+    protPageCount().then(res => { protTotalPage.innerHTML = parseInt(res / 50 + 1);
+        prot_sub.innerHTML = res;
+        numberRowsInProtTable = res;
+        protLastRows = protPageSize * (parseInt(res / 50 + 1) - 1);
     });
-    psmNextLink();
-    psmLastLink();
-    psmPageNum.innerHTML = '1';
+    protNextLink();
+    protLastLink();
+    protPageNum.innerHTML = '1';
+    prot_maxValue = prot_table.getAttribute("data-dmax");
+    protein_table_dict = {'name': '#quantification_of_protein', 'maxValue': prot_maxValue};
+
+    draw_sparkline(protein_table_dict);
+
+    $("#quantification_of_protein .header").click(async function() {
+        if(this.getAttribute("class").indexOf("rowheader") != -1){
+            var span = "ProteinName";
+        } else {
+            var span = this.getElementsByTagName("span")[0].innerText;
+        };
+        
+        if((this.getAttribute("class").indexOf("headerSortUp") == -1) && (this.getAttribute("class").indexOf("headerSortDown") == -1)){
+            $(this).attr('class', $(this).attr('class') + " headerSortUp");
+            sortOrder = "headerSortUp";
+        } else if(this.getAttribute("class").indexOf("headerSortUp") != -1) {
+            $(this).attr('class', $(this).attr('class').replace("headerSortUp", "headerSortDown"));
+            sortOrder = "headerSortDown";
+        } else{
+            $(this).attr('class', $(this).attr('class').replace("headerSortDown", "headerSortUp"));
+            sortOrder = "headerSortUp";
+        };
+
+        for(i=0; i<header_ths.length; i++){
+            if(i==0){
+                previous_span = "ProteinName";
+            }else{
+                previous_span = header_ths[i].getElementsByTagName("span")[0].innerText;
+            };
+
+            if(previous_span != span){
+                header_ths[i].setAttribute('class', header_ths[i].className.replace(" headerSortUp", "").replace(" headerSortDown", ""));
+            };
+        };
+
+        await protFirst(sortOrder, span);
+    });
+    
+    $("#protein-distribution-button").click(function() {
+        if(this.innerText == " Show replicates"){
+            $("#quantification_of_protein tr").css("height", "50px");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
+            $("#quantification_of_protein .col-condition").css("display", "none");
+            $("#quantification_of_protein .col-condition-sparkline").css("display", "table-cell");
+        } else{
+            $("#quantification_of_protein tr").css("height", "100%");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
+            $("#quantification_of_protein .col-condition").css("display", "table-cell");
+            $("#quantification_of_protein .col-condition-sparkline").css("display", "none");
+        }
+    });
+
 })
 
-    //NextPage
-function psmNext(){
-    currentRow = psmPageSize * psmPage;
-    maxRow = currentRow + psmPageSize;
-    if ( maxRow > numberRowsInPsmTable ) maxRow = numberRowsInPsmTable;
-        updatePsmData(currentRow).then(res =>{
+
+//NextPage
+async function protNext(order, column){
+    order = order||'original';
+    currentRow = protPageSize * protPage;
+    maxRow = currentRow + protPageSize;
+    if ( maxRow > numberRowsInProtTable ) maxRow = numberRowsInProtTable;
+        await updateProtData(currentRow, order, column).then(res =>{
 		for(i=0; i<res.length; i++){
 			console.log(res[i]);
-			tds = psm_trs[i].getElementsByTagName("td");
-			psm_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+			tds = prot_trs[i].getElementsByTagName("td");
+			prot_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
 			for(j=0; j<tds.length; j++){
-    			if(res[i][j + 1] == null){
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				}
 				else{
@@ -358,111 +683,130 @@ function psmNext(){
 				}
 			}
 		}
+        if ( i <= prot_trs.length - 1){
+			for (k = i; k < prot_trs.length; k++){
+				prot_trs[k].style.display = 'none';
+			}
+		}
 	});
-    psmPage++;
+    protPage++;
 
-    if ( maxRow == numberRowsInPsmTable ) { psmNextText(); psmLastText(); }
-    showPage(psmPageNum, psmPage);
-    psmPreLink();
-    psmFirstLink();
+    if ( maxRow == numberRowsInProtTable ) { protNextText(); protLastText(); }
+    showPage(protPageNum, protPage);
+    draw_sparkline(protein_table_dict);
+    protPreLink();
+    protFirstLink();
 }
 
 //PreviousPage
-function psmPre(){
-    psmPage--;
-    currentRow = psmPageSize * psmPage;
-    maxRow = currentRow - psmPageSize;
-    if ( currentRow > numberRowsInPsmTable ) currentRow = numberRowsInPsmTable;
-	updatePsmData(currentRow - psmPageSize).then(res =>{
+async function protPre(order, column){
+    order = order||'original';
+    protPage--;
+    currentRow = protPageSize * protPage;
+    maxRow = currentRow - protPageSize;
+    if ( currentRow > numberRowsInProtTable ) currentRow = numberRowsInProtTable;
+	await updateProtData(currentRow - protPageSize, order, column).then(res =>{
 		for(i=0; i<res.length; i++){
 			console.log(res[i]);
-			tds = psm_trs[i].getElementsByTagName("td");
-			psm_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+			tds = prot_trs[i].getElementsByTagName("td");
+			prot_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
 			for(j=0; j<tds.length; j++){
-    			if(res[i][j + 1] == null){
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				}
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
 			}
+		}
+        for (k = 1; k < 50; k++){
+			prot_trs[k].style.display = '';
 		}
 	});
 
 
-    if ( maxRow === 0 ){ psmPreText(); psmFirstText(); }
-    showPage(psmPageNum, psmPage);
-    psmNextLink();
-    psmLastLink();
+    if ( maxRow === 0 ){ protPreText(); protFirstText(); }
+    showPage(protPageNum, protPage);
+    draw_sparkline(protein_table_dict);
+    protNextLink();
+    protLastLink();
 }
 
 //FirstPage
-function psmFirst(){
-    psmPage = 1;
-    updatePsmData(0).then(res =>{
-    	for(i=0; i<res.length; i++){
-    		console.log(res[i]);
-    		tds = psm_trs[i].getElementsByTagName("td");
-    		psm_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
-    		for(j=0; j<tds.length; j++){
-    			if(res[i][j + 1] == null){
+async function protFirst(order, column){
+    order = order||'original';
+    protPage = 1;
+    await updateProtData(0, order, column).then(res =>{
+        for(i=0; i<res.length; i++){
+            console.log(res[i]);
+            tds = prot_trs[i].getElementsByTagName("td");
+            prot_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+            for(j=0; j<tds.length; j++){
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				}
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
-    		}
-    	}
+            }
+        }
 		console.log(i);
 		for (k = 1; k < 50; k++){
-			quant_trs[k].style.display = '';
+			prot_trs[k].style.display = '';
 		}
 
     });
-    showPage(psmPageNum, psmPage);
-
-    psmPreText();
-    psmNextLink();
-    psmLastLink();
+    showPage(protPageNum, protPage);
+    draw_sparkline(protein_table_dict);
+    protPreText();
+    protNextLink();
+    protLastLink();
 }
 
 //LastPage
-function psmLast(){
-    psmPage = parseInt(psmLastRows / psmPageSize + 1);
-    updatePsmData(psmLastRows).then(res =>{
-    	for(i=0; i<res.length; i++){
-    		console.log(res[i]);
-    		tds = psm_trs[i].getElementsByTagName("td");
-    		psm_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
-    		for(j=0; j<tds.length; j++){
-    			if(res[i][j + 1] == null){
+async function protLast(order, column){
+    order = order||'original';
+    protPage = parseInt(protLastRows / protPageSize + 1);
+    await updateProtData(protLastRows, order, column).then(res =>{
+        for(i=0; i<res.length; i++){
+            console.log(res[i]);
+            tds = prot_trs[i].getElementsByTagName("td");
+            prot_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+            for(j=0; j<tds.length; j++){
+                if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                    tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				}
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
-    		}
-    	}
-		if ( i <= psm_trs.length - 1){
-			for (k = i; k < psm_trs.length; k++){
-				        psm_trs[k].style.display = 'none';
+            }
+        }
+		if ( i <= prot_trs.length - 1){
+			for (k = i; k < prot_trs.length; k++){
+                prot_trs[k].style.display = 'none';
 			}
 		}
     });
-    showPage(psmPageNum, psmPage);
-
-    psmPreLink();
-    psmNextText();
-    psmFirstLink();
+    showPage(protPageNum, protPage);
+    draw_sparkline(protein_table_dict);
+    protPreLink();
+    protNextText();
+    protFirstLink();
 }
 
 //TotalPage
-async function psmPageCount(){
+async function protPageCount(){
     let t;
     await axios.get("quantms.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
         .then(function (response) {
         let db = new window.SQL.Database(new Uint8Array(response.data));
-        let r = db.exec("select count(*) from psm");
+        let r = db.exec("select count(*) from PROTQUANT");
         t = r[0]['values'][0][0];
         })
         .catch(function (error) {
@@ -472,105 +816,123 @@ async function psmPageCount(){
 }
 
 //ShowLink
-function psmPreLink(){ psmPreDom.innerHTML = "<a href='javascript:psmPre();'>Previous Page</a>";}
-function psmPreText(){ psmPreDom.innerHTML = "Previous Page";}
+function protPreLink(){ protPreDom.innerHTML = "<a href='javascript:protPre();'>Previous Page</a>";}
+function protPreText(){ protPreDom.innerHTML = "Previous Page";}
 
-function psmNextLink(){ psmNextDom.innerHTML = "<a href='javascript:psmNext();'>Next Page</a>";}
-function psmNextText(){ psmNextDom.innerHTML = "Next Page";}
+function protNextLink(){ protNextDom.innerHTML = "<a href='javascript:protNext();'>Next Page</a>";}
+function protNextText(){ protNextDom.innerHTML = "Next Page";}
 
-function psmFirstLink(){ psmFirstDom.innerHTML = "<a href='javascript:psmFirst();'>First Page</a>";}
-function psmFirstText(){ psmFirstDom.innerHTML = "First Page";}
+function protFirstLink(){ protFirstDom.innerHTML = "<a href='javascript:protFirst();'>First Page</a>";}
+function protFirstText(){ protFirstDom.innerHTML = "First Page";}
 
-function psmLastLink(){ psmLastDom.innerHTML = "<a href='javascript:psmLast();'>Last Page</a>";}
-function psmLastText(){ psmLastDom.innerHTML = "Last Page";}
+function protLastLink(){ protLastDom.innerHTML = "<a href='javascript:protLast();'>Last Page</a>";}
+function protLastText(){ protLastDom.innerHTML = "Last Page";}
 
-async function updatePsmData(currentRow){
+async function updateProtData(currentRow, order, column){
 	let d;
+    let r;
     await axios.get("quantms.db", {responseType: 'arraybuffer'}, {headers:{'Access-Control-Allow-Origin': '*'}})
     		.then(function (response) {
 			let db = new window.SQL.Database(new Uint8Array(response.data));
-			let r = db.exec("select * from psm " + "limit "+ String(currentRow) + ",50");
+            if(order == "original"){
+                r = db.exec("select * from PROTQUANT " + "limit "+ String(currentRow) + ",50");
+            } else if(order == "headerSortUp"){
+                r = db.exec("select * from PROTQUANT " + "ORDER BY \"" + column + "\" DESC limit "+ String(currentRow) + ",50");
+            } else{
+                r = db.exec("select * from PROTQUANT " + "ORDER BY \"" + column + "\" ASC limit "+ String(currentRow) + ",50");
+            }
 			d = r[0]['values'];
     })
     .catch(function (error) {
         console.info(error);
+        alert("Please set your browser to allow cross-domain requests.");
     });
 	return d;
 }
 
-function psm_page_jump(){
+async function prot_page_jump(order, column){
 	if(event.keyCode === 13){
-		psmPage = document.getElementById("psm_page").value;
-		if (psmPage > parseInt(numberRowsInPsmTable / 50 + 1) || psmPage === ""){
+        order = order||'original';
+		protPage = document.getElementById("prot_page").value;
+		if (protPage > parseInt(numberRowsInProtTable / 50 + 1) || protPage === ""){
 			alert("not valid page!");
 		}
 
-		else if(psmPage === parseInt(numberRowsInPsmTable / 50 + 1)){
-			psmLast();
+		else if(protPage === parseInt(numberRowsInProtTable / 50 + 1)){
+			await protLast(order, column);
 		} else{
-			currentRow = psmPageSize * psmPage;
-			maxRow = currentRow - psmPageSize;
-			updatePsmData(currentRow - psmPageSize).then(res =>{
-  				for(i=0; i<res.length; i++){
-  					tds = psm_trs[i].getElementsByTagName("td");
-  					psm_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
-  					for(j=0; j<tds.length; j++){
-  						if(res[i][j + 1] == null){
-					        tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-  						}
-				        else{
-					        tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
-				        }
-  					}
-  				}
-  				for (k = 1; k < 50; k++){
-  					psm_trs[k].style.display = '';
-  				}
+			currentRow = protPageSize * protPage;
+			maxRow = currentRow - protPageSize;
+			await updateProtData(currentRow - protPageSize, order, column).then(res =>{
+                for(i=0; i<res.length; i++){
+                    tds = prot_trs[i].getElementsByTagName("td");
+                    prot_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+                    for(j=0; j<tds.length; j++){
+                        if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                            tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                        } else if(res[i][j + 1] == null){
+                            tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
+                        }
+                        else{
+                            tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
+                        }
+                    }
+                }
+                for (k = 1; k < 50; k++){
+                    if (k>=i) {
+                        prot_trs[k].style.display = 'none';
+                    } else{
+                        prot_trs[k].style.display = '';
+                    }
+                }
+            });
 
-  			});
-
-			if ( maxRow === 0 ){ psmPreText(); psmFirstText(); }
-			showPage(psmPageNum, psmPage);
-			psmPreLink();
-			psmNextLink();
-			psmFirstLink();
-			psmLastLink();
+			if ( maxRow === 0 ){ protPreText(); protFirstText(); }
+			showPage(protPageNum, protPage);
+            draw_sparkline(protein_table_dict);
+			protPreLink();
+			protNextLink();
+			protFirstLink();
+			protLastLink();
 		}
 	}
 }
 
-function searchPsmFunction() {
+async function searchProtFunction() {
     if (event.keyCode === 13) {
-        var myInput=document.getElementById("psm_search");
+        var myInput=document.getElementById("prot_search");
         var filter=myInput.value.toUpperCase();
-        var search_col=document.getElementById("psm_search_col");
+        var search_col=document.getElementById("prot_search_col");
         var index = search_col.selectedIndex;
         var value = search_col.options[index].text;
 
-        searchData(filter, value, 'psm').then(res =>{
-        for(i=0; i<res.length; i++){
-            if(i>=50){
-                break;
-            }
-            psm_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
-            tds = psm_trs[i].getElementsByTagName("td");
-            for(j=0; j<tds.length; j++){
-                if(res[i][j + 1] == null){
-                    tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
+        await searchData(filter, value, 'PROTQUANT').then(res =>{
+            for(i=0; i<res.length; i++){
+                if(i>=50){
+                    break;
                 }
-                else{
-                    tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
+                prot_trs[i].getElementsByTagName("th")[0].innerHTML = res[i][0];
+                tds = prot_trs[i].getElementsByTagName("td");
+                for(j=0; j<tds.length; j++){
+                    if(tds[j].getAttribute("class") == "data-sparkline col-condition-sparkline"){
+                        tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
+                    } else if(res[i][j + 1] == null){
+                        tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
+                    }
+                    else{
+                        tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
+                    }
                 }
-            }
 
-        }
-        for (k = 0; k < 50; k++){
-            if (k>=i) {
-                psm_trs[k].style.display = 'none';
-            } else{
-                psm_trs[k].style.display = '';
             }
+            for (k = 0; k < 50; k++){
+                if (k>=i) {
+                    prot_trs[k].style.display = 'none';
+                } else{
+                    prot_trs[k].style.display = '';
+                }
             }
         });
+        draw_sparkline(protein_table_dict);
     }
 }
