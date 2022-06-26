@@ -92,15 +92,16 @@ def make_table(dt, maxValue):
             header["dmax"], header["dmin"], header["namespace"], shared_key
         )
 
-        cont = ' '.join(textwrap.wrap(header["title"], 30))
+        # join with zero width white space for line break
+        cont = '&#8203;'.join(textwrap.wrap(header["title"], 30))
 
         cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
             header["namespace"], header["description"], cont
         )
 
         if k not in fixed_col and "distribution" in k:
-            header["title"].replace("_distribution", "")
-            cont = ' '.join(textwrap.wrap(header["title"], 30))
+            cont = header["title"].replace("_distribution", "")
+            cont = '&#8203;'.join(textwrap.wrap(cont, 30))
             cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
                 header["namespace"], header["description"], cont
             )
@@ -198,10 +199,13 @@ def make_table(dt, maxValue):
                     config.thousandsSep_format = '<span class="mqc_thousandSep"></span>'
                 if config.decimalPoint_format is None:
                     config.decimalPoint_format = "."
-                valstring = valstring.replace(".", "DECIMAL").replace(",", "THOUSAND")
-                valstring = valstring.replace("DECIMAL", config.decimalPoint_format).replace(
-                    "THOUSAND", config.thousandsSep_format
-                )
+                
+                # This replaces commas everywhere and I cannot find where to disable it.
+                #  so we comment it out. It is useless anyway.
+                #valstring = valstring.replace(".", "DECIMAL").replace(",", "THOUSAND")
+                #valstring = valstring.replace("DECIMAL", config.decimalPoint_format).replace(
+                #    "THOUSAND", config.thousandsSep_format
+                #)
 
                 # Percentage suffixes etc
                 valstring += header.get("suffix", "")
@@ -275,6 +279,7 @@ def make_table(dt, maxValue):
                                 rid=rid, h=hide, v=valstring
                             )
                         else:
+                            valstring.replace(",","&#44;")
                             #valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])                        
                             t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
                                 rid=rid, h=hide, v=valstring
@@ -385,11 +390,13 @@ def make_table(dt, maxValue):
         )
         if "peptide" in table_title:
             html += """
-            <button type="button" class="btn btn-default btn-sm" new-data=1 data-action="set_data" data-target="quantification_of_peptides" id="peptide-distribution-button" style="float: right">distribution</button>
+            <button type="button" class="btn btn-default btn-sm" new-data=1 data-action="set_data" data-target="quantification_of_peptides" id="peptide-distribution-button">
+            <span class="glyphicon glyphicon glyphicon-stats"></span> Show replicates</button>
             """
         else:
             html += """
-            <button type="button" class="btn btn-default btn-sm" new-data=1 data-action="set_data" data-target="quantification_of_proteins" id="protein-distribution-button" style="float: right">distribution</button>
+            <button type="button" class="btn btn-default btn-sm" new-data=1 data-action="set_data" data-target="quantification_of_proteins" id="protein-distribution-button">
+            <span class="glyphicon glyphicon glyphicon-stats"></span> Show replicates</button>
             """
         
     # Build the table itself
@@ -417,7 +424,8 @@ def make_table(dt, maxValue):
         row_hidden = ' style="display:none"' if all(t_rows_empty[s_name].values()) else ""
         html += "<tr{}>".format(row_hidden)
         # Sample name row header
-        content = ' '.join(textwrap.wrap(s_name, 40))
+        # Wrap with zero width space character for line breaks that is not visible later
+        content = '&#8203;'.join(textwrap.wrap(s_name, 40))
         html += '<th class="rowheader" data-original-sn="{sn}">{sn}</th>'.format(sn=content)
         for k in t_headers:
             html += t_rows[s_name].get(k, empty_cells[k])

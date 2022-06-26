@@ -9,8 +9,8 @@ function draw_sparkline(table_dict){
                 borderWidth: 0,
                 type: 'area',
                 margin: [0, 0, 0, 0],
-                width: 120,
-                height: 40,
+                //width: 120,
+                //height: 40,
                 style: {
                     overflow: 'visible'
                 },
@@ -39,7 +39,7 @@ function draw_sparkline(table_dict){
             },
             yAxis: {
                 min: 0.0,
-                max: table_dict["maxValue"],
+                //max: table_dict["maxValue"],
                 endOnTick: false,
                 startOnTick: false,
                 labels: {
@@ -73,6 +73,7 @@ function draw_sparkline(table_dict){
                     enableMouseTracking: true,
                     animation: false,
                     lineWidth: 1,
+                    minPointLength: 2,
                     shadow: false,
                     states: {
                         hover: {
@@ -97,7 +98,6 @@ function draw_sparkline(table_dict){
         };
         
         options = Highcharts.merge(defaultOptions, options);
-        console.log(options)
         
         return hasRenderToArg ?
             new Highcharts.Chart(a, options, c) :
@@ -117,7 +117,8 @@ function draw_sparkline(table_dict){
             const stringdata = td.dataset.sparkline;
             //TODO figure out when None and when nan happens
             if (stringdata === "nan" || stringdata === "None") continue;
-            const data = JSON.parse(stringdata)
+            // decode commas etc
+            const data = JSON.parse(decodeURIComponent(stringdata))
             const series = []
             for (const sample in data)
             {
@@ -126,6 +127,10 @@ function draw_sparkline(table_dict){
             const chart = {};
             chart.type = 'column'
         
+            td.setAttribute("width", series.length * 30)
+            chart.width = td.getAttribute('width')
+            chart.height = 50
+
             Highcharts.SparkLine(td, {
             series: series,
             tooltip: {
@@ -140,6 +145,7 @@ function draw_sparkline(table_dict){
             },
             chart: chart
             });
+            
         
             average_intensity = parseFloat(average_intensity_col[parseInt(i / len_tds_tr)].innerText);
             rects = sparkline_tds_cell[i].querySelectorAll("svg > .highcharts-series-group > .highcharts-series > rect");
@@ -228,12 +234,14 @@ $(document).ready(function () {
 
 
     $("#peptide-distribution-button").click(function() {
-        if(this.innerText == "distribution"){
-            this.innerText = "intensity";        
+        if(this.innerText == " Show replicates"){
+            $("#quantification_of_peptides tr").css("height", "50px");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
             $("#quantification_of_peptides .col-condition").css("display", "none");
             $("#quantification_of_peptides .col-condition-sparkline").css("display", "table-cell");
         } else{
-            this.innerText = "distribution";
+            $("#quantification_of_peptides tr").css("height", "100%");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
             $("#quantification_of_peptides .col-condition").css("display", "table-cell");
             $("#quantification_of_peptides .col-condition-sparkline").css("display", "none");
         }
@@ -637,16 +645,17 @@ $(document).ready(function () {
     });
     
     $("#protein-distribution-button").click(function() {
-        if(this.innerText == "distribution"){
-            this.innerText = "intensity";        
+        if(this.innerText == " Show replicates"){
+            $("#quantification_of_protein tr").css("height", "50px");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
             $("#quantification_of_protein .col-condition").css("display", "none");
             $("#quantification_of_protein .col-condition-sparkline").css("display", "table-cell");
         } else{
-            this.innerText = "distribution";
+            $("#quantification_of_protein tr").css("height", "100%");
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
             $("#quantification_of_protein .col-condition").css("display", "table-cell");
             $("#quantification_of_protein .col-condition-sparkline").css("display", "none");
         }
-
     });
 
 })
