@@ -50,6 +50,9 @@ con.commit()
 cur.execute("drop table if exists PEPQUANT")
 con.commit()
 
+cur.execute("drop table if exists PSM")
+con.commit()
+
 log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
 
 
@@ -172,6 +175,18 @@ class QuantMSModule(BaseMultiqcModule):
 
         if not msstats_input_valid:
             log.warning("MSstats input file not found!")
+
+            # Add a report section with the psm table plot
+            self.add_section(
+                name="Peptide Spectrum Matches",
+                anchor="peptide_spectrum_matches",
+                description='This plot shows the information of peptide spectrum matches',
+                helptext='''
+                        This table shows the information of peptide spectrum matches from mzTab PSM section.
+                        ''',
+                plot=self.psm_table_html
+            )
+
             self.add_section(
                 name="Protein Quantification Table",
                 anchor="protein_quant_result",
@@ -555,8 +570,8 @@ class QuantMSModule(BaseMultiqcModule):
                     * MS2_Num: The number of MS2 spectra extracted from mzMLs
                     * MSGF: The Number of spectra identified by MSGF search engine
                     * Comet: The Number of spectra identified by Comet search engine
-                    * #PSMs from quant. peptides: extracted from PSM table in mzTab file
-                    * #Peptides quantified: extracted from PSM table in mzTab file
+                    * PSMs from quant. peptides: extracted from PSM table in mzTab file
+                    * Peptides quantified: extracted from PSM table in mzTab file
                     ''',
             plot=table_html
         )
@@ -966,6 +981,8 @@ class QuantMSModule(BaseMultiqcModule):
         self.prot_search_score = dict()
         # map to spectrum file name in experimental design file 
         psm['stand_spectra_ref'] = psm.apply(
+            lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']) + ":" + x.spectra_ref.split(':')[1], axis=1)
+        psm['filename'] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
 
         prot_abundance_cols = list(filter(lambda x: re.match(r'protein_abundance_assay.*?', x) is not None,
@@ -1023,7 +1040,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         mL_spec_ident_final = {}
 
-        for m, group in psm.groupby('stand_spectra_ref'):
+        for m, group in psm.groupby('filename'):
             self.cal_num_table_data[m] = {'sample_name': self.exp_design_table[m]['Sample']}
             self.cal_num_table_data[m]['condition'] = self.exp_design_table[m]['MSstats_Condition']
             self.cal_num_table_data[m]['fraction'] = self.exp_design_table[m]['Fraction']
@@ -1089,8 +1106,77 @@ class QuantMSModule(BaseMultiqcModule):
             self.Total_ms2_Spectral_Identified = len(set(psm['spectra_ref']))
             self.Total_Peptide_Count = len(set(psm['sequence']))
 
-        # draw proteins quantification table for spectral counting
+        # draw proteins quantification and PSMs table for spectral counting when peptide table is empty?
         if pep_table.empty:
+            mztab_data_psm_full = psm[['sequence', 'accession', 'search_engine_score[1]', 'stand_spectra_ref']]
+            mztab_data_psm_full.rename(columns={"sequence": "Sequence", "accession": "Accession", 
+                        "search_engine_score[1]": "Search_Engine_Score", "stand_spectra_ref": "Spectra_Ref"},inplace=True)
+            mztab_data_psm_full["Search_Engine_Score"] = round(mztab_data_psm_full["Search_Engine_Score"], 3)
+            max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
+            mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
+            headers = OrderedDict()
+            headers['Sequence'] = {
+                'name': 'Sequence',
+                'description': 'Peptide Sequence'
+            }
+            headers['Accession'] = {
+                'name': 'Accession',
+                'description': 'Protein Name'
+            }
+            headers['Search_Engine_Score'] = {
+                'name': 'Search Engine Score',
+                'format': '{:,.3f}',
+                'max': max_search_score,
+                'scale': False
+            }
+
+            # upload PSMs table to sqlite database
+            cur.execute(
+                "CREATE TABLE PSM(PSM_ID INT(200), Sequence VARCHAR(200), Accession VARCHAR(100), Search_Engine_Score FLOAT(4,5), Spectra_Ref VARCHAR(100))")
+            con.commit()
+            sql_col = "PSM_ID,Sequence,Accession,Search_Engine_Score,Spectra_Ref"
+            sql_t = "(" + ','.join(['?'] * 5) + ")"
+
+            # PSM_ID is index
+            all_term = ["Sequence", "Accession", "Search_Engine_Score", "Spectra_Ref"]
+            cur.executemany("INSERT INTO PSM (" + sql_col + ") VALUES " + sql_t,
+                            [(k, *itemgetter(*all_term)(v)) for k, v in mztab_data_psm_full.items()])
+            con.commit()
+
+            pconfig = {
+                'id': 'peptide spectrum matches',  # ID used for the table
+                'table_title': 'information of peptide spectrum matches',
+                # Title of the table. Used in the column config modal
+                'save_file': False,  # Whether to save the table data to a file
+                'sortRows': False,  # Whether to sort rows alphabetically
+                'only_defined_headers': False,  # Only show columns that are defined in the headers config
+                'col1_header': 'PSM_ID',
+                'format': '{:,.0f}',
+                'no_beeswarm': True
+            }
+            
+            mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
+            table_html = table.plot(mztab_data_psm_init, headers, pconfig)
+            pattern = re.compile(r'<small id="peptide_spectrum_matches_numrows_text"')
+            index = re.search(pattern, table_html).span()[0]
+            t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
+                                        'onkeyup="searchPsmFunction()" id="psm_search">' \
+                                        '<select name="psm_search_col" id="psm_search_col">'
+            for key in ["Sequence", "Accession", "Spectra_Ref"]:
+                t_html += '<option>' + key + '</option>'
+            table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
+                                                'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' \
+                            + table_html[index:]
+            table_html = table_html + '''<div class="page_control"><span id="psmFirst">First Page</span><span 
+            id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
+            Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
+            type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+            onkeydown="psm_page_jump()" min="1"/> </div> '''
+
+            self.psm_table_html = table_html
+
+
+            # protein table
             msstats_data_dict_prot_full = dict()
             conditions = self.sample_df.drop_duplicates(subset="MSstats_Condition")["MSstats_Condition"].tolist()
 
@@ -1099,16 +1185,22 @@ class QuantMSModule(BaseMultiqcModule):
                 res = copy.deepcopy(condition_count_dict)
                 for c, val in condition_count_dict.items():
                     samples_spc = dict()
+                    # Average spectrum counting with NA=0 ignored with replicates
                     for sn, count_value in val.items():
-                        samples_spc[sn] = np.mean(count_value)
-
-                    res[c] = round(float(np.mean(list(samples_spc.values()))))
+                        if len(np.nonzero(count_value)[0]) == 0:
+                            samples_spc[sn] = 0.0
+                        else:
+                            samples_spc[sn] = sum(count_value)/len(np.nonzero(count_value)[0])
+                    if len(np.nonzero(list(samples_spc.values()))[0]) == 0:
+                        res[c] = 0
+                    else:
+                        res[c] = round(sum(list(samples_spc.values()))/len(np.nonzero(list(samples_spc.values()))[0]))
                     samples_spc = dict(filter(lambda x: x[1] != 0.0, samples_spc.items()))
                     res[c + "_distribution"] = str(samples_spc).replace("\'", "\"")
                     Spc.append(res[c])
 
-                # Integer for average spectrum counting with NA=0 ignored
-                res["Average Spectrum Counting"] = round(float(sum(Spc)/len(np.nonzero(Spc)[0])))
+                # Integer for average spectrum counting with NA=0 ignored across condition
+                res["Average Spectrum Counting"] = round(sum(Spc)/len(np.nonzero(Spc)[0]))
                 return res
 
             for index, row in prot.iterrows():
@@ -1175,7 +1267,7 @@ class QuantMSModule(BaseMultiqcModule):
             cur.executemany("INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
                             [(k, *itemgetter(*all_term)(v)) for k, v in msstats_data_dict_prot_full.items()])
             con.commit()
-            
+
             pconfig = {
                 'id': 'quantification_of_protein',  # ID used for the table
                 'table_title': 'quantification information of protein',
