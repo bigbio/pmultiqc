@@ -106,8 +106,11 @@ function draw_sparkline(table_dict){
 
     sparkline_tds = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td[data-sparkline]'));
     sparkline_tds_cell = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td.data-sparkline'));
-    len_tds_tr = Array.from(document.querySelectorAll('th.col-condition-sparkline')).length / 2;
+    len_tds_tr = Array.from(document.querySelectorAll('th.col-condition-sparkline')).length;
     average_intensity_col = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td.Average_Intensity > .wrapper > .val'));
+    if(average_intensity_col.length == 0){
+        average_intensity_col = Array.from(document.querySelectorAll(table_dict['name'] + ' ' + 'td.Average_Spectrum_Counting > .wrapper > .val'));
+    }
 
     function doChunk() {
         len = sparkline_tds.length;
@@ -145,8 +148,7 @@ function draw_sparkline(table_dict){
             },
             chart: chart
             });
-            
-        
+
             average_intensity = parseFloat(average_intensity_col[parseInt(i / len_tds_tr)].innerText);
             rects = sparkline_tds_cell[i].querySelectorAll("svg > .highcharts-series-group > .highcharts-series > rect");
 
@@ -162,7 +164,11 @@ function draw_sparkline(table_dict){
 
 
 $(document).ready(function () {
+    $(".col-condition-sparkline").css("display", "none");
     var quant_table = document.getElementById("quantification_of_peptides");
+    if (quant_table == null){
+        return
+    }
     var thead = quant_table.getElementsByTagName("thead")[0];
     var tr = thead.getElementsByTagName("tr")[0];
     pep_header_ths = tr.getElementsByTagName("th");
@@ -196,8 +202,6 @@ $(document).ready(function () {
     peptide_table_dict = {'name': '#quantification_of_peptides', 'maxValue': pep_maxValue};
 
     draw_sparkline(peptide_table_dict);
-
-    $(".col-condition-sparkline").css("display", "none");
 
     $("#quantification_of_peptides .header").click(async function() {
         if(this.getAttribute("class").indexOf("rowheader") != -1){
@@ -755,7 +759,7 @@ async function protFirst(order, column){
             }
         }
 		console.log(i);
-		for (k = 1; k < 50; k++){
+		for (k = 1; k < i; k++){
 			prot_trs[k].style.display = '';
 		}
 
