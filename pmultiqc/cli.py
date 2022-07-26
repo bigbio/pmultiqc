@@ -26,6 +26,9 @@ decoy_affix = click.option('--decoy_affix', 'decoy_affix', default='DECOY_',
                             help='The decoy prefix or suffix used or to be used (default: DECOY_)')
 contaminant_affix = click.option('--contaminant_affix', 'contaminant_affix', default='CONT',
                             help='The contaminant prefix or suffix used or to be used (default: CONT_)')
+quantification_method = click.option('--quantification_method', 'quantification_method', default='feature_intensity',
+                            help="The quantification method for LFQ experiment (default: feature_intensity)",
+                            type=click.Choice(['feature_intensity', 'spectral_counting']))
 
 affix_type = click.option('--affix_type', 'affix_type', default='prefix',
                             help='Prefix (default) or suffix')

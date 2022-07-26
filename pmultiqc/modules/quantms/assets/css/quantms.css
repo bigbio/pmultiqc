@@ -72,7 +72,7 @@
     width: 100px;
 }
 
-#quant_search_col, #prot_search_col{
+#quant_search_col, #prot_search_col, #psm_search_col{
     border: 1px solid #cccccc;
     border-radius: 3px;
     padding: 5px 10px;

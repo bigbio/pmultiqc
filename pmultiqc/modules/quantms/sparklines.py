@@ -70,7 +70,7 @@ def make_table(dt, maxValue):
     if table_title is None:
         table_title = table_id.replace("_", " ").title()
 
-    fixed_col = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity", "Peptides_Number"]
+    fixed_col = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity", "Peptides_Number", "Average Spectrum Counting"]
     for idx, k, header in dt.get_headers_in_order():
 
         rid = header["rid"]

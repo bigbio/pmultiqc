@@ -50,6 +50,7 @@ setup(
             'remove_decoy = pmultiqc.cli:remove_decoy',
             'decoy_affix = pmultiqc.cli:decoy_affix',
             'contaminant_affix = pmultiqc.cli:contaminant_affix',
+            'quantification_method = pmultiqc.cli:quantification_method',
             'affix_type = pmultiqc.cli:affix_type'
         ],
         'multiqc.hooks.v1': [

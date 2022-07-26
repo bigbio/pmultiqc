@@ -31,6 +31,7 @@ from .histogram import Histogram
 from . import sparklines
 
 # Initialise the main MultiQC logger
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 if config.output_dir:
@@ -49,8 +50,11 @@ con.commit()
 cur.execute("drop table if exists PEPQUANT")
 con.commit()
 
+cur.execute("drop table if exists PSM")
+con.commit()
 
-log.warning("pyopenms has: "+str(OpenMSBuildInfo().getOpenMPMaxNumThreads())+" threads.")
+log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
+
 
 class QuantMSModule(BaseMultiqcModule):
     def __init__(self):
@@ -70,7 +74,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         self.enable_exp = False
         self.enable_sdrf = False
-        msstats_input_valid = False
+        self.msstats_input_valid = False
         # TODO what if multiple are found??
         for f in self.find_log_files("quantms/exp_design", filecontents=False):
             self.exp_design = os.path.join(f["root"], f['fn'])
@@ -79,21 +83,15 @@ class QuantMSModule(BaseMultiqcModule):
             for f in self.find_log_files("quantms/sdrf", filecontents=False):
                 self.sdrf = os.path.join(f["root"], f['fn'])
                 OpenMS().openms_convert(self.sdrf, config.kwargs['raw'],
-                                    False, True, False, config.kwargs['condition'])
+                                        False, True, False, config.kwargs['condition'])
                 # experimental_design.tsv is the default output name
                 self.exp_design = os.path.join(f["root"], f['experimental_design.tsv'])
                 self.enable_sdrf = True
 
         # TODO in theory the module can work without the design. We just need to remove the according sections!
         if self.enable_sdrf == False and self.enable_exp == False:
-            raise AttributeError("Neither exp_design nor sdrf can be found! Please provide or correct your multiqc_config.yml.")
-
-        # TODO what if multiple are found??
-        for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
-            self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
-            msstats_input_valid = True
-        if msstats_input_valid == False:
-            raise AttributeError("MSstats input file not found! Please provide or correct your multiqc_config.yml.")
+            raise AttributeError(
+                "Neither exp_design nor sdrf can be found! Please provide or correct your multiqc_config.yml.")
 
         self.PSM_table = dict()
         self.mzml_peptide_map = dict()
@@ -128,7 +126,7 @@ class QuantMSModule(BaseMultiqcModule):
         # parse input data
         # draw the experimental design
         self.draw_exp_design()
-        self.pep_table_exists = False            
+        self.pep_table_exists = False
         self.enable_dia = False
         for f in self.find_log_files("quantms/mztab", filecontents=False):
             self.out_mzTab_path = os.path.join(f["root"], f['fn'])
@@ -169,7 +167,47 @@ class QuantMSModule(BaseMultiqcModule):
             self.draw_oversampling()
             self.draw_delta_mass()
 
-        self.parse_msstats_input()
+        # TODO what if multiple are found??
+        for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
+            self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
+            self.msstats_input_valid = True
+            self.parse_msstats_input()
+
+        if config.kwargs["quantification_method"] == "spectral_counting":
+            # Add a report section with psm table plot from mzTab for spectral counting
+            self.add_section(
+                name="Peptide Spectrum Matches",
+                anchor="peptide_spectrum_matches",
+                description='This plot shows the information of peptide spectrum matches',
+                helptext='''
+                        This table shows the information of peptide spectrum matches from mzTab PSM section.
+                        ''',
+                plot=self.psm_table_html
+            )
+
+        # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
+        # currently only draw protein tabel for spectral counting
+        if not self.msstats_input_valid and config.kwargs["quantification_method"] == "spectral_counting":
+            log.warning("MSstats input file not found!")
+            self.add_section(
+                name="Protein Quantification Table",
+                anchor="protein_quant_result",
+                description='This plot shows the quantification information of proteins'
+                            ' in the final result (mainly the mzTab file).',
+                helptext='''
+                        The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
+                        The table shows the quantitative level and distribution of proteins in different study variables and run.
+
+                        * Peptides_Number: The number of peptides for each protein.
+                        * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
+                        * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
+
+                        Click `Show replicates` to switch to bar plots of counting in each replicate.
+                        ''',
+                plot=self.protein_quantification_table_html
+            )
+
+
         self.css = {
             'assets/css/quantms.css':
                 os.path.join(os.path.dirname(__file__), 'assets', 'css', 'quantms.css')
@@ -286,7 +324,7 @@ class QuantMSModule(BaseMultiqcModule):
         set3_scale = mqc_colour_scale(name="Set3")
         maxnr = len(self.file_df.index)
         set3_colors = set3_scale.get_colours(name="Set3")
-        colors = dict( (str(i+1), set3_colors[i % len(set3_colors)]) for i in range(maxnr) )
+        colors = dict((str(i + 1), set3_colors[i % len(set3_colors)]) for i in range(maxnr))
 
         headers['Fraction_Group'] = {
             'description': 'Fraction_Group',
@@ -331,7 +369,7 @@ class QuantMSModule(BaseMultiqcModule):
         if self.enable_dia:
             summary_table = {
                 self.total_ms2_spectra: {"#Peptides Quantified": self.Total_Peptide_Count}}
-            summary_table[self.total_ms2_spectra]['#Proteins Quantified'] = self.Total_Protein_Quantified    
+            summary_table[self.total_ms2_spectra]['#Proteins Quantified'] = self.Total_Protein_Quantified
         else:
             summary_table = {
                 self.total_ms2_spectra: {"#Identified MS2 Spectra": self.Total_ms2_Spectral_Identified}}
@@ -395,9 +433,9 @@ class QuantMSModule(BaseMultiqcModule):
             'color': "#ffffff"
         }
         headers['condition'] = {
-                'title': 'Condition',
-                'description': 'Combination of possible study variables',
-                'color': "#ffffff"
+            'title': 'Condition',
+            'description': 'Combination of possible study variables',
+            'color': "#ffffff"
         }
         headers['fraction'] = {
             'title': 'Fraction',
@@ -448,7 +486,7 @@ class QuantMSModule(BaseMultiqcModule):
             'cpswitch': False,
             'title': 'Number of Peptides identified per Protein',
             'xlab': 'Number of Peptides',
-            'tt_percentages': False, 
+            'tt_percentages': False,
             'tt_decimals': 2,
             'data_labels': [
                 {'name': 'count', 'ylab': 'Frequency'},
@@ -488,7 +526,6 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
         headers = OrderedDict()
-        
         headers['MS1_Num'] = {
             'title': '#MS1 Spectra',
             'description': 'Number of MS1 spectra',
@@ -536,12 +573,11 @@ class QuantMSModule(BaseMultiqcModule):
                     * MS2_Num: The number of MS2 spectra extracted from mzMLs
                     * MSGF: The Number of spectra identified by MSGF search engine
                     * Comet: The Number of spectra identified by Comet search engine
-                    * #PSMs from quant. peptides: extracted from PSM table in mzTab file
-                    * #Peptides quantified: extracted from PSM table in mzTab file
+                    * PSMs from quant. peptides: extracted from PSM table in mzTab file
+                    * Peptides quantified: extracted from PSM table in mzTab file
                     ''',
             plot=table_html
         )
-
 
     def draw_peak_intensity_distribution(self):
         # Create table plot
@@ -680,7 +716,7 @@ class QuantMSModule(BaseMultiqcModule):
                 'xmin': min(list(self.delta_mass['decoy'].keys()) +
                             (list(self.delta_mass['target'].keys()))) - 0.01,
                 "data_labels": [{"name": "Counts", "ylab": "Count", "tt_label": "<b>{point.x} Mass delta counts</b>: {point.y}"},
-                                {"name": "Relative Frequency", "ylab": "Relative Frequency", "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}"}],
+                    {"name": "Relative Frequency", "ylab": "Relative Frequency", "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}"}],
             }
         else:
             lineconfig = {
@@ -695,7 +731,7 @@ class QuantMSModule(BaseMultiqcModule):
                 'xmax': max(list(self.delta_mass['target'].keys())) + 0.01,
                 'xmin': min((list(self.delta_mass['target'].keys()))) - 0.01,
                 "data_labels": [{"name": "Counts", "ylab": "Count", "tt_label": "<b>{point.x} Mass delta counts</b>: {point.y}"},
-                                {"name": "Relative Frequency", "ylab": "Relative Frequency", "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}"}],
+                    {"name": "Relative Frequency", "ylab": "Relative Frequency", "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}"}],
             }
         line_html = linegraph.plot([self.delta_mass, self.delta_mass_percent], lineconfig)
 
@@ -716,7 +752,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def CalHeatMapScore(self):
-        log.warning("Calculating Heatmap Scores...")
+        log.info("Calculating Heatmap Scores...")
         mztab_data = mztab.MzTab(self.out_mzTab_path)
         psm = mztab_data.spectrum_match_table
         meta_data = dict(mztab_data.metadata)
@@ -776,7 +812,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.MissedCleavagesVar_score = dict(zip(self.MissedCleavages_heatmap_score.keys(),
                                                 list(map(lambda v: 1 - np.abs(v - median),
                                                         self.MissedCleavages_heatmap_score.values()))))
-        log.warning("Done calculating Heatmap Scores.")
+        log.info("Done calculating Heatmap Scores.")
 
     # if missed.cleavages is not given, it is assumed that trypsin was used for digestion
     @staticmethod
@@ -805,13 +841,13 @@ class QuantMSModule(BaseMultiqcModule):
     def parse_mzml(self):
 
         self.mzml_peak_distribution_plot = Histogram('Peak Intensity', plot_category='range', breaks=[
-                                                        0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000])
+            0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000])
 
         self.mzml_charge_plot = Histogram('Precursor Charge', plot_category='frequency', breaks=[
-                                            i for i in range(1, 8)])
+            i for i in range(1, 8)])
 
         self.mzml_peaks_ms2_plot = Histogram('#Peaks per MS/MS spectrum', plot_category='range', breaks=[
-                                            i for i in range(0, 1001, 100)])
+            i for i in range(0, 1001, 100)])
 
         # New instances are used for dictionary construction.
         self.mzml_peak_distribution_plot_1 = copy.deepcopy(self.mzml_peak_distribution_plot)
@@ -824,11 +860,11 @@ class QuantMSModule(BaseMultiqcModule):
         for m in self.mzML_paths:
             ms1_number = 0
             ms2_number = 0
-            log.warning("{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"),m))
+            log.info("{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
             MzMLFile().load(m, exp)
-            log.warning("{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"),m))
+            log.info("{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
             m = os.path.basename(m)
-            log.warning("{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"),m))
+            log.info("{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
             charge_2 = 0
             for i in exp:
                 if i.getMSLevel() == 1:
@@ -860,8 +896,8 @@ class QuantMSModule(BaseMultiqcModule):
             self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
             mzml_table[m] = {'MS1_Num': ms1_number}
             mzml_table[m]['MS2_Num'] = ms2_number
-            log.warning("{}: Done aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"),m))
-        
+            log.info("{}: Done aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+
         self.mzml_charge_plot.to_dict()
         self.mzml_peaks_ms2_plot.to_dict()
         self.mzml_peak_distribution_plot.to_dict()
@@ -897,12 +933,12 @@ class QuantMSModule(BaseMultiqcModule):
         self.heatmap_charge_score = dict(zip(heatmap_charge.keys(),
                                             list(map(lambda v: 1 - np.abs(v - median),
                                                     heatmap_charge.values()))))
-        
+
         return mzml_table
-                                
+
     def parse_idxml(self, mzml_table):
         for raw_id in self.idx_paths:
-            log.warning("Parsing {}...".format(raw_id))
+            log.info("Parsing {}...".format(raw_id))
             protein_ids = []
             peptide_ids = []
             IdXMLFile().load(raw_id, protein_ids, peptide_ids)
@@ -932,11 +968,10 @@ class QuantMSModule(BaseMultiqcModule):
             self.mzml_table[mzML_name] = mzml_table[mzML_name]
 
     def parse_out_mzTab(self):
-        ## TODO why is this a warning??
-        log.warning("{}: Parsing mzTab file {}...".format(datetime.now().strftime("%H:%M:%S"),self.out_mzTab_path))
+        log.info("{}: Parsing mzTab file {}...".format(datetime.now().strftime("%H:%M:%S"), self.out_mzTab_path))
         mztab_data = mztab.MzTab(self.out_mzTab_path)
-        log.warning("{}: Done parsing mzTab file {}.".format(datetime.now().strftime("%H:%M:%S"),self.out_mzTab_path))
-        log.warning("{}: Aggregating mzTab file {}...".format(datetime.now().strftime("%H:%M:%S"),self.out_mzTab_path))
+        log.info("{}: Done parsing mzTab file {}.".format(datetime.now().strftime("%H:%M:%S"), self.out_mzTab_path))
+        log.info("{}: Aggregating mzTab file {}...".format(datetime.now().strftime("%H:%M:%S"), self.out_mzTab_path))
         pep_table = mztab_data.peptide_table
         meta_data = dict(mztab_data.metadata)
 
@@ -947,8 +982,10 @@ class QuantMSModule(BaseMultiqcModule):
         psm = mztab_data.spectrum_match_table
         prot = mztab_data.protein_table
         self.prot_search_score = dict()
-        # TODO what is "stand_spectra_ref". What does it mean? What is it used for?
+        # map to spectrum file name in experimental design file 
         psm['stand_spectra_ref'] = psm.apply(
+            lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']) + ":" + x.spectra_ref.split(':')[1], axis=1)
+        psm['filename'] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
 
         prot_abundance_cols = list(filter(lambda x: re.match(r'protein_abundance_assay.*?', x) is not None,
@@ -959,7 +996,7 @@ class QuantMSModule(BaseMultiqcModule):
                                     prot.columns.tolist()))
         # TODO in theory we do not need accession since the index is the accession
         fixed_cols = ['accession', 'description', 'taxid', 'species', 'database', 'database_version', 'search_engine', 'ambiguity_members', 'modifications', 'protein_coverage']
-                                                                    
+
         prot = prot[fixed_cols + score_cols + prot_abundance_cols + opt_cols]
 
         # We only need the overall protein (group) scores and abundances. Currently we do not care about details of single proteins (length, description,...)
@@ -971,26 +1008,32 @@ class QuantMSModule(BaseMultiqcModule):
             prot = prot[~prot['accession'].str.contains(config.kwargs['decoy_affix'])]
 
         prot["protein_group"] = prot["ambiguity_members"].apply(lambda x: x.replace(",", ";"))
-        
-        # TODO the following assumes that we always only look
-        peptide_score = pep_table[["opt_global_cv_MS:1000889_peptidoform_sequence", "best_search_engine_score[1]"]]
-        self.peptide_search_score = peptide_score.groupby("opt_global_cv_MS:1000889_peptidoform_sequence").agg('min')["best_search_engine_score[1]"].to_dict()
-        del peptide_score
-        
+
         self.Total_Protein_Identified = len(prot.index)
 
-        prot.dropna(how='all',subset=prot_abundance_cols, inplace=True)
+        prot.dropna(how='all', subset=prot_abundance_cols, inplace=True)
         self.Total_Protein_Quantified = len(prot.index)
 
-        self.pep_plot = Histogram('Number of peptides per protein', plot_category = 'frequency')
+        self.pep_plot = Histogram('Number of peptides per protein', plot_category='frequency')
 
         # There probably are no shared peptides in the final quant results. We still do it to be safe.
-        # I think the accessions here are actually also the leader accessions in case of groups
-        counts_per_acc = pep_table['accession'].str.split(",").explode().value_counts()
+        # There are duplicates peptide-protein mapping in peptide table due to different feature (charge and RT)
+        if config.kwargs['quantification_method'] == "spectral_counting":
+            counts_per_acc = psm.drop_duplicates("sequence")['accession'].str.split(",").explode().value_counts()
+        else:
+            self.pep_table_exists = True
+            # TODO the following assumes that we always only look
+            peptide_score = pep_table[["opt_global_cv_MS:1000889_peptidoform_sequence", "best_search_engine_score[1]"]]
+            self.peptide_search_score = \
+                peptide_score.groupby("opt_global_cv_MS:1000889_peptidoform_sequence").agg('min')[
+                    "best_search_engine_score[1]"].to_dict()
+            del peptide_score
+            counts_per_acc = pep_table.drop_duplicates("sequence")['accession'].str.split(",").explode().value_counts()
+
         counts_per_acc.apply(self.pep_plot.addValue)
         #for c in counts_per_acc:
         #    self.pep_plot.addValue(c)
-        
+
         categories = OrderedDict()
         categories['Frequency'] = {
             'name': 'Frequency',
@@ -1000,7 +1043,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         mL_spec_ident_final = {}
 
-        for m, group in psm.groupby('stand_spectra_ref'):
+        for m, group in psm.groupby('filename'):
             self.cal_num_table_data[m] = {'sample_name': self.exp_design_table[m]['Sample']}
             self.cal_num_table_data[m]['condition'] = self.exp_design_table[m]['MSstats_Condition']
             self.cal_num_table_data[m]['fraction'] = self.exp_design_table[m]['Fraction']
@@ -1026,7 +1069,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             if None in proteins:
                 proteins.remove(None)
-            
+
             ## TODO this is not really the number of proteins but the number of protein groups
             self.cal_num_table_data[m]['protein_num'] = len(proteins)
             self.cal_num_table_data[m]['peptide_num'] = len(peptides)
@@ -1036,7 +1079,6 @@ class QuantMSModule(BaseMultiqcModule):
             self.cal_num_table_data[m]['modified_peptide_num'] = len(modified_pep)
 
             mL_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
-        
 
         target_bin_data = {}
         decoy_bin_data = {}
@@ -1067,10 +1109,209 @@ class QuantMSModule(BaseMultiqcModule):
             self.Total_ms2_Spectral_Identified = len(set(psm['spectra_ref']))
             self.Total_Peptide_Count = len(set(psm['sequence']))
 
-        log.warning("{}: Done aggregating mzTab file {}...".format(datetime.now().strftime("%H:%M:%S"),self.out_mzTab_path))
+        # draw PSMs table for spectral counting
+        if config.kwargs['quantification_method'] == "spectral_counting":
+            mztab_data_psm_full = psm[['sequence', 'accession', 'search_engine_score[1]', 'stand_spectra_ref']]
+            mztab_data_psm_full.rename(columns={"sequence": "Sequence", "accession": "Accession", 
+                        "search_engine_score[1]": "Search_Engine_Score", "stand_spectra_ref": "Spectra_Ref"},inplace=True)
+            mztab_data_psm_full["Search_Engine_Score"] = round(mztab_data_psm_full["Search_Engine_Score"], 3)
+            max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
+            mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
+            headers = OrderedDict()
+            headers['Sequence'] = {
+                'name': 'Sequence',
+                'description': 'Peptide Sequence'
+            }
+            headers['Accession'] = {
+                'name': 'Accession',
+                'description': 'Protein Name'
+            }
+            headers['Search_Engine_Score'] = {
+                'name': 'Search Engine Score',
+                'format': '{:,.3f}',
+                'max': max_search_score,
+                'scale': False
+            }
+
+            # upload PSMs table to sqlite database
+            cur.execute(
+                "CREATE TABLE PSM(PSM_ID INT(200), Sequence VARCHAR(200), Accession VARCHAR(100), Search_Engine_Score FLOAT(4,5), Spectra_Ref VARCHAR(100))")
+            con.commit()
+            sql_col = "PSM_ID,Sequence,Accession,Search_Engine_Score,Spectra_Ref"
+            sql_t = "(" + ','.join(['?'] * 5) + ")"
+
+            # PSM_ID is index
+            all_term = ["Sequence", "Accession", "Search_Engine_Score", "Spectra_Ref"]
+            cur.executemany("INSERT INTO PSM (" + sql_col + ") VALUES " + sql_t,
+                            [(k, *itemgetter(*all_term)(v)) for k, v in mztab_data_psm_full.items()])
+            con.commit()
+
+            pconfig = {
+                'id': 'peptide spectrum matches',  # ID used for the table
+                'table_title': 'information of peptide spectrum matches',
+                # Title of the table. Used in the column config modal
+                'save_file': False,  # Whether to save the table data to a file
+                'sortRows': False,  # Whether to sort rows alphabetically
+                'only_defined_headers': False,  # Only show columns that are defined in the headers config
+                'col1_header': 'PSM_ID',
+                'format': '{:,.0f}',
+                'no_beeswarm': True
+            }
+            
+            mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
+            table_html = table.plot(mztab_data_psm_init, headers, pconfig)
+            pattern = re.compile(r'<small id="peptide_spectrum_matches_numrows_text"')
+            index = re.search(pattern, table_html).span()[0]
+            t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
+                                        'onkeyup="searchPsmFunction()" id="psm_search">' \
+                                        '<select name="psm_search_col" id="psm_search_col">'
+            for key in ["Sequence", "Accession", "Spectra_Ref"]:
+                t_html += '<option>' + key + '</option>'
+            table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
+                                                'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' \
+                            + table_html[index:]
+            table_html = table_html + '''<div class="page_control"><span id="psmFirst">First Page</span><span 
+            id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
+            Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
+            type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+            onkeydown="psm_page_jump()" min="1"/> </div> '''
+
+            self.psm_table_html = table_html
+
+        
+        # TODO implement the second option no msstats and feature intensity: draw protein quantification from mzTab 
+        # in the future with Protein and peptide tables from mzTab.
+        # Draw protein table with spectral counting from mzTab file
+        if not self.msstats_input_valid and config.kwargs["quantification_method"] == "spectral_counting":
+            mztab_data_dict_prot_full = dict()
+            conditions = self.sample_df.drop_duplicates(subset="MSstats_Condition")["MSstats_Condition"].tolist()
+
+            def getSpectrumCountAcrossRep(condition_count_dict: dict):
+                Spc = []
+                res = copy.deepcopy(condition_count_dict)
+                for c, val in condition_count_dict.items():
+                    samples_spc = dict()
+                    # Average spectrum counting with NA=0 ignored with replicates
+                    for sn, count_value in val.items():
+                        if len(np.nonzero(count_value)[0]) == 0:
+                            samples_spc[sn] = 0.0
+                        else:
+                            samples_spc[sn] = sum(count_value)/len(np.nonzero(count_value)[0])
+                    if len(np.nonzero(list(samples_spc.values()))[0]) == 0:
+                        res[c] = 0
+                    else:
+                        res[c] = round(sum(list(samples_spc.values()))/len(np.nonzero(list(samples_spc.values()))[0]))
+                    samples_spc = dict(filter(lambda x: x[1] != 0.0, samples_spc.items()))
+                    res[c + "_distribution"] = str(samples_spc).replace("\'", "\"")
+                    Spc.append(res[c])
+
+                # Integer for average spectrum counting with NA=0 ignored across condition
+                res["Average Spectrum Counting"] = round(sum(Spc)/len(np.nonzero(Spc)[0]))
+                return res
+
+            for index, row in prot.iterrows():
+                mztab_data_dict_prot_full[index] = {}
+                for abundance_col in prot_abundance_cols:
+                    # map abundance assay to factor value
+                    file_name = os.path.basename(meta_data[meta_data[abundance_col.replace("protein_abundance_",
+                                                                                        "") + "-ms_run_ref"].split(
+                        ",")[0] + "-location"])
+                    sample_name = str(
+                        self.file_df[self.file_df["Run"] == os.path.splitext(file_name)[0]]["Sample"].values[0])
+                    condition = str(
+                        self.sample_df[self.sample_df["Sample"] == sample_name]["MSstats_Condition"].values[0])
+
+                    # Consider technical replicates and biological replicates
+                    if condition in mztab_data_dict_prot_full[index]:
+                        if sample_name in mztab_data_dict_prot_full[index][condition]:
+                            mztab_data_dict_prot_full[index][condition][sample_name].append(row[abundance_col])
+                        else:
+                            mztab_data_dict_prot_full[index][condition] = {sample_name: [row[abundance_col]]}
+                    else:
+                        mztab_data_dict_prot_full[index][condition] = {sample_name: [row[abundance_col]]}
+
+                mztab_data_dict_prot_full[index] = getSpectrumCountAcrossRep(mztab_data_dict_prot_full[index])
+                mztab_data_dict_prot_full[index]["Peptides_Number"] = int(counts_per_acc[index])
+
+            log.info("{}: Done aggregating mzTab file {}...".format(datetime.now().strftime("%H:%M:%S"),
+                                                                    self.out_mzTab_path))
+
+            headers = OrderedDict()
+            headers['Peptides_Number'] = {
+                'name': 'Number of Peptides',
+                'description': 'Number of peptides per proteins',
+                'format': '{:,.0f}'
+            }
+            headers['Average Spectrum Counting'] = {
+                'name': 'Average Spectrum Counting',
+                'description': 'Average Spectrum Counting across all conditions',
+                'format': '{:,.0f}'
+            }
+
+            # upload protein table to sqlite database
+            cur.execute(
+                "CREATE TABLE PROTQUANT(ProteinName VARCHAR(100), Peptides_Number INT(100), \"Average Spectrum Counting\" VARCHAR)")
+            con.commit()
+            sql_col = "ProteinName,Peptides_Number,\"Average Spectrum Counting\""
+            sql_t = "(" + ','.join(['?'] * (len(conditions) * 2 + 3)) + ")"
+
+            for s in conditions:
+                cur.execute("ALTER TABLE PROTQUANT ADD \"" + str(s) + "\" VARCHAR")
+                con.commit()
+                sql_col += ", \"" + str(s) + "\""
+                headers[str(s)] = {'name': s}
+
+            for s in list(map(lambda x: str(x) + "_distribution", conditions)):
+                cur.execute("ALTER TABLE PROTQUANT ADD \"" + s + "\" VARCHAR(100)")
+                con.commit()
+                sql_col += ", \"" + s + "\""
+                headers[str(s)] = {'name': s}
+
+            # ProteinName is index
+            all_term = ["Peptides_Number", "Average Spectrum Counting"] + list(map(str, conditions)) + list(
+                map(lambda x: str(x) + "_distribution", conditions))
+            cur.executemany("INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
+                            [(k, *itemgetter(*all_term)(v)) for k, v in mztab_data_dict_prot_full.items()])
+            con.commit()
+
+            pconfig = {
+                'id': 'quantification_of_protein',  # ID used for the table
+                'table_title': 'quantification information of protein',
+                # Title of the table. Used in the column config modal
+                'save_file': False,  # Whether to save the table data to a file
+                'raw_data_fn': 'multiqc_quantification_of_protein_table',  # File basename to use for raw data file
+                'sortRows': False,  # Whether to sort rows alphabetically
+                'only_defined_headers': False,  # Only show columns that are defined in the headers config
+                'col1_header': 'ProteinName',
+                'format': '{:,.0f}',
+                'no_beeswarm': True
+            }
+
+            max_prot_intensity = 0
+            mztab_data_dict_prot_init = dict(itertools.islice(mztab_data_dict_prot_full.items(), 50))
+
+            table_html = sparklines.plot(mztab_data_dict_prot_init, headers, pconfig=pconfig,
+                                        maxValue=max_prot_intensity)
+            pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
+            index = re.search(pattern, table_html).span()[0]
+            t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
+                                        'onkeyup="searchProtFunction()" id="prot_search">' \
+                                        '<select name="prot_search_col" id="prot_search_col">'
+            for key in ["ProteinName"]:
+                t_html += '<option>' + key + '</option>'
+            table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
+                                                'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' \
+                            + table_html[index:]
+            table_html = table_html + '''<div class="page_control"><span id="protFirst">First Page</span><span 
+            id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last 
+            Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input 
+            type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+            onkeydown="prot_page_jump()" min="1"/> </div> '''
+
+            self.protein_quantification_table_html = table_html
 
     def parse_diann_report(self):
-        log.warning("Parsing {}...".format(self.diann_report_path))
+        log.info("Parsing {}...".format(self.diann_report_path))
         pattern = re.compile(r"\(.*?\)")
         report_data = pd.read_csv(self.diann_report_path, header=0, sep="\t")
         report_data["sequence"] = report_data.apply(lambda x: re.sub(pattern,"",x["Modified.Sequence"]), axis=1)
@@ -1119,14 +1360,14 @@ class QuantMSModule(BaseMultiqcModule):
             self.cal_num_table_data[run_file]['modified_peptide_num'] = len(modified_pep)
 
     def parse_msstats_input(self):
-        print("Parsing MSstats input file " + self.msstats_input_path)
+        log.info("Parsing MSstats input file " + self.msstats_input_path)
         msstats_data = pd.read_csv(self.msstats_input_path)
         ## TODO we probably shouldn't even write out 0-intensity values to MSstats csv
         msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
 
         # multiQC requires weird dicts
         msstats_data_dict_pep_full = dict()
-        msstats_data_dict_pep_init  = dict()
+        msstats_data_dict_pep_init = dict()
         msstats_data_dict_prot_full = dict()
         msstats_data_dict_prot_init = dict()
 
@@ -1177,11 +1418,10 @@ class QuantMSModule(BaseMultiqcModule):
 
         headers = OrderedDict()
         headers = { #'PeptideSequence': {'name': 'PeptideSequence'}, # this is the index
-                    'ProteinName': {'name': 'ProteinName'},
-                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'},
-                    'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
+            'ProteinName': {'name': 'ProteinName'},
+            'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'},
+            'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
 
-        
         for s in conditions:
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" VARCHAR")
             con.commit()
@@ -1200,7 +1440,6 @@ class QuantMSModule(BaseMultiqcModule):
         cur.executemany("INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
                         [(k, *itemgetter(*all_term)(v)) for k,v in msstats_data_dict_pep_full.items()])
         con.commit()
-
 
         pconfig = {
             'id': 'quantification_of_peptides',  # ID used for the table
@@ -1295,7 +1534,7 @@ class QuantMSModule(BaseMultiqcModule):
         headers['Average Intensity'] = {
             'name': 'Average Intensity',
             'description': 'Average intensity across all conditions',
-            'format': '{:,.0f}'
+            'format': '{:,.3f}'
         }
 
         # upload protein table to sqlite database
