@@ -802,8 +802,8 @@ class QuantMSModule(BaseMultiqcModule):
         xcorr_cats = [bar_cats] * len(self.search_engine['xcorr'])
         PEP_cats = [bar_cats] * len(self.search_engine['PEPs'])
 
-        xcorr_bar_html = bargraph.plot(list(self.search_engine['xcorr'].values()), xcorr_cats, xcorr_pconfig) if len(Comet_labels) != 0 else ''
-        SpecE_bar_html = bargraph.plot(list(self.search_engine['SpecE'].values()), SpecE_cats, SpecE_pconfig) if len(MSGF_labels) != 0 else ''
+        xcorr_bar_html = bargraph.plot(list(self.search_engine['xcorr'].values()), xcorr_cats, xcorr_pconfig) if self.Comet_label else ''
+        SpecE_bar_html = bargraph.plot(list(self.search_engine['SpecE'].values()), SpecE_cats, SpecE_pconfig) if self.MSGF_label else ''
         
         self.add_section(
             description='''#### Summary of Search Scores
@@ -838,7 +838,7 @@ class QuantMSModule(BaseMultiqcModule):
             consensus_pconfig = {
                 'id': 'consensus_summary',  # ID used for the table
                 'cpswitch': False,
-                'title': 'Number of agreeing search engines per PSM',
+                'title': 'Consensus Across Search Engines',
                 'stacking': True,
                 'height': 256,
                 'tt_percentages': True, 
@@ -1051,7 +1051,7 @@ class QuantMSModule(BaseMultiqcModule):
                 consensus_paths.append(raw_id)
                 self.idx_paths.remove(raw_id)
 
-        MSGF_label, Comet_label = False, False
+        self.MSGF_label, self.Comet_label = False, False
         self.search_engine = {'SpecE': OrderedDict(), 'xcorr': OrderedDict(), 'PEPs': OrderedDict(),
                               'consensus_support': OrderedDict(), 'data_label': OrderedDict()}
         SpecE_label, xcorr_label, PEPs_label, consensus_label = [], [], [], []
@@ -1096,7 +1096,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             if search_engine == "MSGF+" or "msgf" in raw_id:
                 mzml_table[mzML_name]['MSGF'] = identified_num
-                MSGF_label = True
+                self.MSGF_label = True
                 SpecE_label.append({'name': raw_id, 'ylab': 'Counts'})
                 PEPs_label.append({'name': raw_id, 'ylab': 'Counts'})
                 for peptide_id in peptide_ids:
@@ -1113,7 +1113,7 @@ class QuantMSModule(BaseMultiqcModule):
                 self.search_engine['PEPs'][raw_id] = PEP.dict['data']
 
             elif search_engine == "Comet" or "comet" in raw_id:
-                Comet_label = True
+                self.Comet_label = True
                 mzml_table[mzML_name]['Comet'] = identified_num
                 xcorr_label.append({'name': raw_id, 'ylab': 'Counts'})
                 PEPs_label.append({'name': raw_id, 'ylab': 'Counts'})
@@ -1135,7 +1135,6 @@ class QuantMSModule(BaseMultiqcModule):
             mzml_table[mzML_name]['num_quant_psms'] = self.mL_spec_ident_final[mzML_name]
             mzml_table[mzML_name]['num_quant_peps'] = len(self.mzml_peptide_map[mzML_name])
         
-        search_engine_num = np.sum(np.array([MSGF_label, Comet_label]) != 0)
         for raw_id in consensus_paths:
             log.info("Parsing consensus file {}...".format(raw_id))
             protein_ids = []
@@ -1148,11 +1147,11 @@ class QuantMSModule(BaseMultiqcModule):
             for peptide_id in peptide_ids:
                 for hit in peptide_id.getHits():
                     support = hit.getMetaValue("consensus_support")
-                    Consensus_support.addValue(int(support * search_engine_num), stack = hit.getMetaValue("target_decoy"))
+                    Consensus_support.addValue(support, stack = hit.getMetaValue("target_decoy"))
             Consensus_support.to_dict()
 
             for i in Consensus_support.dict['data'].keys():
-                self.search_engine['consensus_support'][raw_id][str(i)] = Consensus_support.dict['data'][i]
+                self.search_engine['consensus_support'][raw_id][i] = Consensus_support.dict['data'][i]
 
         self.search_engine['data_label'] = {'score_label': [SpecE_label, xcorr_label], 'PEPs_label': PEPs_label, 'consensus_label': consensus_label}
 
