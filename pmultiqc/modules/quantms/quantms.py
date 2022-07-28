@@ -759,7 +759,7 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_search_engine(self):
         # Add a report section with multiple histograms
         self.add_section(
-            name="Summary of Search Engine",
+            name="Summary of Search Engine Scores",
             anchor="search_engine_summary",
             description='These plots contain search scores and PEPs counts for different search engines in different files, '
                         'and they also contain a summary of the consensus PSMs if two or more search engines are used',
