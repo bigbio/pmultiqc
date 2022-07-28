@@ -710,7 +710,7 @@ class QuantMSModule(BaseMultiqcModule):
             lineconfig = {
                 # Building the plot
                 'id': 'delta_mass',  # HTML ID used for plot
-                "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}",
+                "tt_label": "<b>{point.x} Delta mass error:</b> {point.y}",
                 # Plot configuration
                 'title': 'Delta m/z',  # Plot title - should be in format "Module Name: Plot Title"
                 'xlab': 'Experimental m/z - Theoretical m/z',  # X axis label
