@@ -1103,7 +1103,7 @@ class QuantMSModule(BaseMultiqcModule):
                     for hit in peptide_id.getHits():
                         spec_e = hit.getMetaValue("SpecEvalue-score") if hit.getMetaValue("SpecEvalue-score") else hit.getMetaValue("MS:1002052")
                         logSpecE = - math.log(spec_e, 10)
-                        pep = hit.getMetaValue("MS:1001493") if hit.getMetaValue("MS:1001493") else 0
+                        pep = hit.getMetaValue("MS:1001493") if hit.getMetaValue("MS:1001493") else hit.getScore()
                         SpecE.addValue(logSpecE, stack = hit.getMetaValue("target_decoy"))
                         PEP.addValue(pep, stack = hit.getMetaValue("target_decoy"))
 
@@ -1120,7 +1120,7 @@ class QuantMSModule(BaseMultiqcModule):
                 for peptide_id in peptide_ids:
                     for hit in peptide_id.getHits():
                         xcorr = hit.getMetaValue("MS:1002252")
-                        pep = hit.getMetaValue("MS:1001493") if hit.getMetaValue("MS:1001493") else 0
+                        pep = hit.getMetaValue("MS:1001493") if hit.getMetaValue("MS:1001493") else hit.getScore()
                         Xcorr.addValue(xcorr, stack = hit.getMetaValue("target_decoy"))
                         PEP.addValue(pep, stack = hit.getMetaValue("target_decoy"))
 
