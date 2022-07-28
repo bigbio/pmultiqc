@@ -762,7 +762,7 @@ class QuantMSModule(BaseMultiqcModule):
             name="Summary of Search Engine",
             anchor="search_engine_summary",
             description='These plots contain search scores and PEPs counts for different search engines in different files, '
-                        'and they also contain a summary of the consensus PSMs if two search engines are used',
+                        'and they also contain a summary of the consensus PSMs if two or more search engines are used',
             helptext='''
                         This statistic is extracted from idXML files. 
                     '''
@@ -838,7 +838,7 @@ class QuantMSModule(BaseMultiqcModule):
             consensus_pconfig = {
                 'id': 'consensus_summary',  # ID used for the table
                 'cpswitch': False,
-                'title': 'Summary of consensus PSMs',
+                'title': 'Number of agreeing search engines per PSM',
                 'stacking': True,
                 'height': 256,
                 'tt_percentages': True, 
@@ -1045,12 +1045,19 @@ class QuantMSModule(BaseMultiqcModule):
         return mzml_table
 
     def parse_idxml(self, mzml_table):
+        consensus_paths = []
+        for raw_id in self.idx_paths:
+            if "consensus" in os.path.split(raw_id)[1]:
+                consensus_paths.append(raw_id)
+                self.idx_paths.remove(raw_id)
+
+        MSGF_label, Comet_label = False, False
         self.search_engine = {'SpecE': OrderedDict(), 'xcorr': OrderedDict(), 'PEPs': OrderedDict(),
                               'consensus_support': OrderedDict(), 'data_label': OrderedDict()}
         SpecE_label, xcorr_label, PEPs_label, consensus_label = [], [], [], []
 
         for raw_id in self.idx_paths:
-            log.info("Parsing {}...".format(raw_id))
+            log.info("Parsing search result file {}...".format(raw_id))
             protein_ids = []
             peptide_ids = []
             IdXMLFile().load(raw_id, protein_ids, peptide_ids)
@@ -1089,6 +1096,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             if search_engine == "MSGF+" or "msgf" in raw_id:
                 mzml_table[mzML_name]['MSGF'] = identified_num
+                MSGF_label = True
                 SpecE_label.append({'name': raw_id, 'ylab': 'Counts'})
                 PEPs_label.append({'name': raw_id, 'ylab': 'Counts'})
                 for peptide_id in peptide_ids:
@@ -1105,6 +1113,7 @@ class QuantMSModule(BaseMultiqcModule):
                 self.search_engine['PEPs'][raw_id] = PEP.dict['data']
 
             elif search_engine == "Comet" or "comet" in raw_id:
+                Comet_label = True
                 mzml_table[mzML_name]['Comet'] = identified_num
                 xcorr_label.append({'name': raw_id, 'ylab': 'Counts'})
                 PEPs_label.append({'name': raw_id, 'ylab': 'Counts'})
@@ -1119,24 +1128,31 @@ class QuantMSModule(BaseMultiqcModule):
                 PEP.to_dict()
                 self.search_engine['xcorr'][raw_id] = Xcorr.dict['data']
                 self.search_engine['PEPs'][raw_id] = PEP.dict['data']
-                
-            elif "consensus" in raw_id:
-                consensus_label.append({'name': raw_id, 'ylab': 'Counts'})
-                self.search_engine['consensus_support'][raw_id] = OrderedDict()
-
-                for peptide_id in peptide_ids:
-                    for hit in peptide_id.getHits():
-                        support = hit.getMetaValue("consensus_support")
-                        Consensus_support.addValue(support, stack = hit.getMetaValue("target_decoy"))
-                Consensus_support.to_dict()
-                self.search_engine['consensus_support'][raw_id] = {'Consensus_PSMs': Consensus_support.dict['data'][1.0],
-                                                                   'Non-consensus_PSMs': Consensus_support.dict['data'][0.0]}
 
             else:
                 mzml_table[mzML_name][search_engine] = identified_num
 
             mzml_table[mzML_name]['num_quant_psms'] = self.mL_spec_ident_final[mzML_name]
             mzml_table[mzML_name]['num_quant_peps'] = len(self.mzml_peptide_map[mzML_name])
+        
+        search_engine_num = np.sum(np.array([MSGF_label, Comet_label]) != 0)
+        for raw_id in consensus_paths:
+            log.info("Parsing consensus file {}...".format(raw_id))
+            protein_ids = []
+            peptide_ids = []
+            IdXMLFile().load(raw_id, protein_ids, peptide_ids)
+            raw_id = os.path.basename(raw_id)
+            consensus_label.append({'name': raw_id, 'ylab': 'Counts'})
+            self.search_engine['consensus_support'][raw_id] = OrderedDict()
+
+            for peptide_id in peptide_ids:
+                for hit in peptide_id.getHits():
+                    support = hit.getMetaValue("consensus_support")
+                    Consensus_support.addValue(int(support * search_engine_num), stack = hit.getMetaValue("target_decoy"))
+            Consensus_support.to_dict()
+
+            for i in Consensus_support.dict['data'].keys():
+                self.search_engine['consensus_support'][raw_id][str(i)] = Consensus_support.dict['data'][i]
 
         self.search_engine['data_label'] = {'score_label': [SpecE_label, xcorr_label], 'PEPs_label': PEPs_label, 'consensus_label': consensus_label}
 
