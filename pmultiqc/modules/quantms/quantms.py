@@ -98,6 +98,10 @@ class QuantMSModule(BaseMultiqcModule):
         self.identified_spectrum = dict()
         self.pep_quant_table = dict()
         self.mzml_table = OrderedDict()
+        self.search_engine = OrderedDict()
+        self.XCORR_HIST_RANGE = {'start': 0, 'end': 5, 'step': 0.1}
+        self.SPECEVALUE_HIST_RANGE = {'start': 0, 'end': 20, 'step': 0.4}
+        self.PEP_HIST_RANGE = {'start': 0, 'end': 1, 'step': 0.02}
         self.total_ms2_spectra = 0
         self.Total_ms2_Spectral_Identified = 0
         self.Total_Peptide_Count = 0
@@ -166,6 +170,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.draw_peak_intensity_distribution()
             self.draw_oversampling()
             self.draw_delta_mass()
+            self.draw_search_engine()
 
         # TODO what if multiple are found??
         for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
@@ -705,7 +710,7 @@ class QuantMSModule(BaseMultiqcModule):
             lineconfig = {
                 # Building the plot
                 'id': 'delta_mass',  # HTML ID used for plot
-                "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}",
+                "tt_label": "<b>{point.x} Delta mass error:</b> {point.y}",
                 # Plot configuration
                 'title': 'Delta m/z',  # Plot title - should be in format "Module Name: Plot Title"
                 'xlab': 'Experimental m/z - Theoretical m/z',  # X axis label
@@ -750,6 +755,119 @@ class QuantMSModule(BaseMultiqcModule):
                     ''',
             plot=line_html
         )
+    
+    def draw_search_engine(self):
+        # Add a report section with multiple histograms
+        self.add_section(
+            name="Summary of Search Engine Scores",
+            anchor="search_engine_summary",
+            description='These plots contain search scores and PEPs counts for different search engines in different files, '
+                        'and they also contain a summary of the consensus PSMs if two or more search engines are used',
+            helptext='''
+                        This statistic is extracted from idXML files. 
+                    '''
+        )
+        # Create scores summary plot
+        [MSGF_labels, Comet_labels] = self.search_engine['data_label']['score_label']
+        SpecE_pconfig = {
+            'id': 'search_scores_summary',  # ID used for the table
+            'cpswitch': False,
+            'title': 'Summary of Spectral E-values',
+            'xlab': 'MSGF -lg(SpecEvalue) ranges',
+            'stacking': True,
+            'height': 800,
+            'tt_percentages': True, 
+            'tt_decimals': 0,
+            'data_labels': MSGF_labels,
+        }
+
+        xcorr_pconfig = {
+            'id': 'search_scores_summary',  # ID used for the table
+            'cpswitch': False,
+            'title': 'Summary of cross-correlation scores',
+            'xlab': 'Comet xcorr ranges',
+            'stacking': True,
+            'height': 800,
+            'tt_percentages': True, 
+            'tt_decimals': 0,
+            'data_labels': Comet_labels,
+        }
+
+        bar_cats = OrderedDict()
+        bar_cats['target'] = {'name': 'target', 'color': '#2b908f'}
+        bar_cats['decoy'] = {'name': 'decoy', 'color': '#90ed7d'}
+        bar_cats['target+decoy'] = {'name': 'target+decoy', 'color': '#434348'}
+
+        SpecE_cats = [bar_cats] * len(self.search_engine['SpecE'])
+        xcorr_cats = [bar_cats] * len(self.search_engine['xcorr'])
+        PEP_cats = [bar_cats] * len(self.search_engine['PEPs'])
+
+        xcorr_bar_html = bargraph.plot(list(self.search_engine['xcorr'].values()), xcorr_cats, xcorr_pconfig) if self.Comet_label else ''
+        SpecE_bar_html = bargraph.plot(list(self.search_engine['SpecE'].values()), SpecE_cats, SpecE_pconfig) if self.MSGF_label else ''
+        
+        self.add_section(
+            description='''#### Summary of Search Scores
+            * SpecEvalue : Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
+            * xcorr : cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
+            ''',
+            plot=xcorr_bar_html + SpecE_bar_html
+        )
+        # Create PEPs summary plot
+        PEP_pconfig = {
+            'id': 'search_engine_PEP',  # ID used for the table
+            'cpswitch': False,
+            'title': 'Summary of Search Engine PEP',
+            'xlab': 'PEP ranges',
+            'stacking': True,
+            'height': 800,
+            'tt_percentages': True, 
+            'tt_decimals': 0,
+            'data_labels': self.search_engine['data_label']['PEPs_label'],
+        }
+
+        PEP_bar_html = bargraph.plot(list(self.search_engine['PEPs'].values()), PEP_cats, PEP_pconfig)
+        
+        self.add_section(
+            description='''#### Summary of Posterior Error Probabilities
+            * PEP : Posterior Error Probability
+            ''',
+            plot=PEP_bar_html
+        )
+        # Create identified number plot
+        if len(self.search_engine['data_label']['consensus_label']) != 0:
+            consensus_pconfig = {
+                'id': 'consensus_summary',  # ID used for the table
+                'cpswitch': False,
+                'title': 'Consensus Across Search Engines',
+                'stacking': True,
+                'height': 256,
+                'tt_percentages': True, 
+                'tt_decimals': 0,
+                'data_labels': self.search_engine['data_label']['consensus_label'],
+            }
+            consensus_bar_html = bargraph.plot(list(self.search_engine['consensus_support'].values()), PEP_cats, consensus_pconfig)
+            
+            self.add_section(
+                description='''#### Summary of consensus support for PSMs
+                Consensus support is a measure of agreement between search engines. Every peptide
+                sequence in the analysis has been identified by at least one search run. The consensus
+                support defines which fraction (between 0 and 1) of the remaining search runs "supported"
+                a peptide identification that was kept. The meaning of "support" differs slightly between
+                algorithms: For best, worst, average and rank, each search run supports peptides that it has
+                also identified among its top considered_hits candidates. So the "consensus support" simply
+                gives the fraction of additional search engines that have identified a peptide. (For example, if
+                there are three search runs, peptides identified by two of them will have a "support" of 0.5.)
+                For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide is the
+                average similarity of the most-similar peptide from each (other) search run.
+                            ''',
+                plot=consensus_bar_html
+            )
+        else:
+            self.add_section(
+                description='''#### Summary of consensus PSMs
+                No Consensus PSMs data because of single search engine！
+                '''
+            )
 
     def CalHeatMapScore(self):
         log.info("Calculating Heatmap Scores...")
@@ -937,8 +1055,19 @@ class QuantMSModule(BaseMultiqcModule):
         return mzml_table
 
     def parse_idxml(self, mzml_table):
+        consensus_paths = []
         for raw_id in self.idx_paths:
-            log.info("Parsing {}...".format(raw_id))
+            if "consensus" in os.path.split(raw_id)[1]:
+                consensus_paths.append(raw_id)
+                self.idx_paths.remove(raw_id)
+
+        self.MSGF_label, self.Comet_label = False, False
+        self.search_engine = {'SpecE': OrderedDict(), 'xcorr': OrderedDict(), 'PEPs': OrderedDict(),
+                              'consensus_support': OrderedDict(), 'data_label': OrderedDict()}
+        SpecE_label, xcorr_label, PEPs_label, consensus_label = [], [], [], []
+
+        for raw_id in self.idx_paths:
+            log.info("Parsing search result file {}...".format(raw_id))
             protein_ids = []
             peptide_ids = []
             IdXMLFile().load(raw_id, protein_ids, peptide_ids)
@@ -953,15 +1082,88 @@ class QuantMSModule(BaseMultiqcModule):
             ## TODO make clear if this is before or after first step of filtering
             mzML_name = os.path.basename(protein_ids[0].getMetaValue("spectra_data")[0].decode("UTF-8"))
             search_engine = protein_ids[0].getSearchEngine()
+
+            self.search_engine['SpecE'][raw_id] = OrderedDict()
+            self.search_engine['xcorr'][raw_id] = OrderedDict()
+            self.search_engine['PEPs'][raw_id] = OrderedDict()
+
+            xcorr_breaks = list(np.arange(
+                self.XCORR_HIST_RANGE['start'], self.XCORR_HIST_RANGE['end'] + self.XCORR_HIST_RANGE['step'], self.XCORR_HIST_RANGE['step']).round(2))
+
+            SpecE_breaks = list(np.arange(
+                self.SPECEVALUE_HIST_RANGE['start'], self.SPECEVALUE_HIST_RANGE['end'] + self.SPECEVALUE_HIST_RANGE['step'], self.SPECEVALUE_HIST_RANGE['step']).round(2))
+            SpecE_breaks.append(float('inf'))
+            SpecE_breaks.sort()
+
+            PEP_breaks = list(np.arange(
+                self.PEP_HIST_RANGE['start'], self.PEP_HIST_RANGE['end'] + self.PEP_HIST_RANGE['step'], self.PEP_HIST_RANGE['step']).round(2))
+
+            bar_stacks = ['target', 'decoy', 'target+decoy']
+            Xcorr = Histogram('Comet cross-correlation score', plot_category = 'range', stacks = bar_stacks, breaks = xcorr_breaks)
+            SpecE = Histogram('MSGF spectral E-value', plot_category = 'range', stacks = bar_stacks, breaks = SpecE_breaks)
+            PEP = Histogram('Posterior error probability', plot_category = 'range', stacks = bar_stacks, breaks = PEP_breaks)
+            Consensus_support = Histogram('Consensus PSM number', plot_category = 'frequency', stacks = bar_stacks)
+
             if search_engine == "MSGF+" or "msgf" in raw_id:
                 mzml_table[mzML_name]['MSGF'] = identified_num
+                self.MSGF_label = True
+                SpecE_label.append({'name': raw_id, 'ylab': 'Counts'})
+                PEPs_label.append({'name': raw_id, 'ylab': 'Counts'})
+                for peptide_id in peptide_ids:
+                    for hit in peptide_id.getHits():
+                        spec_e = hit.getMetaValue("SpecEvalue-score") if hit.getMetaValue("SpecEvalue-score") else hit.getMetaValue("MS:1002052")
+                        logSpecE = - math.log(spec_e, 10)
+                        pep = hit.getMetaValue("MS:1001493") if hit.getMetaValue("MS:1001493") else hit.getScore()
+                        SpecE.addValue(logSpecE, stack = hit.getMetaValue("target_decoy"))
+                        PEP.addValue(pep, stack = hit.getMetaValue("target_decoy"))
+
+                SpecE.to_dict()
+                PEP.to_dict()
+                self.search_engine['SpecE'][raw_id] = SpecE.dict['data']
+                self.search_engine['PEPs'][raw_id] = PEP.dict['data']
+
             elif search_engine == "Comet" or "comet" in raw_id:
+                self.Comet_label = True
                 mzml_table[mzML_name]['Comet'] = identified_num
+                xcorr_label.append({'name': raw_id, 'ylab': 'Counts'})
+                PEPs_label.append({'name': raw_id, 'ylab': 'Counts'})
+                for peptide_id in peptide_ids:
+                    for hit in peptide_id.getHits():
+                        xcorr = hit.getMetaValue("MS:1002252")
+                        pep = hit.getMetaValue("MS:1001493") if hit.getMetaValue("MS:1001493") else hit.getScore()
+                        Xcorr.addValue(xcorr, stack = hit.getMetaValue("target_decoy"))
+                        PEP.addValue(pep, stack = hit.getMetaValue("target_decoy"))
+
+                Xcorr.to_dict()
+                PEP.to_dict()
+                self.search_engine['xcorr'][raw_id] = Xcorr.dict['data']
+                self.search_engine['PEPs'][raw_id] = PEP.dict['data']
+
             else:
                 mzml_table[mzML_name][search_engine] = identified_num
 
             mzml_table[mzML_name]['num_quant_psms'] = self.mL_spec_ident_final[mzML_name]
             mzml_table[mzML_name]['num_quant_peps'] = len(self.mzml_peptide_map[mzML_name])
+        
+        for raw_id in consensus_paths:
+            log.info("Parsing consensus file {}...".format(raw_id))
+            protein_ids = []
+            peptide_ids = []
+            IdXMLFile().load(raw_id, protein_ids, peptide_ids)
+            raw_id = os.path.basename(raw_id)
+            consensus_label.append({'name': raw_id, 'ylab': 'Counts'})
+            self.search_engine['consensus_support'][raw_id] = OrderedDict()
+
+            for peptide_id in peptide_ids:
+                for hit in peptide_id.getHits():
+                    support = hit.getMetaValue("consensus_support")
+                    Consensus_support.addValue(support, stack = hit.getMetaValue("target_decoy"))
+            Consensus_support.to_dict()
+
+            for i in Consensus_support.dict['data'].keys():
+                self.search_engine['consensus_support'][raw_id][i] = Consensus_support.dict['data'][i]
+
+        self.search_engine['data_label'] = {'score_label': [SpecE_label, xcorr_label], 'PEPs_label': PEPs_label, 'consensus_label': consensus_label}
 
         # mzml file sorted based on experimental file
         for mzML_name in self.exp_design_table.keys():
@@ -1033,7 +1235,6 @@ class QuantMSModule(BaseMultiqcModule):
         counts_per_acc.apply(self.pep_plot.addValue)
         #for c in counts_per_acc:
         #    self.pep_plot.addValue(c)
-
         categories = OrderedDict()
         categories['Frequency'] = {
             'name': 'Frequency',
@@ -1406,22 +1607,26 @@ class QuantMSModule(BaseMultiqcModule):
         msstats_data_pep_agg = msstats_data.groupby(["PeptideSequence"]).apply(getIntyAcrossBioRepsAsStr)#.unstack()
         ## TODO Can we guarantee that the score was always PEP? I don't think so!
         msstats_data_pep_agg["BestSearchScore"] = 1 - msstats_data_pep_agg.index.map(self.peptide_search_score)
+        msstats_data_pep_agg.reset_index(inplace=True)
+        msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
+        # msstats_data_pep_agg["PeptideSequence"] = msstats_data_pep_agg.apply(lambda x: mod_name2accession(UnimodDatabase(), x["PeptideSequence"]), axis = 1)
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict('index')
         msstats_data_dict_pep_init = dict(itertools.islice(msstats_data_dict_pep_full.items(), 50))
-        msstats_data_pep_agg.reset_index(inplace=True)
 
 
-        cur.execute("CREATE TABLE PEPQUANT(PeptideSequence VARCHAR(100) PRIMARY KEY, ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), \"Average Intensity\" FLOAT(4,3))")
+        cur.execute("CREATE TABLE PEPQUANT(PeptideID INT(100) PRIMARY KEY, PeptideSequence VARCHAR(100), ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), \"Average Intensity\" FLOAT(4,3))")
         con.commit()
-        sql_col = "PeptideSequence,ProteinName,BestSearchScore, \"Average Intensity\""
-        sql_t = "(" + ','.join(['?'] * (len(conditions) *2 + 4)) + ")"
+        sql_col = "PeptideID,PeptideSequence,ProteinName,BestSearchScore, \"Average Intensity\""
+        sql_t = "(" + ','.join(['?'] * (len(conditions) *2 + 5)) + ")"
 
         headers = OrderedDict()
-        headers = { #'PeptideSequence': {'name': 'PeptideSequence'}, # this is the index
-            'ProteinName': {'name': 'ProteinName'},
-            'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'},
-            'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
+        headers = { #'PeptideID': {'name': 'PeptideID'}, # this is the index
+                    'PeptideSequence': {'name': 'PeptideSequence'}, 
+                    'ProteinName': {'name': 'ProteinName'},
+                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'},
+                    'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
 
+        
         for s in conditions:
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" VARCHAR")
             con.commit()
@@ -1435,11 +1640,12 @@ class QuantMSModule(BaseMultiqcModule):
             # we need a thousandsSep_format otherwise commas will be replaced
             headers[str(s)] = {'name': s, 'thousandsSep_format': ','}
 
-        # PeptideSequence is index
-        all_term = ["ProteinName", "BestSearchScore", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
+        # PeptideID is index
+        all_term = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
         cur.executemany("INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
                         [(k, *itemgetter(*all_term)(v)) for k,v in msstats_data_dict_pep_full.items()])
         con.commit()
+
 
         pconfig = {
             'id': 'quantification_of_peptides',  # ID used for the table
@@ -1449,7 +1655,7 @@ class QuantMSModule(BaseMultiqcModule):
             'raw_data_fn': 'multiqc_quantification_of_peptides_table',  # File basename to use for raw data file
             'sortRows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
-            'col1_header': 'PeptideSequence',
+            'col1_header': 'PeptideID',
             'thousandsSep_format': ",",
             'no_beeswarm': True,
             'shared_key': None
@@ -1462,7 +1668,7 @@ class QuantMSModule(BaseMultiqcModule):
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
                                     'onkeyup="searchQuantFunction()" id="quant_search">' \
                                     '<select name="quant_search_col" id="quant_search_col">'
-        for key in ["ProteinName", "PeptideSequence"]:
+        for key in ["ProteinName", "PeptideSequence", "PeptideID"]:
             t_html += '<option>' + key + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' \
@@ -1515,17 +1721,24 @@ class QuantMSModule(BaseMultiqcModule):
         msstats_data_prot = msstats_data_pep_agg.groupby("ProteinName").agg(agg_funs)#.reset_index()
         del(msstats_data_pep_agg)
         msstats_data_prot.rename(columns={"PeptideSequence": "Peptides_Number"},inplace=True)
+        msstats_data_prot.reset_index(inplace=True)
+        msstats_data_prot.index = msstats_data_prot.index + 1
         msstats_data_dict_prot_full = msstats_data_prot.to_dict('index')
 
         msstats_data_dict_prot_init = dict(itertools.islice(msstats_data_dict_prot_full.items(), 50))
 
         headers = OrderedDict()
         # This will be the rowheader/index
-        #headers['ProteinName'] = {
-        #    'name': 'Protein Name',
-        #    'description': 'Name/Identifier(s) of the protein (group)',
+        # headers['ProteinID'] = {
+        #    'name': 'Protein ID',
+        #    'description': 'Count(s) of the protein (group)',
         #    'format': '{:,.0f}'
-        #}
+        # }
+        headers['ProteinName'] = {
+           'name': 'Protein Name',
+           'description': 'Name/Identifier(s) of the protein (group)',
+           'format': '{:,.0f}'
+        }
         headers['Peptides_Number'] = {
             'name': 'Number of Peptides',
             'description': 'Number of peptides per proteins',
@@ -1534,14 +1747,14 @@ class QuantMSModule(BaseMultiqcModule):
         headers['Average Intensity'] = {
             'name': 'Average Intensity',
             'description': 'Average intensity across all conditions',
-            'format': '{:,.3f}'
+            'format': '{:,.0f}'
         }
 
         # upload protein table to sqlite database
-        cur.execute("CREATE TABLE PROTQUANT(ProteinName VARCHAR(100), Peptides_Number INT(100), \"Average Intensity\" VARCHAR)")
+        cur.execute("CREATE TABLE PROTQUANT(ProteinID INT(100), ProteinName VARCHAR(100), Peptides_Number INT(100), \"Average Intensity\" VARCHAR)")
         con.commit()
-        sql_col = "ProteinName,Peptides_Number,\"Average Intensity\""
-        sql_t = "(" + ','.join(['?'] * (len(conditions)*2 + 3)) + ")"
+        sql_col = "ProteinID,ProteinName,Peptides_Number,\"Average Intensity\""
+        sql_t = "(" + ','.join(['?'] * (len(conditions)*2 + 4)) + ")"
 
         for s in conditions:
             cur.execute("ALTER TABLE PROTQUANT ADD \"" + str(s) + "\" VARCHAR")
@@ -1555,8 +1768,8 @@ class QuantMSModule(BaseMultiqcModule):
             sql_col += ", \"" + s + "\""
             headers[str(s)] = {'name': s}
 
-        # ProteinName is index
-        all_term = ["Peptides_Number", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
+        # ProteinID is index
+        all_term = ["ProteinName", "Peptides_Number", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
         cur.executemany("INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
         [(k, *itemgetter(*all_term)(v)) for k,v in msstats_data_dict_prot_full.items()])
         con.commit()
@@ -1569,7 +1782,7 @@ class QuantMSModule(BaseMultiqcModule):
             'raw_data_fn': 'multiqc_quantification_of_protein_table',  # File basename to use for raw data file
             'sortRows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
-            'col1_header': 'ProteinName',
+            'col1_header': 'ProteinID',
             'format': '{:,.5f}',
             'no_beeswarm': True
         }
@@ -1580,7 +1793,7 @@ class QuantMSModule(BaseMultiqcModule):
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
                                     'onkeyup="searchProtFunction()" id="prot_search">' \
                                     '<select name="prot_search_col" id="prot_search_col">'
-        for key in ["ProteinName"]:
+        for key in ["ProteinName", "Peptides_Number", "ProteinID"]:
             t_html += '<option>' + key + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' \
