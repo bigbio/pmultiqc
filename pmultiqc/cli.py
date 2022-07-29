@@ -7,6 +7,7 @@ See the Click documentation for more command line flag types:
 http://click.pocoo.org/5/
 """
 
+from email.policy import default
 import click
 from multiqc.utils import config
 
@@ -29,7 +30,7 @@ contaminant_affix = click.option('--contaminant_affix', 'contaminant_affix', def
 quantification_method = click.option('--quantification_method', 'quantification_method', default='feature_intensity',
                             help="The quantification method for LFQ experiment (default: feature_intensity)",
                             type=click.Choice(['feature_intensity', 'spectral_counting']))
-
+disable_table = click.option('--disable_table', 'disable_table', is_flag=True, help="disable protein/peptide table plots for large dataset")
 affix_type = click.option('--affix_type', 'affix_type', default='prefix',
                             help='Prefix (default) or suffix')
 disable_plugin = click.option('--disable_plugin', 'disable_plugin', is_flag=True,

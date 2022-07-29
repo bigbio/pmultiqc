@@ -173,44 +173,47 @@ class QuantMSModule(BaseMultiqcModule):
             self.draw_search_engine()
 
         # TODO what if multiple are found??
-        for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
-            self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
-            self.msstats_input_valid = True
-            self.parse_msstats_input()
+        if config.kwargs.get('disable_table', True):
+            log.info("Skip protein/peptide table plot!")
+        else:
+            for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
+                self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
+                self.msstats_input_valid = True
+                self.parse_msstats_input()
 
-        if config.kwargs["quantification_method"] == "spectral_counting":
-            # Add a report section with psm table plot from mzTab for spectral counting
-            self.add_section(
-                name="Peptide Spectrum Matches",
-                anchor="peptide_spectrum_matches",
-                description='This plot shows the information of peptide spectrum matches',
-                helptext='''
-                        This table shows the information of peptide spectrum matches from mzTab PSM section.
-                        ''',
-                plot=self.psm_table_html
-            )
+            if config.kwargs["quantification_method"] == "spectral_counting":
+                # Add a report section with psm table plot from mzTab for spectral counting
+                self.add_section(
+                    name="Peptide Spectrum Matches",
+                    anchor="peptide_spectrum_matches",
+                    description='This plot shows the information of peptide spectrum matches',
+                    helptext='''
+                            This table shows the information of peptide spectrum matches from mzTab PSM section.
+                            ''',
+                    plot=self.psm_table_html
+                )
 
-        # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
-        # currently only draw protein tabel for spectral counting
-        if not self.msstats_input_valid and config.kwargs["quantification_method"] == "spectral_counting":
-            log.warning("MSstats input file not found!")
-            self.add_section(
-                name="Protein Quantification Table",
-                anchor="protein_quant_result",
-                description='This plot shows the quantification information of proteins'
-                            ' in the final result (mainly the mzTab file).',
-                helptext='''
-                        The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
-                        The table shows the quantitative level and distribution of proteins in different study variables and run.
+            # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
+            # currently only draw protein tabel for spectral counting
+            if not self.msstats_input_valid and config.kwargs["quantification_method"] == "spectral_counting":
+                log.warning("MSstats input file not found!")
+                self.add_section(
+                    name="Protein Quantification Table",
+                    anchor="protein_quant_result",
+                    description='This plot shows the quantification information of proteins'
+                                ' in the final result (mainly the mzTab file).',
+                    helptext='''
+                            The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
+                            The table shows the quantitative level and distribution of proteins in different study variables and run.
 
-                        * Peptides_Number: The number of peptides for each protein.
-                        * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
-                        * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
+                            * Peptides_Number: The number of peptides for each protein.
+                            * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
+                            * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
 
-                        Click `Show replicates` to switch to bar plots of counting in each replicate.
-                        ''',
-                plot=self.protein_quantification_table_html
-            )
+                            Click `Show replicates` to switch to bar plots of counting in each replicate.
+                            ''',
+                    plot=self.protein_quantification_table_html
+                )
 
 
         self.css = {
@@ -1311,7 +1314,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.Total_Peptide_Count = len(set(psm['sequence']))
 
         # draw PSMs table for spectral counting
-        if config.kwargs['quantification_method'] == "spectral_counting":
+        if config.kwargs['quantification_method'] == "spectral_counting" and not config.kwargs.get('disable_table', True):
             mztab_data_psm_full = psm[['sequence', 'accession', 'search_engine_score[1]', 'stand_spectra_ref']]
             mztab_data_psm_full.rename(columns={"sequence": "Sequence", "accession": "Accession", 
                         "search_engine_score[1]": "Search_Engine_Score", "stand_spectra_ref": "Spectra_Ref"},inplace=True)
@@ -1383,7 +1386,7 @@ class QuantMSModule(BaseMultiqcModule):
         # TODO implement the second option no msstats and feature intensity: draw protein quantification from mzTab 
         # in the future with Protein and peptide tables from mzTab.
         # Draw protein table with spectral counting from mzTab file
-        if not self.msstats_input_valid and config.kwargs["quantification_method"] == "spectral_counting":
+        if not self.msstats_input_valid and config.kwargs["quantification_method"] == "spectral_counting" and not config.kwargs.get('disable_table', True):
             mztab_data_dict_prot_full = dict()
             conditions = self.sample_df.drop_duplicates(subset="MSstats_Condition")["MSstats_Condition"].tolist()
 

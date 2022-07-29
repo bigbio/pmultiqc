@@ -51,6 +51,7 @@ setup(
             'decoy_affix = pmultiqc.cli:decoy_affix',
             'contaminant_affix = pmultiqc.cli:contaminant_affix',
             'quantification_method = pmultiqc.cli:quantification_method',
+            'disable_table = pmultiqc.cli:disable_table',
             'affix_type = pmultiqc.cli:affix_type'
         ],
         'multiqc.hooks.v1': [
