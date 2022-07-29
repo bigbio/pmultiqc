@@ -10,22 +10,26 @@ class Histogram:
     :param plot_category: Two ploting types, 'frequency' refers to count the frequency of different 
         data, and 'range' refers to count the frequency of different ranges of data
     :type plot_category: str, optional
+    :param stacks: This list contains the types of stacks that apply to all bars
+    :type stacks: list, optional
     :param breaks: The list of counted values or range intercepts, defaults to None
     :type breaks: list, optional
     '''
     
-    def __init__(self, description, plot_category, breaks = None):
+    def __init__(self, description, plot_category, stacks = None, breaks = None):
         '''Constructor method. This will also create two dictionaries named 'bins' and 'data', which 
         represent the internal composition of the histogram.
         '''
         # Initialise some parameters
         self.description = description
-        self.data = dict()
+        self.data = OrderedDict()
+        self.stacks = stacks
         self.breaks = breaks
         self.bins = []
         self.cats = OrderedDict()
         self.dict = dict()
         self.dict['data'] = dict()
+        self.out_threshold = False
 
         if plot_category == 'frequency':
             self.plot_category = 1
@@ -41,32 +45,49 @@ class Histogram:
             if self.plot_category == 1:
                 self.bins.extend([str(i) for i in range(1, len(breaks))])
             elif self.plot_category == 2:
-                self.bins.extend([(str(breaks[i]) + '-' + str(breaks[i+1]))
+                self.bins.extend([(str(breaks[i]) + ' ~ ' + str(breaks[i+1]))
                                   for i in range(len(breaks) - 1)])
 
-            self.bins.append('>= ' + str(breaks[-1]))
-            for i in self.bins:
-                self.data[i] = 0
+            # Whether to add the last bin to collect the remaining data
+            if breaks[-1] != float('inf'):
+                self.bins.append('>= ' + str(breaks[-1]))
+
+            # Initiate stacks in every bar
+            if stacks and self.plot_category == 2:
+                for i in self.bins:
+                    self.data[i] = dict.fromkeys(stacks, 0)
+            else:
+                for i in self.bins:
+                    self.data[i] = {'total': 0}
         else: pass
 
-    def addValue(self, value):
+
+    def addValue(self, value, stack = 'total'):
         '''Update the value of the corresponding bin according to different plotting methods.
 
         :param value: Data to be counted
         :type value: int, optional
+        :param stack: The stack of bars to which the data belongs
+        :type stack: str, optional
         '''
         if self.plot_category == 1:
             if self.breaks:
                 if value < self.threshold:
-                    self.data[str(value)] += 1
+                    self.data[str(value)][stack] += 1
                 else:
-                    self.data[self.bins[-1]] += 1
+                    self.out_threshold = True if value > self.threshold else False
+                    self.data[self.bins[-1]][stack] += 1
+
             else:
-                if value in self.bins:
-                    self.data[value] += 1
+                if str(value) in self.bins:
+                    self.data[value][stack] += 1
                 else:
-                    self.data[value] = 1
-                    self.bins.append(value)
+                    self.bins.append(str(value))
+                    if self.stacks:
+                        self.data[value] = dict.fromkeys(self.stacks, 0)
+                        self.data[value][stack] = 1
+                    else:
+                        self.data[value] = {stack: 1}
 
         elif self.plot_category == 2:
             self.breaks.sort()
@@ -80,10 +101,11 @@ class Histogram:
                         right = mid - 1
                 # Each value in self.breaks is to the left of the range 
                 # e.g. [left, right) in self.bins(same index)
-                self.data[self.bins[left]] += 1
+                self.data[self.bins[left]][stack] += 1
             else:
-                self.data[self.bins[-1]] += 1
-
+                self.out_threshold = True if value > self.threshold else False
+                self.data[self.bins[-1]][stack] += 1
+    
 
     def to_dict(self, percentage = False, cats = None):
         '''Integrate statistical results and the 'cats' dictionary for ploting into a nested dictionary.
@@ -91,11 +113,20 @@ class Histogram:
         :param percentage: `True` if calculate the percentage of data representing each bins, defaults 
             to `False`
         :type percentage: bool, optional
-
         :param cats: A dictionary needed by plotting functions, it contains the name and the description 
             of bins, defaults to None
         :type cats: dict, optional
         '''
+        if not self.stacks:
+            for i in self.data.keys():
+                self.data[i] = self.data[i]['total']
+
+        # Modify the last bin
+        if not self.out_threshold and self.plot_category == 2:
+            last_bin = self.bins[-1]
+            self.bins[-1] = last_bin.strip(">")
+            self.data[last_bin.strip(">")] = self.data.pop(last_bin)
+
         if percentage:
             total = sum(self.data.values())
             self.dict['data']['frequency'] = OrderedDict()
@@ -112,7 +143,7 @@ class Histogram:
 
         # Categorys of bins for ploting functions
         if cats:
-            self.cats = cats
+            self.cats = cats * len(self.bins) if self.stacks else cats
         else:
             for i in self.bins:
                 self.cats[i] = dict()
@@ -123,6 +154,6 @@ class Histogram:
                 elif self.plot_category == 2:
                     self.cats[i]['description'] = self.description + ' ' + \
                         (self.bins[-1] if i == self.bins[-1] else 'is between ' + \
-                        i.split('-')[0] + ' and ' + i.split('-')[1])
+                        i.split(' ~ ')[0] + ' and ' + i.split(' ~ ')[1])
 
         self.dict['cats'] = self.cats
