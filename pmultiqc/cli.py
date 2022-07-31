@@ -7,7 +7,6 @@ See the Click documentation for more command line flag types:
 http://click.pocoo.org/5/
 """
 
-from email.policy import default
 import click
 from multiqc.utils import config
 
