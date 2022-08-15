@@ -1188,7 +1188,7 @@ class QuantMSModule(BaseMultiqcModule):
         # Generate "opt_global_cv_MS: 1002217_DECOY_peptide" column if this column is not contained in the PSM subtable
         if "opt_global_cv_MS:1002217_decoy_peptide" not in psm.columns.values:
             psm['opt_global_cv_MS:1002217_decoy_peptide'] = psm.apply(
-                lambda x: 1 if dis_decoy(x['accession']) == 'DECOY' else 0, axis=1)
+                lambda x: 1 if self.dis_decoy(x['accession']) == 'DECOY' else 0, axis=1)
 
         # map to spectrum file name in experimental design file 
         psm['stand_spectra_ref'] = psm.apply(
