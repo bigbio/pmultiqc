@@ -80,14 +80,14 @@ class Histogram:
 
             else:
                 if str(value) in self.bins:
-                    self.data[value][stack] += 1
+                    self.data[str(value)][stack] += 1
                 else:
                     self.bins.append(str(value))
                     if self.stacks:
-                        self.data[value] = dict.fromkeys(self.stacks, 0)
-                        self.data[value][stack] = 1
+                        self.data[str(value)] = dict.fromkeys(self.stacks, 0)
+                        self.data[str(value)][stack] = 1
                     else:
-                        self.data[value] = {stack: 1}
+                        self.data[str(value)] = {stack: 1}
 
         elif self.plot_category == 2:
             self.breaks.sort()

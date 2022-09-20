@@ -8,6 +8,7 @@ import itertools
 from datetime import datetime
 from operator import itemgetter
 import logging
+from unicodedata import category
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc import config
 from multiqc.plots import table, bargraph, linegraph, heatmap
@@ -964,8 +965,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.mzml_peak_distribution_plot = Histogram('Peak Intensity', plot_category='range', breaks=[
             0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000])
 
-        self.mzml_charge_plot = Histogram('Precursor Charge', plot_category='frequency', breaks=[
-            i for i in range(1, 8)])
+        self.mzml_charge_plot = Histogram('Precursor Charge', plot_category='frequency')
 
         self.mzml_peaks_ms2_plot = Histogram('#Peaks per MS/MS spectrum', plot_category='range', breaks=[
             i for i in range(0, 1001, 100)])
@@ -1019,11 +1019,14 @@ class QuantMSModule(BaseMultiqcModule):
             mzml_table[m]['MS2_Num'] = ms2_number
             log.info("{}: Done aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
 
-        self.mzml_charge_plot.to_dict()
         self.mzml_peaks_ms2_plot.to_dict()
         self.mzml_peak_distribution_plot.to_dict()
         # Construct compound dictionaries to apply to drawing functions.
         if self.enable_dia:
+            Whole_chages = OrderedDict(sorted(self.mzml_charge_plot.data.items(), key = lambda x:x[0]))
+            self.mzml_charge_plot.data, self.mzml_charge_plot.bins = Whole_chages, [str(i) for i in Whole_chages.keys()]
+            self.mzml_charge_plot.to_dict()
+
             self.mzml_info['charge_distribution'] = {
                 'Whole Experiment': self.mzml_charge_plot.dict['data']
             }
@@ -1034,9 +1037,18 @@ class QuantMSModule(BaseMultiqcModule):
                 'Whole Experiment': self.mzml_peak_distribution_plot.dict['data']
             }
         else:
-            self.mzml_charge_plot_1.to_dict()
             self.mzml_peaks_ms2_plot_1.to_dict()
             self.mzml_peak_distribution_plot_1.to_dict()
+            identified_charges, unidentified_charges = self.mzml_charge_plot.data, self.mzml_charge_plot_1.data
+            identified_charges.update(dict.fromkeys([i for i in unidentified_charges.keys() if i not in identified_charges.keys()],{'total':0}))
+            unidentified_charges.update(dict.fromkeys([i for i in identified_charges.keys() if i not in unidentified_charges.keys()],{'total':0}))
+            self.mzml_charge_plot.data, self.mzml_charge_plot_1.data = OrderedDict(sorted(identified_charges.items(), key = lambda x:x[0])), \
+                                                                        OrderedDict(sorted(unidentified_charges.items(), key = lambda x:x[0]))
+            self.mzml_charge_plot.bins = [str(i) for i in self.mzml_charge_plot.data.keys()]
+
+            self.mzml_charge_plot.to_dict()
+            self.mzml_charge_plot_1.to_dict()
+
             self.mzml_info['charge_distribution'] = {
                 'identified_spectra': self.mzml_charge_plot.dict['data'],
                 'unidentified_spectra': self.mzml_charge_plot_1.dict['data']
