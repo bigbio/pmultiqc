@@ -852,18 +852,16 @@ class QuantMSModule(BaseMultiqcModule):
             consensus_bar_html = bargraph.plot(list(self.search_engine['consensus_support'].values()), PEP_cats, consensus_pconfig)
             
             self.add_section(
-                description='''#### Summary of consensus support for PSMs
-                Consensus support is a measure of agreement between search engines. Every peptide
-                sequence in the analysis has been identified by at least one search run. The consensus
-                support defines which fraction (between 0 and 1) of the remaining search runs "supported"
-                a peptide identification that was kept. The meaning of "support" differs slightly between
-                algorithms: For best, worst, average and rank, each search run supports peptides that it has
-                also identified among its top considered_hits candidates. So the "consensus support" simply
-                gives the fraction of additional search engines that have identified a peptide. (For example, if
-                there are three search runs, peptides identified by two of them will have a "support" of 0.5.)
-                For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide is the
-                average similarity of the most-similar peptide from each (other) search run.
-                            ''',
+                description='''#### Summary of consensus support for PSMs 
+                Consensus support is a measure of agreement between search engines. Every peptide sequence in the analysis has been 
+                identified by at least one search run. The consensus support defines which fraction (between 0 and 1) of the remaining 
+                search runs "supported" a peptide identification that was kept. The meaning of "support" differs slightly between 
+                algorithms: For best, worst, average and rank, each search run supports peptides that it has also identified among its 
+                top considered_hits candidates. So the "consensus support" simply gives the fraction of additional search engines that 
+                have identified a peptide. (For example, if there are three search runs, peptides identified by two of them will have a 
+                "support" of 0.5.) For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide is the average 
+                similarity of the most-similar peptide from each (other) search run.
+                ''',
                 plot=consensus_bar_html
             )
         else:
@@ -993,8 +991,13 @@ class QuantMSModule(BaseMultiqcModule):
                 elif i.getMSLevel() == 2:
                     ms2_number += 1
                     charge_state = i.getPrecursors()[0].getCharge()
-                    peak_per_ms2 = len(i.get_peaks()[0])
-                    base_peak_intensity = i.getMetaValue("base peak intensity")
+                    peaks_tuple = i.get_peaks()
+                    peak_per_ms2 = len(peaks_tuple[0])
+                    if i.getMetaValue("base peak intensity"):
+                        base_peak_intensity = i.getMetaValue("base peak intensity")
+                    else:
+                        base_peak_intensity = max(peaks_tuple[1]) if peaks_tuple[1] != [] else None
+
                     if charge_state == 2:
                         charge_2 += 1
 
@@ -1023,8 +1026,6 @@ class QuantMSModule(BaseMultiqcModule):
         self.mzml_peak_distribution_plot.to_dict()
         # Construct compound dictionaries to apply to drawing functions.
         if self.enable_dia:
-            Whole_chages = OrderedDict(sorted(self.mzml_charge_plot.data.items(), key = lambda x:x[0]))
-            self.mzml_charge_plot.data, self.mzml_charge_plot.bins = Whole_chages, [str(i) for i in Whole_chages.keys()]
             self.mzml_charge_plot.to_dict()
 
             self.mzml_info['charge_distribution'] = {
@@ -1039,15 +1040,13 @@ class QuantMSModule(BaseMultiqcModule):
         else:
             self.mzml_peaks_ms2_plot_1.to_dict()
             self.mzml_peak_distribution_plot_1.to_dict()
-            identified_charges, unidentified_charges = self.mzml_charge_plot.data, self.mzml_charge_plot_1.data
-            identified_charges.update(dict.fromkeys([i for i in unidentified_charges.keys() if i not in identified_charges.keys()],{'total':0}))
-            unidentified_charges.update(dict.fromkeys([i for i in identified_charges.keys() if i not in unidentified_charges.keys()],{'total':0}))
-            self.mzml_charge_plot.data, self.mzml_charge_plot_1.data = OrderedDict(sorted(identified_charges.items(), key = lambda x:x[0])), \
-                                                                        OrderedDict(sorted(unidentified_charges.items(), key = lambda x:x[0]))
-            self.mzml_charge_plot.bins = [str(i) for i in self.mzml_charge_plot.data.keys()]
-
             self.mzml_charge_plot.to_dict()
             self.mzml_charge_plot_1.to_dict()
+
+            self.mzml_charge_plot.dict["cats"].update(self.mzml_charge_plot_1.dict["cats"])
+            charge_cats_keys = [int(i) for i in self.mzml_charge_plot.dict["cats"]]
+            charge_cats_keys.sort()
+            self.mzml_charge_plot.dict["cats"] = OrderedDict({str(i): self.mzml_charge_plot.dict["cats"][str(i)] for i in charge_cats_keys})
 
             self.mzml_info['charge_distribution'] = {
                 'identified_spectra': self.mzml_charge_plot.dict['data'],
@@ -1237,7 +1236,7 @@ class QuantMSModule(BaseMultiqcModule):
         prot.dropna(how='all', subset=prot_abundance_cols, inplace=True)
         self.Total_Protein_Quantified = len(prot.index)
 
-        self.pep_plot = Histogram('Number of peptides per protein', plot_category='frequency')
+        self.pep_plot = Histogram('Number of peptides per proteins', plot_category='frequency')
 
         # There probably are no shared peptides in the final quant results. We still do it to be safe.
         # There are duplicates peptide-protein mapping in peptide table due to different feature (charge and RT)
