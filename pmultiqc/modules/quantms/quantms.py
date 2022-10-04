@@ -8,7 +8,6 @@ import itertools
 from datetime import datetime
 from operator import itemgetter
 import logging
-from unicodedata import category
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc import config
 from multiqc.plots import table, bargraph, linegraph, heatmap
@@ -145,6 +144,10 @@ class QuantMSModule(BaseMultiqcModule):
         for mzML_file in self.find_log_files("quantms/mzML", filecontents=False):
             self.mzML_paths.append(os.path.join(mzML_file["root"], mzML_file['fn']))
 
+        for mzml_info in self.find_log_files("quantms/mzml_info", filecontents=False):
+            self.mzml_info_path = os.path.join(mzml_info["root"], mzml_info['fn'])
+            self.read_mzml_info = True
+
         mt = self.parse_mzml()
         self.idx_paths = []
         for idx_file in self.find_log_files("quantms/idXML", filecontents=False):
@@ -174,47 +177,47 @@ class QuantMSModule(BaseMultiqcModule):
             self.draw_search_engine()
 
         # TODO what if multiple are found??
-        if config.kwargs.get('disable_table', True):
-            log.info("Skip protein/peptide table plot!")
-        else:
-            for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
-                self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
-                self.msstats_input_valid = True
-                self.parse_msstats_input()
+        # if config.kwargs.get('disable_table', True):
+        #     log.info("Skip protein/peptide table plot!")
+        # else:
+        for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
+            self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
+            self.msstats_input_valid = True
+            self.parse_msstats_input()
 
-            if config.kwargs["quantification_method"] == "spectral_counting":
-                # Add a report section with psm table plot from mzTab for spectral counting
-                self.add_section(
-                    name="Peptide Spectrum Matches",
-                    anchor="peptide_spectrum_matches",
-                    description='This plot shows the information of peptide spectrum matches',
-                    helptext='''
-                            This table shows the information of peptide spectrum matches from mzTab PSM section.
-                            ''',
-                    plot=self.psm_table_html
-                )
+        if config.kwargs["quantification_method"] == "spectral_counting":
+            # Add a report section with psm table plot from mzTab for spectral counting
+            self.add_section(
+                name="Peptide Spectrum Matches",
+                anchor="peptide_spectrum_matches",
+                description='This plot shows the information of peptide spectrum matches',
+                helptext='''
+                        This table shows the information of peptide spectrum matches from mzTab PSM section.
+                        ''',
+                plot=self.psm_table_html
+            )
 
-            # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
-            # currently only draw protein tabel for spectral counting
-            if not self.msstats_input_valid and config.kwargs["quantification_method"] == "spectral_counting":
-                log.warning("MSstats input file not found!")
-                self.add_section(
-                    name="Protein Quantification Table",
-                    anchor="protein_quant_result",
-                    description='This plot shows the quantification information of proteins'
-                                ' in the final result (mainly the mzTab file).',
-                    helptext='''
-                            The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
-                            The table shows the quantitative level and distribution of proteins in different study variables and run.
+        # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
+        # currently only draw protein tabel for spectral counting
+        if not self.msstats_input_valid and config.kwargs["quantification_method"] == "spectral_counting":
+            log.warning("MSstats input file not found!")
+            self.add_section(
+                name="Protein Quantification Table",
+                anchor="protein_quant_result",
+                description='This plot shows the quantification information of proteins'
+                            ' in the final result (mainly the mzTab file).',
+                helptext='''
+                        The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
+                        The table shows the quantitative level and distribution of proteins in different study variables and run.
 
-                            * Peptides_Number: The number of peptides for each protein.
-                            * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
-                            * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
+                        * Peptides_Number: The number of peptides for each protein.
+                        * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
+                        * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
 
-                            Click `Show replicates` to switch to bar plots of counting in each replicate.
-                            ''',
-                    plot=self.protein_quantification_table_html
-                )
+                        Click `Show replicates` to switch to bar plots of counting in each replicate.
+                        ''',
+                plot=self.protein_quantification_table_html
+            )
 
 
         self.css = {
@@ -779,7 +782,7 @@ class QuantMSModule(BaseMultiqcModule):
             'title': 'Summary of Spectral E-values',
             'xlab': 'MSGF -lg(SpecEvalue) ranges',
             'stacking': True,
-            'height': 800,
+            'height': 550,
             'tt_percentages': True, 
             'tt_decimals': 0,
             'data_labels': MSGF_labels,
@@ -791,7 +794,7 @@ class QuantMSModule(BaseMultiqcModule):
             'title': 'Summary of cross-correlation scores',
             'xlab': 'Comet xcorr ranges',
             'stacking': True,
-            'height': 800,
+            'height': 550,
             'tt_percentages': True, 
             'tt_decimals': 0,
             'data_labels': Comet_labels,
@@ -823,7 +826,7 @@ class QuantMSModule(BaseMultiqcModule):
             'title': 'Summary of Search Engine PEP',
             'xlab': 'PEP ranges',
             'stacking': True,
-            'height': 800,
+            'height': 550,
             'tt_percentages': True, 
             'tt_decimals': 0,
             'data_labels': self.search_engine['data_label']['PEPs_label'],
@@ -958,6 +961,7 @@ class QuantMSModule(BaseMultiqcModule):
                     return "TARGET"
                 return "DECOY"
 
+
     def parse_mzml(self):
 
         self.mzml_peak_distribution_plot = Histogram('Peak Intensity', plot_category='range', breaks=[
@@ -975,53 +979,91 @@ class QuantMSModule(BaseMultiqcModule):
 
         mzml_table = {}
         heatmap_charge = {}
-        exp = MSExperiment()
-        for m in self.mzML_paths:
-            ms1_number = 0
-            ms2_number = 0
-            log.info("{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
-            MzMLFile().load(m, exp)
-            log.info("{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
-            m = os.path.basename(m)
-            log.info("{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
-            charge_2 = 0
-            for i in exp:
-                if i.getMSLevel() == 1:
-                    ms1_number += 1
-                elif i.getMSLevel() == 2:
-                    ms2_number += 1
-                    charge_state = i.getPrecursors()[0].getCharge()
-                    peaks_tuple = i.get_peaks()
-                    peak_per_ms2 = len(peaks_tuple[0])
-                    if i.getMetaValue("base peak intensity"):
-                        base_peak_intensity = i.getMetaValue("base peak intensity")
-                    else:
-                        base_peak_intensity = max(peaks_tuple[1]) if peaks_tuple[1] != [] else None
+        
+        def read_mzmls():
+            exp = MSExperiment()
+            for m in self.mzML_paths:
+                ms1_number = 0
+                ms2_number = 0
+                log.info("{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+                MzMLFile().load(m, exp)
+                log.info("{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+                m = os.path.basename(m)
+                log.info("{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+                charge_2 = 0
+                for i in exp:
+                    if i.getMSLevel() == 1:
+                        ms1_number += 1
+                    elif i.getMSLevel() == 2:
+                        ms2_number += 1
+                        charge_state = i.getPrecursors()[0].getCharge()
+                        peaks_tuple = i.get_peaks()
+                        peak_per_ms2 = len(peaks_tuple[0])
+                        if i.getMetaValue("base peak intensity"):
+                            base_peak_intensity = i.getMetaValue("base peak intensity")
+                        else:
+                            base_peak_intensity = max(peaks_tuple[1]) if peaks_tuple[1] != [] else None
 
-                    if charge_state == 2:
-                        charge_2 += 1
+                        if charge_state == 2:
+                            charge_2 += 1
 
-                    if self.enable_dia:
-                        self.mzml_charge_plot.addValue(charge_state)
-                        self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                        self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
-                        continue
+                        if self.enable_dia:
+                            self.mzml_charge_plot.addValue(charge_state)
+                            self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                            self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                            continue
 
-                    if i.getNativeID() in self.identified_spectrum[m]:
-                        self.mzml_charge_plot.addValue(charge_state)
-                        self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                        self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
-                    else:
-                        self.mzml_charge_plot_1.addValue(charge_state)
-                        self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
-                        self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
+                        if i.getNativeID() in self.identified_spectrum[m]:
+                            self.mzml_charge_plot.addValue(charge_state)
+                            self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                            self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                        else:
+                            self.mzml_charge_plot_1.addValue(charge_state)
+                            self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
+                            self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
 
-            heatmap_charge[m] = charge_2 / ms2_number
-            self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
-            mzml_table[m] = {'MS1_Num': ms1_number}
-            mzml_table[m]['MS2_Num'] = ms2_number
-            log.info("{}: Done aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+                heatmap_charge[m] = charge_2 / ms2_number
+                self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
+                mzml_table[m] = {'MS1_Num': ms1_number}
+                mzml_table[m]['MS2_Num'] = ms2_number
+                log.info("{}: Done aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+                
+        def read_mzml_info():
+            log.info("{}: Parsing mzml_info dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), self.mzml_info_path))
+            mzml_df = pd.read_csv(self.mzml_info_path)
+            for m, group in mzml_df.groupby("File_Name"):
+                charge_2 = group.groupby("Charge").size()[2]
+                ms1_number = group.groupby("MSLevel").size()[1]
+                ms2_number = group.groupby("MSLevel").size()[2]
+                heatmap_charge[m] = charge_2 / ms2_number
+                self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
+                mzml_table[m] = {'MS1_Num': ms1_number}
+                mzml_table[m]['MS2_Num'] = ms2_number
 
+            for n, group in mzml_df.groupby("MSLevel"):
+                if n == 2:
+                    for row in group.itertuples():
+                        charge_state = getattr(row, "Charge")
+                        base_peak_intensity = getattr(row, 'Base_Peak_Intensity')
+                        peak_per_ms2 = getattr(row, 'MS2_peaks')
+
+                        if self.enable_dia:
+                            self.mzml_charge_plot.addValue(int(charge_state))
+                            self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                            self.mzml_peaks_ms2_plot.addValue(int(peak_per_ms2))
+                            continue
+
+                        if getattr(row, "SpectrumID") in self.identified_spectrum[getattr(row, "File_Name")]:
+                            self.mzml_charge_plot.addValue(int(charge_state))
+                            self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                            self.mzml_peaks_ms2_plot.addValue(int(peak_per_ms2))
+                        else:
+                            self.mzml_charge_plot_1.addValue(int(charge_state))
+                            self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
+                            self.mzml_peaks_ms2_plot_1.addValue(int(peak_per_ms2))
+            log.info("{}: Done aggregating mzml_info dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), self.mzml_info_path))
+
+        read_mzml_info() if self.read_mzml_info else read_mzmls()
         self.mzml_peaks_ms2_plot.to_dict()
         self.mzml_peak_distribution_plot.to_dict()
         # Construct compound dictionaries to apply to drawing functions.
@@ -1067,6 +1109,7 @@ class QuantMSModule(BaseMultiqcModule):
                                                     heatmap_charge.values()))))
 
         return mzml_table
+
 
     def parse_idxml(self, mzml_table):
         consensus_paths = []
