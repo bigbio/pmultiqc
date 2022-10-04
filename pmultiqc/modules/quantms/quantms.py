@@ -97,6 +97,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.mzml_peptide_map = dict()
         self.identified_spectrum = dict()
         self.pep_quant_table = dict()
+        self.read_mzml_info = False
         self.mzml_table = OrderedDict()
         self.search_engine = OrderedDict()
         self.XCORR_HIST_RANGE = {'start': 0, 'end': 5, 'step': 0.1}
