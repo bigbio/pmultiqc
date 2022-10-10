@@ -190,7 +190,7 @@ $(document).ready(function () {
     numberRowsInQuantTable = 0;
     quantPageSize = 50;
     quantPage = 1;
-    quantPageCount().then(res => { quantTotalPage.innerHTML = parseInt(res / 50 + 1);
+    quantPageCount().then(res => { quantTotalPage.innerHTML = parseInt(res / 51 + 1);
         quant_sub.innerHTML = res;
         numberRowsInQuantTable = res;
         quantLastRows = quantPageSize * (parseInt(res / 50 + 1) - 1);
@@ -1031,7 +1031,7 @@ async function psmNext(order, column){
 			for(j=0; j<tds.length; j++){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				} else if (j==2){
+				} else if (j==3){
 					tds[j].innerHTML = res[i][j + 1];
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
@@ -1067,7 +1067,7 @@ async function psmPre(order, column){
 			for(j=0; j<tds.length; j++){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				} else if (j==2){
+				} else if (j==3){
 					tds[j].innerHTML = res[i][j + 1];
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
@@ -1098,7 +1098,7 @@ async function psmFirst(order, column){
             for(j=0; j<tds.length; j++){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				} else if (j==2){
+				} else if (j==3){
 					tds[j].innerHTML = res[i][j + 1];
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
@@ -1129,7 +1129,7 @@ async function psmLast(order, column){
             for(j=0; j<tds.length; j++){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				} else if (j==2){
+				} else if (j==3){
 					tds[j].innerHTML = res[i][j + 1];
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
@@ -1218,7 +1218,7 @@ async function psm_page_jump(order, column){
                     for(j=0; j<tds.length; j++){
                         if(res[i][j + 1] == null){
                             tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-                        } else if (j==2){
+                        } else if (j==3){
                             tds[j].innerHTML = res[i][j + 1];
                         } else{
                             tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
@@ -1262,7 +1262,7 @@ async function searchPsmFunction() {
                 for(j=0; j<tds.length; j++){
                     if(res[i][j + 1] == null){
                         tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-                    } else if (j==2){
+                    } else if (j==3){
                         tds[j].innerHTML = res[i][j + 1];
                     } else{
                         tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];

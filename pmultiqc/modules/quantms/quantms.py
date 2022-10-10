@@ -19,7 +19,7 @@ from functools import reduce
 from collections import Counter
 import re
 from pyteomics import mztab
-from pyopenms import IdXMLFile, MzMLFile, MSExperiment, OpenMSBuildInfo
+from pyopenms import IdXMLFile, MzMLFile, MSExperiment, OpenMSBuildInfo, AASequence
 import os
 import sqlite3
 import numpy as np
@@ -1003,7 +1003,7 @@ class QuantMSModule(BaseMultiqcModule):
                         if i.getMetaValue("base peak intensity"):
                             base_peak_intensity = i.getMetaValue("base peak intensity")
                         else:
-                            base_peak_intensity = max(peaks_tuple[1]) if peaks_tuple[1] != [] else None
+                            base_peak_intensity = max(peaks_tuple[1]) if len(peaks_tuple[1]) > 0 else None
 
                         if charge_state == 2:
                             charge_2 += 1
@@ -1028,41 +1028,68 @@ class QuantMSModule(BaseMultiqcModule):
                 mzml_table[m] = {'MS1_Num': ms1_number}
                 mzml_table[m]['MS2_Num'] = ms2_number
                 log.info("{}: Done aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
-                
+
         def read_mzml_info():
-            log.info("{}: Parsing mzml_info dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), self.mzml_info_path))
-            mzml_df = pd.read_csv(self.mzml_info_path)
-            for m, group in mzml_df.groupby("File_Name"):
-                charge_2 = group.groupby("Charge").size()[2]
-                ms1_number = group.groupby("MSLevel").size()[1]
-                ms2_number = group.groupby("MSLevel").size()[2]
-                heatmap_charge[m] = charge_2 / ms2_number
-                self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
-                mzml_table[m] = {'MS1_Num': ms1_number}
-                mzml_table[m]['MS2_Num'] = ms2_number
-
-            for n, group in mzml_df.groupby("MSLevel"):
-                if n == 2:
-                    for row in group.itertuples():
-                        charge_state = getattr(row, "Charge")
-                        base_peak_intensity = getattr(row, 'Base_Peak_Intensity')
-                        peak_per_ms2 = getattr(row, 'MS2_peaks')
-
-                        if self.enable_dia:
-                            self.mzml_charge_plot.addValue(int(charge_state))
-                            self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                            self.mzml_peaks_ms2_plot.addValue(int(peak_per_ms2))
-                            continue
-
-                        if getattr(row, "SpectrumID") in self.identified_spectrum[getattr(row, "File_Name")]:
-                            self.mzml_charge_plot.addValue(int(charge_state))
-                            self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                            self.mzml_peaks_ms2_plot.addValue(int(peak_per_ms2))
+            log.info("{}: Parsing mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), self.mzml_info_path))
+            file_columns = ['File_Name', 'SpectrumID', 'MSLevel', 'Charge', 'MS2_peaks', 'Base_Peak_Intensity']
+            row_remains = ''
+            with open(self.mzml_info_path, 'r') as f:
+                while True:
+                    chunk = row_remains + f.read(500*1024*1024)
+                    if not chunk:
+                        break
+                    data = chunk.split('\n')
+                    data_list = []
+                    for i in data:
+                        i = i.strip("\n")
+                        row_list = i.split('\t')
+                        if len(row_list) != 6:
+                            row_remains = i
                         else:
-                            self.mzml_charge_plot_1.addValue(int(charge_state))
-                            self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
-                            self.mzml_peaks_ms2_plot_1.addValue(int(peak_per_ms2))
-            log.info("{}: Done aggregating mzml_info dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), self.mzml_info_path))
+                            if row_list[0] == "File_Name":
+                                continue
+                            else:
+                                data_list.append(row_list)
+                    mzml_df = pd.DataFrame(data_list, columns = file_columns)
+
+                    for m, group in mzml_df.groupby("File_Name"):
+                        if m not in mzml_table:
+                            mzml_table[m] = dict.fromkeys(['MS1_Num', 'MS2_Num', 'Charge_2'], 0)
+                        charge_group = group.groupby("Charge").size()
+                        ms_level_group = group.groupby("MSLevel").size()
+                        charge_2 = charge_group['2'] if '2' in charge_group else 0
+                        ms1_number = ms_level_group['1'] if '1' in ms_level_group else 0
+                        ms2_number = ms_level_group['2'] if '2' in ms_level_group else 0
+                        self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
+                        mzml_table[m].update({'MS1_Num': mzml_table[m]['MS1_Num'] + ms1_number})
+                        mzml_table[m].update({'MS2_Num': mzml_table[m]['MS2_Num'] + ms2_number})
+                        mzml_table[m].update({'Charge_2': mzml_table[m]['Charge_2'] + charge_2})
+
+                    for n, group in mzml_df.groupby("MSLevel"):
+                        if n == '2':
+                            for row in group.itertuples():
+                                charge_state = int(getattr(row, "Charge")) if getattr(row, "Charge") != 'null' else None
+                                base_peak_intensity = float(getattr(row, 'Base_Peak_Intensity')) if getattr(row, 'Base_Peak_Intensity') != 'null' else None
+                                peak_per_ms2 = int(getattr(row, 'MS2_peaks')) if getattr(row, 'MS2_peaks') != 'null' else None
+
+                                if self.enable_dia:
+                                    self.mzml_charge_plot.addValue(charge_state)
+                                    self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                                    self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                                    continue
+
+                                if getattr(row, "SpectrumID") in self.identified_spectrum[getattr(row, "File_Name")]:
+                                    self.mzml_charge_plot.addValue(charge_state)
+                                    self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                                    self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                                else:
+                                    self.mzml_charge_plot_1.addValue(charge_state)
+                                    self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
+                                    self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
+
+            for m in mzml_table.keys():
+                heatmap_charge[m] = mzml_table[m]['Charge_2'] / mzml_table[m]['MS2_Num']
+            log.info("{}: Done aggregating mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), self.mzml_info_path))
 
         read_mzml_info() if self.read_mzml_info else read_mzmls()
         self.mzml_peaks_ms2_plot.to_dict()
@@ -1380,12 +1407,17 @@ class QuantMSModule(BaseMultiqcModule):
             mztab_data_psm_full.rename(columns={"sequence": "Sequence", "accession": "Accession", 
                         "search_engine_score[1]": "Search_Engine_Score", "stand_spectra_ref": "Spectra_Ref"},inplace=True)
             mztab_data_psm_full["Search_Engine_Score"] = round(mztab_data_psm_full["Search_Engine_Score"], 3)
+            mztab_data_psm_full[["Sequence", "Modification"]] = mztab_data_psm_full.apply(lambda x: find_modification(x["Sequence"]), axis=1, result_type="expand")
             max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
             mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
             headers = OrderedDict()
             headers['Sequence'] = {
                 'name': 'Sequence',
                 'description': 'Peptide Sequence'
+            }
+            headers['Modification'] = {
+                'name': 'Modification',
+                'description': 'Modification in Peptide Sequence'
             }
             headers['Accession'] = {
                 'name': 'Accession',
@@ -1400,13 +1432,13 @@ class QuantMSModule(BaseMultiqcModule):
 
             # upload PSMs table to sqlite database
             cur.execute(
-                "CREATE TABLE PSM(PSM_ID INT(200), Sequence VARCHAR(200), Accession VARCHAR(100), Search_Engine_Score FLOAT(4,5), Spectra_Ref VARCHAR(100))")
+                "CREATE TABLE PSM(PSM_ID INT(200), Sequence VARCHAR(200), Modification VARCHAR(100), Accession VARCHAR(100), Search_Engine_Score FLOAT(4,5), Spectra_Ref VARCHAR(100))")
             con.commit()
-            sql_col = "PSM_ID,Sequence,Accession,Search_Engine_Score,Spectra_Ref"
-            sql_t = "(" + ','.join(['?'] * 5) + ")"
+            sql_col = "PSM_ID,Sequence,Modification,Accession,Search_Engine_Score,Spectra_Ref"
+            sql_t = "(" + ','.join(['?'] * 6) + ")"
 
             # PSM_ID is index
-            all_term = ["Sequence", "Accession", "Search_Engine_Score", "Spectra_Ref"]
+            all_term = ["Sequence", "Modification", "Accession", "Search_Engine_Score", "Spectra_Ref"]
             cur.executemany("INSERT INTO PSM (" + sql_col + ") VALUES " + sql_t,
                             [(k, *itemgetter(*all_term)(v)) for k, v in mztab_data_psm_full.items()])
             con.commit()
@@ -1430,7 +1462,7 @@ class QuantMSModule(BaseMultiqcModule):
             t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
                                         'onkeyup="searchPsmFunction()" id="psm_search">' \
                                         '<select name="psm_search_col" id="psm_search_col">'
-            for key in ["Sequence", "Accession", "Spectra_Ref"]:
+            for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"]:
                 t_html += '<option>' + key + '</option>'
             table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                                 'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' \
@@ -1629,6 +1661,7 @@ class QuantMSModule(BaseMultiqcModule):
         msstats_data = pd.read_csv(self.msstats_input_path)
         ## TODO we probably shouldn't even write out 0-intensity values to MSstats csv
         msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
+        msstats_data[["PeptideSequence", "Modification"]] = msstats_data.apply(lambda x: find_modification(x["PeptideSequence"]), axis=1, result_type="expand")
 
         # multiQC requires weird dicts
         msstats_data_dict_pep_full = dict()
@@ -1655,6 +1688,7 @@ class QuantMSModule(BaseMultiqcModule):
             gdict = dict.fromkeys(conditions_str, 0.0)
             gdict.update(dict.fromkeys(conditions_dists, '{}'))
             gdict["ProteinName"] = g["ProteinName"].iloc[0]
+            gdict["Modification"] = g["Modification"].iloc[0]
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
             ## TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
             condGrp = g.groupby(["Condition","BioReplicate"])["Intensity"].mean().reset_index().groupby("Condition").apply(fillDict)
@@ -1673,19 +1707,19 @@ class QuantMSModule(BaseMultiqcModule):
         msstats_data_pep_agg["BestSearchScore"] = 1 - msstats_data_pep_agg.index.map(self.peptide_search_score)
         msstats_data_pep_agg.reset_index(inplace=True)
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
-        # msstats_data_pep_agg["PeptideSequence"] = msstats_data_pep_agg.apply(lambda x: mod_name2accession(UnimodDatabase(), x["PeptideSequence"]), axis = 1)
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict('index')
         msstats_data_dict_pep_init = dict(itertools.islice(msstats_data_dict_pep_full.items(), 50))
 
 
-        cur.execute("CREATE TABLE PEPQUANT(PeptideID INT(100) PRIMARY KEY, PeptideSequence VARCHAR(100), ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), \"Average Intensity\" FLOAT(4,3))")
+        cur.execute("CREATE TABLE PEPQUANT(PeptideID INT(100) PRIMARY KEY, PeptideSequence VARCHAR(100), Modification VARCHAR(100), ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), \"Average Intensity\" FLOAT(4,3))")
         con.commit()
-        sql_col = "PeptideID,PeptideSequence,ProteinName,BestSearchScore, \"Average Intensity\""
-        sql_t = "(" + ','.join(['?'] * (len(conditions) *2 + 5)) + ")"
+        sql_col = "PeptideID,PeptideSequence,Modification,ProteinName,BestSearchScore, \"Average Intensity\""
+        sql_t = "(" + ','.join(['?'] * (len(conditions) *2 + 6)) + ")"
 
         headers = OrderedDict()
         headers = { #'PeptideID': {'name': 'PeptideID'}, # this is the index
                     'PeptideSequence': {'name': 'PeptideSequence'}, 
+                    'Modification': {'name': 'Modification'},
                     'ProteinName': {'name': 'ProteinName'},
                     'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'},
                     'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
@@ -1705,7 +1739,7 @@ class QuantMSModule(BaseMultiqcModule):
             headers[str(s)] = {'name': s, 'thousandsSep_format': ','}
 
         # PeptideID is index
-        all_term = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
+        all_term = ["PeptideSequence", "Modification", "ProteinName", "BestSearchScore", "Average Intensity"] + list(map(str, conditions)) + list(map(lambda x: str(x) + "_distribution", conditions))
         cur.executemany("INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
                         [(k, *itemgetter(*all_term)(v)) for k,v in msstats_data_dict_pep_full.items()])
         con.commit()
@@ -1732,7 +1766,7 @@ class QuantMSModule(BaseMultiqcModule):
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
                                     'onkeyup="searchQuantFunction()" id="quant_search">' \
                                     '<select name="quant_search_col" id="quant_search_col">'
-        for key in ["ProteinName", "PeptideSequence", "PeptideID"]:
+        for key in ["ProteinName", "PeptideSequence", "Modification", "PeptideID"]:
             t_html += '<option>' + key + '</option>'
         table_html = t_html + '</select>' + '<button type="button" class="btn btn-default ' \
                                             'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' \
@@ -1910,3 +1944,19 @@ def read_openms_design(desfile):
             s_DataFrame = pd.DataFrame(s_table, columns=s_header)
 
         return s_DataFrame, f_table
+
+def find_modification(peptide):
+    peptide = str(peptide)
+    pattern = re.compile(r"\((.*?)\)")
+    original_mods = pattern.findall(peptide)
+    peptide = re.sub(r"\(.*?\)", ".", peptide)
+    position = [i.start() for i in re.finditer(r"\.", peptide)]
+    for j in range(1, len(position)):
+        position[j] -= j
+
+    for k in range(0, len(original_mods)):
+        original_mods[k] = str(position[k]) + "-" + original_mods[k]
+
+    original_mods = ",".join(str(i) for i in original_mods) if len(original_mods) > 0 else "nan"
+
+    return AASequence.fromString(peptide).toUnmodifiedString(), original_mods
