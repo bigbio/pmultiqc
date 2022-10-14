@@ -70,6 +70,9 @@ class Histogram:
         :param stack: The stack of bars to which the data belongs
         :type stack: str, optional
         '''
+        if value == None:
+            return
+            
         if self.plot_category == 1:
             if self.breaks:
                 if value < self.threshold:
@@ -80,14 +83,19 @@ class Histogram:
 
             else:
                 if str(value) in self.bins:
-                    self.data[value][stack] += 1
+                    self.data[str(value)][stack] += 1
                 else:
                     self.bins.append(str(value))
                     if self.stacks:
-                        self.data[value] = dict.fromkeys(self.stacks, 0)
-                        self.data[value][stack] = 1
+                        self.data[str(value)] = dict.fromkeys(self.stacks, 0)
+                        self.data[str(value)][stack] = 1
                     else:
-                        self.data[value] = {stack: 1}
+                        self.data[str(value)] = {stack: 1}
+                # sort
+                if type(value) != str and not self.stacks:
+                    data_keys = [type(value)(i) for i in self.data.keys()]
+                    data_keys.sort()
+                    self.data = OrderedDict({str(i): {"total": self.data[str(i)]["total"]} for i in data_keys})
 
         elif self.plot_category == 2:
             self.breaks.sort()
@@ -131,8 +139,7 @@ class Histogram:
             total = sum(self.data.values())
             self.dict['data']['frequency'] = OrderedDict()
             self.dict['data']['percentage'] = OrderedDict()
-            keys = sorted(self.data)  # sort
-            for key in keys:
+            for key in self.data:
                 self.dict['data']['frequency'][key] = OrderedDict()
                 self.dict['data']['frequency'][key]['Frequency'] = self.data[key]
                 self.dict['data']['percentage'][key] = OrderedDict()
