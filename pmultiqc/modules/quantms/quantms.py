@@ -1820,12 +1820,15 @@ class QuantMSModule(BaseMultiqcModule):
             for intensity in series:
                 total += pow(10, intensity)
             return np.log10(total)
+        
+        def uniqueCount(series):
+            return len(series.unique())
 
 
         max_prot_intensity = 0
         agg_funs = dict.fromkeys(conditions_dists, myDictSum)
         agg_funs.update(dict.fromkeys(conditions_str, totalIntensity))
-        agg_funs["PeptideSequence"] = 'count'
+        agg_funs["PeptideSequence"] = uniqueCount
         agg_funs["Average Intensity"] = totalIntensity
         msstats_data_prot = msstats_data_pep_agg.groupby("ProteinName").agg(agg_funs)#.reset_index()
         del(msstats_data_pep_agg)
