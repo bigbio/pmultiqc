@@ -1666,6 +1666,7 @@ class QuantMSModule(BaseMultiqcModule):
         msstats_data = pd.read_csv(self.msstats_input_path)
         ## TODO we probably shouldn't even write out 0-intensity values to MSstats csv
         msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
+        msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[:, "PeptideSequence"].map(self.peptide_search_score)
         msstats_data[["PeptideSequence", "Modification"]] = msstats_data.apply(lambda x: find_modification(x["PeptideSequence"]), axis=1, result_type="expand")
 
         # multiQC requires weird dicts
@@ -1693,6 +1694,7 @@ class QuantMSModule(BaseMultiqcModule):
             gdict = dict.fromkeys(conditions_str, 0.0)
             gdict.update(dict.fromkeys(conditions_dists, '{}'))
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
+            gdict["BestSearchScore"] = g["BestSearchScore"].min()
             ## TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
             condGrp = g.groupby(["Condition","BioReplicate"])["Intensity"].mean().reset_index().groupby("Condition").apply(fillDict)
             condGrp.index = [str(c) + "_distribution" for c in condGrp.index]
@@ -1708,7 +1710,6 @@ class QuantMSModule(BaseMultiqcModule):
         del(msstats_data)
         ## TODO Can we guarantee that the score was always PEP? I don't think so!
         msstats_data_pep_agg.reset_index(inplace=True)
-        msstats_data_pep_agg["BestSearchScore"] = 1 - msstats_data_pep_agg.loc[:, "PeptideSequence"].map(self.peptide_search_score)
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict('index')
         msstats_data_dict_pep_init = dict(itertools.islice(msstats_data_dict_pep_full.items(), 50))
