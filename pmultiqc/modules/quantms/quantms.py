@@ -436,6 +436,7 @@ class QuantMSModule(BaseMultiqcModule):
             'col1_header': 'Spectra File',
             'format': '{:,.0f}'  # The header used for the first column
         }
+        colors = dict((str(i + 1), "#ffffff") for i in range(len(self.file_df.index)))
         headers = OrderedDict()
 
         ## TODO BIG! We desperately need rules for naming columns!
@@ -443,17 +444,17 @@ class QuantMSModule(BaseMultiqcModule):
         headers['sample_name'] = {
             'title': 'Sample Name',
             'description': 'Sample identifier',
-            'color': "#ffffff"
+            'bgcols': colors
         }
         headers['condition'] = {
             'title': 'Condition',
             'description': 'Combination of possible study variables',
-            'color': "#ffffff"
+            'bgcols': colors
         }
         headers['fraction'] = {
             'title': 'Fraction',
             'description': 'Fraction identifier',
-            'color': "#ffffff"
+            'bgcols': colors
         }
         headers['peptide_num'] = {
             'title': '#Peptide IDs',
@@ -494,6 +495,13 @@ class QuantMSModule(BaseMultiqcModule):
     # draw number of peptides per proteins
     def draw_num_pep_per_protein(self):
         # Create table plot
+        if any([len(i) >= 100 for i in self.pep_plot.dict['data'].values()]):
+            lable = ["count", "percentage"]
+        else:
+            lable = [
+                {'name': 'count', 'ylab': 'Frequency'},
+                {'name': 'percentage', 'ylab': 'Percentage(%)'}
+            ]
         pconfig = {
             'id': 'number_of_peptides_per_proteins',  # ID used for the table
             'cpswitch': False,
@@ -501,10 +509,7 @@ class QuantMSModule(BaseMultiqcModule):
             'xlab': 'Number of Peptides',
             'tt_percentages': False,
             'tt_decimals': 2,
-            'data_labels': [
-                {'name': 'count', 'ylab': 'Frequency'},
-                {'name': 'percentage', 'ylab': 'Percentage(%)'}
-            ]
+            'data_labels': lable
         }
         headers = OrderedDict()
         headers['Frequency'] = {
@@ -1687,25 +1692,23 @@ class QuantMSModule(BaseMultiqcModule):
         def getIntyAcrossBioRepsAsStr(g):
             gdict = dict.fromkeys(conditions_str, 0.0)
             gdict.update(dict.fromkeys(conditions_dists, '{}'))
-            gdict["ProteinName"] = g["ProteinName"].iloc[0]
-            gdict["Modification"] = g["Modification"].iloc[0]
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
             ## TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
             condGrp = g.groupby(["Condition","BioReplicate"])["Intensity"].mean().reset_index().groupby("Condition").apply(fillDict)
             condGrp.index = [str(c) + "_distribution" for c in condGrp.index]
             gdict.update(condGrp.to_dict())
             mean = g.groupby(["Condition"])["Intensity"].mean()
-            #print(mean)
             condGrpMean = np.log10(mean)
             condGrpMean.index = condGrpMean.index.map(str)
             gdict.update(condGrpMean.to_dict())
             return pd.Series(gdict)
 
 
-        msstats_data_pep_agg = msstats_data.groupby(["PeptideSequence"]).apply(getIntyAcrossBioRepsAsStr)#.unstack()
+        msstats_data_pep_agg = msstats_data.groupby(["PeptideSequence", "ProteinName", "Modification"]).apply(getIntyAcrossBioRepsAsStr)#.unstack()
+        del(msstats_data)
         ## TODO Can we guarantee that the score was always PEP? I don't think so!
-        msstats_data_pep_agg["BestSearchScore"] = 1 - msstats_data_pep_agg.index.map(self.peptide_search_score)
         msstats_data_pep_agg.reset_index(inplace=True)
+        msstats_data_pep_agg["BestSearchScore"] = 1 - msstats_data_pep_agg.loc[:, "PeptideSequence"].map(self.peptide_search_score)
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict('index')
         msstats_data_dict_pep_init = dict(itertools.islice(msstats_data_dict_pep_full.items(), 50))
@@ -1805,17 +1808,24 @@ class QuantMSModule(BaseMultiqcModule):
 
         def reducer(accumulator, element):
             for key, value in jsonToDict(element).items():
-                accumulator[key] = accumulator.get(key, 0) + value
+                accumulator[key] = np.log10(pow(10, accumulator.get(key, 0)) + pow(10, value))
             return accumulator
 
         def myDictSum(series):
             return json.dumps(reduce(reducer, series, {}))
 
+        def totalIntensity(series):
+            total = 0.0
+            for intensity in series:
+                total += pow(10, intensity)
+            return np.log10(total)
+
+
         max_prot_intensity = 0
         agg_funs = dict.fromkeys(conditions_dists, myDictSum)
-        agg_funs.update(dict.fromkeys(conditions_str, 'sum'))
+        agg_funs.update(dict.fromkeys(conditions_str, totalIntensity))
         agg_funs["PeptideSequence"] = 'count'
-        agg_funs["Average Intensity"] = 'sum'
+        agg_funs["Average Intensity"] = totalIntensity
         msstats_data_prot = msstats_data_pep_agg.groupby("ProteinName").agg(agg_funs)#.reset_index()
         del(msstats_data_pep_agg)
         msstats_data_prot.rename(columns={"PeptideSequence": "Peptides_Number"},inplace=True)
@@ -1845,7 +1855,7 @@ class QuantMSModule(BaseMultiqcModule):
         headers['Average Intensity'] = {
             'name': 'Average Intensity',
             'description': 'Average intensity across all conditions',
-            'format': '{:,.0f}'
+            'format': '{:,.3f}'
         }
 
         # upload protein table to sqlite database
