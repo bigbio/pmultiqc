@@ -1051,6 +1051,7 @@ class QuantMSModule(BaseMultiqcModule):
                         if len(row_list) != 6:
                             row_remains = i
                         else:
+                            row_remains = ''
                             if row_list[0] == "File_Name":
                                 continue
                             else:
