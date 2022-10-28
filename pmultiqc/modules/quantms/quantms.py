@@ -911,7 +911,10 @@ class QuantMSModule(BaseMultiqcModule):
             psm = psm[psm['opt_global_cv_MS:1002217_decoy_peptide'] == 0]
         psm.loc[:, 'stand_spectra_ref'] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
-        psm.loc[:, 'missed_cleavages'] = psm.apply(lambda x: self.cal_MissCleavages(x['sequence']), axis=1)
+            
+        enzyme_list = [i for i in meta_data.values() if str(i).startswith("enzyme:")]
+        enzyme = enzyme_list[0].split(":")[1] if len(enzyme_list) == 1 else "Trypsin"
+        psm.loc[:, 'missed_cleavages'] = psm.apply(lambda x: self.cal_MissCleavages(x['sequence'], enzyme), axis=1)
 
         # Calculate the ID RT Score
         for name, group in psm.groupby('stand_spectra_ref'):
@@ -943,10 +946,22 @@ class QuantMSModule(BaseMultiqcModule):
                                                         self.MissedCleavages_heatmap_score.values()))))
         log.info("Done calculating Heatmap Scores.")
 
-    # if missed.cleavages is not given, it is assumed that trypsin was used for digestion
+    # if missed.cleavages is not given, it is assumed that Trypsin was used for digestion
     @staticmethod
-    def cal_MissCleavages(sequence):
-        miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace('K', '').replace('R', ''))
+    def cal_MissCleavages(sequence, enzyme):
+        if enzyme == "Trypsin/P":
+            miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace('K', '').replace('R', '').replace('P', ''))
+        elif enzyme == "Arg-C":
+            miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace('R', ''))
+        elif enzyme == "Asp-N":
+            miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace('B', '').replace('D', ''))
+        elif enzyme == "Chymotrypsin":
+            cut = "F*,W*,Y*,L*,!*P"
+            miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace('F', '').replace('W', '').replace('Y', '').replace('L', ''))
+        elif enzyme == "Lys-C":
+            miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace('K', ''))
+        else:
+            miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace('K', '').replace('R', ''))
         return miss_cleavages
 
     @staticmethod

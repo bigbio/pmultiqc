@@ -1280,3 +1280,74 @@ async function searchPsmFunction() {
         });
     }
 }
+
+$(document).ready(function () {
+    var search_1 = $('[data-target="search_scores_summary-1"]').parent();
+    var search_2 = $('[data-target="search_scores_summary-2-1"]').parent();
+    var pep = $('[data-target="search_engine_PEP-1"]').parent();
+    var consensus = $('[data-target="consensus_summary-1"]').parent();
+    if(search_1.length > 0){
+        search_1.prepend("<span id='search_btn' class='btn btn-default btn-sm'>select files</span>");
+        search_1.children().css({"position":"inherit","float":"inherit","width":"200px","overflow-x":"auto"});
+        search_1.css({"height": "30px","overflow-y":"hidden"});
+        search_1.mouseenter(function () {
+            $(this).children("button").show();
+            $(this).css({"height": "140px","overflow-y":"auto"});
+        });
+        search_1.mouseleave(function () {
+            $(this).children("button").hide();
+            $(this).css({"height": "30px","overflow-y":"auto"});
+        });
+        search_1.children().each(function () {
+            $(this).css({"display": "block"});
+        });
+    };
+    if(search_2.length > 0){
+        search_2.prepend("<span id='search_btn' class='btn btn-default btn-sm'>select files</span>");
+        search_2.children().css({"position":"inherit","float":"inherit","width":"200px","overflow-x":"auto"});
+        search_2.css({"height": "30px","overflow-y":"hidden"});
+        search_2.mouseenter(function () {
+            $(this).children("button").show();
+            $(this).css({"height": "140px","overflow-y":"auto"});
+        });
+        search_2.mouseleave(function () {
+            $(this).children("button").hide();
+            $(this).css({"height": "30px","overflow-y":"auto"});
+        });
+        search_2.children().each(function () {
+            $(this).css({"display": "block"});
+        });
+    };
+    if(pep.length > 0){
+        pep.prepend("<span id='search_btn' class='btn btn-default btn-sm'>select files</span>");
+        pep.children().css({"position":"inherit","float":"inherit","width":"200px","overflow-x":"auto"});
+        pep.css({"height": "30px","overflow-y":"hidden"});
+        pep.mouseenter(function () {
+            $(this).children("button").show();
+            $(this).css({"height": "140px","overflow-y":"auto"});
+        });
+        pep.mouseleave(function () {
+            $(this).children("button").hide();
+            $(this).css({"height": "30px","overflow-y":"auto"});
+        });
+        pep.children().each(function () {
+            $(this).css({"display": "block"});
+        });
+    };
+    if(consensus.length > 0){
+        consensus.prepend("<span id='search_btn' class='btn btn-default btn-sm'>select files</span>");
+        consensus.children().css({"position":"inherit","float":"inherit","width":"200px","overflow-x":"auto"});
+        consensus.css({"height": "30px","overflow-y":"hidden"});
+        consensus.mouseenter(function () {
+            $(this).children("button").show();
+            $(this).css({"height": "140px","overflow-y":"auto"});
+        });
+        consensus.mouseleave(function () {
+            $(this).children("button").hide();
+            $(this).css({"height": "30px","overflow-y":"auto"});
+        });
+        consensus.children().each(function () {
+            $(this).css({"display": "block"});
+        });
+    };
+})
