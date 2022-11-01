@@ -1366,8 +1366,9 @@ class QuantMSModule(BaseMultiqcModule):
             # Each loop resets the instance.
             self.oversampling_plot = Histogram('MS/MS counts per 3D-peak', plot_category = 'frequency', breaks = [1, 2, 3])
 
-            for i in group.value_counts(['sequence', 'charge']).values:
-                self.oversampling_plot.addValue(i)
+            group.fillna('null', inplace=True)
+            for i, j in group.groupby(['sequence', 'charge', 'modifications']):
+                self.oversampling_plot.addValue(len(j["spectra_ref"].unique()))
 
             self.oversampling_plot.to_dict()
             self.oversampling[m] = self.oversampling_plot.dict['data']
