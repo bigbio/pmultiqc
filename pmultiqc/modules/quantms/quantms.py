@@ -145,8 +145,10 @@ class QuantMSModule(BaseMultiqcModule):
         for mzML_file in self.find_log_files("quantms/mzML", filecontents=False):
             self.mzML_paths.append(os.path.join(mzML_file["root"], mzML_file['fn']))
 
+        self.mzml_info_path = []
         for mzml_info in self.find_log_files("quantms/mzml_info", filecontents=False):
-            self.mzml_info_path = os.path.join(mzml_info["root"], mzml_info['fn'])
+            self.mzml_info_path.append(os.path.join(mzml_info["root"], mzml_info['fn']))
+            self.mzml_info_path.sort()
             self.read_mzml_info = True
 
         mt = self.parse_mzml()
@@ -1050,67 +1052,48 @@ class QuantMSModule(BaseMultiqcModule):
                 log.info("{}: Done aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
 
         def read_mzml_info():
-            log.info("{}: Parsing mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), self.mzml_info_path))
-            file_columns = ['File_Name', 'SpectrumID', 'MSLevel', 'Charge', 'MS2_peaks', 'Base_Peak_Intensity']
-            row_remains = ''
-            with open(self.mzml_info_path, 'r') as f:
-                while True:
-                    chunk = row_remains + f.read(500*1024*1024)
-                    if not chunk:
-                        break
-                    data = chunk.split('\n')
-                    data_list = []
-                    for i in data:
-                        i = i.strip("\n")
-                        row_list = i.split('\t')
-                        if len(row_list) != 6:
-                            row_remains = i
-                        else:
-                            row_remains = ''
-                            if row_list[0] == "File_Name":
-                                continue
-                            else:
-                                data_list.append(row_list)
-                    mzml_df = pd.DataFrame(data_list, columns = file_columns)
+            for file in self.mzml_info_path:
+                log.info("{}: Parsing mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
+                mzml_df = pd.read_csv(file, sep="\t")
 
-                    for m, group in mzml_df.groupby("File_Name"):
-                        if m not in mzml_table:
-                            mzml_table[m] = dict.fromkeys(['MS1_Num', 'MS2_Num', 'Charge_2'], 0)
-                        charge_group = group.groupby("Charge").size()
-                        ms_level_group = group.groupby("MSLevel").size()
-                        charge_2 = charge_group['2'] if '2' in charge_group else 0
-                        ms1_number = ms_level_group['1'] if '1' in ms_level_group else 0
-                        ms2_number = ms_level_group['2'] if '2' in ms_level_group else 0
-                        self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
-                        mzml_table[m].update({'MS1_Num': mzml_table[m]['MS1_Num'] + ms1_number})
-                        mzml_table[m].update({'MS2_Num': mzml_table[m]['MS2_Num'] + ms2_number})
-                        mzml_table[m].update({'Charge_2': mzml_table[m]['Charge_2'] + charge_2})
+                m = os.path.splitext(os.path.basename(file))[0].rstrip("_mzml_info") + ".mzML"
+                if m not in mzml_table:
+                    mzml_table[m] = dict.fromkeys(['MS1_Num', 'MS2_Num', 'Charge_2'], 0)
+                charge_group = mzml_df.groupby("Charge").size()
+                ms_level_group = mzml_df.groupby("MSLevel").size()
+                charge_2 = charge_group[2] if 2 in charge_group else 0
+                ms1_number = ms_level_group[1] if 1 in ms_level_group else 0
+                ms2_number = ms_level_group[2] if 2 in ms_level_group else 0
+                self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
+                mzml_table[m].update({'MS1_Num': mzml_table[m]['MS1_Num'] + ms1_number})
+                mzml_table[m].update({'MS2_Num': mzml_table[m]['MS2_Num'] + ms2_number})
+                mzml_table[m].update({'Charge_2': mzml_table[m]['Charge_2'] + charge_2})
 
-                    for n, group in mzml_df.groupby("MSLevel"):
-                        if n == '2':
-                            for row in group.itertuples():
-                                charge_state = int(getattr(row, "Charge")) if getattr(row, "Charge") != 'null' else None
-                                base_peak_intensity = float(getattr(row, 'Base_Peak_Intensity')) if getattr(row, 'Base_Peak_Intensity') != 'null' else None
-                                peak_per_ms2 = int(getattr(row, 'MS2_peaks')) if getattr(row, 'MS2_peaks') != 'null' else None
+                group = mzml_df[mzml_df["MSLevel"] == 2]
+                del mzml_df
+                for row in group.itertuples():
+                    charge_state = int(getattr(row, "Charge")) if getattr(row, "Charge") else None
+                    base_peak_intensity = float(getattr(row, 'Base_Peak_Intensity')) if getattr(row, 'Base_Peak_Intensity') else None
+                    peak_per_ms2 = int(getattr(row, 'MS2_peaks')) if getattr(row, 'MS2_peaks') else None
 
-                                if self.enable_dia:
-                                    self.mzml_charge_plot.addValue(charge_state)
-                                    self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                                    self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
-                                    continue
+                    if self.enable_dia:
+                        self.mzml_charge_plot.addValue(charge_state)
+                        self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                        self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                        continue
 
-                                if getattr(row, "SpectrumID") in self.identified_spectrum[getattr(row, "File_Name")]:
-                                    self.mzml_charge_plot.addValue(charge_state)
-                                    self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                                    self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
-                                else:
-                                    self.mzml_charge_plot_1.addValue(charge_state)
-                                    self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
-                                    self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
+                    if getattr(row, "SpectrumID") in self.identified_spectrum[m]:
+                        self.mzml_charge_plot.addValue(charge_state)
+                        self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                        self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                    else:
+                        self.mzml_charge_plot_1.addValue(charge_state)
+                        self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
+                        self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
 
-            for m in mzml_table.keys():
-                heatmap_charge[m] = mzml_table[m]['Charge_2'] / mzml_table[m]['MS2_Num']
-            log.info("{}: Done aggregating mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), self.mzml_info_path))
+                for m in mzml_table.keys():
+                    heatmap_charge[m] = mzml_table[m]['Charge_2'] / mzml_table[m]['MS2_Num']
+                log.info("{}: Done aggregating mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
 
         read_mzml_info() if self.read_mzml_info else read_mzmls()
         self.mzml_peaks_ms2_plot.to_dict()
