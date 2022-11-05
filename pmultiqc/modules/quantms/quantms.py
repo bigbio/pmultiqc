@@ -1002,7 +1002,26 @@ class QuantMSModule(BaseMultiqcModule):
 
         mzml_table = {}
         heatmap_charge = {}
-        
+
+        def add_mzml_values(info_df, mzml_name):
+            charge_state = int(info_df["Charge"]) if info_df["Charge"] else None
+            base_peak_intensity = float(info_df['Base_Peak_Intensity']) if info_df['Base_Peak_Intensity'] else None
+            peak_per_ms2 = int(info_df['MS2_peaks']) if info_df['MS2_peaks'] else None
+
+            if self.enable_dia:
+                self.mzml_charge_plot.addValue(charge_state)
+                self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+
+            if info_df["SpectrumID"] in self.identified_spectrum[mzml_name]:
+                self.mzml_charge_plot.addValue(charge_state)
+                self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+            else:
+                self.mzml_charge_plot_1.addValue(charge_state)
+                self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
+                self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
+
         def read_mzmls():
             exp = MSExperiment()
             for m in self.mzML_paths:
@@ -1071,25 +1090,7 @@ class QuantMSModule(BaseMultiqcModule):
 
                 group = mzml_df[mzml_df["MSLevel"] == 2]
                 del mzml_df
-                for row in group.itertuples():
-                    charge_state = int(getattr(row, "Charge")) if getattr(row, "Charge") else None
-                    base_peak_intensity = float(getattr(row, 'Base_Peak_Intensity')) if getattr(row, 'Base_Peak_Intensity') else None
-                    peak_per_ms2 = int(getattr(row, 'MS2_peaks')) if getattr(row, 'MS2_peaks') else None
-
-                    if self.enable_dia:
-                        self.mzml_charge_plot.addValue(charge_state)
-                        self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                        self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
-                        continue
-
-                    if getattr(row, "SpectrumID") in self.identified_spectrum[m]:
-                        self.mzml_charge_plot.addValue(charge_state)
-                        self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                        self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
-                    else:
-                        self.mzml_charge_plot_1.addValue(charge_state)
-                        self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
-                        self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
+                group.apply(add_mzml_values, args=(m,), axis=1)
 
                 for m in mzml_table.keys():
                     heatmap_charge[m] = mzml_table[m]['Charge_2'] / mzml_table[m]['MS2_Num']
