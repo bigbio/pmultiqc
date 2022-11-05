@@ -44,7 +44,7 @@ def pmultiqc_plugin_execution_start():
         config.update_dict(config.sp, {'quantms/mzML': {'fn': '*.mzML', 'num_lines': 0}})
 
     if 'quantms/mzml_info' not in config.sp:
-        config.update_dict(config.sp, {'quantms/mzml_info': {'fn': 'mzml_info.tsv', 'num_lines': 0}})
+        config.update_dict(config.sp, {'quantms/mzml_info': {'fn': '*_mzml_info.tsv', 'num_lines': 0}})
 
     if 'quantms/idXML' not in config.sp:
         config.update_dict(config.sp, {'quantms/idXML': {'fn': '*.idXML', 'num_lines': 0}})
