@@ -1012,6 +1012,7 @@ class QuantMSModule(BaseMultiqcModule):
                 self.mzml_charge_plot.addValue(charge_state)
                 self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
                 self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                return
 
             if info_df["SpectrumID"] in self.identified_spectrum[mzml_name]:
                 self.mzml_charge_plot.addValue(charge_state)
