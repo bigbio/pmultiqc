@@ -1004,9 +1004,9 @@ class QuantMSModule(BaseMultiqcModule):
         heatmap_charge = {}
 
         def add_mzml_values(info_df, mzml_name):
-            charge_state = int(info_df["Charge"]) if info_df["Charge"] else None
-            base_peak_intensity = float(info_df['Base_Peak_Intensity']) if info_df['Base_Peak_Intensity'] else None
-            peak_per_ms2 = int(info_df['MS2_peaks']) if info_df['MS2_peaks'] else None
+            charge_state = int(info_df["Charge"]) if info_df["Charge"] != None else None
+            base_peak_intensity = float(info_df['Base_Peak_Intensity']) if info_df['Base_Peak_Intensity'] != None else None
+            peak_per_ms2 = int(info_df['MS2_peaks']) if info_df['MS2_peaks'] != None else None
 
             if self.enable_dia:
                 self.mzml_charge_plot.addValue(charge_state)
@@ -1415,7 +1415,7 @@ class QuantMSModule(BaseMultiqcModule):
             mztab_data_psm_full = psm[['sequence', 'accession', 'search_engine_score[1]', 'stand_spectra_ref']]
             mztab_data_psm_full.rename(columns={"sequence": "Sequence", "accession": "Accession", 
                         "search_engine_score[1]": "Search_Engine_Score", "stand_spectra_ref": "Spectra_Ref"},inplace=True)
-            mztab_data_psm_full["Search_Engine_Score"] = round(mztab_data_psm_full["Search_Engine_Score"], 3)
+            # mztab_data_psm_full["Search_Engine_Score"] = round(mztab_data_psm_full["Search_Engine_Score"], 3)
             mztab_data_psm_full[["Sequence", "Modification"]] = mztab_data_psm_full.apply(lambda x: find_modification(x["Sequence"]), axis=1, result_type="expand")
             max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
             mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
@@ -1434,7 +1434,7 @@ class QuantMSModule(BaseMultiqcModule):
             }
             headers['Search_Engine_Score'] = {
                 'name': 'Search Engine Score',
-                'format': '{:,.3f}',
+                'format': "{:,.2e}",
                 'max': max_search_score,
                 'scale': False
             }
@@ -1729,7 +1729,7 @@ class QuantMSModule(BaseMultiqcModule):
                     'PeptideSequence': {'name': 'PeptideSequence'}, 
                     'Modification': {'name': 'Modification'},
                     'ProteinName': {'name': 'ProteinName'},
-                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5f}'},
+                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.2e}'},
                     'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
 
         

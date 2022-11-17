@@ -271,7 +271,9 @@ async function quantNext(order, column){
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -310,7 +312,9 @@ async function quantPre(order, column){
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -343,7 +347,9 @@ async function quantFirst(order, column){
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -376,7 +382,9 @@ async function quantLast(order, column){
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -484,6 +492,8 @@ async function quant_page_jump(order, column){
                             tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                         } else if(res[i][j + 1] == null){
                             tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
+                        } else if(j == 3){
+                            tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
                         }
                         else{
                             tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
@@ -556,7 +566,9 @@ async function searchQuantFunction() {
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -1032,7 +1044,7 @@ async function psmNext(order, column){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				} else if (j==3){
-					tds[j].innerHTML = res[i][j + 1];
+					tds[j].innerHTML = exponential_form(res[i][j + 1]);
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                 }
@@ -1068,7 +1080,7 @@ async function psmPre(order, column){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				} else if (j==3){
-					tds[j].innerHTML = res[i][j + 1];
+					tds[j].innerHTML = exponential_form(res[i][j + 1]);
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                 }
@@ -1099,7 +1111,7 @@ async function psmFirst(order, column){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				} else if (j==3){
-					tds[j].innerHTML = res[i][j + 1];
+					tds[j].innerHTML = exponential_form(res[i][j + 1]);
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                 }
@@ -1130,7 +1142,7 @@ async function psmLast(order, column){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				} else if (j==3){
-					tds[j].innerHTML = res[i][j + 1];
+					tds[j].innerHTML = exponential_form(res[i][j + 1]);
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                 }
@@ -1219,7 +1231,7 @@ async function psm_page_jump(order, column){
                         if(res[i][j + 1] == null){
                             tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
                         } else if (j==3){
-                            tds[j].innerHTML = res[i][j + 1];
+                            tds[j].innerHTML = exponential_form(res[i][j + 1]);
                         } else{
                             tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                         }
@@ -1263,7 +1275,7 @@ async function searchPsmFunction() {
                     if(res[i][j + 1] == null){
                         tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
                     } else if (j==3){
-                        tds[j].innerHTML = res[i][j + 1];
+                        tds[j].innerHTML = exponential_form(res[i][j + 1]);
                     } else{
                         tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                     }
@@ -1351,3 +1363,14 @@ $(document).ready(function () {
         });
     };
 })
+
+function exponential_form(value){
+    if (value == null || value == '0.00e+00' || isNaN(value)){
+        return String(value)
+    } else{
+        var p = Math.floor(Math.log(value)/Math.LN10);
+        var n = value * Math.pow(10, -p);
+        n = n.toFixed(2)
+        return n + 'e' + p
+    }
+}
