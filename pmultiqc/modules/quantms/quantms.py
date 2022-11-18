@@ -1415,7 +1415,6 @@ class QuantMSModule(BaseMultiqcModule):
             mztab_data_psm_full = psm[['sequence', 'accession', 'search_engine_score[1]', 'stand_spectra_ref']]
             mztab_data_psm_full.rename(columns={"sequence": "Sequence", "accession": "Accession", 
                         "search_engine_score[1]": "Search_Engine_Score", "stand_spectra_ref": "Spectra_Ref"},inplace=True)
-            # mztab_data_psm_full["Search_Engine_Score"] = round(mztab_data_psm_full["Search_Engine_Score"], 3)
             mztab_data_psm_full[["Sequence", "Modification"]] = mztab_data_psm_full.apply(lambda x: find_modification(x["Sequence"]), axis=1, result_type="expand")
             max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
             mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
@@ -1434,7 +1433,7 @@ class QuantMSModule(BaseMultiqcModule):
             }
             headers['Search_Engine_Score'] = {
                 'name': 'Search Engine Score',
-                'format': "{:,.2e}",
+                'format': "{:,.5e}",
                 'max': max_search_score,
                 'scale': False
             }
@@ -1729,7 +1728,7 @@ class QuantMSModule(BaseMultiqcModule):
                     'PeptideSequence': {'name': 'PeptideSequence'}, 
                     'Modification': {'name': 'Modification'},
                     'ProteinName': {'name': 'ProteinName'},
-                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.2e}'},
+                    'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5e}'},
                     'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
 
         

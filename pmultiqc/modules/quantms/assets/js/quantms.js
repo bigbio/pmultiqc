@@ -1370,7 +1370,7 @@ function exponential_form(value){
     } else{
         var p = Math.floor(Math.log(value)/Math.LN10);
         var n = value * Math.pow(10, -p);
-        n = n.toFixed(2)
+        n = n.toFixed(5)
         return n + 'e' + p
     }
 }
