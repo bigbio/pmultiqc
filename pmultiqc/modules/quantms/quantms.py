@@ -133,13 +133,6 @@ class QuantMSModule(BaseMultiqcModule):
         self.draw_exp_design()
         self.pep_table_exists = False
         self.enable_dia = False
-        for f in self.find_log_files("quantms/mztab", filecontents=False):
-            self.out_mzTab_path = os.path.join(f["root"], f['fn'])
-            self.parse_out_mzTab()
-
-        for report in self.find_log_files("quantms/diann_report", filecontents=False):
-            self.diann_report_path = os.path.join(report["root"], report["fn"])
-            self.enable_dia = True
 
         self.mzML_paths = []
         for mzML_file in self.find_log_files("quantms/mzML", filecontents=False):
@@ -149,7 +142,17 @@ class QuantMSModule(BaseMultiqcModule):
         for mzml_info in self.find_log_files("quantms/mzml_info", filecontents=False):
             self.mzml_info_path.append(os.path.join(mzml_info["root"], mzml_info['fn']))
             self.mzml_info_path.sort()
-            self.read_mzml_info = True
+            if len(self.mzml_info_path) > 0:
+                self.read_mzml_info = True
+                self.mzML_paths = [os.path.splitext(os.path.basename(i))[0].rstrip("_mzml_info") + ".mzML" for i in self.mzml_info_path]
+            
+        for f in self.find_log_files("quantms/mztab", filecontents=False):
+            self.out_mzTab_path = os.path.join(f["root"], f['fn'])
+            self.parse_out_mzTab()
+
+        for report in self.find_log_files("quantms/diann_report", filecontents=False):
+            self.diann_report_path = os.path.join(report["root"], report["fn"])
+            self.enable_dia = True
 
         mt = self.parse_mzml()
         self.idx_paths = []
@@ -245,20 +248,22 @@ class QuantMSModule(BaseMultiqcModule):
                         'ID rate over RT', 'MS2 OverSampling', 'Pep Missing Values']
             ynames = []
             for k, v in self.heatmap_con_score.items():
-                ynames.append(k)
-                HeatMapScore.append([v, self.heatmap_pep_intensity[k], self.heatmap_charge_score[k],
-                                    self.MissedCleavages_heatmap_score[k],
-                                    self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
-                                    self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
+                if k in self.mL_with_psm:   
+                    ynames.append(k)
+                    HeatMapScore.append([v, self.heatmap_pep_intensity[k], self.heatmap_charge_score[k],
+                                        self.MissedCleavages_heatmap_score[k],
+                                        self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
+                                        self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
         else:
             xnames = ['Charge', 'Missed Cleavages', 'Missed Cleavages Var', 'ID rate over RT', 'MS2 OverSampling', 
                         'Pep Missing Values']
             ynames = []
             for k, v in self.heatmap_charge_score.items():
-                ynames.append(k)
-                HeatMapScore.append([self.heatmap_charge_score[k], self.MissedCleavages_heatmap_score[k],
-                                    self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
-                                    self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
+                if k in self.mL_with_psm:
+                    ynames.append(k)
+                    HeatMapScore.append([self.heatmap_charge_score[k], self.MissedCleavages_heatmap_score[k],
+                                        self.MissedCleavagesVar_score[k], self.ID_RT_score[k],
+                                        self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
 
         pconfig = {
             'title': 'Performance Overview',  # Plot title - should be in format "Module Name: Plot Title"
@@ -1002,6 +1007,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         mzml_table = {}
         heatmap_charge = {}
+        self.mL_without_psm = []
 
         def add_mzml_values(info_df, mzml_name):
             charge_state = int(info_df["Charge"]) if info_df["Charge"] != None else None
@@ -1014,14 +1020,18 @@ class QuantMSModule(BaseMultiqcModule):
                 self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
                 return
 
-            if info_df["SpectrumID"] in self.identified_spectrum[mzml_name]:
-                self.mzml_charge_plot.addValue(charge_state)
-                self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+            if mzml_name in self.mL_with_psm:
+                if info_df["SpectrumID"] in self.identified_spectrum[mzml_name]:
+                    self.mzml_charge_plot.addValue(charge_state)
+                    self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                    self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                else:
+                    self.mzml_charge_plot_1.addValue(charge_state)
+                    self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
+                    self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
             else:
-                self.mzml_charge_plot_1.addValue(charge_state)
-                self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
-                self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
+                if mzml_name not in self.mL_without_psm:
+                    self.mL_without_psm.append(mzml_name)
 
         def read_mzmls():
             exp = MSExperiment()
@@ -1055,15 +1065,19 @@ class QuantMSModule(BaseMultiqcModule):
                             self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
                             self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
                             continue
-
-                        if i.getNativeID() in self.identified_spectrum[m]:
-                            self.mzml_charge_plot.addValue(charge_state)
-                            self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
-                            self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                        
+                        if m in self.mL_with_psm:
+                            if i.getNativeID() in self.identified_spectrum[m]:
+                                self.mzml_charge_plot.addValue(charge_state)
+                                self.mzml_peak_distribution_plot.addValue(base_peak_intensity)
+                                self.mzml_peaks_ms2_plot.addValue(peak_per_ms2)
+                            else:
+                                self.mzml_charge_plot_1.addValue(charge_state)
+                                self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
+                                self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
                         else:
-                            self.mzml_charge_plot_1.addValue(charge_state)
-                            self.mzml_peak_distribution_plot_1.addValue(base_peak_intensity)
-                            self.mzml_peaks_ms2_plot_1.addValue(peak_per_ms2)
+                            if m not in self.mL_without_psm:
+                                self.mL_without_psm.append(m)
 
                 heatmap_charge[m] = charge_2 / ms2_number
                 self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
@@ -1098,6 +1112,9 @@ class QuantMSModule(BaseMultiqcModule):
                 log.info("{}: Done aggregating mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
 
         read_mzml_info() if self.read_mzml_info else read_mzmls()
+        for i in self.mL_without_psm:
+            log.warning("No PSM found in '{}'!".format(i))
+
         self.mzml_peaks_ms2_plot.to_dict()
         self.mzml_peak_distribution_plot.to_dict()
         # Construct compound dictionaries to apply to drawing functions.
@@ -1233,8 +1250,8 @@ class QuantMSModule(BaseMultiqcModule):
             else:
                 mzml_table[mzML_name][search_engine] = identified_num
 
-            mzml_table[mzML_name]['num_quant_psms'] = self.mL_spec_ident_final[mzML_name]
-            mzml_table[mzML_name]['num_quant_peps'] = len(self.mzml_peptide_map[mzML_name])
+            mzml_table[mzML_name]['num_quant_psms'] = self.mL_spec_ident_final[mzML_name] if mzML_name in self.mL_spec_ident_final.keys() else 0
+            mzml_table[mzML_name]['num_quant_peps'] = len(self.mzml_peptide_map[mzML_name]) if mzML_name in self.mL_spec_ident_final.keys() else 0
         
         for raw_id in consensus_paths:
             log.info("Parsing consensus file {}...".format(raw_id))
@@ -1380,6 +1397,19 @@ class QuantMSModule(BaseMultiqcModule):
             self.cal_num_table_data[m]['modified_peptide_num'] = len(modified_pep)
 
             mL_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
+
+        # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
+        self.mL_with_psm = list(self.identified_spectrum.keys())
+        self.mL_without_psm = set(self.mzML_paths) - set(self.mL_with_psm)
+        for i in self.mL_without_psm:
+            self.cal_num_table_data[i] = {'sample_name': self.exp_design_table[i]['Sample'],
+                                          'condition': self.exp_design_table[i]['MSstats_Condition'],
+                                          'fraction': self.exp_design_table[i]['Fraction'],
+                                          'protein_num': 0,
+                                          'peptide_num': 0,
+                                          'unique_peptide_num': 0,
+                                          'modified_peptide_num': 0
+                                          }
 
         target_bin_data = {}
         decoy_bin_data = {}
@@ -1649,9 +1679,11 @@ class QuantMSModule(BaseMultiqcModule):
             'description': 'number of peptides per proteins'
         }
         self.pep_plot.to_dict(percentage = True, cats = categorys)
+        self.mL_with_psm = list()
 
         for run_file, group in report_data.groupby("File.Name"):
             run_file = os.path.basename(run_file)
+            self.mL_with_psm.append(run_file)
             self.cal_num_table_data[run_file] = {'sample_name': self.exp_design_table[run_file]['Sample']}
             self.cal_num_table_data[run_file]['condition'] = self.exp_design_table[run_file]['MSstats_Condition']
             self.cal_num_table_data[run_file]['fraction'] = self.exp_design_table[run_file]['Fraction']
@@ -1663,6 +1695,20 @@ class QuantMSModule(BaseMultiqcModule):
             unique_peptides = [pep for pep, prots in group_peptides.items() if len(set(prots)) == 1]
             self.cal_num_table_data[run_file]['unique_peptide_num'] = len(unique_peptides)
             self.cal_num_table_data[run_file]['modified_peptide_num'] = len(modified_pep)
+
+        self.mL_without_psm = set(self.mzML_paths) - set(self.mL_with_psm)
+        for i in self.mL_without_psm:
+            log.warning("No PSM found in '{}'!".format(i))
+
+        for i in self.mL_without_psm:
+            self.cal_num_table_data[i] = {'sample_name': self.exp_design_table[i]['Sample'],
+                                          'condition': self.exp_design_table[i]['MSstats_Condition'],
+                                          'fraction': self.exp_design_table[i]['Fraction'],
+                                          'protein_num': 0,
+                                          'peptide_num': 0,
+                                          'unique_peptide_num': 0,
+                                          'modified_peptide_num': 0
+                                          }
 
     def parse_msstats_input(self):
         log.info("Parsing MSstats input file " + self.msstats_input_path)
