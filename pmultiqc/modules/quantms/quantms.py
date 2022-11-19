@@ -96,6 +96,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.PSM_table = dict()
         self.mzml_peptide_map = dict()
         self.identified_spectrum = dict()
+        self.mL_with_psm = list()
         self.pep_quant_table = dict()
         self.read_mzml_info = False
         self.mzml_table = OrderedDict()
@@ -144,7 +145,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.mzml_info_path.sort()
             if len(self.mzml_info_path) > 0:
                 self.read_mzml_info = True
-                self.mzML_paths = [os.path.splitext(os.path.basename(i))[0].rstrip("_mzml_info") + ".mzML" for i in self.mzml_info_path]
+                self.mzML_paths = [os.path.basename(i.rstrip("_mzml_info.tsv") + ".mzML") for i in self.mzml_info_path]
             
         for f in self.find_log_files("quantms/mztab", filecontents=False):
             self.out_mzTab_path = os.path.join(f["root"], f['fn'])
@@ -1090,7 +1091,7 @@ class QuantMSModule(BaseMultiqcModule):
                 log.info("{}: Parsing mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
                 mzml_df = pd.read_csv(file, sep="\t")
 
-                m = os.path.splitext(os.path.basename(file))[0].rstrip("_mzml_info") + ".mzML"
+                m = os.path.basename(file.rstrip("_mzml_info.tsv") + ".mzML")
                 if m not in mzml_table:
                     mzml_table[m] = dict.fromkeys(['MS1_Num', 'MS2_Num', 'Charge_2'], 0)
                 charge_group = mzml_df.groupby("Charge").size()
@@ -1302,6 +1303,7 @@ class QuantMSModule(BaseMultiqcModule):
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']) + ":" + x.spectra_ref.split(':')[1], axis=1)
         psm['filename'] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
+        self.mL_with_psm = psm['filename'].unique().tolist()
 
         prot = mztab_data.protein_table
         self.prot_search_score = dict()
@@ -1399,8 +1401,7 @@ class QuantMSModule(BaseMultiqcModule):
             mL_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
 
         # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
-        self.mL_with_psm = [os.path.basename(i) for i in self.identified_spectrum.keys()]
-        self.mL_without_psm = set(self.mzML_paths) - set(self.mL_with_psm)
+        self.mL_without_psm = set([os.path.basename(i) for i in self.mzML_paths]) - set(self.mL_with_psm)
         for i in self.mL_without_psm:
             self.cal_num_table_data[i] = {'sample_name': self.exp_design_table[i]['Sample'],
                                           'condition': self.exp_design_table[i]['MSstats_Condition'],
@@ -1679,7 +1680,6 @@ class QuantMSModule(BaseMultiqcModule):
             'description': 'number of peptides per proteins'
         }
         self.pep_plot.to_dict(percentage = True, cats = categorys)
-        self.mL_with_psm = list()
 
         for run_file, group in report_data.groupby("File.Name"):
             run_file = os.path.basename(run_file)
@@ -1696,7 +1696,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.cal_num_table_data[run_file]['unique_peptide_num'] = len(unique_peptides)
             self.cal_num_table_data[run_file]['modified_peptide_num'] = len(modified_pep)
 
-        self.mL_without_psm = set(self.mzML_paths) - set(self.mL_with_psm)
+        self.mL_without_psm = set([os.path.basename(i) for i in self.mzML_paths]) - set(self.mL_with_psm)
         for i in self.mL_without_psm:
             log.warning("No PSM found in '{}'!".format(i))
 
