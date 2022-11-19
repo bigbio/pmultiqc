@@ -1399,7 +1399,7 @@ class QuantMSModule(BaseMultiqcModule):
             mL_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
 
         # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
-        self.mL_with_psm = list(self.identified_spectrum.keys())
+        self.mL_with_psm = [os.path.basename(i) for i in self.identified_spectrum.keys()]
         self.mL_without_psm = set(self.mzML_paths) - set(self.mL_with_psm)
         for i in self.mL_without_psm:
             self.cal_num_table_data[i] = {'sample_name': self.exp_design_table[i]['Sample'],
