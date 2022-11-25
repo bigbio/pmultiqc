@@ -56,4 +56,4 @@ def pmultiqc_plugin_execution_start():
         # TODO Why is the 'shared' suddenly inside the dict???
         config.update_dict(config.sp, {'quantms/diann_report': {'fn': '*report.tsv', 'num_lines': 0, 'shared': False}})
 
-    config.update({'log_filesize_limit': 20000000000, 'thousandsSep_format': ''})
+    config.update({'log_filesize_limit': 200 * pow(1024, 3), 'thousandsSep_format': ''})
