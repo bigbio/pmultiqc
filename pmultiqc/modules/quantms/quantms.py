@@ -927,7 +927,8 @@ class QuantMSModule(BaseMultiqcModule):
         # Calculate the ID RT Score
         for name, group in psm.groupby('stand_spectra_ref'):
             sc = group['missed_cleavages'].value_counts()
-            self.MissedCleavages_heatmap_score[name] = sc[0] / sc[:].sum()
+            mis_0 = sc[0] if 0 in sc else 0
+            self.MissedCleavages_heatmap_score[name] = mis_0 / sc[:].sum()
 
             x = group['retention_time'] / np.sum(group['retention_time'])
             n = len(group['retention_time'])
