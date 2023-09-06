@@ -271,7 +271,9 @@ async function quantNext(order, column){
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -310,7 +312,9 @@ async function quantPre(order, column){
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -343,7 +347,9 @@ async function quantFirst(order, column){
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -376,7 +382,9 @@ async function quantLast(order, column){
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -484,6 +492,8 @@ async function quant_page_jump(order, column){
                             tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                         } else if(res[i][j + 1] == null){
                             tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
+                        } else if(j == 3){
+                            tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
                         }
                         else{
                             tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
@@ -556,7 +566,9 @@ async function searchQuantFunction() {
                     tds[j].setAttribute("data-sparkline", String(res[i][j + 1]));
                 } else if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
-				}
+				} else if(j == 3){
+					tds[j].getElementsByClassName('val')[0].innerHTML = exponential_form(res[i][j + 1]);
+                }
 				else{
 					tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
 				}
@@ -1032,7 +1044,7 @@ async function psmNext(order, column){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				} else if (j==3){
-					tds[j].innerHTML = res[i][j + 1];
+					tds[j].innerHTML = exponential_form(res[i][j + 1]);
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                 }
@@ -1068,7 +1080,7 @@ async function psmPre(order, column){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				} else if (j==3){
-					tds[j].innerHTML = res[i][j + 1];
+					tds[j].innerHTML = exponential_form(res[i][j + 1]);
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                 }
@@ -1099,7 +1111,7 @@ async function psmFirst(order, column){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				} else if (j==3){
-					tds[j].innerHTML = res[i][j + 1];
+					tds[j].innerHTML = exponential_form(res[i][j + 1]);
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                 }
@@ -1130,7 +1142,7 @@ async function psmLast(order, column){
                 if(res[i][j + 1] == null){
 					tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
 				} else if (j==3){
-					tds[j].innerHTML = res[i][j + 1];
+					tds[j].innerHTML = exponential_form(res[i][j + 1]);
 				} else{
                     tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                 }
@@ -1219,7 +1231,7 @@ async function psm_page_jump(order, column){
                         if(res[i][j + 1] == null){
                             tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
                         } else if (j==3){
-                            tds[j].innerHTML = res[i][j + 1];
+                            tds[j].innerHTML = exponential_form(res[i][j + 1]);
                         } else{
                             tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                         }
@@ -1263,7 +1275,7 @@ async function searchPsmFunction() {
                     if(res[i][j + 1] == null){
                         tds[j].getElementsByClassName('val')[0].innerHTML = String(res[i][j + 1]);
                     } else if (j==3){
-                        tds[j].innerHTML = res[i][j + 1];
+                        tds[j].innerHTML = exponential_form(res[i][j + 1]);
                     } else{
                         tds[j].getElementsByClassName('val')[0].innerHTML = res[i][j + 1];
                     }
@@ -1278,5 +1290,87 @@ async function searchPsmFunction() {
                 }
             }
         });
+    }
+}
+
+$(document).ready(function () {
+    var search_1 = $('[data-target="search_scores_summary-1"]').parent();
+    var search_2 = $('[data-target="search_scores_summary-2-1"]').parent();
+    var pep = $('[data-target="search_engine_PEP-1"]').parent();
+    var consensus = $('[data-target="consensus_summary-1"]').parent();
+    if(search_1.length > 0){
+        search_1.prepend("<span id='search_btn' class='btn btn-default btn-sm'>select files</span>");
+        search_1.children().css({"position":"inherit","float":"inherit","width":"200px","overflow-x":"auto"});
+        search_1.css({"height": "30px","overflow-y":"hidden"});
+        search_1.mouseenter(function () {
+            $(this).children("button").show();
+            $(this).css({"height": "140px","overflow-y":"auto"});
+        });
+        search_1.mouseleave(function () {
+            $(this).children("button").hide();
+            $(this).css({"height": "30px","overflow-y":"auto"});
+        });
+        search_1.children().each(function () {
+            $(this).css({"display": "block"});
+        });
+    };
+    if(search_2.length > 0){
+        search_2.prepend("<span id='search_btn' class='btn btn-default btn-sm'>select files</span>");
+        search_2.children().css({"position":"inherit","float":"inherit","width":"200px","overflow-x":"auto"});
+        search_2.css({"height": "30px","overflow-y":"hidden"});
+        search_2.mouseenter(function () {
+            $(this).children("button").show();
+            $(this).css({"height": "140px","overflow-y":"auto"});
+        });
+        search_2.mouseleave(function () {
+            $(this).children("button").hide();
+            $(this).css({"height": "30px","overflow-y":"auto"});
+        });
+        search_2.children().each(function () {
+            $(this).css({"display": "block"});
+        });
+    };
+    if(pep.length > 0){
+        pep.prepend("<span id='search_btn' class='btn btn-default btn-sm'>select files</span>");
+        pep.children().css({"position":"inherit","float":"inherit","width":"200px","overflow-x":"auto"});
+        pep.css({"height": "30px","overflow-y":"hidden"});
+        pep.mouseenter(function () {
+            $(this).children("button").show();
+            $(this).css({"height": "140px","overflow-y":"auto"});
+        });
+        pep.mouseleave(function () {
+            $(this).children("button").hide();
+            $(this).css({"height": "30px","overflow-y":"auto"});
+        });
+        pep.children().each(function () {
+            $(this).css({"display": "block"});
+        });
+    };
+    if(consensus.length > 0){
+        consensus.prepend("<span id='search_btn' class='btn btn-default btn-sm'>select files</span>");
+        consensus.children().css({"position":"inherit","float":"inherit","width":"200px","overflow-x":"auto"});
+        consensus.css({"height": "30px","overflow-y":"hidden"});
+        consensus.mouseenter(function () {
+            $(this).children("button").show();
+            $(this).css({"height": "140px","overflow-y":"auto"});
+        });
+        consensus.mouseleave(function () {
+            $(this).children("button").hide();
+            $(this).css({"height": "30px","overflow-y":"auto"});
+        });
+        consensus.children().each(function () {
+            $(this).css({"display": "block"});
+        });
+    };
+})
+
+function exponential_form(value){
+    if (value == null || value == '0.00e+00' || isNaN(value)){
+        return String(value)
+    } else{
+        var p = Math.floor(Math.log(value)/Math.LN10);
+        var n = value * Math.pow(10, -p);
+        n = n.toFixed(5)
+        return n + 'e' + p
     }
 }
