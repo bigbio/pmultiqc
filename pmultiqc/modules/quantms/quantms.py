@@ -154,7 +154,7 @@ class QuantMSModule(BaseMultiqcModule):
             if len(self.mzml_info_path) > 0:
                 self.read_mzml_info = True
                 self.ms_paths = [self.file_prefix(i).replace("_mzml_info", ".mzML") for i in self.mzml_info_path]
-            
+  
         for f in self.find_log_files("quantms/mztab", filecontents=False):
             self.out_mzTab_path = os.path.join(f["root"], f['fn'])
             self.parse_out_mzTab()
@@ -1100,7 +1100,6 @@ class QuantMSModule(BaseMultiqcModule):
             for file in self.mzml_info_path:
                 log.info("{}: Parsing mzml_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
                 mzml_df = pd.read_csv(file, sep="\t")
-
                 m = self.file_prefix(file).replace("_mzml_info", "")
                 if m not in mzml_table:
                     mzml_table[m] = dict.fromkeys(['MS1_Num', 'MS2_Num', 'Charge_2'], 0)
