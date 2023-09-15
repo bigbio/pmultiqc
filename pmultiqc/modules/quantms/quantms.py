@@ -910,7 +910,7 @@ class QuantMSModule(BaseMultiqcModule):
                                         pep_table.columns.tolist()))
 
             for name, group in pep_table.groupby("stand_spectra_ref"):
-                self.heatmap_con_score[name] = 1 - np.sum(np.sum(
+                self.heatmap_con_score[name] = 1.0 - np.sum(np.sum(
                     group[group['accession'].str.contains(config.kwargs["contaminant_affix"])][study_variables])) / \
                                             np.sum(np.sum(group[study_variables]))
                 if config.kwargs['remove_decoy']:
@@ -945,9 +945,9 @@ class QuantMSModule(BaseMultiqcModule):
             worst = ((1 - y) ** 0.5) * 1 / n + (y ** 0.5) * (n - 1) / n
             sc = np.sum(np.abs(x - y) ** 0.5) / n
             if worst == 0:
-                self.ID_RT_score[name] = 1
+                self.ID_RT_score[name] = 1.0
             else:
-                self.ID_RT_score[name] = (worst - sc) / worst
+                self.ID_RT_score[name] = float((worst - sc) / worst)
 
             #  For HeatMapOverSamplingScore
             self.HeatmapOverSamplingScore[name] = self.oversampling[name]['1'] / np.sum(list(self.oversampling[name].values()))
@@ -1106,8 +1106,8 @@ class QuantMSModule(BaseMultiqcModule):
                 charge_group = mzml_df.groupby("Charge").size()
                 ms_level_group = mzml_df.groupby("MSLevel").size()
                 charge_2 = charge_group[2] if 2 in charge_group else 0
-                ms1_number = ms_level_group[1] if 1 in ms_level_group else 0
-                ms2_number = ms_level_group[2] if 2 in ms_level_group else 0
+                ms1_number = int(ms_level_group[1]) if 1 in ms_level_group else 0
+                ms2_number = int(ms_level_group[2]) if 2 in ms_level_group else 0
                 self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
                 mzml_table[m].update({'MS1_Num': mzml_table[m]['MS1_Num'] + ms1_number})
                 mzml_table[m].update({'MS2_Num': mzml_table[m]['MS2_Num'] + ms2_number})

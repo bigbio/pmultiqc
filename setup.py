@@ -7,11 +7,11 @@ For more information about MultiQC, see http://multiqc.info
 
 from setuptools import setup, find_packages
 
-version = '0.0.19'
+version = '0.0.20'
 
 
 def readme():
-    with open('README.md') as f:
+    with open('README.md', encoding="utf-8") as f:
         return f.read()
 
 
