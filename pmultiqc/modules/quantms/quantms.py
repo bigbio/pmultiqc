@@ -178,19 +178,21 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_peaks_per_ms2()
                 self.draw_peak_intensity_distribution()
         else:
-            self.parse_idxml(mt)
+            if not config.kwargs['ignored_idxml']:
+                self.parse_idxml(mt)
             self.CalHeatMapScore()
             self.draw_heatmap()
             self.draw_summary_protein_ident_table()
             self.draw_quantms_identi_num()
             self.draw_num_pep_per_protein()
-            self.draw_mzml_ms()
+            if not config.kwargs['ignored_idxml']:
+                self.draw_mzml_ms()
+                self.draw_search_engine()
             self.draw_precursor_charge_distribution()
             self.draw_peaks_per_ms2()
             self.draw_peak_intensity_distribution()
             self.draw_oversampling()
-            self.draw_delta_mass()
-            self.draw_search_engine()
+
 
         # TODO what if multiple are found??
         # if config.kwargs.get('disable_table', True):
@@ -1727,12 +1729,6 @@ class QuantMSModule(BaseMultiqcModule):
         msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
         msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[:, "PeptideSequence"].map(self.peptide_search_score)
         msstats_data[["PeptideSequence", "Modification"]] = msstats_data.apply(lambda x: find_modification(x["PeptideSequence"]), axis=1, result_type="expand")
-
-        # multiQC requires weird dicts
-        msstats_data_dict_pep_full = dict()
-        msstats_data_dict_pep_init = dict()
-        msstats_data_dict_prot_full = dict()
-        msstats_data_dict_prot_init = dict()
 
         max_pep_intensity = 0.0
 
