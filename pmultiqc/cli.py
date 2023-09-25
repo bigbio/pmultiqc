@@ -30,6 +30,7 @@ quantification_method = click.option('--quantification_method', 'quantification_
                             help="The quantification method for LFQ experiment (default: feature_intensity)",
                             type=click.Choice(['feature_intensity', 'spectral_counting']))
 disable_table = click.option('--disable_table', 'disable_table', is_flag=True, help="disable protein/peptide table plots for large dataset")
+ignored_idxml = click.option('--ignored_idxml', 'ignored_idxml', is_flag=True, help="ignored idxml files for faster running")
 affix_type = click.option('--affix_type', 'affix_type', default='prefix',
                             help='Prefix (default) or suffix')
 disable_plugin = click.option('--disable_plugin', 'disable_plugin', is_flag=True,

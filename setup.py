@@ -7,7 +7,7 @@ For more information about MultiQC, see http://multiqc.info
 
 from setuptools import setup, find_packages
 
-version = '0.0.20'
+version = '0.0.21'
 
 
 def readme():
@@ -52,6 +52,7 @@ setup(
             'contaminant_affix = pmultiqc.cli:contaminant_affix',
             'quantification_method = pmultiqc.cli:quantification_method',
             'disable_table = pmultiqc.cli:disable_table',
+            'ignored_idxml = pmultiqc.cli:ignored_idxml',
             'affix_type = pmultiqc.cli:affix_type'
         ],
         'multiqc.hooks.v1': [
