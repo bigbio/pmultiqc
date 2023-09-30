@@ -110,7 +110,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.mzml_table = OrderedDict()
         self.search_engine = OrderedDict()
         self.XCORR_HIST_RANGE = {'start': 0, 'end': 5, 'step': 0.1}
-        self.HYPER_HIST_RANGE = {'start': 0, 'end': 10, 'step': 0.1}
+        self.HYPER_HIST_RANGE = {'start': 0, 'end': 5, 'step': 0.1}
         self.SPECEVALUE_HIST_RANGE = {'start': 0, 'end': 20, 'step': 0.4}
         self.PEP_HIST_RANGE = {'start': 0, 'end': 1, 'step': 0.02}
         self.total_ms2_spectra = 0
@@ -835,7 +835,7 @@ class QuantMSModule(BaseMultiqcModule):
         hyper_pconfig = {
             'id': 'search_scores_summary',  # ID used for the table
             'cpswitch': False,
-            'title': 'Summary of cross-correlation scores',
+            'title': 'Summary of Hyperscore',
             'xlab': 'Sage hyperscore ranges',
             'stacking': True,
             'height': 550,
@@ -856,7 +856,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         xcorr_bar_html = bargraph.plot(list(self.search_engine['xcorr'].values()), xcorr_cats, xcorr_pconfig) if self.Comet_label else ''
         SpecE_bar_html = bargraph.plot(list(self.search_engine['SpecE'].values()), SpecE_cats, SpecE_pconfig) if self.MSGF_label else ''
-        hyper_bar_html = bargraph.plot(list(self.search_engine['SpecE'].values()), hyper_cats, hyper_pconfig) if self.Sage_label else ''
+        hyper_bar_html = bargraph.plot(list(self.search_engine['hyper'].values()), hyper_cats, hyper_pconfig) if self.Sage_label else ''
 
         self.add_section(
             description='''#### Summary of Search Scores
@@ -1233,7 +1233,7 @@ class QuantMSModule(BaseMultiqcModule):
             xcorr_breaks = list(np.arange(
                 self.XCORR_HIST_RANGE['start'], self.XCORR_HIST_RANGE['end'] + self.XCORR_HIST_RANGE['step'], self.XCORR_HIST_RANGE['step']).round(2))
             
-            hyper_breaks = list(np.range(
+            hyper_breaks = list(np.arange(
                 self.HYPER_HIST_RANGE['start'], self.HYPER_HIST_RANGE['end'] + self.HYPER_HIST_RANGE['step'], self.HYPER_HIST_RANGE['step']).round(2))
 
             SpecE_breaks = list(np.arange(
