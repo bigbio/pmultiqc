@@ -110,6 +110,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.mzml_table = OrderedDict()
         self.search_engine = OrderedDict()
         self.XCORR_HIST_RANGE = {'start': 0, 'end': 5, 'step': 0.1}
+        self.HYPER_HIST_RANGE = {'start': 0, 'end': 5, 'step': 0.1}
         self.SPECEVALUE_HIST_RANGE = {'start': 0, 'end': 20, 'step': 0.4}
         self.PEP_HIST_RANGE = {'start': 0, 'end': 1, 'step': 0.02}
         self.total_ms2_spectra = 0
@@ -584,6 +585,11 @@ class QuantMSModule(BaseMultiqcModule):
                 'description': 'Number of spectra identified by Comet search engine',
                 'color': "#ffffff"
             }
+        if any(['Sage' in v for k,v in self.mzml_table.items()]):
+            headers['Sage'] = {
+                'description': 'Number of spectra identified by Sage search engine',
+                'color': "#ffffff"
+            }
         headers['num_quant_psms'] = {
             'title': '#PSMs from quant. peptides',
             'description': 'Number of reliable PSMs from peptides IDs used in quantification',
@@ -610,6 +616,7 @@ class QuantMSModule(BaseMultiqcModule):
                     * MS2_Num: The number of MS2 spectra extracted from mzMLs
                     * MSGF: The Number of spectra identified by MSGF search engine
                     * Comet: The Number of spectra identified by Comet search engine
+                    * Sage: The Number of spectra identified by Sage search engine
                     * PSMs from quant. peptides: extracted from PSM table in mzTab file
                     * Peptides quantified: extracted from PSM table in mzTab file
                     ''',
@@ -800,7 +807,7 @@ class QuantMSModule(BaseMultiqcModule):
                     '''
         )
         # Create scores summary plot
-        [MSGF_labels, Comet_labels] = self.search_engine['data_label']['score_label']
+        [MSGF_labels, Comet_labels, Sage_labels] = self.search_engine['data_label']['score_label']
         SpecE_pconfig = {
             'id': 'search_scores_summary',  # ID used for the table
             'cpswitch': False,
@@ -825,6 +832,18 @@ class QuantMSModule(BaseMultiqcModule):
             'data_labels': Comet_labels,
         }
 
+        hyper_pconfig = {
+            'id': 'search_scores_summary',  # ID used for the table
+            'cpswitch': False,
+            'title': 'Summary of Hyperscore',
+            'xlab': 'Sage hyperscore ranges',
+            'stacking': True,
+            'height': 550,
+            'tt_percentages': True, 
+            'tt_decimals': 0,
+            'data_labels': Sage_labels,
+        }        
+
         bar_cats = OrderedDict()
         bar_cats['target'] = {'name': 'target', 'color': '#2b908f'}
         bar_cats['decoy'] = {'name': 'decoy', 'color': '#90ed7d'}
@@ -832,17 +851,20 @@ class QuantMSModule(BaseMultiqcModule):
 
         SpecE_cats = [bar_cats] * len(self.search_engine['SpecE'])
         xcorr_cats = [bar_cats] * len(self.search_engine['xcorr'])
+        hyper_cats = [bar_cats] * len(self.search_engine['hyper'])
         PEP_cats = [bar_cats] * len(self.search_engine['PEPs'])
 
         xcorr_bar_html = bargraph.plot(list(self.search_engine['xcorr'].values()), xcorr_cats, xcorr_pconfig) if self.Comet_label else ''
         SpecE_bar_html = bargraph.plot(list(self.search_engine['SpecE'].values()), SpecE_cats, SpecE_pconfig) if self.MSGF_label else ''
-        
+        hyper_bar_html = bargraph.plot(list(self.search_engine['hyper'].values()), hyper_cats, hyper_pconfig) if self.Sage_label else ''
+
         self.add_section(
             description='''#### Summary of Search Scores
             * SpecEvalue : Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
             * xcorr : cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
+            * hyperscore : Hyperscore, the search score of Sage. The value used for plotting is hyperscore.
             ''',
-            plot=xcorr_bar_html + SpecE_bar_html
+            plot=xcorr_bar_html + SpecE_bar_html + hyper_bar_html
         )
         # Create PEPs summary plot
         PEP_pconfig = {
@@ -895,7 +917,7 @@ class QuantMSModule(BaseMultiqcModule):
         else:
             self.add_section(
                 description='''#### Summary of consensus PSMs
-                No Consensus PSMs data because of single search engine！
+                No Consensus PSMs data because of single search engine!
                 '''
             )
 
@@ -1181,10 +1203,10 @@ class QuantMSModule(BaseMultiqcModule):
                 consensus_paths.append(raw_id)
                 self.idx_paths.remove(raw_id)
 
-        self.MSGF_label, self.Comet_label = False, False
-        self.search_engine = {'SpecE': OrderedDict(), 'xcorr': OrderedDict(), 'PEPs': OrderedDict(),
+        self.MSGF_label, self.Comet_label, self.Sage_label = False, False, False
+        self.search_engine = {'SpecE': OrderedDict(), 'xcorr': OrderedDict(), 'hyper': OrderedDict(), 'PEPs': OrderedDict(),
                               'consensus_support': OrderedDict(), 'data_label': OrderedDict()}
-        SpecE_label, xcorr_label, PEPs_label, consensus_label = [], [], [], []
+        SpecE_label, xcorr_label, hyper_label, PEPs_label, consensus_label = [], [], [], [], []
 
         for raw_id in self.idx_paths:
             log.info("Parsing search result file {}...".format(raw_id))
@@ -1205,10 +1227,14 @@ class QuantMSModule(BaseMultiqcModule):
 
             self.search_engine['SpecE'][raw_id] = OrderedDict()
             self.search_engine['xcorr'][raw_id] = OrderedDict()
+            self.search_engine['hyper'][raw_id] = OrderedDict()
             self.search_engine['PEPs'][raw_id] = OrderedDict()
 
             xcorr_breaks = list(np.arange(
                 self.XCORR_HIST_RANGE['start'], self.XCORR_HIST_RANGE['end'] + self.XCORR_HIST_RANGE['step'], self.XCORR_HIST_RANGE['step']).round(2))
+            
+            hyper_breaks = list(np.arange(
+                self.HYPER_HIST_RANGE['start'], self.HYPER_HIST_RANGE['end'] + self.HYPER_HIST_RANGE['step'], self.HYPER_HIST_RANGE['step']).round(2))
 
             SpecE_breaks = list(np.arange(
                 self.SPECEVALUE_HIST_RANGE['start'], self.SPECEVALUE_HIST_RANGE['end'] + self.SPECEVALUE_HIST_RANGE['step'], self.SPECEVALUE_HIST_RANGE['step']).round(2))
@@ -1220,6 +1246,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             bar_stacks = ['target', 'decoy', 'target+decoy']
             Xcorr = Histogram('Comet cross-correlation score', plot_category = 'range', stacks = bar_stacks, breaks = xcorr_breaks)
+            Hyper = Histogram('Sage hyperscore', plot_category = 'range', stacks = bar_stacks, breaks = hyper_breaks)
             SpecE = Histogram('MSGF spectral E-value', plot_category = 'range', stacks = bar_stacks, breaks = SpecE_breaks)
             PEP = Histogram('Posterior error probability', plot_category = 'range', stacks = bar_stacks, breaks = PEP_breaks)
             Consensus_support = Histogram('Consensus PSM number', plot_category = 'frequency', stacks = bar_stacks)
@@ -1259,6 +1286,23 @@ class QuantMSModule(BaseMultiqcModule):
                 self.search_engine['xcorr'][raw_id] = Xcorr.dict['data']
                 self.search_engine['PEPs'][raw_id] = PEP.dict['data']
 
+            elif search_engine == "Sage" or "sage" in raw_id:
+                self.Sage_label = True
+                mzml_table[ms_name]['Sage'] = identified_num
+                hyper_label.append({'name': raw_id, 'ylab': 'Counts'})
+                PEPs_label.append({'name': raw_id, 'ylab': 'Counts'})
+                for peptide_id in peptide_ids:
+                    for hit in peptide_id.getHits():
+                        hyper = hit.getMetaValue("hyperscore")
+                        pep = hit.getMetaValue("MS:1001493") if hit.getMetaValue("MS:1001493") else hit.getScore()
+                        Hyper.addValue(hyper, stack = hit.getMetaValue("target_decoy"))
+                        PEP.addValue(pep, stack = hit.getMetaValue("target_decoy"))
+
+                Hyper.to_dict()
+                PEP.to_dict()
+                self.search_engine['hyper'][raw_id] = Hyper.dict['data']
+                self.search_engine['PEPs'][raw_id] = PEP.dict['data']
+
             else:
                 mzml_table[ms_name][search_engine] = identified_num
 
@@ -1283,7 +1327,7 @@ class QuantMSModule(BaseMultiqcModule):
             for i in Consensus_support.dict['data'].keys():
                 self.search_engine['consensus_support'][raw_id][i] = Consensus_support.dict['data'][i]
 
-        self.search_engine['data_label'] = {'score_label': [SpecE_label, xcorr_label], 'PEPs_label': PEPs_label, 'consensus_label': consensus_label}
+        self.search_engine['data_label'] = {'score_label': [SpecE_label, xcorr_label, hyper_label], 'PEPs_label': PEPs_label, 'consensus_label': consensus_label}
 
         # mass spectrum files sorted based on experimental file
         for spectrum_name in self.exp_design_table.keys():
