@@ -1,4 +1,5 @@
 # pmultiqc
+
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
 [![Upload Python Package](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml)
 
@@ -6,19 +7,22 @@ A library for proteomics QC report based on MultiQC framework. The library gener
 
 - analysis_dir                  : Final results of the pipeline
   - experimental_design.tsv     : experimental design file in two-table format
-  - out.mzTab                   : mzTab with results of the identification
+  - *.mzTab                   : mzTab with results of the identification
   - *msstats\*csv               : MSstats/MSstatsTMT input file
   - *.mzML                      : mzML spectra files
+  - *ms_info.tsv                : MS quality control information extracted from raw files.
   - *.idXML                     : Identification results from search + percolator
   - *.yml                       : summary software information and parameters of quantms pipeline (optional)
   - diann_report.tsv            : DIA-NN main report file. Only for DIA analysis.
 
 ## Usage
+
 ```multiqc {analysis_dir} -o {output dir}```
 
 example: ```multiqc resources/LFQ -o ./```
 
 ### parameters
+
 - --raw: Keep filenames in experimental design output as raw when exp_design file is provided
 - --condition: Create conditions from provided (e.g., factor) columns when exp_design file is provided
 - --remove_decoy: Whether to remove the decoy peptides when counting
@@ -26,7 +30,9 @@ example: ```multiqc resources/LFQ -o ./```
 - --contaminant_affix: The contaminant prefix or suffix used or to be used
 - --affix_type: Location of the decoy marker string in the fasta accession. Before (prefix) or after (suffix)
 - --disable_plugin: disable pmultiqc plugin
-
+- --quantification_method: The quantification method for LFQ experiment (default: `feature_intensity`)
+- --disable_table: Disable protein/peptide table plots for large dataset
+- --ignored_idxml: ignored idxml files for faster running
 
 An example report can be found in [multiqc_report.html](http://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html)
 
@@ -49,6 +55,8 @@ Most of the metrics are compute based on the `out.mzTab` and the `*.idXML` which
 
 - **Summary Table**: shows the number of spectra, % of identified spectra, total peptide count, total identified proteins (including protein groups - if two proteins are identified by the same peptide the two proteins are count) http://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html#proteomicslfq_summary_table
 
+- **MS1 Information**: shows the quality control metrics on MS1 level, including total ion chromatograms (TIC), base peaks count (BPC), number of MS1 peaks, and general stats.
+
 - **Pipeline Results Statistics**: shows quantms pipeline final results, total peptide identified, total identified proteins et al (The data comes from mzTab and the experimental design file).
   
 - **Number of peptides per Protein**: Includes an histogram with the number of peptides per proteins http://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html#num_of_pep_per_prot
@@ -67,6 +75,15 @@ A table called [Spectra Tracking](http://bigbio.xyz/pmultiqc/shared-peptides-sta
 - Comet: Number of Peptides identified using the Comet search engine
 - Final result of Spectra: Final number of PSMs reported in the mzTab
 - Final result of Peptides: Final number of Peptides identified in the mzTab
+
+### Summary of Search Engine Scores
+
+This section contains search scores and PEPs counts for different search engines in different files, and they also contain a summary of the consensus PSMs if two or more search engines are used.
+
+- SpecEvalue: Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
+- xcorr: cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
+- hyperscore : Hyperscore, the search score of Sage. The value used for plotting is hyperscore.
+-  Consensus support: is a measure of agreement between search engines. Every peptide sequence in the analysis has been identified by at least one search run. The consensus support defines which fraction (between 0 and 1) of the remaining search runs "supported" a peptide identification that was kept.
 
 ### Precursor Charges Distribution
 
