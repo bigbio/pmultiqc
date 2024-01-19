@@ -1008,6 +1008,7 @@ class QuantMSModule(BaseMultiqcModule):
         meta_data = dict(mztab_data.metadata)
         if self.pep_table_exists:
             pep_table = mztab_data.peptide_table
+            pep_table = pep_table.fillna(np.nan)
             pep_table.loc[:, 'stand_spectra_ref'] = pep_table.apply(
                 lambda x: self.file_prefix(meta_data[x.spectra_ref.split(':')[0] + '-location']), axis=1)
             study_variables = list(filter(lambda x: re.match(r'peptide_abundance_study_variable.*?', x) is not None,
@@ -1018,11 +1019,10 @@ class QuantMSModule(BaseMultiqcModule):
                     group[group['accession'].str.contains(config.kwargs["contaminant_affix"])][study_variables])) / \
                                                np.sum(np.sum(group[study_variables]))
                 if config.kwargs['remove_decoy']:
-                    T = sum(group[(group['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables].values. \
-                            tolist(), [])
+                    pep_median = np.nanmedian(group[(group['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables]. \
+                                              to_numpy())
                 else:
-                    T = sum(group[study_variables].values.tolist(), [])
-                pep_median = np.median([j for j in T if not math.isnan(j) is True])
+                    pep_median = np.nanmedian(group[study_variables].to_numpy())
                 self.heatmap_pep_intensity[name] = np.minimum(1.0, pep_median / (2 ** 23))  # Threshold
 
         #  HeatMapMissedCleavages
