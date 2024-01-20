@@ -29,8 +29,8 @@ def plot(data, headers=None, pconfig=None, maxValue=0.0):
         for k, v in config.custom_plot_config[pconfig["id"]].items():
             pconfig[k] = v
 
-    # Make a datatable object
-    dt = table_object.datatable(data, headers, pconfig)
+    # Make a DataTable object
+    dt = table_object.DataTable(data, headers, pconfig)
 
     # Collect unique sample names
     s_names = set()
