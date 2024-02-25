@@ -29,7 +29,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     include_package_data=True,
-    requires-python = ">=3.8",
+    requires-python >=3.8,
     install_requires=[
         'lxml',
         'multiqc==1.20.0',
