@@ -29,10 +29,9 @@ setup(
     license='MIT',
     packages=find_packages(),
     include_package_data=True,
-    python_requires='>=3.8',
     install_requires=[
         'lxml',
-        'multiqc==1.20.0',
+        'multiqc==1.19.0',
         'pandas',
         'pyteomics',
         'sdrf-pipelines >= 0.0.18',
