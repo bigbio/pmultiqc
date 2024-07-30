@@ -35,7 +35,7 @@ setup(
         'pandas',
         'pyteomics',
         'sdrf-pipelines >= 0.0.28',
-        'numpy >= 1.24.3',
+        'numpy == 1.24.3',
         'pyopenms'
     ],
     entry_points={
