@@ -8,10 +8,12 @@ import itertools
 from datetime import datetime
 from operator import itemgetter
 import logging
+
+from multiqc import BaseMultiqcModule
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
-from multiqc import config, BaseMultiqcModule
 from multiqc.plots import table, bargraph, linegraph, heatmap
 from multiqc.utils.mqc_colour import mqc_colour_scale
+
 import pandas as pd
 from functools import reduce
 import re
