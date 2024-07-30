@@ -6,7 +6,7 @@ import random
 import textwrap
 
 from multiqc.utils import config, report, util_functions, mqc_colour
-from multiqc.plots import table_object, beeswarm
+from multiqc.plots import table_object, violin
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +38,16 @@ def plot(data, headers=None, pconfig=None, maxValue=0.0):
         for s_name in d.keys():
             s_names.add(s_name)
 
-    # Make a beeswarm plot if we have lots of samples
-    if len(s_names) >= config.max_table_rows and pconfig.get("no_beeswarm") is not True:
-        logger.debug("Plotting beeswarm instead of table, {} samples".format(len(s_names)))
+    # Make a violin plot if we have lots of samples
+    if len(s_names) >= config.max_table_rows and pconfig.get("no_violin") is not True:
+        logger.debug("Plotting violin instead of table, {} samples".format(len(s_names)))
         warning = (
             '<p class="text-muted"><span class="glyphicon glyphicon-exclamation-sign" '
-            'title="A beeswarm plot has been generated instead because of the large number of samples. '
+            'title="A violin plot has been generated instead because of the large number of samples. '
             'See http://multiqc.info/docs/#tables--beeswarm-plots"'
             ' data-toggle="tooltip"></span> Showing {} samples.</p>'.format(len(s_names))
         )
-        return warning + beeswarm.make_plot(dt)
+        return warning + violin.plot(data, headers, pconfig)
     else:
         return make_table(dt, maxValue)
 

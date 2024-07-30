@@ -9,14 +9,11 @@ from datetime import datetime
 from operator import itemgetter
 import logging
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
-from multiqc import config
+from multiqc import config, BaseMultiqcModule
 from multiqc.plots import table, bargraph, linegraph, heatmap
-from multiqc.modules.base_module import BaseMultiqcModule
 from multiqc.utils.mqc_colour import mqc_colour_scale
 import pandas as pd
-import math
 from functools import reduce
-from collections import Counter
 import re
 from pyteomics import mztab
 from pyopenms import IdXMLFile, MzMLFile, MSExperiment, OpenMSBuildInfo, AASequence
@@ -356,7 +353,7 @@ class QuantMSModule(BaseMultiqcModule):
             'sortRows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'Spectra File',
-            'no_beeswarm': True,
+            'no_violin': True,
             'format': '{:,.0f}',  # The header used for the first column
         }
         headers = OrderedDict()
@@ -524,7 +521,7 @@ class QuantMSModule(BaseMultiqcModule):
             'sortRows': True,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'Spectra File',
-            'no_beeswarm': True,
+            'no_violin': True,
             'format': '{:,.0f}'  # The header used for the first column
         }
         colors = dict((str(i + 1), "#ffffff") for i in range(len(self.file_df.index)))
@@ -1671,7 +1668,7 @@ class QuantMSModule(BaseMultiqcModule):
                 'only_defined_headers': False,  # Only show columns that are defined in the headers config
                 'col1_header': 'PSM_ID',
                 'format': '{:,.0f}',
-                'no_beeswarm': True
+                'no_violin': True
             }
 
             mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
@@ -1800,7 +1797,7 @@ class QuantMSModule(BaseMultiqcModule):
                 'only_defined_headers': False,  # Only show columns that are defined in the headers config
                 'col1_header': 'ProteinName',
                 'format': '{:,.0f}',
-                'no_beeswarm': True
+                'no_violin': True
             }
 
             max_prot_intensity = 0
@@ -1984,7 +1981,7 @@ class QuantMSModule(BaseMultiqcModule):
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'PeptideID',
             'thousandsSep_format': ",",
-            'no_beeswarm': True,
+            'no_violin': True,
             'shared_key': None
         }
 
@@ -2122,7 +2119,7 @@ class QuantMSModule(BaseMultiqcModule):
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'ProteinID',
             'format': '{:,.5f}',
-            'no_beeswarm': True
+            'no_violin': True
         }
 
         table_html = sparklines.plot(msstats_data_dict_prot_init, headers, pconfig=pconfig, maxValue=max_prot_intensity)

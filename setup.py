@@ -31,7 +31,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'lxml',
-        'multiqc==1.19.0',
+        'multiqc==1.23',
         'pandas',
         'pyteomics',
         'sdrf-pipelines >= 0.0.28',
