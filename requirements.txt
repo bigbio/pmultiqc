@@ -4,5 +4,5 @@ pyteomics
 pyopenms
 sdrf-pipelines >= 0.0.28
 lxml
-numpy
+numpy>=1.24.3
 pyarrow
