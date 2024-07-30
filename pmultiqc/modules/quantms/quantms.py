@@ -8,6 +8,7 @@ import itertools
 from datetime import datetime
 from operator import itemgetter
 import logging
+from multiqc import config
 
 from multiqc import BaseMultiqcModule
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
