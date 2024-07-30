@@ -7,7 +7,7 @@ For more information about MultiQC, see http://multiqc.info
 
 from setuptools import setup, find_packages
 
-version = '0.0.24'
+version = '0.0.25'
 
 
 def readme():
@@ -34,7 +34,7 @@ setup(
         'multiqc==1.19.0',
         'pandas',
         'pyteomics',
-        'sdrf-pipelines >= 0.0.18',
+        'sdrf-pipelines >= 0.0.28',
         'numpy',
         'pyopenms'
     ],

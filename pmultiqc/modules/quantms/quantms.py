@@ -1112,10 +1112,10 @@ class QuantMSModule(BaseMultiqcModule):
                 log.info(
                     "{}: Parsing ms_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
                 mzml_df = pd.read_csv(file, sep="\t")
-                self.ms1_tic[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")] \
+                self.ms1_tic[os.path.basename(file).replace("_ms_info.parquet", "")], \
+                self.ms1_bpc[os.path.basename(file).replace("_ms_info.parquet", "")], \
+                self.ms1_peaks[os.path.basename(file).replace("_ms_info.parquet", "")], \
+                self.ms1_general_stats[os.path.basename(file).replace("_ms_info.parquet", "")] \
                     = get_ms_qc_info(mzml_df)
 
                 log.info(
@@ -1235,10 +1235,10 @@ class QuantMSModule(BaseMultiqcModule):
                 mzml_table[m].update({'MS2_Num': mzml_table[m]['MS2_Num'] + ms2_number})
                 mzml_table[m].update({'Charge_2': mzml_table[m]['Charge_2'] + charge_2})
 
-                self.ms1_tic[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")] \
+                self.ms1_tic[os.path.basename(file).replace("_ms_info.parquet", "")], \
+                self.ms1_bpc[os.path.basename(file).replace("_ms_info.parquet", "")], \
+                self.ms1_peaks[os.path.basename(file).replace("_ms_info.parquet", "")], \
+                self.ms1_general_stats[os.path.basename(file).replace("_ms_info.parquet", "")] \
                     = get_ms_qc_info(mzml_df)
 
                 group = mzml_df[mzml_df["MSLevel"] == 2]
