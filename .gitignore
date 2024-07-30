@@ -133,3 +133,4 @@ dmypy.json
 .pyre/
 
 .idea
+/quantms.db
