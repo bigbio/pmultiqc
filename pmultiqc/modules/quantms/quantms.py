@@ -884,12 +884,13 @@ class QuantMSModule(BaseMultiqcModule):
         )
         # Create scores summary plot
         [MSGF_labels, Comet_labels, Sage_labels] = self.search_engine['data_label']['score_label']
+
         SpecE_pconfig = {
             'id': 'search_scores_summary',  # ID used for the table
             'cpswitch': False,
             'title': 'Summary of Spectral E-values',
             'xlab': 'MSGF -lg(SpecEvalue) ranges',
-            'stacking': True,
+            'stacking': 'normal',
             'height': 550,
             'tt_percentages': True,
             'tt_decimals': 0,
@@ -901,7 +902,7 @@ class QuantMSModule(BaseMultiqcModule):
             'cpswitch': False,
             'title': 'Summary of cross-correlation scores',
             'xlab': 'Comet xcorr ranges',
-            'stacking': True,
+            'stacking': 'normal',
             'height': 550,
             'tt_percentages': True,
             'tt_decimals': 0,
@@ -913,7 +914,7 @@ class QuantMSModule(BaseMultiqcModule):
             'cpswitch': False,
             'title': 'Summary of Hyperscore',
             'xlab': 'Sage hyperscore ranges',
-            'stacking': True,
+            'stacking': 'normal',
             'height': 550,
             'tt_percentages': True,
             'tt_decimals': 0,
@@ -938,20 +939,33 @@ class QuantMSModule(BaseMultiqcModule):
                                        hyper_pconfig) if self.Sage_label else ''
 
         self.add_section(
-            description='''#### Summary of Search Scores
+            description='''#### SpecEvalue Description
             * SpecEvalue : Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
-            * xcorr : cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
-            * hyperscore : Hyperscore, the search score of Sage. The value used for plotting is hyperscore.
             ''',
-            plot=xcorr_bar_html + SpecE_bar_html + hyper_bar_html
+            plot= SpecE_bar_html
         )
+
+        self.add_section(
+            description='''#### xcorr description
+                    * xcorr : cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
+                    ''',
+            plot=xcorr_bar_html
+        )
+
+        self.add_section(
+            description='''#### hyperscore description
+                            * hyperscore : Hyperscore, the search score of Sage. The value used for plotting is hyperscore.
+                            ''',
+            plot=hyper_bar_html
+        )
+
         # Create PEPs summary plot
         PEP_pconfig = {
             'id': 'search_engine_PEP',  # ID used for the table
             'cpswitch': False,
             'title': 'Summary of Search Engine PEP',
             'xlab': 'PEP ranges',
-            'stacking': True,
+            'stacking': 'normal',
             'height': 550,
             'tt_percentages': True,
             'tt_decimals': 0,
@@ -972,7 +986,7 @@ class QuantMSModule(BaseMultiqcModule):
                 'id': 'consensus_summary',  # ID used for the table
                 'cpswitch': False,
                 'title': 'Consensus Across Search Engines',
-                'stacking': True,
+                'stacking': 'normal',
                 'height': 256,
                 'tt_percentages': True,
                 'tt_decimals': 0,
