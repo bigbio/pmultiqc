@@ -938,26 +938,29 @@ class QuantMSModule(BaseMultiqcModule):
         hyper_bar_html = bargraph.plot(list(self.search_engine['hyper'].values()), hyper_cats,
                                        hyper_pconfig) if self.Sage_label else ''
 
-        self.add_section(
-            description='''#### SpecEvalue Description
-            * SpecEvalue : Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
-            ''',
-            plot= SpecE_bar_html
-        )
+        if SpecE_bar_html != '':
+            self.add_section(
+                description='''#### SpecEvalue Description
+                SpecEvalue : Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
+                ''',
+                plot=SpecE_bar_html
+            )
 
-        self.add_section(
-            description='''#### xcorr description
-                    * xcorr : cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
-                    ''',
-            plot=xcorr_bar_html
-        )
+        if xcorr_bar_html != '':
+            self.add_section(
+                description='''#### xcorr description
+                xcorr : cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
+                ''',
+                plot=xcorr_bar_html
+            )
 
-        self.add_section(
-            description='''#### hyperscore description
-                            * hyperscore : Hyperscore, the search score of Sage. The value used for plotting is hyperscore.
-                            ''',
-            plot=hyper_bar_html
-        )
+        if hyper_bar_html != '':
+            self.add_section(
+                description='''#### hyperscore description
+                hyperscore : Hyperscore, the search score of Sage. The value used for plotting is hyperscore.
+                ''',
+                plot=hyper_bar_html
+            )
 
         # Create PEPs summary plot
         PEP_pconfig = {
@@ -975,9 +978,7 @@ class QuantMSModule(BaseMultiqcModule):
         PEP_bar_html = bargraph.plot(list(self.search_engine['PEPs'].values()), PEP_cats, PEP_pconfig)
 
         self.add_section(
-            description='''#### Summary of Posterior Error Probabilities
-            * PEP : Posterior Error Probability
-            ''',
+            description='''#### Summary of Posterior Error Probabilities (PEP)''',
             plot=PEP_bar_html
         )
         # Create identified number plot
@@ -992,22 +993,22 @@ class QuantMSModule(BaseMultiqcModule):
                 'tt_decimals': 0,
                 'data_labels': self.search_engine['data_label']['consensus_label'],
             }
-            consensus_bar_html = bargraph.plot(list(self.search_engine['consensus_support'].values()), PEP_cats,
-                                               consensus_pconfig)
-
-            self.add_section(
-                description='''#### Summary of consensus support for PSMs 
-                Consensus support is a measure of agreement between search engines. Every peptide sequence in the analysis has been 
-                identified by at least one search run. The consensus support defines which fraction (between 0 and 1) of the remaining 
-                search runs "supported" a peptide identification that was kept. The meaning of "support" differs slightly between 
-                algorithms: For best, worst, average and rank, each search run supports peptides that it has also identified among its 
-                top considered_hits candidates. So the "consensus support" simply gives the fraction of additional search engines that 
-                have identified a peptide. (For example, if there are three search runs, peptides identified by two of them will have a 
-                "support" of 0.5.) For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide is the average 
-                similarity of the most-similar peptide from each (other) search run.
-                ''',
-                plot=consensus_bar_html
-            )
+            # consensus_bar_html = bargraph.plot(list(self.search_engine['consensus_support'].values()), PEP_cats,
+            #                                    consensus_pconfig)
+            #
+            # self.add_section(
+            #     description='''#### Summary of consensus support for PSMs
+            #     Consensus support is a measure of agreement between search engines. Every peptide sequence in the analysis has been
+            #     identified by at least one search run. The consensus support defines which fraction (between 0 and 1) of the remaining
+            #     search runs "supported" a peptide identification that was kept. The meaning of "support" differs slightly between
+            #     algorithms: For best, worst, average and rank, each search run supports peptides that it has also identified among its
+            #     top considered_hits candidates. So the "consensus support" simply gives the fraction of additional search engines that
+            #     have identified a peptide. (For example, if there are three search runs, peptides identified by two of them will have a
+            #     "support" of 0.5.) For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide is the average
+            #     similarity of the most-similar peptide from each (other) search run.
+            #     ''',
+            #     plot=consensus_bar_html
+            # )
         else:
             self.add_section(
                 description='''#### Summary of consensus PSMs
