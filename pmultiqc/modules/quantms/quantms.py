@@ -1112,10 +1112,10 @@ class QuantMSModule(BaseMultiqcModule):
                 log.info(
                     "{}: Parsing ms_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
                 mzml_df = pd.read_csv(file, sep="\t")
-                self.ms1_tic[os.path.basename(file).replace("_ms_info.parquet", "")], \
-                self.ms1_bpc[os.path.basename(file).replace("_ms_info.parquet", "")], \
-                self.ms1_peaks[os.path.basename(file).replace("_ms_info.parquet", "")], \
-                self.ms1_general_stats[os.path.basename(file).replace("_ms_info.parquet", "")] \
+                self.ms1_tic[os.path.basename(file).replace("_ms_info.tsv", "")], \
+                self.ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")], \
+                self.ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")], \
+                self.ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")] \
                     = get_ms_qc_info(mzml_df)
 
                 log.info(
@@ -1221,7 +1221,7 @@ class QuantMSModule(BaseMultiqcModule):
             for file in self.ms_info_path:
                 log.info(
                     "{}: Parsing ms_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
-                mzml_df = pd.read_csv(file, sep="\t")
+                mzml_df = pd.read_parquet(file)
                 m = self.file_prefix(file).replace("_ms_info", "")
                 if m not in mzml_table:
                     mzml_table[m] = dict.fromkeys(['MS1_Num', 'MS2_Num', 'Charge_2'], 0)
