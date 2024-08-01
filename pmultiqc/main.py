@@ -6,7 +6,7 @@
 from __future__ import print_function
 from pkg_resources import get_distribution
 import logging
-from multiqc.utils import config
+from multiqc import config
 
 # Initialise the main MultiQC logger
 log = logging.getLogger('pmultiqc')

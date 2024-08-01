@@ -282,9 +282,10 @@ class QuantMSModule(BaseMultiqcModule):
                                          self.HeatmapOverSamplingScore[k], self.HeatmapPepMissingScore[k]])
 
         pconfig = {
+            'id': 'HeatMap',
             'title': 'Performance Overview',  # Plot title - should be in format "Module Name: Plot Title"
-            'xTitle': 'metrics',  # X-axis title
-            'yTitle': 'RawName',  # Y-axis title
+            'xlab': 'metrics',  # X-axis title
+            'ylab': 'RawName',  # Y-axis title
             'square': False
         }
 
@@ -350,14 +351,14 @@ class QuantMSModule(BaseMultiqcModule):
         # Create table plot
         pconfig = {
             'id': 'Experimental_Design',  # ID used for the table
-            'table_title': 'Experimental Design',  # Title of the table. Used in the column config modal
+            'title': 'Experimental Design',  # Title of the table. Used in the column config modal
             'save_file': False,  # Whether to save the table data to a file
             'raw_data_fn': 'multiqc_Experimental_Design_table',  # File basename to use for raw data file
-            'sortRows': False,  # Whether to sort rows alphabetically
+            'sort_rows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'Spectra File',
             'no_violin': True,
-            'format': '{:,.0f}',  # The header used for the first column
+            # 'format': '{:,.0f}',  # The header used for the first column
         }
         headers = OrderedDict()
         set3_scale = mqc_colour_scale(name="Set3")
@@ -390,7 +391,7 @@ class QuantMSModule(BaseMultiqcModule):
             'bgcols': colors,
         }
         table_html = table.plot(self.exp_design_table, headers, pconfig)
-
+        # table_html = sparklines.plot(self.exp_design_table, headers, pconfig)
         # Add a report section with the line plot
         self.add_section(
             name="Experimental Design",
@@ -430,13 +431,13 @@ class QuantMSModule(BaseMultiqcModule):
         # Create table plot
         pconfig = {
             'id': 'identification summary table',  # ID used for the table
-            'table_title': 'Summary Table',  # Title of the table. Used in the column config modal
+            'title': 'Summary Table',  # Title of the table. Used in the column config modal
             'save_file': False,  # Whether to save the table data to a file
             'raw_data_fn': 'multiqc_summary_table_table',  # File basename to use for raw data file
-            'sortRows': False,  # Whether to sort rows alphabetically
+            'sort_rows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': col_header,
-            'format': '{:,.0f}',  # The header used for the first column
+            # 'format': '{:,.0f}',  # The header used for the first column
             "scale": "Set1"
         }
         table_html = table.plot(summary_table, headers, pconfig)
@@ -485,8 +486,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         tconfig = {
             'id': 'ms_general_stats',
-            'table_title': 'General Stats',
-            'desciption': 'General stats from the .d files',
+            'title': 'General Stats',
             'only_defined_headers': False,
             'col1_header': 'File'
         }
@@ -509,7 +509,7 @@ class QuantMSModule(BaseMultiqcModule):
             plot=ms1_peaks_html
         )
         self.add_section(
-            description='''#### General stats for MS1 information
+            description='''#### General stats for MS1 information from .d files
             ''',
             plot=table_html
         )
@@ -518,14 +518,14 @@ class QuantMSModule(BaseMultiqcModule):
         # Create table plot
         pconfig = {
             'id': 'result statistics',  # ID used for the table
-            'table_title': 'pipeline result statistics',  # Title of the table. Used in the column config modal
+            'title': 'pipeline result statistics',  # Title of the table. Used in the column config modal
             'save_file': False,  # Whether to save the table data to a file
             'raw_data_fn': 'multiqc_result statistics_table',  # File basename to use for raw data file
-            'sortRows': True,  # Whether to sort rows alphabetically
+            'sort_rows': True,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'Spectra File',
             'no_violin': True,
-            'format': '{:,.0f}'  # The header used for the first column
+            # 'format': '{:,.0f}'  # The header used for the first column
         }
         colors = dict((str(i + 1), "#ffffff") for i in range(len(self.file_df.index)))
         headers = OrderedDict()
@@ -587,11 +587,11 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_num_pep_per_protein(self):
         # Create table plot
         if any([len(i) >= 100 for i in self.pep_plot.dict['data'].values()]):
-            lable = ["count", "percentage"]
+            data_labels = ["Frequency", "Percentage"]
         else:
-            lable = [
-                {'name': 'count', 'ylab': 'Frequency'},
-                {'name': 'percentage', 'ylab': 'Percentage(%)'}
+            data_labels = [
+                {'name': 'Frequency', 'ylab': 'Frequency', 'title': 'Number of Peptides identified Per Protein'},
+                {'name': 'Percentage', 'ylab': 'Percentage(%)'}
             ]
         pconfig = {
             'id': 'number_of_peptides_per_proteins',  # ID used for the table
@@ -600,19 +600,14 @@ class QuantMSModule(BaseMultiqcModule):
             'xlab': 'Number of Peptides',
             'tt_percentages': False,
             'tt_decimals': 2,
-            'data_labels': lable
-        }
-        headers = OrderedDict()
-        headers['Frequency'] = {
-            'name': 'Frequency',
-            'description': 'number of peptides per proteins'
+            'data_labels': data_labels
         }
         bar_html = bargraph.plot([self.pep_plot.dict['data']['frequency'], self.pep_plot.dict['data']['percentage']],
-                                 headers, pconfig)
+                                 ["Frequency", "Percentage"], pconfig)
         # Add a report section with the line plot
         self.add_section(
-            name="Number of Peptides Per Protein",
-            anchor="num_of_pep_per_prot",
+            name="Number of Peptides identified Per Protein",
+            anchor="number_of_peptides_per_proteins",
             description='This plot shows the number of peptides per proteins '
                         'in quantms pipeline final result',
             helptext='''
@@ -625,14 +620,14 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_mzml_ms(self):
 
         pconfig = {
-            'id': 'mzML_tracking ',  # ID used for the table
-            'table_title': 'Pipeline spectrum tracking',  # Title of the table. Used in the column config modal
+            'id': 'mzML_tracking',  # ID used for the table
+            'title': 'Pipeline spectrum tracking',  # Title of the table. Used in the column config modal
             'save_file': False,  # Whether to save the table data to a file
             'raw_data_fn': 'multiqc_spectrum_tracking_table',  # File basename to use for raw data file
-            'sortRows': False,  # Whether to sort rows alphabetically
+            'sort_rows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': True,  # Only show columns that are defined in the headers config
             'col1_header': 'Spectra File',
-            'format': '{:,.0f}'  # The header used for the first column
+            # 'format': '{:,.0f}'  # The header used for the first column
         }
 
         headers = OrderedDict()
@@ -1034,8 +1029,9 @@ class QuantMSModule(BaseMultiqcModule):
                     group[group['accession'].str.contains(config.kwargs["contaminant_affix"])][study_variables])) / \
                                                np.sum(np.sum(group[study_variables]))
                 if config.kwargs['remove_decoy']:
-                    pep_median = np.nanmedian(group[(group['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables]. \
-                                              to_numpy())
+                    pep_median = np.nanmedian(
+                        group[(group['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables]. \
+                        to_numpy())
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
                 self.heatmap_pep_intensity[name] = np.minimum(1.0, pep_median / (2 ** 23))  # Threshold
@@ -1128,9 +1124,9 @@ class QuantMSModule(BaseMultiqcModule):
                     "{}: Parsing ms_statistics dataframe {}...".format(datetime.now().strftime("%H:%M:%S"), file))
                 mzml_df = pd.read_csv(file, sep="\t")
                 self.ms1_tic[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")], \
-                self.ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")] \
+                    self.ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")], \
+                    self.ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")], \
+                    self.ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")] \
                     = get_ms_qc_info(mzml_df)
 
                 log.info(
@@ -1251,9 +1247,9 @@ class QuantMSModule(BaseMultiqcModule):
                 mzml_table[m].update({'Charge_2': mzml_table[m]['Charge_2'] + charge_2})
 
                 self.ms1_tic[os.path.basename(file).replace("_ms_info.parquet", "")], \
-                self.ms1_bpc[os.path.basename(file).replace("_ms_info.parquet", "")], \
-                self.ms1_peaks[os.path.basename(file).replace("_ms_info.parquet", "")], \
-                self.ms1_general_stats[os.path.basename(file).replace("_ms_info.parquet", "")] \
+                    self.ms1_bpc[os.path.basename(file).replace("_ms_info.parquet", "")], \
+                    self.ms1_peaks[os.path.basename(file).replace("_ms_info.parquet", "")], \
+                    self.ms1_general_stats[os.path.basename(file).replace("_ms_info.parquet", "")] \
                     = get_ms_qc_info(mzml_df)
 
                 group = mzml_df[mzml_df["MSLevel"] == 2]
@@ -1807,14 +1803,13 @@ class QuantMSModule(BaseMultiqcModule):
 
             pconfig = {
                 'id': 'quantification_of_protein',  # ID used for the table
-                'table_title': 'quantification information of protein',
+                'title': 'quantification information of protein',
                 # Title of the table. Used in the column config modal
                 'save_file': False,  # Whether to save the table data to a file
                 'raw_data_fn': 'multiqc_quantification_of_protein_table',  # File basename to use for raw data file
-                'sortRows': False,  # Whether to sort rows alphabetically
+                'sort_rows': False,  # Whether to sort rows alphabetically
                 'only_defined_headers': False,  # Only show columns that are defined in the headers config
                 'col1_header': 'ProteinName',
-                'format': '{:,.0f}',
                 'no_violin': True
             }
 
@@ -1963,24 +1958,24 @@ class QuantMSModule(BaseMultiqcModule):
 
         headers = OrderedDict()
         headers = {  # 'PeptideID': {'name': 'PeptideID'}, # this is the index
-            'PeptideSequence': {'name': 'PeptideSequence'},
-            'Modification': {'name': 'Modification'},
-            'ProteinName': {'name': 'ProteinName'},
-            'BestSearchScore': {'name': 'BestSearchScore', 'format': '{:,.5e}'},
-            'Average Intensity': {'name': 'Average Intensity', 'format': '{:,.3f}'}}
+            'PeptideSequence': {'rid': 'PeptideSequence'},
+            'Modification': {'rid': 'Modification'},
+            'ProteinName': {'rid': 'ProteinName'},
+            'BestSearchScore': {'rid': 'BestSearchScore', 'format': '{:,.5e}'},
+            'Average Intensity': {'rid': 'Average Intensity', 'format': '{:,.3f}'}}
 
         for s in conditions:
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + str(s) + "\" VARCHAR")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
-            headers[str(s)] = {'name': s, 'format': '{:,.5f}'}
+            headers[str(s)] = {'rid': s, 'format': '{:,.5f}'}
 
         for s in list(map(lambda x: str(x) + "_distribution", conditions)):
             cur.execute("ALTER TABLE PEPQUANT ADD \"" + s + "\" VARCHAR(100)")
             con.commit()
             sql_col += ", \"" + s + "\""
             # we need a thousandsSep_format otherwise commas will be replaced
-            headers[str(s)] = {'name': s, 'thousandsSep_format': ','}
+            headers[str(s)] = {'rid': s}
 
         # PeptideID is index
         all_term = ["PeptideSequence", "Modification", "ProteinName", "BestSearchScore", "Average Intensity"] + list(
@@ -1991,16 +1986,14 @@ class QuantMSModule(BaseMultiqcModule):
 
         pconfig = {
             'id': 'quantification_of_peptides',  # ID used for the table
-            'table_title': 'quantification information of peptides',
+            'title': 'quantification information of peptides',
             # Title of the table. Used in the column config modal
             'save_file': False,  # Whether to save the table data to a file
             'raw_data_fn': 'multiqc_quantification_of_peptides_table',  # File basename to use for raw data file
-            'sortRows': False,  # Whether to sort rows alphabetically
+            'sort_rows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'PeptideID',
-            'thousandsSep_format': ",",
             'no_violin': True,
-            'shared_key': None
         }
 
         # only use the first 50 lines for the table
@@ -2086,17 +2079,17 @@ class QuantMSModule(BaseMultiqcModule):
         #    'format': '{:,.0f}'
         # }
         headers['ProteinName'] = {
-            'name': 'Protein Name',
+            'rid': 'Protein Name',
             'description': 'Name/Identifier(s) of the protein (group)',
             'format': '{:,.0f}'
         }
         headers['Peptides_Number'] = {
-            'name': 'Number of Peptides',
+            'rid': 'Number of Peptides',
             'description': 'Number of peptides per proteins',
             'format': '{:,.0f}'
         }
         headers['Average Intensity'] = {
-            'name': 'Average Intensity',
+            'rid': 'Average Intensity',
             'description': 'Average intensity across all conditions',
             'format': '{:,.3f}'
         }
@@ -2112,13 +2105,13 @@ class QuantMSModule(BaseMultiqcModule):
             cur.execute("ALTER TABLE PROTQUANT ADD \"" + str(s) + "\" VARCHAR")
             con.commit()
             sql_col += ", \"" + str(s) + "\""
-            headers[str(s)] = {'name': s}
+            headers[str(s)] = {'rid': s}
 
         for s in list(map(lambda x: str(x) + "_distribution", conditions)):
             cur.execute("ALTER TABLE PROTQUANT ADD \"" + s + "\" VARCHAR(100)")
             con.commit()
             sql_col += ", \"" + s + "\""
-            headers[str(s)] = {'name': s}
+            headers[str(s)] = {'rid': s}
 
         # ProteinID is index
         all_term = ["ProteinName", "Peptides_Number", "Average Intensity"] + list(map(str, conditions)) + list(
@@ -2129,14 +2122,14 @@ class QuantMSModule(BaseMultiqcModule):
 
         pconfig = {
             'id': 'quantification_of_protein',  # ID used for the table
-            'table_title': 'quantification information of protein',
+            'title': 'quantification information of protein',
             # Title of the table. Used in the column config modal
             'save_file': False,  # Whether to save the table data to a file
             'raw_data_fn': 'multiqc_quantification_of_protein_table',  # File basename to use for raw data file
-            'sortRows': False,  # Whether to sort rows alphabetically
+            'sort_rows': False,  # Whether to sort rows alphabetically
             'only_defined_headers': False,  # Only show columns that are defined in the headers config
             'col1_header': 'ProteinID',
-            'format': '{:,.5f}',
+            # 'format': '{:,.5f}',
             'no_violin': True
         }
 
