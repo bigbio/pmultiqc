@@ -8,12 +8,8 @@ from multiqc import config, report
 from multiqc.utils import util_functions, mqc_colour
 from multiqc.plots import table_object, violin
 from multiqc.plots.table_object import TableConfig
-from multiqc.plots.table import get_template_mod
-from multiqc.plots.plotly import table
-from typing import Tuple, Optional, List, Dict
-
 from multiqc.plots.table_object import DataTable, ValueT
-
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +28,6 @@ def plot(data, headers=None, pconfig=None, maxValue=0.0):
     if pconfig is None:
         pconfig = {}
 
-    # Allow user to overwrite any given config for this plot
-    # if "id" in pconfig and pconfig["id"] and pconfig["id"] in config.custom_plot_config:
-    #     for k, v in config.custom_plot_config[pconfig["id"]].items():
-    #         pconfig[k] = v
-
     pconfig = TableConfig(**pconfig)
     # Make a DataTable object
     dt = table_object.DataTable.create(data, pconfig, headers)
@@ -45,16 +36,6 @@ def plot(data, headers=None, pconfig=None, maxValue=0.0):
     for d in dt.raw_data:
         for s_name in d.keys():
             s_names.add(s_name)
-
-        # # noinspection PyBroadException
-        # try:
-        #
-        #     return mod.table(dt, s_names, dt.pconfig)
-        # except:  # noqa: E722
-        #     if config.strict:
-        #         # Crash quickly in the strict mode. This can be helpful for interactive
-        #         # debugging of modules
-        #         raise
 
     # Make a violin plot if we have lots of samples
     if len(s_names) >= config.max_table_rows and pconfig.no_violin is not True:
@@ -89,7 +70,8 @@ def make_table(dt, maxValue):
     if table_title is None:
         table_title = table_id.replace("_", " ").title()
 
-    fixed_col = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity", "Peptides_Number", "Average Spectrum Counting"]
+    fixed_col = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity", "Peptides_Number",
+                 "Average Spectrum Counting"]
     for idx, k, header in dt.get_headers_in_order():
 
         rid = header.rid
@@ -302,13 +284,15 @@ def make_table(dt, maxValue):
                         t_rows[s_name] = dict()
                     if "_distribution" in rid:
                         if valstr == "":
-                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
+                            t_rows[s_name][
+                                rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
                                 rid=rid, h=hide, v=valstr
                             )
                         else:
-                            valstr.replace(",","&#44;")
-                            #valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])                        
-                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
+                            valstr.replace(",", "&#44;")
+                            # valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])
+                            t_rows[s_name][
+                                rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
                                 rid=rid, h=hide, v=valstr
                             )
                     elif header.title in fixed_col:
@@ -425,7 +409,7 @@ def make_table(dt, maxValue):
             <button type="button" class="btn btn-default btn-sm" new-data=1 data-action="set_data" data-target="quantification_of_proteins" id="protein-distribution-button">
             <span class="glyphicon glyphicon glyphicon-stats"></span> Show replicates</button>
             """
-        
+
     # Build the table itself
     collapse_class = "mqc-table-collapse" if len(t_rows) > 10 and config.collapse_tables else ""
     html += """
@@ -508,4 +492,3 @@ def make_table(dt, maxValue):
         report.saved_raw_data[fn] = dt.raw_vals
 
     return html
-

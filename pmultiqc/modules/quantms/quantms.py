@@ -8,7 +8,7 @@ import itertools
 from datetime import datetime
 from operator import itemgetter
 import logging
-from multiqc import config
+from multiqc import config, report
 
 from multiqc import BaseMultiqcModule
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
@@ -1031,7 +1031,7 @@ class QuantMSModule(BaseMultiqcModule):
                 if config.kwargs['remove_decoy']:
                     pep_median = np.nanmedian(
                         group[(group['opt_global_cv_MS:1002217_decoy_peptide'] == 0)][study_variables]. \
-                        to_numpy())
+                            to_numpy())
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
                 self.heatmap_pep_intensity[name] = np.minimum(1.0, pep_median / (2 ** 23))  # Threshold
@@ -2033,6 +2033,8 @@ class QuantMSModule(BaseMultiqcModule):
             plot=table_html
         )
 
+        report.plot_by_id["peptides_quant_result"] = table_html
+
         # Helper functions for pandas
         def jsonToDict(s):
             if type(s) is str:
@@ -2167,6 +2169,9 @@ class QuantMSModule(BaseMultiqcModule):
                     ''',
             plot=table_html
         )
+        report.plot_by_id["protein_quant_result"] = table_html
+        self.sections[-1].plot_id = "protein_quant_result"
+        self.sections[-2].plot_id = "peptides_quant_result"
 
 
 def read_openms_design(desfile):
