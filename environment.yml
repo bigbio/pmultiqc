@@ -1,0 +1,15 @@
+name: pmultiqc
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - multiqc==1.23
+  - pandas
+  - pyteomics
+  - pyopenms
+  - sdrf-pipelines >= 0.0.28
+  - lxml
+  - numpy == 1.24.3
+  - pyarrow
+

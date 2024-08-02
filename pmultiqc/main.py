@@ -6,7 +6,7 @@
 from __future__ import print_function
 from pkg_resources import get_distribution
 import logging
-from multiqc.utils import config
+from multiqc import config
 
 # Initialise the main MultiQC logger
 log = logging.getLogger('pmultiqc')
@@ -44,7 +44,7 @@ def pmultiqc_plugin_execution_start():
         config.update_dict(config.sp, {'quantms/mzML': {'fn': '*.mzML', 'num_lines': 0}})
 
     if 'quantms/ms_info' not in config.sp:
-        config.update_dict(config.sp, {'quantms/ms_info': {'fn': '*_ms_info.tsv', 'num_lines': 0}})
+        config.update_dict(config.sp, {'quantms/ms_info': {'fn': '*_ms_info.parquet', 'num_lines': 0}})
 
     if 'quantms/idXML' not in config.sp:
         config.update_dict(config.sp, {'quantms/idXML': {'fn': '*.idXML', 'num_lines': 0}})

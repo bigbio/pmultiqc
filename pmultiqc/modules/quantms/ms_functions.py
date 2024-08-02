@@ -20,7 +20,7 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
     Note that here I am using min and not mean for purely qc reasons.
     Since the diagnostic aspect here is mainly to see major fluctuations
     in the intensity, and usually these are scans with very low intensity
-    due to bubbles or ionization issues, thus the mean would hide that.
+    due to bubbles or ionization issues; thus the mean would hide that.
 
     @param ms_info:
     @return:

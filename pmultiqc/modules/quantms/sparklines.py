@@ -4,9 +4,12 @@ from collections import defaultdict, OrderedDict
 import logging
 import random
 import textwrap
-
-from multiqc.utils import config, report, util_functions, mqc_colour
-from multiqc.plots import table_object, beeswarm
+from multiqc import config, report
+from multiqc.utils import util_functions, mqc_colour
+from multiqc.plots import table_object, violin
+from multiqc.plots.table_object import TableConfig
+from multiqc.plots.table_object import DataTable, ValueT
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +18,7 @@ letters = "abcdefghijklmnopqrstuvwxyz"
 
 def plot(data, headers=None, pconfig=None, maxValue=0.0):
     """Return HTML for a MultiQC table.
+    :param pconfig: plot config dict
     :param data: 2D dict, first keys as sample names, then x:y data pairs
     :param headers: list of optional dicts with column config in key:value pairs.
     :return: HTML ready to be inserted into the page
@@ -24,30 +28,25 @@ def plot(data, headers=None, pconfig=None, maxValue=0.0):
     if pconfig is None:
         pconfig = {}
 
-    # Allow user to overwrite any given config for this plot
-    if "id" in pconfig and pconfig["id"] and pconfig["id"] in config.custom_plot_config:
-        for k, v in config.custom_plot_config[pconfig["id"]].items():
-            pconfig[k] = v
-
+    pconfig = TableConfig(**pconfig)
     # Make a DataTable object
-    dt = table_object.DataTable(data, headers, pconfig)
+    dt = table_object.DataTable.create(data, pconfig, headers)
 
-    # Collect unique sample names
     s_names = set()
-    for d in dt.data:
+    for d in dt.raw_data:
         for s_name in d.keys():
             s_names.add(s_name)
 
-    # Make a beeswarm plot if we have lots of samples
-    if len(s_names) >= config.max_table_rows and pconfig.get("no_beeswarm") is not True:
-        logger.debug("Plotting beeswarm instead of table, {} samples".format(len(s_names)))
+    # Make a violin plot if we have lots of samples
+    if len(s_names) >= config.max_table_rows and pconfig.no_violin is not True:
+        logger.debug("Plotting violin instead of table, {} samples".format(len(s_names)))
         warning = (
             '<p class="text-muted"><span class="glyphicon glyphicon-exclamation-sign" '
-            'title="A beeswarm plot has been generated instead because of the large number of samples. '
+            'title="A violin plot has been generated instead because of the large number of samples. '
             'See http://multiqc.info/docs/#tables--beeswarm-plots"'
             ' data-toggle="tooltip"></span> Showing {} samples.</p>'.format(len(s_names))
         )
-        return warning + beeswarm.make_plot(dt)
+        return warning + violin.plot(data, headers, pconfig)
     else:
         return make_table(dt, maxValue)
 
@@ -57,53 +56,55 @@ def make_table(dt, maxValue):
     Build the HTML needed for a MultiQC table.
     :param data: MultiQC datatable object
     """
-    table_id = dt.pconfig.get("id", "table_{}".format("".join(random.sample(letters, 4))))
+    # table_id = dt.pconfig.get("id", "table_{}".format("".join(random.sample(letters, 4))))
+    table_id = dt.id
     table_id = report.save_htmlid(table_id)
     t_headers = OrderedDict()
     t_modal_headers = OrderedDict()
     t_rows = OrderedDict()
     t_rows_empty = OrderedDict()
-    dt.raw_vals = defaultdict(lambda: dict())
+    raw_vals: Dict[str, Dict[str, ValueT]] = defaultdict(lambda: dict())
     empty_cells = dict()
     hidden_cols = 1
-    table_title = dt.pconfig.get("table_title")
+    table_title = dt.pconfig.title
     if table_title is None:
         table_title = table_id.replace("_", " ").title()
 
-    fixed_col = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity", "Peptides_Number", "Average Spectrum Counting"]
+    fixed_col = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity", "Peptides_Number",
+                 "Average Spectrum Counting"]
     for idx, k, header in dt.get_headers_in_order():
 
-        rid = header["rid"]
+        rid = header.rid
         # Build the table header cell
         shared_key = ""
-        if header.get("shared_key", None) is not None:
-            shared_key = " data-shared-key={}".format(header["shared_key"])
+        if header.shared_key is not None:
+            shared_key = " data-shared-key={}".format(header.shared_key)
 
         hide = ""
         muted = ""
         checked = ' checked="checked"'
-        if header.get("hidden", False) is True:
+        if header.hidden is True:
             hide = "hidden"
             muted = " text-muted"
             checked = ""
             hidden_cols += 1
 
         data_attr = 'data-dmax="{}" data-dmin="{}" data-namespace="{}" {}'.format(
-            header["dmax"], header["dmin"], header["namespace"], shared_key
+            header.dmax, header.dmin, header.namespace, shared_key
         )
 
         # join with zero width white space for line break
-        cont = '&#8203;'.join(textwrap.wrap(header["title"], 30))
+        cont = '&#8203;'.join(textwrap.wrap(header.title, 30))
 
         cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
-            header["namespace"], header["description"], cont
+            header.namespace, header.description, cont
         )
 
         if k not in fixed_col and "distribution" in k:
-            cont = header["title"].replace("_distribution", "")
+            cont = header.title.replace("_distribution", "")
             cont = '&#8203;'.join(textwrap.wrap(cont, 30))
             cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
-                header["namespace"], header["description"], cont
+                header.namespace, header.description, cont
             )
             t_headers[rid] = '<th id="header_{rid}" class="{rid} {h} col-condition-sparkline" {da}>{c}</th>'.format(
                 rid=rid, h=hide, da=data_attr, c=cell_contents
@@ -137,78 +138,77 @@ def make_table(dt, maxValue):
             muted=muted,
             checked=checked,
             tid=table_id,
-            col=header["colour"],
-            name=header["namespace"],
-            title=header["title"],
-            desc=header["description"],
+            col=header.colour,
+            name=header.namespace,
+            title=header.title,
+            desc=header.description,
             col_id="<code>{}</code>".format(k),
-            sk=header.get("shared_key", ""),
+            sk=header.shared_key,
         )
 
         # Make a colour scale
-        if header["scale"] == False:
+        if header.scale == False:
             c_scale = None
         else:
-            c_scale = mqc_colour.mqc_colour_scale(header["scale"], header["dmin"], header["dmax"])
+            c_scale = mqc_colour.mqc_colour_scale(header.scale, header.dmin, header.dmax, id=dt.id)
 
         # Collect conditional formatting config
         cond_formatting_rules = {}
-        if header.get("cond_formatting_rules"):
-            cond_formatting_rules[rid] = header["cond_formatting_rules"]
+        if header.cond_formatting_rules:
+            cond_formatting_rules[rid] = header.cond_formatting_rules
         cond_formatting_rules.update(config.table_cond_formatting_rules)
 
-        cond_formatting_colours = header.get("cond_formatting_colours", [])
+        cond_formatting_colours = header.cond_formatting_colours
         cond_formatting_colours.extend(config.table_cond_formatting_colours)
 
         # Add the data table cells
-        for (s_name, samp) in dt.data[idx].items():
+        for (s_name, samp) in dt.raw_data[idx].items():
             if k in samp:
-                val = samp[k]
-                kname = "{}_{}".format(header["namespace"], rid)
-                dt.raw_vals[s_name][kname] = val
+                val: ValueT = samp[k]
+                valstr: str = dt.formatted_data[idx][s_name][k]
+                # kname = "{}_{}".format(header["namespace"], rid)
+                # dt.raw_vals[s_name][kname] = val
+                raw_vals[s_name][f"{header.namespace}_{rid}"] = val
 
-                if "modify" in header and callable(header["modify"]):
-                    val = header["modify"](val)
-
-                try:
-                    dmin = header["dmin"]
-                    dmax = header["dmax"]
-                    percentage = ((float(val) - dmin) / (dmax - dmin)) * 100
-                    # Treat 0 as 0-width and make bars width of absoluate value
-                    if header.get("bars_zero_centrepoint"):
-                        dmax = max(abs(header["dmin"]), abs(header["dmax"]))
-                        dmin = 0
-                        percentage = ((abs(float(val)) - dmin) / (dmax - dmin)) * 100
-                    percentage = min(percentage, 100)
-                    percentage = max(percentage, 0)
-                except (ZeroDivisionError, ValueError, TypeError):
-                    percentage = 0
-
-                try:
-                    valstring = str(header["format"].format(val))
-                except ValueError:
-                    try:
-                        valstring = str(header["format"].format(float(val)))
-                    except ValueError:
-                        valstring = str(val)
-                except:
-                    valstring = str(val)
+                if c_scale and c_scale.name not in c_scale.qualitative_scales:
+                    dmin = header.dmin
+                    dmax = header.dmax
+                    if dmin is not None and dmax is not None and dmax != dmin:
+                        try:
+                            val_float = float(val)
+                        except ValueError:
+                            percentage = 0.0
+                        else:
+                            percentage = ((val_float - dmin) / (dmax - dmin)) * 100
+                            # Treat 0 as 0-width and make bars width of absolute value
+                            if header.bars_zero_centrepoint:
+                                dmax = max(abs(dmin), abs(dmax))
+                                dmin = 0
+                                percentage = ((abs(val_float) - dmin) / (dmax - dmin)) * 100
+                            percentage = min(percentage, 100)
+                            percentage = max(percentage, 0)
+                    else:
+                        percentage = 0.0
+                else:
+                    percentage = 100.0
 
                 # This is horrible, but Python locale settings are worse
                 if config.thousandsSep_format is None:
-                    config.thousandsSep_format = '<span class="mqc_thousandSep"></span>'
+                    config.thousandsSep_format = '<span class="mqc_small_space"></span>'
                 if config.decimalPoint_format is None:
                     config.decimalPoint_format = "."
-                
-                # This replaces commas everywhere and I cannot find where to disable it.
-                #  so we comment it out. It is useless anyway.
-                #valstring = valstring.replace(".", "DECIMAL").replace(",", "THOUSAND")
-                #valstring = valstring.replace("DECIMAL", config.decimalPoint_format).replace(
-                #    "THOUSAND", config.thousandsSep_format
-                #)
 
-                # Percentage suffixes etc
-                valstring += header.get("suffix", "")
+                valstr = valstr.replace(".", "DECIMAL").replace(",", "THOUSAND")
+                valstr = valstr.replace("DECIMAL", config.decimalPoint_format).replace(
+                    "THOUSAND", config.thousandsSep_format
+                )
+
+                suffix = header.suffix
+                if suffix:
+                    # Add a space before the suffix, but not as an actual character, so ClipboardJS would copy
+                    # the whole value without the space. Also, remove &nbsp; that we don't want ClipboardJS to copy.
+                    suffix = suffix.replace("&nbsp;", " ").strip()
+                    valstr += "<span class='mqc_small_space'></span>" + suffix
 
                 # Conditional formatting
                 # Build empty dict for cformatting matches
@@ -250,41 +250,52 @@ def make_table(dt, maxValue):
                         if cmatches[cfck]:
                             badge_col = cfc[cfck]
                 if badge_col is not None:
-                    valstring = '<span class="badge" style="background-color:{}">{}</span>'.format(badge_col, valstring)
+                    valstring = '<span class="badge" style="background-color:{}">{}</span>'.format(badge_col, valstr)
+
+                # Determine background color based on scale. Only relevant for hashable values. If value is for some
+                # reason a dict or a list, it's not hashable and the logic determining the color will not work.
+                hashable = True
+                try:
+                    hash(val)
+                except TypeError:
+                    hashable = False
+                    print(f"Value {val} is not hashable for table {dt.id}, column {k}, sample {s_name}")
 
                 # Categorical backgorund colours supplied
-                if val in header.get("bgcols", {}).keys():
-                    col = 'style="background-color:{} !important;"'.format(header["bgcols"][val])
+                if val in header.bgcols.keys():
+                    col = 'style="background-color:{} !important;"'.format(header.bgcols[val])
                     if s_name not in t_rows:
                         t_rows[s_name] = dict()
                     t_rows[s_name][rid] = '<td class="{rid} {h}" {c}>{v}</td>'.format(
-                        rid=rid, h=hide, c=col, v=valstring
+                        rid=rid, h=hide, c=col, v=valstr
                     )
 
                 # Build table cell background colour bar
-                elif header["scale"]:
+                elif hashable and header.scale:
                     if c_scale is not None:
                         col = " background-color:{} !important;".format(c_scale.get_colour(val))
                     else:
                         col = ""
                     bar_html = '<span class="bar" style="width:{}%;{}"></span>'.format(percentage, col)
-                    val_html = '<span class="val">{}</span>'.format(valstring)
+                    val_html = '<span class="val">{}</span>'.format(valstr)
                     wrapper_html = '<div class="wrapper">{}</div>'.format(val_html)
 
                     if s_name not in t_rows:
                         t_rows[s_name] = dict()
                     if "_distribution" in rid:
-                        if valstring == "":
-                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
-                                rid=rid, h=hide, v=valstring
+                        if valstr == "":
+                            t_rows[s_name][
+                                rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
+                                rid=rid, h=hide, v=valstr
                             )
                         else:
-                            valstring.replace(",","&#44;")
-                            #valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])                        
-                            t_rows[s_name][rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
-                                rid=rid, h=hide, v=valstring
+                            valstr.replace(",", "&#44;")
+                            # valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])
+                            t_rows[s_name][
+                                rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
+                                rid=rid, h=hide, v=valstr
                             )
-                    elif header["title"] in fixed_col:
+                    elif header.title in fixed_col:
                         if "Average_Intensity-1" in rid:
                             t_rows[s_name][rid] = '<td class="data-coloured Average_Intensity {h}">{c}</td>'.format(
                                 h=hide, c=wrapper_html
@@ -302,12 +313,12 @@ def make_table(dt, maxValue):
                 else:
                     if s_name not in t_rows:
                         t_rows[s_name] = dict()
-                    t_rows[s_name][rid] = '<td class="{rid} {h}">{v}</td>'.format(rid=rid, h=hide, v=valstring)
+                    t_rows[s_name][rid] = '<td class="{rid} {h}">{v}</td>'.format(rid=rid, h=hide, v=valstr)
 
                 # Is this cell hidden or empty?
                 if s_name not in t_rows_empty:
                     t_rows_empty[s_name] = dict()
-                t_rows_empty[s_name][rid] = header.get("hidden", False) or str(val).strip() == ""
+                t_rows_empty[s_name][rid] = header.hidden or str(val).strip() == ""
 
         # Remove header if we don't have any filled cells for it
         if sum([len(rows) for rows in t_rows.values()]) == 0:
@@ -398,7 +409,7 @@ def make_table(dt, maxValue):
             <button type="button" class="btn btn-default btn-sm" new-data=1 data-action="set_data" data-target="quantification_of_proteins" id="protein-distribution-button">
             <span class="glyphicon glyphicon glyphicon-stats"></span> Show replicates</button>
             """
-        
+
     # Build the table itself
     collapse_class = "mqc-table-collapse" if len(t_rows) > 10 and config.collapse_tables else ""
     html += """
@@ -410,14 +421,14 @@ def make_table(dt, maxValue):
     )
 
     # Build the header row
-    col1_header = dt.pconfig.get("col1_header", "Sample Name")
+    col1_header = dt.pconfig.col1_header
 
     html += '<thead><tr><th class="rowheader">{}</th>{}</tr></thead>'.format(col1_header, "".join(t_headers.values()))
 
     # Build the table body
     html += "<tbody>"
     t_row_keys = t_rows.keys()
-    if dt.pconfig.get("sortRows") is not False:
+    if dt.pconfig.sort_rows:
         t_row_keys = sorted(t_row_keys)
     for s_name in t_row_keys:
         # Hide the row if all cells are empty or hidden
@@ -475,10 +486,9 @@ def make_table(dt, maxValue):
         )
 
     # Save the raw values to a file if requested
-    if dt.pconfig.get("save_file") is True:
+    if dt.pconfig.save_file:
         fn = dt.pconfig.get("raw_data_fn", "multiqc_{}".format(table_id))
-        util_functions.write_data_file(dt.raw_vals, fn)
+        report.write_data_file(raw_vals, fn)
         report.saved_raw_data[fn] = dt.raw_vals
 
     return html
-
