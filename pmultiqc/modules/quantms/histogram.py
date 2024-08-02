@@ -155,12 +155,5 @@ class Histogram:
             for i in self.bins:
                 self.cats[i] = dict()
                 self.cats[i]['name'] = i
-                if self.plot_category == 1:
-                    self.cats[i]['description'] = self.description + ' ' + \
-                        (self.bins[-1] if i == self.bins[-1] else 'is ' + i)
-                elif self.plot_category == 2:
-                    self.cats[i]['description'] = self.description + ' ' + \
-                        (self.bins[-1] if i == self.bins[-1] else 'is between ' + \
-                        i.split(' ~ ')[0] + ' and ' + i.split(' ~ ')[1])
 
         self.dict['cats'] = self.cats
