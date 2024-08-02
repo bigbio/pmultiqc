@@ -1821,6 +1821,8 @@ class QuantMSModule(BaseMultiqcModule):
             max_prot_intensity = 0
             mztab_data_dict_prot_init = dict(itertools.islice(mztab_data_dict_prot_full.items(), 50))
 
+
+
             table_html = sparklines.plot(mztab_data_dict_prot_init, headers, pconfig=pconfig,
                                          maxValue=max_prot_intensity)
             pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
@@ -2004,7 +2006,7 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
         # only use the first 50 lines for the table
-        table_html = sparklines.plot(msstats_data_dict_pep_init, headers, pconfig=pconfig, maxValue=max_pep_intensity)
+        table_html = sparklines.plot(data=msstats_data_dict_pep_init, headers=headers, pconfig=pconfig, maxValue=max_pep_intensity)
         pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" ' \
