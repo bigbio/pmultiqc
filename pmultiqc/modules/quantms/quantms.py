@@ -978,6 +978,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
         # Create identified number plot
         if len(self.search_engine['data_label']['consensus_label']) != 0:
+            consensus_support_cats = [bar_cats] * len(self.search_engine['consensus_support'])
             consensus_pconfig = {
                 'id': 'consensus_summary',  # ID used for the table
                 'cpswitch': False,
@@ -988,22 +989,23 @@ class QuantMSModule(BaseMultiqcModule):
                 'tt_decimals': 0,
                 'data_labels': self.search_engine['data_label']['consensus_label'],
             }
-            # consensus_bar_html = bargraph.plot(list(self.search_engine['consensus_support'].values()), PEP_cats,
-            #                                    consensus_pconfig)
-            #
-            # self.add_section(
-            #     description='''#### Summary of consensus support for PSMs
-            #     Consensus support is a measure of agreement between search engines. Every peptide sequence in the analysis has been
-            #     identified by at least one search run. The consensus support defines which fraction (between 0 and 1) of the remaining
-            #     search runs "supported" a peptide identification that was kept. The meaning of "support" differs slightly between
-            #     algorithms: For best, worst, average and rank, each search run supports peptides that it has also identified among its
-            #     top considered_hits candidates. So the "consensus support" simply gives the fraction of additional search engines that
-            #     have identified a peptide. (For example, if there are three search runs, peptides identified by two of them will have a
-            #     "support" of 0.5.) For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide is the average
-            #     similarity of the most-similar peptide from each (other) search run.
-            #     ''',
-            #     plot=consensus_bar_html
-            # )
+
+            consensus_bar_html = bargraph.plot(list(self.search_engine['consensus_support'].values()), consensus_support_cats,
+                                               consensus_pconfig)
+
+            self.add_section(
+                description='''#### Summary of consensus support for PSMs
+                Consensus support is a measure of agreement between search engines. Every peptide sequence in the analysis has been
+                identified by at least one search run. The consensus support defines which fraction (between 0 and 1) of the remaining
+                search runs "supported" a peptide identification that was kept. The meaning of "support" differs slightly between
+                algorithms: For best, worst, average and rank, each search run supports peptides that it has also identified among its
+                top considered_hits candidates. So the "consensus support" simply gives the fraction of additional search engines that
+                have identified a peptide. (For example, if there are three search runs, peptides identified by two of them will have a
+                "support" of 0.5.) For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide is the average
+                similarity of the most-similar peptide from each (other) search run.
+                ''',
+                plot=consensus_bar_html
+            )
         else:
             self.add_section(
                 description='''#### Summary of consensus PSMs
