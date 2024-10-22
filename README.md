@@ -33,6 +33,7 @@ example: ```multiqc resources/LFQ -o ./```
 - --quantification_method: The quantification method for LFQ experiment (default: `feature_intensity`)
 - --disable_table: Disable protein/peptide table plots for large dataset
 - --ignored_idxml: ignored idxml files for faster running
+- --mzid_plugin: Generate reports based on mzid and mzML/mgf
 
 An example report can be found in [multiqc_report.html](http://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html)
 
