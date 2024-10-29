@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python 3.9
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.9
     - name: Install dependencies
@@ -41,7 +41,7 @@ jobs:
         unzip -d ./lfq lfq.zip
         python setup.py install
         multiqc -f ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v4
       if: always()
       name: Upload results
       with:
@@ -53,7 +53,7 @@ jobs:
         unzip -d ./tmt tmt-replicates.zip
         python setup.py install
         multiqc -f ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v4
       if: always()
       name: Upload results
       with:
@@ -65,7 +65,7 @@ jobs:
         unzip -d ./dia dia.zip
         python setup.py install
         multiqc -f ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v4
       if: always()
       name: Upload results
       with:
