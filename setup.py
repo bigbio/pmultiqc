@@ -52,7 +52,8 @@ setup(
             'quantification_method = pmultiqc.cli:quantification_method',
             'disable_table = pmultiqc.cli:disable_table',
             'ignored_idxml = pmultiqc.cli:ignored_idxml',
-            'affix_type = pmultiqc.cli:affix_type'
+            'affix_type = pmultiqc.cli:affix_type',
+            'mzid_plugin = pmultiqc.cli:mzid_plugin'
         ],
         'multiqc.hooks.v1': [
             'execution_start = pmultiqc.main:pmultiqc_plugin_execution_start'

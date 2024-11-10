@@ -35,3 +35,4 @@ affix_type = click.option('--affix_type', 'affix_type', default='prefix',
                             help='Prefix (default) or suffix')
 disable_plugin = click.option('--disable_plugin', 'disable_plugin', is_flag=True,
                             help="Disable the pmultiqc plugin on this run")
+mzid_plugin = click.option('--mzid_plugin', 'mzid_plugin', is_flag=True, help="Extract mzIdentML")
