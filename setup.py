@@ -53,7 +53,8 @@ setup(
             'disable_table = pmultiqc.cli:disable_table',
             'ignored_idxml = pmultiqc.cli:ignored_idxml',
             'affix_type = pmultiqc.cli:affix_type',
-            'mzid_plugin = pmultiqc.cli:mzid_plugin'
+            'mzid_plugin = pmultiqc.cli:mzid_plugin',
+            'parse_maxquant = pmultiqc.cli:parse_maxquant'
         ],
         'multiqc.hooks.v1': [
             'execution_start = pmultiqc.main:pmultiqc_plugin_execution_start'

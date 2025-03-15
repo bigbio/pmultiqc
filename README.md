@@ -15,6 +15,20 @@ A library for proteomics QC report based on MultiQC framework. The library gener
   - *.yml                       : summary software information and parameters of quantms pipeline (optional)
   - diann_report.tsv            : DIA-NN main report file. Only for DIA analysis.
 
+pmultiqc now also supports parsing results from [MaxQuant](https://www.maxquant.org), `*.mzid`, and their corresponding `*.mzML`/`*.mgf` files with the following structure:
+
+- MaxQuant_dir
+  - parameters.txt
+  - proteinGroups.txt
+  - summary.txt
+  - evidence.txt
+  - msms.txt
+  - msmsScans.txt
+
+- mzid_dir
+  - *.mzid
+  - *.mzML or *.mgf
+
 ## Usage
 
 ```multiqc {analysis_dir} -o {output dir}```
@@ -33,11 +47,16 @@ example: ```multiqc resources/LFQ -o ./```
 - --quantification_method: The quantification method for LFQ experiment (default: `feature_intensity`)
 - --disable_table: Disable protein/peptide table plots for large dataset
 - --ignored_idxml: ignored idxml files for faster running
-- --mzid_plugin: Generate reports based on mzid and mzML/mgf
-
-An example report can be found in [multiqc_report.html](http://bigbio.xyz/pmultiqc/shared-peptides-star-align-stricter-pep-protein-FDR/multiqc_report.html)
+- --parse_maxquant: Generate reports based on MaxQuant results
+- --mzid_plugin: Generate reports based on `*.mzid` and `*.mzML`/`*.mgf`
 
 Most of the metrics are compute based on the `out.mzTab` and the `*.idXML` which contains the peptides and protein identifications.
+
+An example report based on MaxQuant results can be found in [multiqc_report.html](https://github.com/bigbio/pmultiqc/blob/main/docs/example_maxquant/multiqc_report.html)
+
+An example report based on `*.mzid` and `*.mzML` can be found in [multiqc_report.html](https://github.com/bigbio/pmultiqc/blob/main/docs/example_mzid_mzml/multiqc_report.html)
+
+An example report based on `*.mzid` and `*.mgf` can be found in [multiqc_report.html](https://github.com/bigbio/pmultiqc/blob/main/docs/example_mzid_mgf/multiqc_report.html)
 
 ## Metrics
 
@@ -136,6 +155,6 @@ In short, for development, follow these steps:
 - `git clone https://github.com/bigbio/pmultiqc && cd pmultiqc`
 - `pip install -r requirements.txt`
 - Code and make your changes
-- `pip install . -e`
+- `pip install -e .`
 - `cd tests && multiqc resources/LFQ -o ./`
 - Contribute by forking and creating a PR from your fork against bigbio
