@@ -28,8 +28,6 @@ import math
 import copy
 import json
 
-from sqlalchemy.testing.schema import pep435_enum
-
 from .histogram import Histogram
 from . import sparklines
 from .ms_functions import get_ms_qc_info
