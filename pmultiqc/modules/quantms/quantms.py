@@ -136,9 +136,7 @@ class QuantMSModule(BaseMultiqcModule):
                         datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["summary"]
                     )
                 )
-                ms_ms_identified = maxquant.get_summary(
-                    file_path=self.maxquant_paths["summary"]
-                )
+                ms_ms_identified = maxquant.get_summary(file_path=self.maxquant_paths["summary"])
                 log.info(
                     "{}: Completed the processing of the summary file {}...".format(
                         datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["summary"]
