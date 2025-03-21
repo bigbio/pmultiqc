@@ -1,0 +1,5 @@
+Sample	Genuine (Exclusive)	Genuine + Transferred	Transferred (Exclusive)
+QC_20140323_1	3425.0	402.0	8.0
+QC_20140521_1	931.0	1826.0	398.0
+QC_20140521_2	981.0	1801.0	382.0
+QC_20140522_1	1464.0	1501.0	202.0

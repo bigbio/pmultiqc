@@ -23,7 +23,7 @@ def pmultiqc_plugin_execution_start():
     This setuptools hook is the earliest that will be able
     to use custom command line flags.
     """
-# 
+ 
     # Halt execution if we've disabled the plugin
     if config.kwargs.get('disable_plugin', True):
         return None
@@ -61,5 +61,8 @@ def pmultiqc_plugin_execution_start():
     if 'quantms/diann_report' not in config.sp:
         # TODO Why is the 'shared' suddenly inside the dict???
         config.update_dict(config.sp, {'quantms/diann_report': {'fn': '*report.tsv', 'num_lines': 0, 'shared': False}})
+
+    if 'quantms/maxquant_result' not in config.sp:
+        config.update_dict(config.sp, {'quantms/maxquant_result': {'fn': '*.txt', 'num_lines': 0}})
 
     config.update({'log_filesize_limit': 200 * pow(1024, 3), 'thousandsSep_format': ''})

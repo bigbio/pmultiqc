@@ -1,0 +1,5 @@
+Sample	Potential Contaminants
+Intensity e323_1	3.7264410820395404
+Intensity e521_1	2.903683381813658
+Intensity e521_2	2.8109276875414038
+Intensity e522_1	2.831114871331909

@@ -1,0 +1,52 @@
+Sample	Parameter	Value
+1	Version	1.5.2.8
+10	Top MS/MS peaks per 100 Da. (FTMS)	12
+11	MS/MS deisotoping (FTMS)	True
+12	MS/MS tol. (ITMS)	0.5 Da
+13	Top MS/MS peaks per 100 Da. (ITMS)	8
+14	MS/MS deisotoping (ITMS)	False
+15	MS/MS tol. (TOF)	40 ppm
+16	Top MS/MS peaks per 100 Da. (TOF)	10
+17	MS/MS deisotoping (TOF)	True
+18	MS/MS tol. (Unknown)	0.5 Da
+19	Top MS/MS peaks per 100 Da. (Unknown)	8
+2	User name	cbielow
+20	MS/MS deisotoping (Unknown)	False
+21	PSM FDR	0.01
+22	Protein FDR	0.01
+23	Site FDR	0.01
+24	Use Normalized Ratios For Occupancy	True
+25	Min. peptide Length	7
+26	Min. score for unmodified peptides	0
+27	Min. score for modified peptides	40
+28	Min. delta score for unmodified peptides	0
+29	Min. delta score for modified peptides	6
+3	Machine name	CD02-WIN7
+30	Min. unique peptides	0
+31	Min. razor peptides	1
+32	Min. peptides	1
+33	Use only unmodified peptides and	True
+34	Modifications included in protein quantification	Acetyl (Protein N-term);Oxidation (M)
+35	Peptides used for protein quantification	Razor
+36	Discard unmodified counterpart peptides	True
+37	Min. ratio count	2
+38	Re-quantify	False
+39	Use delta score	False
+4	Date of writing	08/05/2015 11:38:59
+40	iBAQ	False
+41	iBAQ log fit	False
+42	Match between runs	True
+43	Matching time window [min]	0.7
+44	Alignment time window [min]	20
+45	Find dependent peptides	False
+46	Fasta file	crap_withMycoplasma.fasta;uniprot_human_canonical_and_isoforms_20130513.fasta
+47	Labeled amino acid filtering	True
+48	Site tables	Oxidation (M)Sites.txt
+49	RT shift	False
+5	Fixed modifications	Carbamidomethyl (C)
+50	Advanced ratios	True
+51	First pass AIF correlation	0.8
+6	Decoy mode	revert
+7	Special AAs	KR
+8	Include contaminants	True
+9	MS/MS tol. (FTMS)	20 ppm

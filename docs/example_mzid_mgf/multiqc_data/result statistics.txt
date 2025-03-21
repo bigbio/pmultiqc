@@ -1,0 +1,4 @@
+Sample	#Peptide IDs	#Unambiguous Peptide IDs	#Modified Peptide IDs	#Protein (group) IDs
+F001234	1788	1698	706	146
+F001235	1351	1304	627	130
+F001236	1034	1010	543	99

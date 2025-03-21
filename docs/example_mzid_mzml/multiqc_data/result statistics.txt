@@ -1,0 +1,2 @@
+Sample	#Peptide IDs	#Unambiguous Peptide IDs	#Modified Peptide IDs	#Protein (group) IDs
+33060_Control_vs_Infection_JMI	25008	23684	6011	4532

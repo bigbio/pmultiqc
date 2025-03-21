@@ -1,0 +1,2 @@
+Sample	1	2	>= 3
+33060_Control_vs_Infection_JMI	2694.0	1115.0	2712.0

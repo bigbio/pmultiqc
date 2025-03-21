@@ -1,0 +1,85 @@
+[tool.poetry]
+name = "pmultiqc"
+description = "Python package for quality control of proteomics datasets, based on multiqc package"
+readme = "README.md"
+license = "MIT"
+version = "0.0.25"
+authors = [
+    "Yasset Perez-Riverol <ypriverol@gmail.com>",
+    "Dai Chengxin <chengxin2024@126.com>",
+    "Qi-xuan Yue <yueqx@cqupt.edu.cn>"
+]
+keywords = [
+    "quantms",
+    "proteomics",
+    "quality control", 
+    "MultiQC"
+]
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Environment :: Console',
+    'Environment :: Web Environment',
+    'Intended Audience :: Science/Research',
+    'License :: OSI Approved :: MIT License',
+    'Natural Language :: English',
+    'Operating System :: MacOS :: MacOS X',
+    'Operating System :: POSIX',
+    'Operating System :: Unix',
+    'Programming Language :: Python',
+    'Programming Language :: JavaScript',
+    'Topic :: Scientific/Engineering',
+    'Topic :: Scientific/Engineering :: Bio-Informatics',
+    'Topic :: Scientific/Engineering :: Visualization'
+]
+packages = [
+    { include = "pmultiqc" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+multiqc = "1.26"
+pandas = "<=2.0.3"
+pyteomics = "*"
+pyopenms = "*"
+sdrf-pipelines = ">=0.0.28"
+lxml = "*"
+numpy = "1.24.3"
+pyarrow = "*"
+scikit-learn = "1.2.2"
+
+[tool.poetry.urls]
+GitHub = "https://github.com/bigbio/pmultiqc"
+Quantms = "https://quantms.org"
+LICENSE = "https://github.com/bigbio/pmultiqc/blob/main/LICENSE"
+
+[tool.poetry.plugins."multiqc.modules.v1"]
+quantms = "pmultiqc.modules.quantms:QuantMSModule"
+
+[tool.poetry.plugins."multiqc.cli_options.v1"]
+disable_plugin = "pmultiqc.cli:disable_plugin"
+pmultiqc_version = "pmultiqc.cli:pmultiqc_version"
+raw = "pmultiqc.cli:raw"
+condition = "pmultiqc.cli:condition"
+remove_decoy = "pmultiqc.cli:remove_decoy"
+decoy_affix = "pmultiqc.cli:decoy_affix"
+contaminant_affix = "pmultiqc.cli:contaminant_affix"
+quantification_method = "pmultiqc.cli:quantification_method"
+disable_table = "pmultiqc.cli:disable_table"
+ignored_idxml = "pmultiqc.cli:ignored_idxml"
+affix_type = "pmultiqc.cli:affix_type"
+mzid_plugin = "pmultiqc.cli:mzid_plugin"
+parse_maxquant = "pmultiqc.cli:parse_maxquant"
+
+[tool.poetry.plugins."multiqc.hooks.v1"]
+execution_start = "pmultiqc.main:pmultiqc_plugin_execution_start"
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 99
+target-version = ["py39"]
+
+[build-system]
+requires = ["poetry-core>=1.2.0"]
+build-backend = "poetry.core.masonry.api"

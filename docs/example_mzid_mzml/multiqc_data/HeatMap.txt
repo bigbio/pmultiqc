@@ -1,0 +1,2 @@
+.	Charge	Missed Cleavages	Missed Cleavages Var	ID rate over RT	MS2 OverSampling	Pep Missing Values
+33060_Control_vs_Infection_JMI	1.0	0.9005285834321571	1.0	0.43681821712096053	0.4131268210397178	1.0

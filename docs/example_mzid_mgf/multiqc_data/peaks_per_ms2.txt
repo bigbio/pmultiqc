@@ -1,0 +1,3 @@
+Sample	0 ~ 100	100 ~ 200	200 ~ 300	300 ~ 400
+identified_spectra	16066.0	9126.0	1043.0	9.0
+unidentified_spectra	72052.0	27556.0	2348.0	30.0

@@ -1,0 +1,2 @@
+Sample	#Identified MS2 Spectra	%Identified MS2 Spectra	#Peptides Identified	#Proteins Identified
+128230	20518	16.00093581845122	1523	185
