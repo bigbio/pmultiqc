@@ -10,66 +10,173 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-
+  setup:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.9
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        python setup.py install
-        python tests/test_proteomicslfq.py
-    - name: Test LFQ dataset
-      run: |
-        wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/lfq/lfq.zip
-        unzip -d ./lfq lfq.zip
-        python setup.py install
-        multiqc -f ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
-    - uses: actions/upload-artifact@v4
-      if: always()
-      name: Upload results
-      with:
-        name: results_lfq
-        path: ./results_lfq
-    - name: Test TMT dataset
-      run: |
-        wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/tmt-replicates/tmt-replicates.zip
-        unzip -d ./tmt tmt-replicates.zip
-        python setup.py install
-        multiqc -f ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
-    - uses: actions/upload-artifact@v4
-      if: always()
-      name: Upload results
-      with:
-        name: results_tmt
-        path: ./results_tmt
-    - name: Test DIA dataset
-      run: |
-        wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia.zip
-        unzip -d ./dia dia.zip
-        python setup.py install
-        multiqc -f ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
-    - uses: actions/upload-artifact@v4
-      if: always()
-      name: Upload results
-      with:
-        name: results_dia
-        path: ./results_dia
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          pip install .
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
+  test_lfq:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install package
+        run: pip install .
+      - name: Test LFQ dataset
+        run: |
+          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/lfq/lfq.zip
+          unzip -d ./lfq lfq.zip
+          multiqc -f ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_lfq
+          path: ./results_lfq
 
+  test_tmt:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install package
+        run: pip install .
+      - name: Test TMT dataset
+        run: |
+          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/tmt-replicates/tmt-replicates.zip
+          unzip -d ./tmt tmt-replicates.zip
+          multiqc -f ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_tmt
+          path: ./results_tmt
+
+  test_dia:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install package
+        run: pip install .
+      - name: Test DIA dataset
+        run: |
+          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia.zip
+          unzip -d ./dia dia.zip
+          multiqc -f ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_dia
+          path: ./results_dia
+
+  test_mzid_mzML:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install package
+        run: pip install .
+      - name: Test mzid & mzML file
+        run: |
+          mkdir -p ~/mzid_mzML
+          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzML
+          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzid.gz
+          gunzip ~/mzid_mzML/33060_Control_vs_Infection_JMI.mzid.gz
+          multiqc --mzid_plugin ~/mzid_mzML -o ./results_mzid_mzML
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_mzid_mzML
+          path: ./results_mzid_mzML
+
+  test_mzid_mgf:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install package
+        run: pip install .
+      - name: Test mzid & MGF file
+        run: |
+          mkdir -p ~/mzid_mgf
+          wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mgf
+          wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mgf
+          wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mzid.gz
+          wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mzid.gz
+          gunzip ~/mzid_mgf/*mzid.gz
+          multiqc --mzid_plugin ~/mzid_mgf -o ./results_mzid_mgf
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_mzid_mgf
+          path: ./results_mzid_mgf
+
+  test_maxquant:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install package
+        run: pip install .
+      - name: Test MaxQuant file
+        run: |
+          wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip
+          unzip -d ./maxquant txt_20min.zip
+          multiqc --parse_maxquant ./maxquant -o ./results_maxquant
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_maxquant
+          path: ./results_maxquant

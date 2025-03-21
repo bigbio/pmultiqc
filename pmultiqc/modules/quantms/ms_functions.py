@@ -6,6 +6,7 @@
 
 ======================
 """
+
 import pandas as pd
 
 # The time resulution in seconds.
@@ -27,21 +28,32 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
     """
     ms1_info = ms_info[ms_info["MSLevel"] == 1]
     ms2_info = ms_info[ms_info["MSLevel"] == 2]
-    ms1_info["rt_normalize"] = (ms1_info.sort_values(by="Retention_Time")["Retention_Time"] / SECOND_RESOLUTION).astype(
-        int)
-    tic_data = ms1_info.groupby("rt_normalize")[["Retention_Time", "Summed_Peak_Intensities"]].min()
+    ms1_info["rt_normalize"] = (
+        ms1_info.sort_values(by="Retention_Time")["Retention_Time"] / SECOND_RESOLUTION
+    ).astype(int)
+    tic_data = ms1_info.groupby("rt_normalize")[
+        ["Retention_Time", "Summed_Peak_Intensities"]
+    ].min()
     tic_data = dict(zip(tic_data["Retention_Time"], tic_data["Summed_Peak_Intensities"]))
 
-    bpc_data = dict(zip(ms1_info.groupby("rt_normalize")["Retention_Time"].min(),
-                        ms1_info.groupby("rt_normalize")["Summed_Peak_Intensities"].max()))
+    bpc_data = dict(
+        zip(
+            ms1_info.groupby("rt_normalize")["Retention_Time"].min(),
+            ms1_info.groupby("rt_normalize")["Summed_Peak_Intensities"].max(),
+        )
+    )
 
-    ms1_peaks = dict(zip(ms1_info.groupby("rt_normalize")["Retention_Time"].min(),
-                         ms1_info.groupby("rt_normalize")["MS_peaks"].mean()))
+    ms1_peaks = dict(
+        zip(
+            ms1_info.groupby("rt_normalize")["Retention_Time"].min(),
+            ms1_info.groupby("rt_normalize")["MS_peaks"].mean(),
+        )
+    )
 
     general_stats = {
-            "AcquisitionDateTime": ms1_info["AcquisitionDateTime"][0],
-            "TotalCurrent": ms1_info["Summed_Peak_Intensities"].sum(),
-            "ScanCurrent": ms2_info["Summed_Peak_Intensities"].sum()
+        "AcquisitionDateTime": ms1_info["AcquisitionDateTime"][0],
+        "TotalCurrent": ms1_info["Summed_Peak_Intensities"].sum(),
+        "ScanCurrent": ms2_info["Summed_Peak_Intensities"].sum(),
     }
 
     return tic_data, bpc_data, ms1_peaks, general_stats
