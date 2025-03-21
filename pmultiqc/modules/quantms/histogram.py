@@ -64,7 +64,7 @@ class Histogram:
         else:
             pass
 
-    def addValue(self, value, stack="total"):
+    def add_value(self, value, stack="total"):
         """Update the value of the corresponding bin according to different plotting methods.
 
         :param value: Data to be counted

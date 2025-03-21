@@ -158,7 +158,7 @@ def make_table(dt, maxValue):
         )
 
         # Make a colour scale
-        if header.scale == False:
+        if not header.scale:
             c_scale = None
         else:
             c_scale = mqc_colour.mqc_colour_scale(header.scale, header.dmin, header.dmax, id=dt.id)
