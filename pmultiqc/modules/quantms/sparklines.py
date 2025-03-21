@@ -71,8 +71,14 @@ def make_table(dt, maxValue):
     if table_title is None:
         table_title = table_id.replace("_", " ").title()
 
-    fixed_col = ["PeptideSequence", "ProteinName", "BestSearchScore", "Average Intensity", "Peptides_Number",
-                 "Average Spectrum Counting"]
+    fixed_col = [
+        "PeptideSequence",
+        "ProteinName",
+        "BestSearchScore",
+        "Average Intensity",
+        "Peptides_Number",
+        "Average Spectrum Counting",
+    ]
     for idx, k, header in dt.get_headers_in_order():
 
         rid = header.rid
@@ -95,7 +101,7 @@ def make_table(dt, maxValue):
         )
 
         # join with zero width white space for line break
-        cont = '&#8203;'.join(textwrap.wrap(header.title, 30))
+        cont = "&#8203;".join(textwrap.wrap(header.title, 30))
 
         cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
             header.namespace, header.description, cont
@@ -103,16 +109,20 @@ def make_table(dt, maxValue):
 
         if k not in fixed_col and "distribution" in k:
             cont = header.title.replace("_distribution", "")
-            cont = '&#8203;'.join(textwrap.wrap(cont, 30))
+            cont = "&#8203;".join(textwrap.wrap(cont, 30))
             cell_contents = '<span class="mqc_table_tooltip" title="{}: {}">{}</span>'.format(
                 header.namespace, header.description, cont
             )
-            t_headers[rid] = '<th id="header_{rid}" class="{rid} {h} col-condition-sparkline" {da}>{c}</th>'.format(
-                rid=rid, h=hide, da=data_attr, c=cell_contents
+            t_headers[rid] = (
+                '<th id="header_{rid}" class="{rid} {h} col-condition-sparkline" {da}>{c}</th>'.format(
+                    rid=rid, h=hide, da=data_attr, c=cell_contents
+                )
             )
         elif k not in fixed_col:
-            t_headers[rid] = '<th id="header_{rid}" class="{rid} {h} col-condition" {da}>{c}</th>'.format(
-                rid=rid, h=hide, da=data_attr, c=cell_contents
+            t_headers[rid] = (
+                '<th id="header_{rid}" class="{rid} {h} col-condition" {da}>{c}</th>'.format(
+                    rid=rid, h=hide, da=data_attr, c=cell_contents
+                )
             )
         else:
             t_headers[rid] = '<th id="header_{rid}" class="{rid} {h}" {da}>{c}</th>'.format(
@@ -121,9 +131,8 @@ def make_table(dt, maxValue):
         empty_cells[rid] = '<td class="data-coloured {rid} {h}"></td>'.format(rid=rid, h=hide)
 
         # Build the modal table row
-        t_modal_headers[
-            rid
-        ] = """
+        t_modal_headers[rid] = (
+            """
         <tr class="{rid}{muted}" style="background-color: rgba({col}, 0.15);">
             <td class="sorthandle ui-sortable-handle">||</span></td>
             <td style="text-align:center;">
@@ -135,16 +144,17 @@ def make_table(dt, maxValue):
             <td>{col_id}</td>
             <td>{sk}</td>
         </tr>""".format(
-            rid=rid,
-            muted=muted,
-            checked=checked,
-            tid=table_id,
-            col=header.colour,
-            name=header.namespace,
-            title=header.title,
-            desc=header.description,
-            col_id="<code>{}</code>".format(k),
-            sk=header.shared_key,
+                rid=rid,
+                muted=muted,
+                checked=checked,
+                tid=table_id,
+                col=header.colour,
+                name=header.namespace,
+                title=header.title,
+                desc=header.description,
+                col_id="<code>{}</code>".format(k),
+                sk=header.shared_key,
+            )
         )
 
         # Make a colour scale
@@ -163,7 +173,7 @@ def make_table(dt, maxValue):
         cond_formatting_colours.extend(config.table_cond_formatting_colours)
 
         # Add the data table cells
-        for (s_name, samp) in dt.raw_data[idx].items():
+        for s_name, samp in dt.raw_data[idx].items():
             if k in samp:
                 val: ValueT = samp[k]
                 valstr: str = dt.formatted_data[idx][s_name][k]
@@ -226,11 +236,20 @@ def make_table(dt, maxValue):
                             for cmp in cond_formatting_rules[cfk].get(ftype, []):
                                 try:
                                     # Each comparison should be a dict with single key: val
-                                    if "s_eq" in cmp and str(cmp["s_eq"]).lower() == str(val).lower():
+                                    if (
+                                        "s_eq" in cmp
+                                        and str(cmp["s_eq"]).lower() == str(val).lower()
+                                    ):
                                         cmatches[ftype] = True
-                                    if "s_contains" in cmp and str(cmp["s_contains"]).lower() in str(val).lower():
+                                    if (
+                                        "s_contains" in cmp
+                                        and str(cmp["s_contains"]).lower() in str(val).lower()
+                                    ):
                                         cmatches[ftype] = True
-                                    if "s_ne" in cmp and str(cmp["s_ne"]).lower() != str(val).lower():
+                                    if (
+                                        "s_ne" in cmp
+                                        and str(cmp["s_ne"]).lower() != str(val).lower()
+                                    ):
                                         cmatches[ftype] = True
                                     if "eq" in cmp and float(cmp["eq"]) == float(val):
                                         cmatches[ftype] = True
@@ -242,7 +261,9 @@ def make_table(dt, maxValue):
                                         cmatches[ftype] = True
                                 except:
                                     logger.warning(
-                                        "Not able to apply table conditional formatting to '{}' ({})".format(val, cmp)
+                                        "Not able to apply table conditional formatting to '{}' ({})".format(
+                                            val, cmp
+                                        )
                                     )
                 # Apply HTML in order of config keys
                 badge_col = None
@@ -251,7 +272,9 @@ def make_table(dt, maxValue):
                         if cmatches[cfck]:
                             badge_col = cfc[cfck]
                 if badge_col is not None:
-                    valstring = '<span class="badge" style="background-color:{}">{}</span>'.format(badge_col, valstr)
+                    valstring = '<span class="badge" style="background-color:{}">{}</span>'.format(
+                        badge_col, valstr
+                    )
 
                 # Determine background color based on scale. Only relevant for hashable values. If value is for some
                 # reason a dict or a list, it's not hashable and the logic determining the color will not work.
@@ -260,7 +283,9 @@ def make_table(dt, maxValue):
                     hash(val)
                 except TypeError:
                     hashable = False
-                    print(f"Value {val} is not hashable for table {dt.id}, column {k}, sample {s_name}")
+                    print(
+                        f"Value {val} is not hashable for table {dt.id}, column {k}, sample {s_name}"
+                    )
 
                 # Categorical backgorund colours supplied
                 if val in header.bgcols.keys():
@@ -277,7 +302,9 @@ def make_table(dt, maxValue):
                         col = " background-color:{} !important;".format(c_scale.get_colour(val))
                     else:
                         col = ""
-                    bar_html = '<span class="bar" style="width:{}%;{}"></span>'.format(percentage, col)
+                    bar_html = '<span class="bar" style="width:{}%;{}"></span>'.format(
+                        percentage, col
+                    )
                     val_html = '<span class="val">{}</span>'.format(valstr)
                     wrapper_html = '<div class="wrapper">{}</div>'.format(val_html)
 
@@ -285,36 +312,46 @@ def make_table(dt, maxValue):
                         t_rows[s_name] = dict()
                     if "_distribution" in rid:
                         if valstr == "":
-                            t_rows[s_name][
-                                rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
-                                rid=rid, h=hide, v=valstr
+                            t_rows[s_name][rid] = (
+                                "<td class=\"data-sparkline col-condition-sparkline\" data-sparkline='{v}'></td>".format(
+                                    rid=rid, h=hide, v=valstr
+                                )
                             )
                         else:
                             valstr.replace(",", "&#44;")
                             # valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])
-                            t_rows[s_name][
-                                rid] = '<td class="data-sparkline col-condition-sparkline" data-sparkline=\'{v}\'></td>'.format(
-                                rid=rid, h=hide, v=valstr
+                            t_rows[s_name][rid] = (
+                                "<td class=\"data-sparkline col-condition-sparkline\" data-sparkline='{v}'></td>".format(
+                                    rid=rid, h=hide, v=valstr
+                                )
                             )
                     elif header.title in fixed_col:
                         if "Average_Intensity-1" in rid:
-                            t_rows[s_name][rid] = '<td class="data-coloured Average_Intensity {h}">{c}</td>'.format(
-                                h=hide, c=wrapper_html
+                            t_rows[s_name][rid] = (
+                                '<td class="data-coloured Average_Intensity {h}">{c}</td>'.format(
+                                    h=hide, c=wrapper_html
+                                )
                             )
                         else:
-                            t_rows[s_name][rid] = '<td class="data-coloured {rid} {h}">{c}</td>'.format(
-                                rid=rid, h=hide, c=wrapper_html
+                            t_rows[s_name][rid] = (
+                                '<td class="data-coloured {rid} {h}">{c}</td>'.format(
+                                    rid=rid, h=hide, c=wrapper_html
+                                )
                             )
                     else:
-                        t_rows[s_name][rid] = '<td class="data-coloured col-condition {rid} {h}">{c}</td>'.format(
-                            rid=rid, h=hide, c=wrapper_html
+                        t_rows[s_name][rid] = (
+                            '<td class="data-coloured col-condition {rid} {h}">{c}</td>'.format(
+                                rid=rid, h=hide, c=wrapper_html
+                            )
                         )
 
                 # Scale / background colours are disabled
                 else:
                     if s_name not in t_rows:
                         t_rows[s_name] = dict()
-                    t_rows[s_name][rid] = '<td class="{rid} {h}">{v}</td>'.format(rid=rid, h=hide, v=valstr)
+                    t_rows[s_name][rid] = '<td class="{rid} {h}">{v}</td>'.format(
+                        rid=rid, h=hide, v=valstr
+                    )
 
                 # Is this cell hidden or empty?
                 if s_name not in t_rows_empty:
@@ -380,10 +417,8 @@ def make_table(dt, maxValue):
         visible_rows = [x for x in row_visibilities if not x]
 
         # Visible rows
-        t_showing_rows_txt = (
-            'Showing <sup id="{tid}_numrows" class="mqc_table_numrows">{nvisrows}</sup>/<sub>{nrows}</sub> rows'.format(
-                tid=table_id, nvisrows=len(visible_rows), nrows=len(t_rows)
-            )
+        t_showing_rows_txt = 'Showing <sup id="{tid}_numrows" class="mqc_table_numrows">{nvisrows}</sup>/<sub>{nrows}</sub> rows'.format(
+            tid=table_id, nvisrows=len(visible_rows), nrows=len(t_rows)
         )
 
         # How many columns are visible?
@@ -424,7 +459,9 @@ def make_table(dt, maxValue):
     # Build the header row
     col1_header = dt.pconfig.col1_header
 
-    html += '<thead><tr><th class="rowheader">{}</th>{}</tr></thead>'.format(col1_header, "".join(t_headers.values()))
+    html += '<thead><tr><th class="rowheader">{}</th>{}</tr></thead>'.format(
+        col1_header, "".join(t_headers.values())
+    )
 
     # Build the table body
     html += "<tbody>"
@@ -437,7 +474,7 @@ def make_table(dt, maxValue):
         html += "<tr{}>".format(row_hidden)
         # Sample name row header
         # Wrap with zero width space character for line breaks that is not visible later
-        content = '&#8203;'.join(textwrap.wrap(s_name, 40))
+        content = "&#8203;".join(textwrap.wrap(s_name, 40))
         html += '<th class="rowheader" data-original-sn="{sn}">{sn}</th>'.format(sn=content)
         for k in t_headers:
             html += t_rows[s_name].get(k, empty_cells[k])
