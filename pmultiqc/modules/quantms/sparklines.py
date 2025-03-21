@@ -29,6 +29,7 @@ def plot(data, headers=None, pconfig=None, maxValue=0.0):
         pconfig = {}
 
     pconfig = TableConfig(**pconfig)
+
     # Make a DataTable object
     dt = table_object.DataTable.create(data, pconfig, headers)
 
