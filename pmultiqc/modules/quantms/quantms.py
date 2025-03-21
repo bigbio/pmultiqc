@@ -11,6 +11,7 @@ import logging
 from multiqc import config, report
 
 from multiqc import BaseMultiqcModule
+from scipy.special import log_ndtr
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc.plots import table, bargraph, linegraph, heatmap, box, scatter
 from multiqc.utils.mqc_colour import mqc_colour_scale
@@ -26,6 +27,8 @@ import numpy as np
 import math
 import copy
 import json
+
+from sqlalchemy.testing.schema import pep435_enum
 
 from .histogram import Histogram
 from . import sparklines
@@ -218,9 +221,9 @@ class QuantMSModule(BaseMultiqcModule):
                 )
             else:
                 get_msms_scans_dicts = {
-                    "ion_injec_time_RT": None,
+                    "ion_injec_time_rt": None,
                     "top_n": None,
-                    "top_overRT": None,
+                    "top_over_rt": None,
                 }
 
             # Parameters
@@ -295,10 +298,10 @@ class QuantMSModule(BaseMultiqcModule):
             # TopN
             if get_msms_scans_dicts["top_n"]:
                 self.draw_msms_scans_top_n(get_msms_scans_dicts["top_n"])
-            if get_msms_scans_dicts["top_overRT"]:
-                self.draw_msms_scans_top_over_rt(get_msms_scans_dicts["top_overRT"])
-            if get_msms_scans_dicts["ion_injec_time_RT"]:
-                self.draw_msms_scans_ion_injec_time_rt(get_msms_scans_dicts["ion_injec_time_RT"])
+            if get_msms_scans_dicts["top_over_rt"]:
+                self.draw_msms_scans_top_over_rt(get_msms_scans_dicts["top_over_rt"])
+            if get_msms_scans_dicts["ion_injec_time_rt"]:
+                self.draw_msms_scans_ion_injec_time_rt(get_msms_scans_dicts["ion_injec_time_rt"])
 
             return None
 
@@ -428,7 +431,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             for f in self.find_log_files("quantms/mztab", filecontents=False):
                 self.out_mzTab_path = os.path.join(f["root"], f["fn"])
-                self.parse_out_mzTab()
+                self.parse_out_mztab()
 
             for report in self.find_log_files("quantms/diann_report", filecontents=False):
                 self.diann_report_path = os.path.join(report["root"], report["fn"])
@@ -452,7 +455,7 @@ class QuantMSModule(BaseMultiqcModule):
             else:
                 if not config.kwargs["ignored_idxml"]:
                     self.parse_idxml(mt)
-                self.CalHeatMapScore()
+                self.cal_heat_map_score()
                 self.draw_heatmap()
                 self.draw_summary_protein_ident_table()
                 self.draw_quantms_identi_num()
@@ -489,15 +492,15 @@ class QuantMSModule(BaseMultiqcModule):
             # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
             # currently only draw protein tabel for spectral counting
             if (
-                    not self.msstats_input_valid
-                    and config.kwargs["quantification_method"] == "spectral_counting"
+                not self.msstats_input_valid
+                and config.kwargs["quantification_method"] == "spectral_counting"
             ):
                 log.warning("MSstats input file not found!")
                 self.add_section(
                     name="Protein Quantification Table",
                     anchor="protein_quant_result",
                     description="This plot shows the quantification information of proteins"
-                                " in the final result (mainly the mzTab file).",
+                    " in the final result (mainly the mzTab file).",
                     helptext="""
                             The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
                             The table shows the quantitative level and distribution of proteins in different study variables and run.
@@ -866,7 +869,7 @@ class QuantMSModule(BaseMultiqcModule):
         colors = dict((str(i + 1), "#ffffff") for i in range(len(self.file_df.index)))
         headers = OrderedDict()
 
-        ## TODO BIG! We desperately need rules for naming columns!
+        # TODO BIG! We desperately need rules for naming columns!
 
         headers["sample_name"] = {
             "title": "Sample Name",
@@ -1247,12 +1250,12 @@ class QuantMSModule(BaseMultiqcModule):
                     list(self.delta_mass["decoy"].keys())
                     + (list(self.delta_mass["target"].keys()))
                 )
-                        + 0.01,
+                + 0.01,
                 "xmin": min(
                     list(self.delta_mass["decoy"].keys())
                     + (list(self.delta_mass["target"].keys()))
                 )
-                        - 0.01,
+                - 0.01,
                 "data_labels": [
                     {
                         "name": "Counts",
@@ -1315,7 +1318,7 @@ class QuantMSModule(BaseMultiqcModule):
             name="Summary of Search Engine Scores",
             anchor="search_engine_summary",
             description="These plots contain search scores and PEPs counts for different search engines in different files, "
-                        "and they also contain a summary of the consensus PSMs if two or more search engines are used",
+            "and they also contain a summary of the consensus PSMs if two or more search engines are used",
             helptext="""
                         This statistic is extracted from idXML files. 
                     """,
@@ -1493,7 +1496,7 @@ class QuantMSModule(BaseMultiqcModule):
         enzyme_list = list(set(enzyme_list))
         enzyme = enzyme_list[0] if len(enzyme_list) == 1 else "Trypsin"
         psm["missed_cleavages"] = psm.apply(
-            lambda x: self.cal_MissCleavages(x["PeptideSequence"], enzyme), axis=1
+            lambda x: self.cal_miss_cleavages(x["PeptideSequence"], enzyme), axis=1
         )
 
         # Calculate the ID RT Score
@@ -1514,7 +1517,7 @@ class QuantMSModule(BaseMultiqcModule):
             x = group["retention_time"] / np.sum(group["retention_time"])
             n = len(group["retention_time"])
             y = np.sum(x) / n
-            worst = ((1 - y) ** 0.5) * 1 / n + (y ** 0.5) * (n - 1) / n
+            worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
             sc = np.sum(np.abs(x - y) ** 0.5) / n
             if worst == 0:
                 self.ID_RT_score[name] = 1.0
@@ -1527,17 +1530,17 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
             # For HeatMapPepMissingScore
-            idFraction = (
-                    len(
-                        pd.merge(
-                            global_peps,
-                            group[["PeptideSequence", "Modifications"]].drop_duplicates(),
-                            on=["PeptideSequence", "Modifications"],
-                        ).drop_duplicates()
-                    )
-                    / global_peps_count
+            id_fraction = (
+                len(
+                    pd.merge(
+                        global_peps,
+                        group[["PeptideSequence", "Modifications"]].drop_duplicates(),
+                        on=["PeptideSequence", "Modifications"],
+                    ).drop_duplicates()
+                )
+                / global_peps_count
             )
-            self.HeatmapPepMissingScore[name] = np.minimum(1.0, idFraction)
+            self.HeatmapPepMissingScore[name] = np.minimum(1.0, id_fraction)
 
         median = np.median(list(self.MissedCleavages_heatmap_score.values()))
         self.MissedCleavagesVar_score = dict(
@@ -1553,7 +1556,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
         log.info("Done calculating Heatmap Scores.")
 
-    def CalHeatMapScore(self):
+    def cal_heat_map_score(self):
         log.info("Calculating Heatmap Scores...")
         mztab_data = mztab.MzTab(self.out_mzTab_path)
         psm = mztab_data.spectrum_match_table
@@ -1591,15 +1594,15 @@ class QuantMSModule(BaseMultiqcModule):
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
                 self.heatmap_pep_intensity[name] = np.minimum(
-                    1.0, pep_median / (2 ** 23)
+                    1.0, pep_median / (2**23)
                 )  # Threshold
 
         #  HeatMapMissedCleavages
         global_peps = set(psm["opt_global_cv_MS:1000889_peptidoform_sequence"])
         global_peps_count = len(global_peps)
         if (
-                config.kwargs["remove_decoy"]
-                and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
+            config.kwargs["remove_decoy"]
+            and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
         ):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0]
         psm.loc[:, "stand_spectra_ref"] = psm.apply(
@@ -1610,7 +1613,7 @@ class QuantMSModule(BaseMultiqcModule):
         enzyme_list = [i for i in meta_data.values() if str(i).startswith("enzyme:")]
         enzyme = enzyme_list[0].split(":")[1] if len(enzyme_list) == 1 else "Trypsin"
         psm.loc[:, "missed_cleavages"] = psm.apply(
-            lambda x: self.cal_MissCleavages(x["sequence"], enzyme), axis=1
+            lambda x: self.cal_miss_cleavages(x["sequence"], enzyme), axis=1
         )
 
         # Calculate the ID RT Score
@@ -1622,7 +1625,7 @@ class QuantMSModule(BaseMultiqcModule):
             x = group["retention_time"] / np.sum(group["retention_time"])
             n = len(group["retention_time"])
             y = np.sum(x) / n
-            worst = ((1 - y) ** 0.5) * 1 / n + (y ** 0.5) * (n - 1) / n
+            worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
             sc = np.sum(np.abs(x - y) ** 0.5) / n
             if worst == 0:
                 self.ID_RT_score[name] = 1.0
@@ -1635,15 +1638,15 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
             # For HeatMapPepMissingScore
-            idFraction = (
-                    len(
-                        set(group["opt_global_cv_MS:1000889_peptidoform_sequence"]).intersection(
-                            global_peps
-                        )
+            id_fraction = (
+                len(
+                    set(group["opt_global_cv_MS:1000889_peptidoform_sequence"]).intersection(
+                        global_peps
                     )
-                    / global_peps_count
+                )
+                / global_peps_count
             )
-            self.HeatmapPepMissingScore[name] = np.minimum(1.0, idFraction)
+            self.HeatmapPepMissingScore[name] = np.minimum(1.0, id_fraction)
 
         median = np.median(list(self.MissedCleavages_heatmap_score.values()))
         self.MissedCleavagesVar_score = dict(
@@ -1661,7 +1664,7 @@ class QuantMSModule(BaseMultiqcModule):
 
     # if missed.cleavages is not given, it is assumed that Trypsin was used for digestion
     @staticmethod
-    def cal_MissCleavages(sequence, enzyme):
+    def cal_miss_cleavages(sequence, enzyme):
         if enzyme == "Trypsin/P":
             miss_cleavages = len(sequence[:-1]) - len(
                 sequence[:-1].replace("K", "").replace("R", "").replace("P", "")
@@ -1686,27 +1689,27 @@ class QuantMSModule(BaseMultiqcModule):
         return miss_cleavages
 
     @staticmethod
-    def dis_decoy(ProteinName):
-        if config.kwargs["decoy_affix"] not in ProteinName:
+    def dis_decoy(protein_name):
+        if config.kwargs["decoy_affix"] not in protein_name:
             return "TARGET"
-        elif ProteinName.split(";") == 1:
+        elif protein_name.split(";") == 1:
             return "DECOY"
         else:
             if config.kwargs["affix_type"] == "prefix":
                 if list(
-                        filter(
-                            lambda x: lambda x: not x.startswith(config.kwargs["decoy_affix"]),
-                            ProteinName.split(";"),
-                        )
+                    filter(
+                        lambda x: lambda x: not x.startswith(config.kwargs["decoy_affix"]),
+                        protein_name.split(";"),
+                    )
                 ):
                     return "TARGET"
                 return "DECOY"
             else:
                 if list(
-                        filter(
-                            lambda x: not x.endswith(config.kwargs["decoy_affix"]),
-                            ProteinName.split(";"),
-                        )
+                    filter(
+                        lambda x: not x.endswith(config.kwargs["decoy_affix"]),
+                        protein_name.split(";"),
+                    )
                 ):
                     return "TARGET"
                 return "DECOY"
@@ -1957,14 +1960,14 @@ class QuantMSModule(BaseMultiqcModule):
 
         self.MSGF_label, self.Comet_label, self.Sage_label = False, False, False
         self.search_engine = {
-            "SpecE": OrderedDict(),
+            "spec_e": OrderedDict(),
             "xcorr": OrderedDict(),
             "hyper": OrderedDict(),
             "PEPs": OrderedDict(),
             "consensus_support": OrderedDict(),
             "data_label": OrderedDict(),
         }
-        SpecE_label, xcorr_label, hyper_label, PEPs_label, consensus_label = [], [], [], [], []
+        spec_e_label, xcorr_label, hyper_label, peps_label, consensus_label = [], [], [], [], []
 
         for raw_id in self.idx_paths:
 
@@ -1999,7 +2002,7 @@ class QuantMSModule(BaseMultiqcModule):
             )
             search_engine = protein_ids[0].getSearchEngine()
 
-            self.search_engine["SpecE"][raw_id] = OrderedDict()
+            self.search_engine["spec_e"][raw_id] = OrderedDict()
             self.search_engine["xcorr"][raw_id] = OrderedDict()
             self.search_engine["hyper"][raw_id] = OrderedDict()
             self.search_engine["PEPs"][raw_id] = OrderedDict()
@@ -2020,17 +2023,17 @@ class QuantMSModule(BaseMultiqcModule):
                 ).round(2)
             )
 
-            SpecE_breaks = list(
+            spec_e_breaks = list(
                 np.arange(
                     self.SPECEVALUE_HIST_RANGE["start"],
                     self.SPECEVALUE_HIST_RANGE["end"] + self.SPECEVALUE_HIST_RANGE["step"],
                     self.SPECEVALUE_HIST_RANGE["step"],
                 ).round(2)
             )
-            SpecE_breaks.append(float("inf"))
-            SpecE_breaks.sort()
+            spec_e_breaks.append(float("inf"))
+            spec_e_breaks.sort()
 
-            PEP_breaks = list(
+            pep_breaks = list(
                 np.arange(
                     self.PEP_HIST_RANGE["start"],
                     self.PEP_HIST_RANGE["end"] + self.PEP_HIST_RANGE["step"],
@@ -2039,36 +2042,36 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
             bar_stacks = ["target", "decoy", "target+decoy"]
-            Xcorr = Histogram(
+            xcorr = Histogram(
                 "Comet cross-correlation score",
                 plot_category="range",
                 stacks=bar_stacks,
                 breaks=xcorr_breaks,
             )
-            Hyper = Histogram(
+            hyper = Histogram(
                 "Sage hyperscore", plot_category="range", stacks=bar_stacks, breaks=hyper_breaks
             )
-            SpecE = Histogram(
+            spec_e = Histogram(
                 "MSGF spectral E-value",
                 plot_category="range",
                 stacks=bar_stacks,
-                breaks=SpecE_breaks,
+                breaks=spec_e_breaks,
             )
-            PEP = Histogram(
+            pep = Histogram(
                 "Posterior error probability",
                 plot_category="range",
                 stacks=bar_stacks,
-                breaks=PEP_breaks,
+                breaks=pep_breaks,
             )
-            Consensus_support = Histogram(
+            consensus_support = Histogram(
                 "Consensus PSM number", plot_category="frequency", stacks=bar_stacks
             )
 
             if search_engine == "MSGF+" or "msgf" in raw_id:
                 mzml_table[ms_name]["MSGF"] = identified_num
                 self.MSGF_label = True
-                SpecE_label.append({"name": raw_id, "ylab": "Counts"})
-                PEPs_label.append({"name": raw_id, "ylab": "Counts"})
+                spec_e_label.append({"name": raw_id, "ylab": "Counts"})
+                peps_label.append({"name": raw_id, "ylab": "Counts"})
                 for peptide_id in peptide_ids:
                     for hit in peptide_id.getHits():
                         spec_e = (
@@ -2076,25 +2079,25 @@ class QuantMSModule(BaseMultiqcModule):
                             if hit.getMetaValue("SpecEvalue-score")
                             else hit.getMetaValue("MS:1002052")
                         )
-                        logSpecE = -math.log(spec_e, 10)
+                        log_spec_e = -math.log(spec_e, 10)
                         pep = (
                             hit.getMetaValue("MS:1001493")
                             if hit.getMetaValue("MS:1001493")
                             else hit.getScore()
                         )
-                        SpecE.add_value(logSpecE, stack=hit.getMetaValue("target_decoy"))
-                        PEP.add_value(pep, stack=hit.getMetaValue("target_decoy"))
+                        spec_e.add_value(log_spec_e, stack=hit.getMetaValue("target_decoy"))
+                        pep.add_value(pep, stack=hit.getMetaValue("target_decoy"))
 
-                SpecE.to_dict()
-                PEP.to_dict()
-                self.search_engine["SpecE"][raw_id] = SpecE.dict["data"]
-                self.search_engine["PEPs"][raw_id] = PEP.dict["data"]
+                spec_e.to_dict()
+                pep.to_dict()
+                self.search_engine["spec_e"][raw_id] = spec_e.dict["data"]
+                self.search_engine["PEPs"][raw_id] = pep.dict["data"]
 
             elif search_engine == "Comet" or "comet" in raw_id:
                 self.Comet_label = True
                 mzml_table[ms_name]["Comet"] = identified_num
                 xcorr_label.append({"name": raw_id, "ylab": "Counts"})
-                PEPs_label.append({"name": raw_id, "ylab": "Counts"})
+                peps_label.append({"name": raw_id, "ylab": "Counts"})
                 for peptide_id in peptide_ids:
                     for hit in peptide_id.getHits():
                         xcorr = hit.getMetaValue("MS:1002252")
@@ -2103,19 +2106,19 @@ class QuantMSModule(BaseMultiqcModule):
                             if hit.getMetaValue("MS:1001493")
                             else hit.getScore()
                         )
-                        Xcorr.add_value(xcorr, stack=hit.getMetaValue("target_decoy"))
-                        PEP.add_value(pep, stack=hit.getMetaValue("target_decoy"))
+                        xcorr.add_value(xcorr, stack=hit.getMetaValue("target_decoy"))
+                        pep.add_value(pep, stack=hit.getMetaValue("target_decoy"))
 
-                Xcorr.to_dict()
-                PEP.to_dict()
-                self.search_engine["xcorr"][raw_id] = Xcorr.dict["data"]
-                self.search_engine["PEPs"][raw_id] = PEP.dict["data"]
+                xcorr.to_dict()
+                pep.to_dict()
+                self.search_engine["xcorr"][raw_id] = xcorr.dict["data"]
+                self.search_engine["PEPs"][raw_id] = pep.dict["data"]
 
             elif search_engine == "Sage" or "sage" in raw_id:
                 self.Sage_label = True
                 mzml_table[ms_name]["Sage"] = identified_num
                 hyper_label.append({"name": raw_id, "ylab": "Counts"})
-                PEPs_label.append({"name": raw_id, "ylab": "Counts"})
+                peps_label.append({"name": raw_id, "ylab": "Counts"})
                 for peptide_id in peptide_ids:
                     for hit in peptide_id.getHits():
                         hyper = hit.getMetaValue("hyperscore")
@@ -2124,13 +2127,13 @@ class QuantMSModule(BaseMultiqcModule):
                             if hit.getMetaValue("MS:1001493")
                             else hit.getScore()
                         )
-                        Hyper.add_value(hyper, stack=hit.getMetaValue("target_decoy"))
-                        PEP.add_value(pep, stack=hit.getMetaValue("target_decoy"))
+                        hyper.add_value(hyper, stack=hit.getMetaValue("target_decoy"))
+                        pep.add_value(pep, stack=hit.getMetaValue("target_decoy"))
 
-                Hyper.to_dict()
-                PEP.to_dict()
-                self.search_engine["hyper"][raw_id] = Hyper.dict["data"]
-                self.search_engine["PEPs"][raw_id] = PEP.dict["data"]
+                hyper.to_dict()
+                pep.to_dict()
+                self.search_engine["hyper"][raw_id] = hyper.dict["data"]
+                self.search_engine["PEPs"][raw_id] = pep.dict["data"]
 
             else:
                 mzml_table[ms_name][search_engine] = identified_num
@@ -2158,17 +2161,17 @@ class QuantMSModule(BaseMultiqcModule):
             for peptide_id in peptide_ids:
                 for hit in peptide_id.getHits():
                     support = hit.getMetaValue("consensus_support")
-                    Consensus_support.add_value(support, stack=hit.getMetaValue("target_decoy"))
-            Consensus_support.to_dict()
+                    consensus_support.add_value(support, stack=hit.getMetaValue("target_decoy"))
+            consensus_support.to_dict()
 
-            for i in Consensus_support.dict["data"].keys():
-                self.search_engine["consensus_support"][raw_id][i] = Consensus_support.dict[
+            for i in consensus_support.dict["data"].keys():
+                self.search_engine["consensus_support"][raw_id][i] = consensus_support.dict[
                     "data"
                 ][i]
 
         self.search_engine["data_label"] = {
-            "score_label": [SpecE_label, xcorr_label, hyper_label],
-            "PEPs_label": PEPs_label,
+            "score_label": [spec_e_label, xcorr_label, hyper_label],
+            "peps_label": peps_label,
             "consensus_label": consensus_label,
         }
 
@@ -2176,7 +2179,7 @@ class QuantMSModule(BaseMultiqcModule):
         for spectrum_name in self.exp_design_table.keys():
             self.mzml_table[spectrum_name] = mzml_table[spectrum_name]
 
-    def parse_out_mzTab(self):
+    def parse_out_mztab(self):
         log.info(
             "{}: Parsing mzTab file {}...".format(
                 datetime.now().strftime("%H:%M:%S"), self.out_mzTab_path
@@ -2212,8 +2215,8 @@ class QuantMSModule(BaseMultiqcModule):
         # map to spectrum file name in experimental design file
         psm["stand_spectra_ref"] = psm.apply(
             lambda x: os.path.basename(meta_data[x.spectra_ref.split(":")[0] + "-location"])
-                      + ":"
-                      + x.spectra_ref.split(":")[1],
+            + ":"
+            + x.spectra_ref.split(":")[1],
             axis=1,
         )
         psm["filename"] = psm.apply(
@@ -2306,7 +2309,7 @@ class QuantMSModule(BaseMultiqcModule):
         }
         self.pep_plot.to_dict(percentage=True, cats=categories)
 
-        mL_spec_ident_final = {}
+        ml_spec_ident_final = {}
 
         for m, group in psm.groupby("filename"):
             m = os.path.basename(m)
@@ -2352,7 +2355,7 @@ class QuantMSModule(BaseMultiqcModule):
             )
             self.cal_num_table_data[m]["modified_peptide_num"] = len(modified_pep)
 
-            mL_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
+            ml_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
 
         # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
         self.ms_without_psm = set([self.file_prefix(i) for i in self.ms_paths]) - set(
@@ -2396,7 +2399,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.delta_mass["target"] = target_bin_data
 
         # extract delta mass
-        self.mL_spec_ident_final = mL_spec_ident_final
+        self.mL_spec_ident_final = ml_spec_ident_final
         if config.kwargs["remove_decoy"]:
             self.Total_ms2_Spectral_Identified = len(
                 set(psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1]["spectra_ref"])
@@ -2410,7 +2413,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         # draw PSMs table for spectral counting
         if config.kwargs["quantification_method"] == "spectral_counting" and not config.kwargs.get(
-                "disable_table", True
+            "disable_table", True
         ):
             mztab_data_psm_full = psm[
                 [
@@ -2487,21 +2490,20 @@ class QuantMSModule(BaseMultiqcModule):
             pattern = re.compile(r'<small id="peptide_spectrum_matches_numrows_text"')
             index = re.search(pattern, table_html).span()[0]
             t_html = (
-                    table_html[:index]
-                    + '<input type="text" placeholder="search..." class="searchInput" '
-                      'onkeyup="searchPsmFunction()" id="psm_search">'
-                      '<select name="psm_search_col" id="psm_search_col">'
+                table_html[:index]
+                + '<input type="text" placeholder="search..." class="searchInput" '
+                'onkeyup="searchPsmFunction()" id="psm_search">'
+                '<select name="psm_search_col" id="psm_search_col">'
             )
             for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"]:
                 t_html += "<option>" + key + "</option>"
             table_html = (
-                    t_html + "</select>" + '<button type="button" class="btn btn-default '
-                                           'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' + table_html[
-                                                                                                          index:]
+                t_html + "</select>" + '<button type="button" class="btn btn-default '
+                'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' + table_html[index:]
             )
             table_html = (
-                    table_html
-                    + """<div class="page_control"><span id="psmFirst">First Page</span><span 
+                table_html
+                + """<div class="page_control"><span id="psmFirst">First Page</span><span 
             id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
             Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
             type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
@@ -2514,17 +2516,17 @@ class QuantMSModule(BaseMultiqcModule):
         # in the future with Protein and peptide tables from mzTab.
         # Draw protein table with spectral counting from mzTab file
         if (
-                not self.msstats_input_valid
-                and config.kwargs["quantification_method"] == "spectral_counting"
-                and not config.kwargs.get("disable_table", True)
+            not self.msstats_input_valid
+            and config.kwargs["quantification_method"] == "spectral_counting"
+            and not config.kwargs.get("disable_table", True)
         ):
             mztab_data_dict_prot_full = dict()
             conditions = self.sample_df.drop_duplicates(subset="MSstats_Condition")[
                 "MSstats_Condition"
             ].tolist()
 
-            def getSpectrumCountAcrossRep(condition_count_dict: dict):
-                Spc = []
+            def get_spectrum_count_across_rep(condition_count_dict: dict):
+                spc = []
                 res = copy.deepcopy(condition_count_dict)
                 for c, val in condition_count_dict.items():
                     samples_spc = dict()
@@ -2543,10 +2545,10 @@ class QuantMSModule(BaseMultiqcModule):
                         )
                     samples_spc = dict(filter(lambda x: x[1] != 0.0, samples_spc.items()))
                     res[c + "_distribution"] = str(samples_spc).replace("'", '"')
-                    Spc.append(res[c])
+                    spc.append(res[c])
 
                 # Integer for average spectrum counting with NA=0 ignored across condition
-                res["Average Spectrum Counting"] = round(sum(Spc) / len(np.nonzero(Spc)[0]))
+                res["Average Spectrum Counting"] = round(sum(spc) / len(np.nonzero(spc)[0]))
                 return res
 
             for index, row in prot.iterrows():
@@ -2557,9 +2559,9 @@ class QuantMSModule(BaseMultiqcModule):
                         meta_data[
                             meta_data[
                                 abundance_col.replace("protein_abundance_", "") + "-ms_run_ref"
-                                ].split(",")[0]
+                            ].split(",")[0]
                             + "-location"
-                            ]
+                        ]
                     )
                     sample_name = str(
                         self.file_df[self.file_df["Run"] == os.path.splitext(file_name)[0]][
@@ -2587,7 +2589,7 @@ class QuantMSModule(BaseMultiqcModule):
                             sample_name: [row[abundance_col]]
                         }
 
-                mztab_data_dict_prot_full[index] = getSpectrumCountAcrossRep(
+                mztab_data_dict_prot_full[index] = get_spectrum_count_across_rep(
                     mztab_data_dict_prot_full[index]
                 )
                 mztab_data_dict_prot_full[index]["Peptides_Number"] = int(counts_per_acc[index])
@@ -2632,9 +2634,9 @@ class QuantMSModule(BaseMultiqcModule):
 
             # ProteinName is index
             all_term = (
-                    ["Peptides_Number", "Average Spectrum Counting"]
-                    + list(map(str, conditions))
-                    + list(map(lambda x: str(x) + "_distribution", conditions))
+                ["Peptides_Number", "Average Spectrum Counting"]
+                + list(map(str, conditions))
+                + list(map(lambda x: str(x) + "_distribution", conditions))
             )
             cur.executemany(
                 "INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
@@ -2665,21 +2667,20 @@ class QuantMSModule(BaseMultiqcModule):
             pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
             index = re.search(pattern, table_html).span()[0]
             t_html = (
-                    table_html[:index]
-                    + '<input type="text" placeholder="search..." class="searchInput" '
-                      'onkeyup="searchProtFunction()" id="prot_search">'
-                      '<select name="prot_search_col" id="prot_search_col">'
+                table_html[:index]
+                + '<input type="text" placeholder="search..." class="searchInput" '
+                'onkeyup="searchProtFunction()" id="prot_search">'
+                '<select name="prot_search_col" id="prot_search_col">'
             )
             for key in ["ProteinName"]:
                 t_html += "<option>" + key + "</option>"
             table_html = (
-                    t_html + "</select>" + '<button type="button" class="btn btn-default '
-                                           'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[
-                                                                                                            index:]
+                t_html + "</select>" + '<button type="button" class="btn btn-default '
+                'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[index:]
             )
             table_html = (
-                    table_html
-                    + """<div class="page_control"><span id="protFirst">First Page</span><span 
+                table_html
+                + """<div class="page_control"><span id="protFirst">First Page</span><span 
             id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last 
             Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input 
             type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
@@ -2689,12 +2690,12 @@ class QuantMSModule(BaseMultiqcModule):
             self.protein_quantification_table_html = table_html
 
     def parse_out_mgf(self):
-        def get_spectrumID(SpectrumTitle, index):
-            if "scan=" in SpectrumTitle:
-                spectrumID = SpectrumTitle
+        def get_spectrum_id(spectrum_title, index):
+            if "scan=" in spectrum_title:
+                spectrum_id = spectrum_title
             else:
-                spectrumID = "index=" + str(index)
-            return spectrumID
+                spectrum_id = "index=" + str(index)
+            return spectrum_id
 
         self.mgf_peak_distribution_plot = Histogram(
             "Peak Intensity",
@@ -2713,7 +2714,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.mgf_peaks_ms2_plot_1 = copy.deepcopy(self.mgf_peaks_ms2_plot)
 
         heatmap_charge = dict()
-        mgf_rtinseconds = {"spectrumID": [], "title": [], "filename": [], "retention_time": []}
+        mgf_rtinseconds = {"spectrum_id": [], "title": [], "filename": [], "retention_time": []}
 
         for m in self.mgf_paths:
             log.info("{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
@@ -2742,8 +2743,8 @@ class QuantMSModule(BaseMultiqcModule):
 
                 raw_title = spectrum.get("params", {}).get("title", [])
                 mgf_rtinseconds["title"].append(raw_title)
-                title = get_spectrumID(raw_title, i)
-                mgf_rtinseconds["spectrumID"].append(title)
+                title = get_spectrum_id(raw_title, i)
+                mgf_rtinseconds["spectrum_id"].append(title)
                 mgf_rtinseconds["filename"].append(m)
 
                 rtinseconds = float(spectrum.get("params", {}).get("rtinseconds", None))
@@ -2817,12 +2818,12 @@ class QuantMSModule(BaseMultiqcModule):
                 location = location.replace("\\", "/")
             return os.path.basename(location)
 
-        def Process_Modification(Modification):
-            if not isinstance(Modification, list):
+        def process_modification(modification):
+            if not isinstance(modification, list):
                 modifications = None
             else:
                 modifi_list = list()
-                for i in Modification:
+                for i in modification:
                     if i.get("name", None) is not None:
                         modifi_list.append(str(i.get("location")) + "-" + i.get("name", None))
                     elif i.get("cross-link receiver", None) is not None:
@@ -2861,9 +2862,9 @@ class QuantMSModule(BaseMultiqcModule):
                         if k not in ["PeptideEvidenceRef", "PeptideSequence"]
                     }
                     if (
-                            spectrum_item_part.get("rank") == 1
-                            and spectrum_item_part.get("peptide passes threshold", "true") == "true"
-                            and spectrum_item.get("passThreshold", False)
+                        spectrum_item_part.get("rank") == 1
+                        and spectrum_item_part.get("peptide passes threshold", "true") == "true"
+                        and spectrum_item.get("passThreshold", False)
                     ):
                         for peptide_ref in spectrum_item.get("PeptideEvidenceRef", []):
                             if "name" in peptide_ref:
@@ -2913,7 +2914,7 @@ class QuantMSModule(BaseMultiqcModule):
             lambda x: self.file_prefix(x.location), axis=1
         )
         mzid_table["Modifications"] = mzid_table["Modification"].apply(
-            lambda x: Process_Modification(x)
+            lambda x: process_modification(x)
         )
 
         if "cross-link spectrum identification item" in mzid_table.columns:
@@ -3149,7 +3150,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         max_pep_intensity = 0.0
 
-        repsPerCondition = (
+        reps_per_condition = (
             self.sample_df.groupby("MSstats_Condition")["MSstats_BioReplicate"].agg(list).to_dict()
         )
         conditions = list(self.sample_df["MSstats_Condition"].unique())
@@ -3159,36 +3160,36 @@ class QuantMSModule(BaseMultiqcModule):
 
         # TODO maybe aggregating in dicts is not the fastest. We also need to parse them again for proteins later.
         #  Maybe we should just introduce new pandas columns for every bioreplicate.
-        def fillDict(g):
-            d = dict.fromkeys(repsPerCondition[str(g.name)], 0)
+        def fill_dict(g):
+            d = dict.fromkeys(reps_per_condition[str(g.name)], 0)
             d.update(zip(g["BioReplicate"].astype(str), np.log10(g["Intensity"])))
             return json.dumps(d)
 
-        def getIntyAcrossBioRepsAsStr(g):
+        def get_inty_across_bio_reps_as_str(g):
             gdict = dict.fromkeys(conditions_str, 0.0)
             gdict.update(dict.fromkeys(conditions_dists, "{}"))
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
             gdict["BestSearchScore"] = g["BestSearchScore"].min()
             ## TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
-            condGrp = (
+            cond_grp = (
                 g.groupby(["Condition", "BioReplicate"])["Intensity"]
                 .mean()
                 .reset_index()
                 .groupby("Condition")
-                .apply(fillDict)
+                .apply(fill_dict)
             )
-            condGrp.index = [str(c) + "_distribution" for c in condGrp.index]
-            gdict.update(condGrp.to_dict())
+            cond_grp.index = [str(c) + "_distribution" for c in cond_grp.index]
+            gdict.update(cond_grp.to_dict())
             mean = g.groupby(["Condition"])["Intensity"].mean()
-            condGrpMean = np.log10(mean)
-            condGrpMean.index = condGrpMean.index.map(str)
-            gdict.update(condGrpMean.to_dict())
+            cond_grp_mean = np.log10(mean)
+            cond_grp_mean.index = cond_grp_mean.index.map(str)
+            gdict.update(cond_grp_mean.to_dict())
             return pd.Series(gdict)
 
         msstats_data_pep_agg = msstats_data.groupby(
             ["PeptideSequence", "ProteinName", "Modification"]
         ).apply(
-            getIntyAcrossBioRepsAsStr
+            get_inty_across_bio_reps_as_str
         )  # .unstack()
         del msstats_data
         ## TODO Can we guarantee that the score was always PEP? I don't think so!
@@ -3228,15 +3229,15 @@ class QuantMSModule(BaseMultiqcModule):
 
         # PeptideID is index
         all_term = (
-                [
-                    "PeptideSequence",
-                    "Modification",
-                    "ProteinName",
-                    "BestSearchScore",
-                    "Average Intensity",
-                ]
-                + list(map(str, conditions))
-                + list(map(lambda x: str(x) + "_distribution", conditions))
+            [
+                "PeptideSequence",
+                "Modification",
+                "ProteinName",
+                "BestSearchScore",
+                "Average Intensity",
+            ]
+            + list(map(str, conditions))
+            + list(map(lambda x: str(x) + "_distribution", conditions))
         )
         cur.executemany(
             "INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
@@ -3266,20 +3267,19 @@ class QuantMSModule(BaseMultiqcModule):
         pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = (
-                table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" '
-                                     'onkeyup="searchQuantFunction()" id="quant_search">'
-                                     '<select name="quant_search_col" id="quant_search_col">'
+            table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" '
+            'onkeyup="searchQuantFunction()" id="quant_search">'
+            '<select name="quant_search_col" id="quant_search_col">'
         )
         for key in ["ProteinName", "PeptideSequence", "Modification", "PeptideID"]:
             t_html += "<option>" + key + "</option>"
         table_html = (
-                t_html + "</select>" + '<button type="button" class="btn btn-default '
-                                       'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' + table_html[
-                                                                                                          index:]
+            t_html + "</select>" + '<button type="button" class="btn btn-default '
+            'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' + table_html[index:]
         )
         table_html = (
-                table_html
-                + """<div class="page_control"><span id="quantFirst">First Page</span><span 
+            table_html
+            + """<div class="page_control"><span id="quantFirst">First Page</span><span 
         id="quantPre"> Previous Page</span><span id="quantNext">Next Page </span><span id="quantLast">Last 
         Page</span><span id="quantPageNum"></span>Page/Total <span id="quantTotalPage"></span>Pages <input 
         type="number" name="" id="pep_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
@@ -3291,7 +3291,7 @@ class QuantMSModule(BaseMultiqcModule):
             name="Peptides Quantification Table",
             anchor="peptides_quant_result",
             description="This plot shows the quantification information of peptides"
-                        " in the final result (mainly the mzTab file).",
+            " in the final result (mainly the mzTab file).",
             helptext="""
                     The quantification information of peptides is obtained from the MSstats input file. 
                     The table shows the quantitative level and distribution of peptides in different study variables, run and peptiforms. The distribution show all the intensity values in a bar plot above and below the average intensity for all the fractions, runs and peptiforms.
@@ -3308,34 +3308,34 @@ class QuantMSModule(BaseMultiqcModule):
         report.plot_by_id["peptides_quant_result"] = table_html
 
         # Helper functions for pandas
-        def jsonToDict(s):
+        def json_to_dict(s):
             if type(s) is str:
                 return json.loads(s)
             else:
                 return {}
 
         def reducer(accumulator, element):
-            for key, value in jsonToDict(element).items():
+            for key, value in json_to_dict(element).items():
                 accumulator[key] = np.log10(pow(10, accumulator.get(key, 0)) + pow(10, value))
             return accumulator
 
-        def myDictSum(series):
+        def my_dict_sum(series):
             return json.dumps(reduce(reducer, series, {}))
 
-        def totalIntensity(series):
+        def total_intensity(series):
             total = 0.0
             for intensity in series:
                 total += pow(10, intensity)
             return np.log10(total)
 
-        def uniqueCount(series):
+        def unique_count(series):
             return len(series.unique())
 
         max_prot_intensity = 0
-        agg_funs = dict.fromkeys(conditions_dists, myDictSum)
-        agg_funs.update(dict.fromkeys(conditions_str, totalIntensity))
-        agg_funs["PeptideSequence"] = uniqueCount
-        agg_funs["Average Intensity"] = totalIntensity
+        agg_funs = dict.fromkeys(conditions_dists, my_dict_sum)
+        agg_funs.update(dict.fromkeys(conditions_str, total_intensity))
+        agg_funs["PeptideSequence"] = unique_count
+        agg_funs["Average Intensity"] = total_intensity
         msstats_data_prot = msstats_data_pep_agg.groupby("ProteinName").agg(
             agg_funs
         )  # .reset_index()
@@ -3394,9 +3394,9 @@ class QuantMSModule(BaseMultiqcModule):
 
         # ProteinID is index
         all_term = (
-                ["ProteinName", "Peptides_Number", "Average Intensity"]
-                + list(map(str, conditions))
-                + list(map(lambda x: str(x) + "_distribution", conditions))
+            ["ProteinName", "Peptides_Number", "Average Intensity"]
+            + list(map(str, conditions))
+            + list(map(lambda x: str(x) + "_distribution", conditions))
         )
         cur.executemany(
             "INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
@@ -3423,20 +3423,19 @@ class QuantMSModule(BaseMultiqcModule):
         pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
         t_html = (
-                table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" '
-                                     'onkeyup="searchProtFunction()" id="prot_search">'
-                                     '<select name="prot_search_col" id="prot_search_col">'
+            table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" '
+            'onkeyup="searchProtFunction()" id="prot_search">'
+            '<select name="prot_search_col" id="prot_search_col">'
         )
         for key in ["ProteinName", "Peptides_Number", "ProteinID"]:
             t_html += "<option>" + key + "</option>"
         table_html = (
-                t_html + "</select>" + '<button type="button" class="btn btn-default '
-                                       'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[
-                                                                                                        index:]
+            t_html + "</select>" + '<button type="button" class="btn btn-default '
+            'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[index:]
         )
         table_html = (
-                table_html
-                + """<div class="page_control"><span id="protFirst">First Page</span><span 
+            table_html
+            + """<div class="page_control"><span id="protFirst">First Page</span><span 
         id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last 
         Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input 
         type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
@@ -3447,7 +3446,7 @@ class QuantMSModule(BaseMultiqcModule):
             name="Protein Quantification Table",
             anchor="protein_quant_result",
             description="This plot shows the quantification information of proteins"
-                        " in the final result (mainly the mzTab file).",
+            " in the final result (mainly the mzTab file).",
             helptext="""
                     The quantification information of proteins is obtained from the msstats input file. 
                     The table shows the quantitative level and distribution of proteins in different study variables and run.
@@ -4003,7 +4002,7 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_evidence_protein_group_count(self, protein_group_count_data):
         if protein_group_count_data["title_value"]:
             fig_title = (
-                    "ProteinGroups Count" + " [" + protein_group_count_data["title_value"] + "]"
+                "ProteinGroups Count" + " [" + protein_group_count_data["title_value"] + "]"
             )
         else:
             fig_title = "ProteinGroups Count"
@@ -4108,7 +4107,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     # MaxQuant Fig 20
-    def draw_msms_scans_top_over_rt(self, top_over_RT_data):
+    def draw_msms_scans_top_over_rt(self, top_over_rt_data):
         draw_config = {
             "id": "topn_over_rt",
             "cpswitch": False,
@@ -4120,7 +4119,7 @@ class QuantMSModule(BaseMultiqcModule):
             "xlab": "Retention time [min]",
             "showlegend": True,
         }
-        linegraph_html = linegraph.plot(top_over_RT_data, pconfig=draw_config)
+        linegraph_html = linegraph.plot(top_over_rt_data, pconfig=draw_config)
         self.add_section(
             name="TopN over RT",
             anchor="topn_over_rt",

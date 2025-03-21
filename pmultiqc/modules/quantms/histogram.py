@@ -72,7 +72,7 @@ class Histogram:
         :param stack: The stack of bars to which the data belongs
         :type stack: str, optional
         """
-        if value == None:
+        if value is None:
             return
 
         if self.plot_category == 1:
@@ -94,7 +94,7 @@ class Histogram:
                     else:
                         self.data[str(value)] = {stack: 1}
                 # sort
-                if type(value) != str and not self.stacks:
+                if isinstance(value) != str and not self.stacks:
                     data_keys = [type(value)(i) for i in self.data.keys()]
                     data_keys.sort()
                     self.data = OrderedDict(
