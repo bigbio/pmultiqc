@@ -16,13 +16,8 @@ logger = logging.getLogger(__name__)
 letters = "abcdefghijklmnopqrstuvwxyz"
 
 
-def plot(data, headers=None, pconfig=None, maxValue=0.0):
-    """Return HTML for a MultiQC table.
-    :param pconfig: plot config dict
-    :param data: 2D dict, first keys as sample names, then x:y data pairs
-    :param headers: list of optional dicts with column config in key:value pairs.
-    :return: HTML ready to be inserted into the page
-    """
+def plot(data, headers=None, pconfig=None, max_value=0.0):
+
     if headers is None:
         headers = []
     if pconfig is None:
@@ -49,14 +44,11 @@ def plot(data, headers=None, pconfig=None, maxValue=0.0):
         )
         return warning + violin.plot(data, headers, pconfig)
     else:
-        return make_table(dt, maxValue)
+        return make_table(dt, max_value)
 
 
-def make_table(dt, maxValue):
-    """
-    Build the HTML needed for a MultiQC table.
-    :param data: MultiQC datatable object
-    """
+def make_table(dt, max_value):
+
     # table_id = dt.pconfig.get("id", "table_{}".format("".join(random.sample(letters, 4))))
     table_id = dt.id
     table_id = report.save_htmlid(table_id)
@@ -453,7 +445,7 @@ def make_table(dt, maxValue):
             <div class="table-responsive mqc-table-responsive {cc}">
                 <table id="{tid}" class="table table-condensed mqc_table" data-title="{title}" data-dmax="{dmax}" >
         """.format(
-        tid=table_id, title=table_title, cc=collapse_class, dmax=maxValue
+        tid=table_id, title=table_title, cc=collapse_class, dmax=max_value
     )
 
     # Build the header row

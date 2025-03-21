@@ -197,27 +197,27 @@ class QuantMSModule(BaseMultiqcModule):
 
             # msScans.txt or msmsScans.txt
             if "msmsScans" in self.maxquant_paths.keys():
-                msmsScans_file = "msmsScans"
+                msms_scans_file = "msmsScans"
             elif "msScans" in self.maxquant_paths.keys():
-                msmsScans_file = "msScans"
+                msms_scans_file = "msScans"
             else:
-                msmsScans_file = None
-            if msmsScans_file:
+                msms_scans_file = None
+            if msms_scans_file:
                 log.info(
                     "{}: Parsing msScans file {}...".format(
-                        datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msmsScans_file]
+                        datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msms_scans_file]
                     )
                 )
-                get_msmsScans_dicts = maxquant.get_msms_scans(
-                    file_path=self.maxquant_paths[msmsScans_file]
+                get_msms_scans_dicts = maxquant.get_msms_scans(
+                    file_path=self.maxquant_paths[msms_scans_file]
                 )
                 log.info(
                     "{}: Completed the processing of the msScans file {}...".format(
-                        datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msmsScans_file]
+                        datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msms_scans_file]
                     )
                 )
             else:
-                get_msmsScans_dicts = {
+                get_msms_scans_dicts = {
                     "ion_injec_time_RT": None,
                     "top_n": None,
                     "top_overRT": None,
@@ -293,12 +293,12 @@ class QuantMSModule(BaseMultiqcModule):
                 )
 
             # TopN
-            if get_msmsScans_dicts["top_n"]:
-                self.draw_msmsScans_top_n(get_msmsScans_dicts["top_n"])
-            if get_msmsScans_dicts["top_overRT"]:
-                self.draw_msmsScans_top_over_RT(get_msmsScans_dicts["top_overRT"])
-            if get_msmsScans_dicts["ion_injec_time_RT"]:
-                self.draw_msmsScans_ion_injec_time_RT(get_msmsScans_dicts["ion_injec_time_RT"])
+            if get_msms_scans_dicts["top_n"]:
+                self.draw_msms_scans_top_n(get_msms_scans_dicts["top_n"])
+            if get_msms_scans_dicts["top_overRT"]:
+                self.draw_msms_scans_top_over_rt(get_msms_scans_dicts["top_overRT"])
+            if get_msms_scans_dicts["ion_injec_time_RT"]:
+                self.draw_msms_scans_ion_injec_time_rt(get_msms_scans_dicts["ion_injec_time_RT"])
 
             return None
 
@@ -353,7 +353,7 @@ class QuantMSModule(BaseMultiqcModule):
             elif self.ms_paths:
                 _ = self.parse_mzml()
 
-            self.mzid_CalHeatMapScore(mzid_psm)
+            self.mzid_cal_heat_map_score(mzid_psm)
             self.draw_heatmap()
             self.draw_summary_protein_ident_table()
             self.draw_mzid_identi_num()
@@ -532,7 +532,7 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
     def draw_heatmap(self):
-        HeatMapScore = []
+        heat_map_score = []
         if self.pep_table_exists:
             xnames = [
                 "Contaminants",
@@ -548,7 +548,7 @@ class QuantMSModule(BaseMultiqcModule):
             for k, v in self.heatmap_con_score.items():
                 if k in self.ms_with_psm:
                     ynames.append(k)
-                    HeatMapScore.append(
+                    heat_map_score.append(
                         [
                             v,
                             self.heatmap_pep_intensity[k],
@@ -573,7 +573,7 @@ class QuantMSModule(BaseMultiqcModule):
             for k, v in self.heatmap_charge_score.items():
                 if k in self.ms_with_psm:
                     ynames.append(k)
-                    HeatMapScore.append(
+                    heat_map_score.append(
                         [
                             self.heatmap_charge_score[k],
                             self.MissedCleavages_heatmap_score[k],
@@ -592,7 +592,7 @@ class QuantMSModule(BaseMultiqcModule):
             "square": False,
         }
 
-        hm_html = heatmap.plot(HeatMapScore, xnames, ynames, pconfig)
+        hm_html = heatmap.plot(heat_map_score, xnames, ynames, pconfig)
         # Add a report section with the heatmap plot
         self.add_section(
             name="HeatMap",
@@ -1323,7 +1323,7 @@ class QuantMSModule(BaseMultiqcModule):
         # Create scores summary plot
         [MSGF_labels, Comet_labels, Sage_labels] = self.search_engine["data_label"]["score_label"]
 
-        SpecE_pconfig = {
+        spec_e_pconfig = {
             "id": "search_scores_summary",  # ID used for the table
             "cpswitch": False,
             "title": "Summary of Spectral E-values",
@@ -1364,18 +1364,18 @@ class QuantMSModule(BaseMultiqcModule):
         bar_cats["decoy"] = {"name": "decoy", "color": "#90ed7d"}
         bar_cats["target+decoy"] = {"name": "target+decoy", "color": "#434348"}
 
-        SpecE_cats = [bar_cats] * len(self.search_engine["SpecE"])
+        spec_e_cats = [bar_cats] * len(self.search_engine["SpecE"])
         xcorr_cats = [bar_cats] * len(self.search_engine["xcorr"])
         hyper_cats = [bar_cats] * len(self.search_engine["hyper"])
-        PEP_cats = [bar_cats] * len(self.search_engine["PEPs"])
+        pep_cats = [bar_cats] * len(self.search_engine["PEPs"])
 
         xcorr_bar_html = (
             bargraph.plot(list(self.search_engine["xcorr"].values()), xcorr_cats, xcorr_pconfig)
             if self.Comet_label
             else ""
         )
-        SpecE_bar_html = (
-            bargraph.plot(list(self.search_engine["SpecE"].values()), SpecE_cats, SpecE_pconfig)
+        spec_e_bar_html = (
+            bargraph.plot(list(self.search_engine["SpecE"].values()), spec_e_cats, spec_e_pconfig)
             if self.MSGF_label
             else ""
         )
@@ -1385,12 +1385,12 @@ class QuantMSModule(BaseMultiqcModule):
             else ""
         )
 
-        if SpecE_bar_html != "":
+        if spec_e_bar_html != "":
             self.add_section(
                 description="""#### SpecEvalue Description
                 SpecEvalue : Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
                 """,
-                plot=SpecE_bar_html,
+                plot=spec_e_bar_html,
             )
 
         if xcorr_bar_html != "":
@@ -1410,7 +1410,7 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
         # Create PEPs summary plot
-        PEP_pconfig = {
+        pep_pconfig = {
             "id": "search_engine_PEP",  # ID used for the table
             "cpswitch": False,
             "title": "Summary of Search Engine PEP",
@@ -1422,13 +1422,13 @@ class QuantMSModule(BaseMultiqcModule):
             "data_labels": self.search_engine["data_label"]["PEPs_label"],
         }
 
-        PEP_bar_html = bargraph.plot(
-            list(self.search_engine["PEPs"].values()), PEP_cats, PEP_pconfig
+        pep_bar_html = bargraph.plot(
+            list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
         )
 
         self.add_section(
             description="""#### Summary of Posterior Error Probabilities (PEP)""",
-            plot=PEP_bar_html,
+            plot=pep_bar_html,
         )
         # Create identified number plot
         if len(self.search_engine["data_label"]["consensus_label"]) != 0:
@@ -1470,7 +1470,7 @@ class QuantMSModule(BaseMultiqcModule):
                 """
             )
 
-    def mzid_CalHeatMapScore(self, psm):
+    def mzid_cal_heat_map_score(self, psm):
         log.info("Calculating Heatmap Scores...")
 
         # HeatMapMissedCleavages
@@ -2660,7 +2660,7 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
             table_html = sparklines.plot(
-                mztab_data_dict_prot_init, headers, pconfig=pconfig, maxValue=max_prot_intensity
+                mztab_data_dict_prot_init, headers, pconfig=pconfig, max_value=max_prot_intensity
             )
             pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
             index = re.search(pattern, table_html).span()[0]
@@ -3261,7 +3261,7 @@ class QuantMSModule(BaseMultiqcModule):
             data=msstats_data_dict_pep_init,
             headers=headers,
             pconfig=pconfig,
-            maxValue=max_pep_intensity,
+            max_value=max_pep_intensity,
         )
         pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
@@ -3418,7 +3418,7 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
         table_html = sparklines.plot(
-            msstats_data_dict_prot_init, headers, pconfig=pconfig, maxValue=max_prot_intensity
+            msstats_data_dict_prot_init, headers, pconfig=pconfig, max_value=max_prot_intensity
         )
         pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
         index = re.search(pattern, table_html).span()[0]
@@ -4083,7 +4083,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     # MaxQuant Fig 19
-    def draw_msmsScans_ion_injec_time_RT(self, ion_injec_time_RT_data):
+    def draw_msms_scans_ion_injec_time_rt(self, ion_injec_time_rt_data):
         draw_config = {
             "id": "ion_injection_time_over_rt",
             "cpswitch": False,
@@ -4095,7 +4095,7 @@ class QuantMSModule(BaseMultiqcModule):
             "xlab": "Retention time [min]",
             "showlegend": True,
         }
-        linegraph_html = linegraph.plot(ion_injec_time_RT_data, pconfig=draw_config)
+        linegraph_html = linegraph.plot(ion_injec_time_rt_data, pconfig=draw_config)
         self.add_section(
             name="Ion Injection Time over RT",
             anchor="ion_injection_time_over_rt",
@@ -4108,7 +4108,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     # MaxQuant Fig 20
-    def draw_msmsScans_top_over_RT(self, top_over_RT_data):
+    def draw_msms_scans_top_over_rt(self, top_over_RT_data):
         draw_config = {
             "id": "topn_over_rt",
             "cpswitch": False,
@@ -4134,7 +4134,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     # MaxQuant Fig 21
-    def draw_msmsScans_top_n(self, top_n_data):
+    def draw_msms_scans_top_n(self, top_n_data):
         draw_config = {
             "id": "top_n",
             "cpswitch": False,
@@ -4182,9 +4182,9 @@ def read_openms_design(desfile):
         f_table["Run"] = f_table.apply(
             lambda x: QuantMSModule.file_prefix(x["Spectra_Filepath"]), axis=1
         )
-        s_DataFrame = pd.DataFrame(s_table, columns=s_header)
+        s_data_frame = pd.DataFrame(s_table, columns=s_header)
 
-    return s_DataFrame, f_table
+    return s_data_frame, f_table
 
 
 def find_modification(peptide):

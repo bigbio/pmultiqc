@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 
 import pandas as pd
 import re
@@ -124,7 +124,7 @@ def get_protegroups(file_path: str) -> Dict[str, dict]:
 
 
 # 1-1. PG:~Contaminants
-def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> Dict[str, float]:
+def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> dict[Any, dict[str, Any]]:
     df1 = mq_data[intensity_cols].sum().to_frame().reset_index()
     df1.columns = ["group", "total_intensity"]
 
@@ -768,12 +768,12 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
             protein_group_mbr_unique = (
                 protein_groups[duplicated_protein_group["is_transferred"]].explode().unique()
             )
-            protein_group_Gen_and_MBR = len(
+            protein_group_gen_and_mbr = len(
                 set(protein_group_genuine_unique).intersection(protein_group_mbr_unique)
             )
-            protein_group_MBR_only = len(protein_group_mbr_unique) - protein_group_Gen_and_MBR
-            protein_group_Genuine_only = (
-                    len(protein_group_genuine_unique) - protein_group_Gen_and_MBR
+            protein_group_mbr_only = len(protein_group_mbr_unique) - protein_group_gen_and_mbr
+            protein_group_genuine_only = (
+                    len(protein_group_genuine_unique) - protein_group_gen_and_mbr
             )
 
             if any(evd_df["is_transferred"]):
@@ -781,9 +781,9 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
                     {
                         "Raw file": [raw_file, raw_file, raw_file],
                         "counts": [
-                            protein_group_Genuine_only,
-                            protein_group_Gen_and_MBR,
-                            protein_group_MBR_only,
+                            protein_group_genuine_only,
+                            protein_group_gen_and_mbr,
+                            protein_group_mbr_only,
                         ],
                         "category": [
                             "Genuine (Exclusive)",
@@ -793,8 +793,8 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
                         "MBRgain": [
                             None,
                             None,
-                            protein_group_MBR_only
-                            / (protein_group_Genuine_only + protein_group_Gen_and_MBR)
+                            protein_group_mbr_only
+                            / (protein_group_genuine_only + protein_group_gen_and_mbr)
                             * 100,
                         ],
                     }
@@ -808,7 +808,7 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
                 file_protein_group_counts = pd.DataFrame(
                     {
                         "Raw file": [raw_file],
-                        "counts": [protein_group_Genuine_only],
+                        "counts": [protein_group_genuine_only],
                         "category": ["Genuine"],
                         "MBRgain": [None],
                     }
@@ -909,39 +909,39 @@ def get_msms_scans(file_path):
     mq_data["round_RT"] = mq_data["Retention time"].apply(lambda x: round(x / 2) * 2)
 
     # Ion Injection Time over RT
-    ion_injec_time_RT = msmsScans_ion_injec_time_RT(mq_data)
+    ion_injec_time_rt = msms_scans_ion_injec_time_rt(mq_data)
 
     # TopN over RT
-    top_overRT = msmsScans_top_over_RT(mq_data)
+    top_over_rt = msms_scans_top_over_rt(mq_data)
 
     # TopN
-    top_n = msmsScans_top_N(mq_data)
+    top_n = msms_scans_top_n(mq_data)
 
     return {
         # 'mq_data': mq_data,
-        "ion_injec_time_RT": ion_injec_time_RT,
+        "ion_injec_time_rt": ion_injec_time_rt,
         "top_n": top_n,
-        "top_overRT": top_overRT,
+        "top_over_rt": top_over_rt,
     }
 
 
 # 5-1.msmsScans.txt: Ion Injection Time over RT
-def msmsScans_ion_injec_time_RT(msmsScans_df):
-    if any(column not in msmsScans_df.columns for column in ["Raw file", "Ion injection time"]):
+def msms_scans_ion_injec_time_rt(msms_scans_df):
+    if any(column not in msms_scans_df.columns for column in ["Raw file", "Ion injection time"]):
         return None
 
-    if msmsScans_df["Ion injection time"].isna().all():
+    if msms_scans_df["Ion injection time"].isna().all():
         return None
 
     median_ion_injec_time_df = (
-        msmsScans_df.groupby(["Raw file", "round_RT"])["Ion injection time"].median().reset_index()
+        msms_scans_df.groupby(["Raw file", "round_RT"])["Ion injection time"].median().reset_index()
     )
     median_ion_injec_time_df = median_ion_injec_time_df.rename(
         columns={"Ion injection time": "median_ion_injection_time"}
     )
 
     mean_ion_injec_time_df = (
-        msmsScans_df.groupby(["Raw file"])["Ion injection time"].mean().reset_index()
+        msms_scans_df.groupby(["Raw file"])["Ion injection time"].mean().reset_index()
     )
     mean_ion_injec_time_df = mean_ion_injec_time_df.rename(
         columns={"Ion injection time": "mean_ion_injection_time"}
@@ -975,9 +975,9 @@ def msmsScans_ion_injec_time_RT(msmsScans_df):
 
 
 # 5-2.msmsScans.txt: TopN over RT
-def msmsScans_top_over_RT(msmsScans_df):
+def msms_scans_top_over_rt(msms_scans_df):
     if any(
-            column not in msmsScans_df.columns
+            column not in msms_scans_df.columns
             for column in ["Raw file", "Retention time", "Scan event number"]
     ):
         return None
@@ -986,10 +986,10 @@ def msmsScans_top_over_RT(msmsScans_df):
     #   This number indicates which MS/MS scan this one is in the consecutive order of the MS/MS scans that are acquired after an MS scan.
     # Retention time:
     #   Time point along the elution profile at which the MS/MS data was recorded.
-    msmsScans_data = msmsScans_df[
+    msms_scans_data = msms_scans_df[
         ["Raw file", "Retention time", "round_RT", "Scan event number"]
     ].copy()
-    msmsScans_data = msmsScans_data.sort_values(by=["Raw file", "Retention time"])
+    msms_scans_data = msms_scans_data.sort_values(by=["Raw file", "Retention time"])
 
     def find_local_maxima(list_data):
         local_max_indices = np.zeros(len(list_data), dtype=bool)
@@ -1000,25 +1000,25 @@ def msmsScans_top_over_RT(msmsScans_df):
                 local_max_indices[i] = True
         return local_max_indices
 
-    local_max_SE_number_df = pd.DataFrame()
-    for raw_file, group in msmsScans_data.groupby("Raw file"):
-        local_max_SE_number_df = pd.concat(
-            [local_max_SE_number_df, group[find_local_maxima(list(group["Scan event number"]))]],
+    local_max_se_number_df = pd.DataFrame()
+    for raw_file, group in msms_scans_data.groupby("Raw file"):
+        local_max_se_number_df = pd.concat(
+            [local_max_se_number_df, group[find_local_maxima(list(group["Scan event number"]))]],
             axis=0,
             ignore_index=True,
         )
 
-    local_max_SE_number_df = local_max_SE_number_df.rename(
+    local_max_se_number_df = local_max_se_number_df.rename(
         columns={"Scan event number": "local_max_scan_event_number"}
     )
-    median_SE_number_df = (
-        local_max_SE_number_df.groupby(["Raw file", "round_RT"])["local_max_scan_event_number"]
+    median_se_number_df = (
+        local_max_se_number_df.groupby(["Raw file", "round_RT"])["local_max_scan_event_number"]
         .median()
         .reset_index()
     )
 
     scan_event_number_dict = {}
-    for raw_file, group in median_SE_number_df.groupby("Raw file"):
+    for raw_file, group in median_se_number_df.groupby("Raw file"):
         scan_event_number_dict[raw_file] = dict(
             zip(group["round_RT"], group["local_max_scan_event_number"])
         )
@@ -1027,22 +1027,22 @@ def msmsScans_top_over_RT(msmsScans_df):
 
 
 # 5-3.msmsScans.txt: TopN
-def msmsScans_top_N(msmsScans_df):
-    if any(column not in msmsScans_df.columns for column in ["Raw file", "Scan event number"]):
+def msms_scans_top_n(msms_scans_df):
+    if any(column not in msms_scans_df.columns for column in ["Raw file", "Scan event number"]):
         return None
 
-    msmsScans_data = msmsScans_df[["Scan event number", "Raw file"]].copy()
+    msms_scans_data = msms_scans_df[["Scan event number", "Raw file"]].copy()
 
     while True:
-        scan_event_index = 1 + np.where(np.diff(msmsScans_data["Scan event number"]) > 1)[0]
+        scan_event_index = 1 + np.where(np.diff(msms_scans_data["Scan event number"]) > 1)[0]
         if len(scan_event_index) == 0:
             break
-        msmsScans_data.loc[scan_event_index, "Scan event number"] -= 1
+        msms_scans_data.loc[scan_event_index, "Scan event number"] -= 1
 
-    file_SE_count_df = (
-        msmsScans_data[["Scan event number", "Raw file"]].value_counts().reset_index(name="count")
+    file_se_count_df = (
+        msms_scans_data[["Scan event number", "Raw file"]].value_counts().reset_index(name="count")
     )
-    max_SE_number = max(file_SE_count_df["Scan event number"])
+    max_se_number = max(file_se_count_df["Scan event number"])
 
     def process_group(group_df, max_scan_event_number, raw_file):
         event_count = group_df["count"].values
@@ -1055,39 +1055,39 @@ def msmsScans_top_N(msmsScans_df):
         event_pre = np.append(event_count[1:], 0)
         event_diff = event_count - event_pre
 
-        SE_number = group_df["Scan event number"].values
-        if max(SE_number) < max_scan_event_number:
-            event_diff = list(event_diff) + [0] * (max_scan_event_number - max(SE_number))
-            SE_number = list(SE_number) + list(
-                range(max(SE_number) + 1, max_scan_event_number + 1)
+        se_number = group_df["Scan event number"].values
+        if max(se_number) < max_scan_event_number:
+            event_diff = list(event_diff) + [0] * (max_scan_event_number - max(se_number))
+            se_number = list(se_number) + list(
+                range(max(se_number) + 1, max_scan_event_number + 1)
             )
 
         result_df = pd.DataFrame(
-            {"Raw file": raw_file, "Scan event number": SE_number, "count": event_diff}
+            {"Raw file": raw_file, "Scan event number": se_number, "count": event_diff}
         )
         return result_df
 
-    file_SE_count_ratio = pd.DataFrame()
-    for raw_file, group in file_SE_count_df.groupby("Raw file"):
-        file_SE_count_ratio = pd.concat(
-            [file_SE_count_ratio, process_group(group, max_SE_number, raw_file)],
+    file_se_count_ratio = pd.DataFrame()
+    for raw_file, group in file_se_count_df.groupby("Raw file"):
+        file_se_count_ratio = pd.concat(
+            [file_se_count_ratio, process_group(group, max_se_number, raw_file)],
             axis=0,
             ignore_index=True,
         )
 
-    file_SE_count_ratio["Scan event number"] = file_SE_count_ratio["Scan event number"].astype(str)
+    file_se_count_ratio["Scan event number"] = file_se_count_ratio["Scan event number"].astype(str)
 
     plot_dict = {}
-    for raw_file, group in file_SE_count_ratio.groupby("Raw file"):
+    for raw_file, group in file_se_count_ratio.groupby("Raw file"):
         plot_dict[raw_file] = dict(zip(group["Scan event number"], group["count"]))
 
-    SE_count_dict = {}
-    SE_count_dict["plot_data"] = plot_dict
-    SE_count_dict["cats"] = [
-        str(x) for x in reversed(file_SE_count_ratio["Scan event number"].unique())
+    se_count_dict = {}
+    se_count_dict["plot_data"] = plot_dict
+    se_count_dict["cats"] = [
+        str(x) for x in reversed(file_se_count_ratio["Scan event number"].unique())
     ]
 
-    return SE_count_dict
+    return se_count_dict
 
 
 # 6.parameters.txt
