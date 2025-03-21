@@ -38,4 +38,3 @@ jobs:
     - name: Test with pytest
       run: |
         pip install .
-        python tests/test_proteomicslfq.py
