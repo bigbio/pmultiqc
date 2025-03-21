@@ -30,7 +30,7 @@ import json
 from .histogram import Histogram
 from . import sparklines
 from .ms_functions import get_ms_qc_info
-from . import get_maxquant
+from . import maxquant
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -85,7 +85,7 @@ class QuantMSModule(BaseMultiqcModule):
         # Parse MaxQuant results
         if config.kwargs.get("parse_maxquant", False):
 
-            self.maxquant_paths = self.get_maxquant_file_path()
+            self.maxquant_paths = self.maxquant_file_path()
 
             # parameters.txt
             if "parameters" in self.maxquant_paths.keys():
@@ -94,7 +94,7 @@ class QuantMSModule(BaseMultiqcModule):
                         datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["parameters"]
                     )
                 )
-                get_parameter_dicts = get_maxquant.get_parameters(
+                get_parameter_dicts = maxquant.get_parameters(
                     file_path=self.maxquant_paths["parameters"]
                 )
                 log.info(
@@ -112,7 +112,7 @@ class QuantMSModule(BaseMultiqcModule):
                         datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["proteinGroups"]
                     )
                 )
-                get_protegroups_dicts = get_maxquant.get_protegroups(
+                get_protegroups_dicts = maxquant.get_protegroups(
                     file_path=self.maxquant_paths["proteinGroups"]
                 )
                 log.info(
@@ -136,7 +136,7 @@ class QuantMSModule(BaseMultiqcModule):
                         datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["summary"]
                     )
                 )
-                ms_ms_identified = get_maxquant.get_summary(
+                ms_ms_identified = maxquant.get_summary(
                     file_path=self.maxquant_paths["summary"]
                 )
                 log.info(
@@ -154,7 +154,7 @@ class QuantMSModule(BaseMultiqcModule):
                         datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["evidence"]
                     )
                 )
-                get_evidence_dicts = get_maxquant.get_evidence(
+                get_evidence_dicts = maxquant.get_evidence(
                     file_path=self.maxquant_paths["evidence"]
                 )
                 log.info(
@@ -185,7 +185,7 @@ class QuantMSModule(BaseMultiqcModule):
                         datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["msms"]
                     )
                 )
-                get_msms_dicts = get_maxquant.get_msms(
+                get_msms_dicts = maxquant.get_msms(
                     file_path=self.maxquant_paths["msms"],
                     evidence_df=get_evidence_dicts["evidence_df"],
                 )
@@ -210,7 +210,7 @@ class QuantMSModule(BaseMultiqcModule):
                         datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msmsScans_file]
                     )
                 )
-                get_msmsScans_dicts = get_maxquant.get_msmsScans(
+                get_msmsScans_dicts = maxquant.get_msmsScans(
                     file_path=self.maxquant_paths[msmsScans_file]
                 )
                 log.info(
@@ -3463,7 +3463,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.sections[-2].plot_id = "peptides_quant_result"
 
     # MaxQuant Files
-    def get_maxquant_file_path(self):
+    def maxquant_file_path(self):
         maxquant_files = []
         for maxquant_file in self.find_log_files("quantms/maxquant_result", filecontents=False):
             maxquant_files.append(maxquant_file["fn"])
