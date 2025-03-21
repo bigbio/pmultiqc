@@ -2712,7 +2712,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.mgf_peaks_ms2_plot_1 = copy.deepcopy(self.mgf_peaks_ms2_plot)
 
         heatmap_charge = dict()
-        mgf_rtinseconds = {"spectrum_id": [], "title": [], "filename": [], "retention_time": []}
+        mgf_rtinseconds = {"spectrumID": [], "title": [], "filename": [], "retention_time": []}
 
         for m in self.mgf_paths:
             log.info("{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
@@ -2742,7 +2742,7 @@ class QuantMSModule(BaseMultiqcModule):
                 raw_title = spectrum.get("params", {}).get("title", [])
                 mgf_rtinseconds["title"].append(raw_title)
                 title = get_spectrum_id(raw_title, i)
-                mgf_rtinseconds["spectrum_id"].append(title)
+                mgf_rtinseconds["spectrumID"].append(title)
                 mgf_rtinseconds["filename"].append(m)
 
                 rtinseconds = float(spectrum.get("params", {}).get("rtinseconds", None))
