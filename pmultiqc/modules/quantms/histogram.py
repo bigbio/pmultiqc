@@ -94,7 +94,7 @@ class Histogram:
                     else:
                         self.data[str(value)] = {stack: 1}
                 # sort
-                if isinstance(value) != str and not self.stacks:
+                if not isinstance(value, str) and not self.stacks:
                     data_keys = [type(value)(i) for i in self.data.keys()]
                     data_keys.sort()
                     self.data = OrderedDict(
