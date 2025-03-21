@@ -69,7 +69,7 @@ Where:
 
 ### Examples
 
-#### For quantms pipeline results:
+#### For quantms pipeline results
 
 ```bash
 # Basic usage
@@ -79,13 +79,13 @@ multiqc /path/to/quantms/results -o ./report
 multiqc /path/to/quantms/results -o ./report --remove_decoy --condition factor
 ```
 
-#### For MaxQuant results:
+#### For MaxQuant results
 
 ```bash
 multiqc --parse_maxquant /path/to/maxquant/results -o ./report
 ```
 
-#### For mzIdentML files:
+#### For mzIdentML files
 
 ```bash
 multiqc --mzid_plugin /path/to/mzid/files -o ./report
