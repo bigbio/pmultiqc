@@ -12,7 +12,12 @@ from .histogram import Histogram
 
 
 def read(file_path, file_type=None, filter_type=None):
+
     mq_data = pd.read_csv(file_path, sep="\t", low_memory=False)
+
+    # Field correction for different versions of MaxQuant
+    if "Contaminant" in mq_data.columns:
+        mq_data = mq_data.rename(columns={"Contaminant": "Potential contaminant"})
 
     if filter_type == "Reverse":
         # Reverse
@@ -23,8 +28,6 @@ def read(file_path, file_type=None, filter_type=None):
         # The 50% rule is in place to prevent spurious protein hits to erroneously flag the protein group as reverse.
         if "Reverse" in mq_data.columns:
             mq_data = mq_data[mq_data["Reverse"] != "+"].reset_index(drop=True)
-
-        # TODO Contaminant: Potential contaminant
 
     # proteinGroups.txt
     if file_type == "protgroup":
@@ -40,6 +43,7 @@ def read(file_path, file_type=None, filter_type=None):
 
             for col, new_col in zip(intensity_cols, new_intensity_cols):
                 mq_data[new_col] = mq_data[col] / mq_data["Mol. weight [kDa]"]
+                mq_data = mq_data.copy()
         else:
             raise ValueError("The column 'Mol. weight [kDa]' could not be found!")
 
@@ -74,7 +78,10 @@ def get_protegroups(file_path: str) -> Dict[str, dict]:
         intensity_columns = intensity_cols
 
     # 1: PG: ~Contaminants
-    contaminant_percent_dict = pg_contaminants(mq_data, intensity_columns)
+    if "Potential contaminant" in mq_data.columns:
+        contaminant_percent_dict = pg_contaminants(mq_data, intensity_columns)
+    else:
+        contaminant_percent_dict = None
 
     # 2. PG: ~Intensity distribution
     intensity_distr_dict = pg_intensity_distr(mq_data, intensity_columns)
@@ -125,6 +132,10 @@ def get_protegroups(file_path: str) -> Dict[str, dict]:
 
 # 1-1. PG:~Contaminants
 def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> dict[Any, dict[str, Any]]:
+
+    if any(column not in mq_data.columns for column in intensity_cols):
+        return None
+
     df1 = mq_data[intensity_cols].sum().to_frame().reset_index()
     df1.columns = ["group", "total_intensity"]
 
@@ -150,60 +161,46 @@ def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> dict[An
 
 # 1-2. PG: ~Intensity distribution
 def pg_intensity_distr(mq_data, intensity_cols):
-    if any(column not in mq_data.columns for column in ["Potential contaminant"]):
+
+    if any(column not in mq_data.columns for column in intensity_cols):
         return None
-
-    raw_df = mq_data[intensity_cols]
-    contaminant_df = mq_data[mq_data["Potential contaminant"] == "+"][intensity_cols]
-
-    # Histogram plot data
-    def histogram_fun(intensity_df):
-        histogram_dict = {}
-        for col in intensity_df.columns:
-            plot_data = Histogram(
-                "Intensity distribution",
-                plot_category="range",
-                breaks=[0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000],
-            )
-
-            for intensity in intensity_df[col].to_list():
-                plot_data.add_value(intensity)
-
-            plot_data.to_dict()
-            histogram_dict[col] = plot_data.dict["data"]
-        return histogram_dict
-
-    histogram_data = [histogram_fun(raw_df), histogram_fun(contaminant_df)]
 
     # Take the logarithm and remove zero values
     def box_fun(raw_df):
-        # log_df = raw_df.map(lambda x: 1 if (pd.isna(x) or x == 0) else x)
-        # log_df = log_df.map(lambda x: np.log2(x)).reset_index(drop = True)
         log_df = raw_df.applymap(lambda x: 1 if (pd.isna(x) or x == 0) else x)
-        # log_df = log_df.applymap(lambda x: np.log2(x)).reset_index(drop = True)
         log_df = np.log2(log_df).reset_index(drop=True)
-
         log_df_dict = log_df.to_dict(orient="list")
         log_df_dict = {
             key: [value for value in values if value != 0] for key, values in log_df_dict.items()
         }
-
         return log_df_dict
+    
+    if "Potential contaminant" in mq_data.columns:
+        raw_df = mq_data[intensity_cols]
+        contaminant_df = mq_data[mq_data["Potential contaminant"] == "+"][intensity_cols]
 
-    # Box plot data
-    boxplot_data = [box_fun(raw_df), box_fun(contaminant_df)]
+        # Box plot data
+        boxplot_data = [box_fun(raw_df), box_fun(contaminant_df)]
+    else:
+        raw_df = mq_data[intensity_cols]
 
-    integrate_data = {"histogram": histogram_data, "box": boxplot_data}
+        # Box plot data
+        boxplot_data = [box_fun(raw_df), None]
 
-    return integrate_data
+    result_dict = {"box": boxplot_data}
+
+    return result_dict
 
 
 # 1-3.proteinGroups.txt: PCA
 def pg_pca(pg_data, cols_name):
-    if any(column not in pg_data.columns for column in ["Potential contaminant"]):
+
+    if any(column not in pg_data.columns for column in cols_name):
         return None
 
-    pg_data = pg_data[pg_data["Potential contaminant"] != "+"].copy()
+    if "Potential contaminant" in pg_data.columns:
+        pg_data = pg_data[pg_data["Potential contaminant"] != "+"].copy()
+    
     pca_df = pg_data[cols_name].copy().T
 
     scaler = StandardScaler()
@@ -252,7 +249,10 @@ def get_evidence(file_path):
     evidence_df_tf = mq_data[mq_data["Type"] == "MULTI-MATCH"].copy()
 
     # Top Contaminants per Raw file
-    top_cont_dict = evidence_top_contaminants(evidence_df, top_n=5)
+    if "Potential contaminant" in evidence_df.columns:
+        top_cont_dict = evidence_top_contaminants(evidence_df, top_n=5)
+    else:
+        top_cont_dict = None
 
     # peptide intensity distribution
     peptide_intensity_dict = evidence_peptide_intensity(evidence_df)
@@ -351,16 +351,6 @@ def evidence_top_contaminants(evidence_df, top_n):
         * 100
     )
 
-    # def shorten_protein_name(name):
-    #     p_split = name.split(';')
-    #     p_split_s = [s[: 13] + '..' if len(s) > 15 else s for s in p_split[: min(2, len(p_split))]]
-    #     result = ';'.join(p_split_s)
-    #     if len(p_split) > 2:
-    #         result += ';..'
-    #     return result
-
-    # intensity_per_file_protein['processed_protein_name'] = intensity_per_file_protein['protein_name'].apply(shorten_protein_name)
-
     top_contaminant_dict = {}
 
     plot_dict = {}
@@ -381,62 +371,43 @@ def evidence_top_contaminants(evidence_df, top_n):
 def evidence_peptide_intensity(evidence_df):
     if any(
         column not in evidence_df.columns
-        for column in ["Potential contaminant", "Intensity", "Raw file"]
+        for column in ["Intensity", "Raw file"]
     ):
         return None
 
-    evidence_data = evidence_df.copy()
-    contaminant_df = evidence_data[evidence_data["Potential contaminant"] == "+"].copy()
-
-    # Histogram plot data
-    def histogram_fun(intensity_df):
-        histogram_dict = {}
-        for raw_file, group in intensity_df.groupby("Raw file"):
-            plot_data = Histogram(
-                "Peptide intensity distribution",
-                plot_category="range",
-                breaks=[0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000],
-            )
-            for intensity_i in group["Intensity"]:
-                plot_data.add_value(intensity_i)
-            plot_data.to_dict()
-            histogram_dict[raw_file] = plot_data.dict["data"]
-        return histogram_dict
-
-    histogram_data = [histogram_fun(evidence_data), histogram_fun(contaminant_df)]
-
     # Take the logarithm and remove zero values
     def box_fun(intensity_df):
-
         intensity_df["intensity_processed"] = intensity_df["Intensity"].apply(
             lambda x: 1 if (pd.isna(x) or x == 0) else x
         )
-        # intensity_df['log_intensity_processed'] = intensity_df['intensity_processed'].apply(lambda x: np.log2(x))
         intensity_df["log_intensity_processed"] = np.log2(intensity_df["intensity_processed"])
-
         box_dict = {}
         for raw_file, group in intensity_df.groupby("Raw file"):
             log_intensity = group["log_intensity_processed"]
             box_dict[raw_file] = list(log_intensity[log_intensity != 0])
         return box_dict
+    
+    if "Potential contaminant" in evidence_df.columns:
+        contaminant_df = evidence_df[evidence_df["Potential contaminant"] == "+"].copy()
+        boxplot_data = [box_fun(evidence_df), box_fun(contaminant_df)]
+    else:
+        boxplot_data = [box_fun(evidence_df), None]
 
-    # Box plot data
-    boxplot_data = [box_fun(evidence_data), box_fun(contaminant_df)]
+    result_dict = {"box": boxplot_data}
 
-    integrate_data = {"histogram": histogram_data, "box": boxplot_data}
-
-    return integrate_data
+    return result_dict
 
 
 # 3-3.evidence.txt: charge distribution
 def evidence_charge_distribution(evidence_data):
     if any(
         column not in evidence_data.columns
-        for column in ["Potential contaminant", "Charge", "Raw file"]
+        for column in ["Charge", "Raw file"]
     ):
         return None
-
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+    
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
     charge_counts = (
         evidence_data.groupby("Raw file")["Charge"].value_counts().reset_index(name="count")
@@ -461,11 +432,12 @@ def evidence_charge_distribution(evidence_data):
 def evidence_modified(evidence_data):
     if any(
         column not in evidence_data.columns
-        for column in ["Potential contaminant", "Modifications", "Raw file"]
+        for column in ["Modifications", "Raw file"]
     ):
         return None
-
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+    
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
     def group_percentage(group):
         counts = group["Modifications"].str.split(",").explode().value_counts()
@@ -503,11 +475,12 @@ def evidence_modified(evidence_data):
 def evidence_rt_count(evidence_data):
     if any(
         column not in evidence_data.columns
-        for column in ["Potential contaminant", "Retention time", "Raw file"]
+        for column in ["Retention time", "Raw file"]
     ):
         return None
-
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+    
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
     rt_range = [evidence_data["Retention time"].min(), evidence_data["Retention time"].max()]
 
@@ -531,13 +504,14 @@ def evidence_rt_count(evidence_data):
 def evidence_peak_width_rt(evidence_data):
     if any(
         column not in evidence_data.columns
-        for column in ["Potential contaminant", "Retention length", "Retention time", "Raw file"]
+        for column in ["Retention length", "Retention time", "Raw file"]
     ):
         return None
+    
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"][
-        ["Retention length", "Retention time", "Raw file"]
-    ].copy()
+    evidence_data = evidence_data[["Retention length", "Retention time", "Raw file"]].copy()
 
     rt_range = [evidence_data["Retention time"].min(), evidence_data["Retention time"].max()]
     breaks = np.arange(rt_range[0] - 3, rt_range[1] + 3, 1)
@@ -564,13 +538,14 @@ def evidence_peak_width_rt(evidence_data):
 def evidence_oversampling(evidence_data):
     if any(
         column not in evidence_data.columns
-        for column in ["Potential contaminant", "MS/MS Count", "Raw file"]
+        for column in ["MS/MS Count", "Raw file"]
     ):
         return None
 
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"][
-        ["MS/MS Count", "Raw file"]
-    ].copy()
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+
+    evidence_data = evidence_data[["MS/MS Count", "Raw file"]].copy()
 
     evidence_data["MS/MS Count"] = evidence_data["MS/MS Count"].apply(
         lambda x: ">=3" if x >= 3 else x
@@ -585,7 +560,6 @@ def evidence_oversampling(evidence_data):
 
     oversampling = {}
     oversampling["plot_data"] = plot_dict
-    # oversampling['plot_data'] = {raw_file: dict(zip(group['MS/MS Count'], group['count'])) for raw_file, group in oversampling_df.groupby('Raw file')}
     oversampling["cats"] = list(oversampling_df["MS/MS Count"].unique())
 
     return oversampling
@@ -595,11 +569,12 @@ def evidence_oversampling(evidence_data):
 def evidence_uncalibrated_mass_error(evidence_data):
     if any(
         column not in evidence_data.columns
-        for column in ["Potential contaminant", "Uncalibrated Mass Error [ppm]", "Raw file"]
+        for column in ["Uncalibrated Mass Error [ppm]", "Raw file"]
     ):
         return None
 
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
     uncalibrated_mass_error = {}
     for raw_file, group in evidence_data.groupby("Raw file"):
@@ -616,11 +591,12 @@ def evidence_uncalibrated_mass_error(evidence_data):
 def evidence_calibrated_mass_error(evidence_data):
     if any(
         column not in evidence_data.columns
-        for column in ["Potential contaminant", "Mass Error [ppm]", "Raw file"]
+        for column in ["Mass Error [ppm]", "Raw file"]
     ):
         return None
-
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+    
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
     calibrated_mass_error = {}
     for raw_file, group in evidence_data.groupby("Raw file"):
@@ -635,21 +611,24 @@ def evidence_calibrated_mass_error(evidence_data):
 def evidence_peptide_count(evidence_df, evidence_df_tf):
     if any(
         column not in evidence_df.columns
-        for column in ["Potential contaminant", "Modified sequence", "is_transferred", "Raw file"]
+        for column in ["Modified sequence", "is_transferred", "Raw file"]
     ):
         return None
 
     if any(
         column not in evidence_df_tf.columns
-        for column in ["Potential contaminant", "Modified sequence", "is_transferred", "Raw file"]
+        for column in ["Modified sequence", "is_transferred", "Raw file"]
     ):
         return None
 
     evidence_data = evidence_df.copy()
     evidence_data_tf = evidence_df_tf.copy()
 
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
-    evidence_data_tf = evidence_data_tf[evidence_data_tf["Potential contaminant"] != "+"].copy()
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+    
+    if "Potential contaminant" in evidence_data_tf.columns:
+        evidence_data_tf = evidence_data_tf[evidence_data_tf["Potential contaminant"] != "+"].copy()
 
     required_cols = ["Raw file", "is_transferred", "Modified sequence"]
     evid_df = pd.concat(
@@ -734,21 +713,23 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
 def evidence_protein_count(evidence_df, evidence_df_tf):
     if any(
         column not in evidence_df.columns
-        for column in ["Potential contaminant", "Protein group IDs", "is_transferred", "Raw file"]
+        for column in ["Protein group IDs", "is_transferred", "Raw file"]
     ):
         return None
 
     if any(
         column not in evidence_df_tf.columns
-        for column in ["Potential contaminant", "Protein group IDs", "is_transferred", "Raw file"]
+        for column in ["Protein group IDs", "is_transferred", "Raw file"]
     ):
         return None
 
     evidence_data = evidence_df.copy()
     evidence_data_tf = evidence_df_tf.copy()
 
-    evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
-    evidence_data_tf = evidence_data_tf[evidence_data_tf["Potential contaminant"] != "+"].copy()
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+    if "Potential contaminant" in evidence_data_tf.columns:
+        evidence_data_tf = evidence_data_tf[evidence_data_tf["Potential contaminant"] != "+"].copy()
 
     required_cols = ["Raw file", "is_transferred", "Protein group IDs"]
     evid_df = pd.concat(
@@ -867,13 +848,17 @@ def msms_missed_cleavages(msms_df, evidence_df):
     ):
         return None
 
-    if any(column not in evidence_df.columns for column in ["Potential contaminant", "id"]):
+    if any(column not in evidence_df.columns for column in ["id"]):
         return None
 
     # excludes contaminants & excludes Type == 'MULTI-MATCH'
-    evidence_not_contaminant_ids = evidence_df[evidence_df["Potential contaminant"] != "+"][
-        "id"
-    ].copy()
+    if "Potential contaminant" in evidence_df.columns:
+        evidence_not_contaminant_ids = evidence_df[evidence_df["Potential contaminant"] != "+"][
+            "id"
+        ].copy()
+    else:
+        evidence_not_contaminant_ids = evidence_df["id"].copy()
+
     not_contaminant_index = msms_df["Evidence ID"][
         msms_df["Evidence ID"].isin(evidence_not_contaminant_ids)
     ].index
@@ -906,9 +891,6 @@ def msms_missed_cleavages(msms_df, evidence_df):
 # 5.msScans.txt
 def get_msms_scans(file_path):
     mq_data = read(file_path)
-
-    # if not all(column in mq_data.columns for column in ['Scan event number', 'Retention time', 'Raw file', 'Scan event number']):
-    #     raise ValueError('Missing required columns in "msmsScans.txt"!')
 
     # TODO check 'Scan event number'
 
@@ -1101,9 +1083,6 @@ def msms_scans_top_n(msms_scans_df):
 # 6.parameters.txt
 def get_parameters(file_path):
     mq_data = read(file_path)
-
-    # if not all(column in mq_data.columns for column in ['Parameter', 'Value']):
-    #     raise ValueError('Missing required columns in "parameters.txt"!')
 
     parameters_tb_dict = parameters_table(mq_data)
 
