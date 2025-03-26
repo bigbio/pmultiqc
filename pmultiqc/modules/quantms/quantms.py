@@ -11,7 +11,6 @@ import logging
 from multiqc import config, report
 
 from multiqc import BaseMultiqcModule
-from scipy.special import log_ndtr
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc.plots import table, bargraph, linegraph, heatmap, box, scatter
 from multiqc.utils.mqc_colour import mqc_colour_scale
@@ -229,12 +228,10 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_parameters(get_parameter_dicts["parameters_tb_dict"])
 
             # Intensity
-            # self.draw_intensity_his(get_protegroups_dicts['pg_intensity_distri']['histogram'], fig_type='intensity')
             if get_protegroups_dicts["pg_intensity_distri"]:
                 self.draw_intensity_box(
                     get_protegroups_dicts["pg_intensity_distri"]["box"], fig_type="intensity"
                 )
-            # self.draw_intensity_his(get_protegroups_dicts['pg_lfq_intensity_distri']['histogram'], fig_type='lfq_intensity')
             if get_protegroups_dicts["pg_lfq_intensity_distri"]:
                 self.draw_intensity_box(
                     get_protegroups_dicts["pg_lfq_intensity_distri"]["box"],
@@ -790,66 +787,66 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def draw_ms_information(self):
-        ms1_tic_config = {
-            "id": "ms1_tic",
-            "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
-            "title": "Total Ion Chromatograms",
-            "ylab": "Ion Count",
-            "ymin": 0,
-        }
 
-        ms1_tic_html = linegraph.plot(self.ms1_tic, ms1_tic_config)
+        if self.ms1_tic:
+            ms1_tic_config = {
+                "id": "ms1_tic",
+                "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
+                "title": "Total Ion Chromatograms",
+                "ylab": "Ion Count",
+                "ymin": 0,
+            }
+            ms1_tic_html = linegraph.plot(self.ms1_tic, ms1_tic_config)
+            self.add_section(
+                name="MS1 Information",
+                anchor="ms1_information",
+                description="""MS1 quality control information extracted from the spectrum files.""",
+                plot=ms1_tic_html,
+            )
 
-        ms1_bpc_config = {
-            "id": "ms1_bpc",
-            "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
-            "title": "MS1 BPC",
-            "ylab": "Ion Count",
-            "ymin": 0,
-        }
+        if self.ms1_bpc:
+            ms1_bpc_config = {
+                "id": "ms1_bpc",
+                "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
+                "title": "MS1 BPC",
+                "ylab": "Ion Count",
+                "ymin": 0,
+            }
+            ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
+            self.add_section(
+                description="""#### MS1 base peak chromatograms extracted from the spectrum files
+                """,
+                plot=ms1_bpc_html,
+            )
 
-        ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
+        if self.ms1_peaks:
+            ms1_peaks_config = {
+                "id": "ms1_peaks",
+                "tt_label": "<b>{point.x} Peak Count:</b> {point.y}",
+                "title": "MS1 Peaks",
+                "ylab": "Peak Count",
+                "ymin": 0,
+            }
+            ms1_peaks_html = linegraph.plot(self.ms1_peaks, ms1_peaks_config)
+            self.add_section(
+                description="""#### MS1 Peaks from the spectrum files
+                """,
+                plot=ms1_peaks_html,
+            )
 
-        ms1_peaks_config = {
-            "id": "ms1_peaks",
-            "tt_label": "<b>{point.x} Peak Count:</b> {point.y}",
-            "title": "MS1 Peaks",
-            "ylab": "Peak Count",
-            "ymin": 0,
-        }
-
-        ms1_peaks_html = linegraph.plot(self.ms1_peaks, ms1_peaks_config)
-
-        tconfig = {
-            "id": "ms_general_stats",
-            "title": "General Stats",
-            "only_defined_headers": False,
-            "col1_header": "File",
-        }
-        table_html = table.plot(self.ms1_general_stats, pconfig=tconfig)
-
-        self.add_section(
-            name="MS1 Information",
-            anchor="ms1_information",
-            description="""MS1 quality control information extracted from the spectrum files.""",
-            plot=ms1_tic_html,
-        )
-
-        self.add_section(
-            description="""#### MS1 base peak chromatograms extracted from the spectrum files
-            """,
-            plot=ms1_bpc_html,
-        )
-        self.add_section(
-            description="""#### MS1 Peaks from the spectrum files
-            """,
-            plot=ms1_peaks_html,
-        )
-        self.add_section(
-            description="""#### General stats for MS1 information from .d files
-            """,
-            plot=table_html,
-        )
+        if self.ms1_general_stats:
+            tconfig = {
+                "id": "ms_general_stats",
+                "title": "General Stats",
+                "only_defined_headers": False,
+                "col1_header": "File",
+            }
+            table_html = table.plot(self.ms1_general_stats, pconfig=tconfig)
+            self.add_section(
+                description="""#### General stats for MS1 information from .d files
+                """,
+                plot=table_html,
+            )
 
     def draw_quantms_identi_num(self):
         # Create table plot
@@ -1420,7 +1417,7 @@ class QuantMSModule(BaseMultiqcModule):
             "height": 550,
             "tt_suffix": "%",
             "tt_decimals": 0,
-            "data_labels": self.search_engine["data_label"]["PEPs_label"],
+            "data_labels": self.search_engine["data_label"]["peps_label"],
         }
 
         pep_bar_html = bargraph.plot(
@@ -1958,7 +1955,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         self.MSGF_label, self.Comet_label, self.Sage_label = False, False, False
         self.search_engine = {
-            "spec_e": OrderedDict(),
+            "SpecE": OrderedDict(),
             "xcorr": OrderedDict(),
             "hyper": OrderedDict(),
             "PEPs": OrderedDict(),
@@ -2000,7 +1997,7 @@ class QuantMSModule(BaseMultiqcModule):
             )
             search_engine = protein_ids[0].getSearchEngine()
 
-            self.search_engine["spec_e"][raw_id] = OrderedDict()
+            self.search_engine["SpecE"][raw_id] = OrderedDict()
             self.search_engine["xcorr"][raw_id] = OrderedDict()
             self.search_engine["hyper"][raw_id] = OrderedDict()
             self.search_engine["PEPs"][raw_id] = OrderedDict()
@@ -2040,7 +2037,7 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
             bar_stacks = ["target", "decoy", "target+decoy"]
-            xcorr = Histogram(
+            cross_corr = Histogram(
                 "Comet cross-correlation score",
                 plot_category="range",
                 stacks=bar_stacks,
@@ -2049,13 +2046,13 @@ class QuantMSModule(BaseMultiqcModule):
             hyper = Histogram(
                 "Sage hyperscore", plot_category="range", stacks=bar_stacks, breaks=hyper_breaks
             )
-            spec_e = Histogram(
+            spectral_e = Histogram(
                 "MSGF spectral E-value",
                 plot_category="range",
                 stacks=bar_stacks,
                 breaks=spec_e_breaks,
             )
-            pep = Histogram(
+            posterior_error = Histogram(
                 "Posterior error probability",
                 plot_category="range",
                 stacks=bar_stacks,
@@ -2083,13 +2080,13 @@ class QuantMSModule(BaseMultiqcModule):
                             if hit.getMetaValue("MS:1001493")
                             else hit.getScore()
                         )
-                        spec_e.add_value(log_spec_e, stack=hit.getMetaValue("target_decoy"))
-                        pep.add_value(pep, stack=hit.getMetaValue("target_decoy"))
+                        spectral_e.add_value(log_spec_e, stack=hit.getMetaValue("target_decoy"))
+                        posterior_error.add_value(pep, stack=hit.getMetaValue("target_decoy"))
 
-                spec_e.to_dict()
-                pep.to_dict()
-                self.search_engine["spec_e"][raw_id] = spec_e.dict["data"]
-                self.search_engine["PEPs"][raw_id] = pep.dict["data"]
+                spectral_e.to_dict()
+                posterior_error.to_dict()
+                self.search_engine["SpecE"][raw_id] = spectral_e.dict["data"]
+                self.search_engine["PEPs"][raw_id] = posterior_error.dict["data"]
 
             elif search_engine == "Comet" or "comet" in raw_id:
                 self.Comet_label = True
@@ -2104,13 +2101,13 @@ class QuantMSModule(BaseMultiqcModule):
                             if hit.getMetaValue("MS:1001493")
                             else hit.getScore()
                         )
-                        xcorr.add_value(xcorr, stack=hit.getMetaValue("target_decoy"))
-                        pep.add_value(pep, stack=hit.getMetaValue("target_decoy"))
+                        cross_corr.add_value(xcorr, stack=hit.getMetaValue("target_decoy"))
+                        posterior_error.add_value(pep, stack=hit.getMetaValue("target_decoy"))
 
-                xcorr.to_dict()
-                pep.to_dict()
-                self.search_engine["xcorr"][raw_id] = xcorr.dict["data"]
-                self.search_engine["PEPs"][raw_id] = pep.dict["data"]
+                cross_corr.to_dict()
+                posterior_error.to_dict()
+                self.search_engine["xcorr"][raw_id] = cross_corr.dict["data"]
+                self.search_engine["PEPs"][raw_id] = posterior_error.dict["data"]
 
             elif search_engine == "Sage" or "sage" in raw_id:
                 self.Sage_label = True
@@ -2126,12 +2123,12 @@ class QuantMSModule(BaseMultiqcModule):
                             else hit.getScore()
                         )
                         hyper.add_value(hyper, stack=hit.getMetaValue("target_decoy"))
-                        pep.add_value(pep, stack=hit.getMetaValue("target_decoy"))
+                        posterior_error.add_value(pep, stack=hit.getMetaValue("target_decoy"))
 
                 hyper.to_dict()
-                pep.to_dict()
+                posterior_error.to_dict()
                 self.search_engine["hyper"][raw_id] = hyper.dict["data"]
-                self.search_engine["PEPs"][raw_id] = pep.dict["data"]
+                self.search_engine["PEPs"][raw_id] = posterior_error.dict["data"]
 
             else:
                 mzml_table[ms_name][search_engine] = identified_num
@@ -3547,70 +3544,14 @@ class QuantMSModule(BaseMultiqcModule):
             plot=bar_html,
         )
 
-    # MaxQuant Fig 2, Fig 4
-    # def draw_intensity_his(self, distribution_histogram, fig_type):
-
-    #     # 'intensity'
-    #     if fig_type == 'intensity':
-    #         draw_config = {
-    #             'id': 'intensity_distribution_histogram',
-    #             'cpswitch': False,
-    #             'cpswitch_c_active': False,
-    #             'title': 'Intensity Distribution',
-    #             'tt_decimals': 0,
-    #             'data_labels': ['Sample', 'Contaminants'],
-    #             'ylab': 'Count'
-    #         }
-    #         bar_html = bargraph.plot(distribution_histogram, pconfig=draw_config)
-    #         self.add_section(
-    #             name='Intensity Distribution (Histogram)',
-    #             anchor='intensity_distribution_histogram',
-    #             # description='Description of ~Intensity Distribution',
-    #             # helptext='',
-    #             plot=bar_html
-    #         )
-
-    #     # 'LFQ intensity'
-    #     elif fig_type == 'lfq_intensity':
-    #         draw_config = {
-    #             'id': 'lfq_intensity_distribution_histogram',
-    #             'cpswitch': False,
-    #             'cpswitch_c_active': False,
-    #             'title': 'LFQ Intensity Distribution',
-    #             'tt_decimals': 0,
-    #             'data_labels': ['Sample', 'Contaminants'],
-    #             'ylab': 'Count'
-    #         }
-    #         bar_html = bargraph.plot(distribution_histogram, pconfig=draw_config)
-    #         self.add_section(
-    #             name='LFQ Intensity Distribution (Histogram)',
-    #             anchor='lfq_intensity_distribution_histogram',
-    #             # description='Description of ~LFQ Intensity Distribution',
-    #             # helptext='',
-    #             plot=bar_html
-    #         )
-
-    #     # 'peptide intensity'
-    #     elif fig_type == 'peptide_intensity':
-    #         draw_config = {
-    #             'id': 'peptide_intensity_distribution_histogram',
-    #             'cpswitch': False,
-    #             'cpswitch_c_active': False,
-    #             'title': 'Peptide Intensity Distribution',
-    #             'tt_decimals': 0,
-    #             'data_labels': ['Sample', 'Contaminants'],
-    #             'ylab': 'Count'
-    #         }
-    #         bar_html = bargraph.plot(distribution_histogram, pconfig=draw_config)
-    #         self.add_section(
-    #             name='Peptide Intensity Distribution (Histogram)',
-    #             anchor='peptide_intensity_distribution_histogram',
-    #             # description='Description of ~Peptide Intensity Distribution',
-    #             # helptext='',
-    #             plot=bar_html
-    #         )
-
+    # MaxQuant Fig
     def draw_intensity_box(self, distribution_box, fig_type):
+
+        if distribution_box[1]:
+            boxplot_label = ["Sample", "Contaminants"]
+        else:
+            boxplot_label = ["Sample"]
+            distribution_box = distribution_box[:1]
 
         # 'intensity'
         if fig_type == "intensity":
@@ -3620,15 +3561,13 @@ class QuantMSModule(BaseMultiqcModule):
                 "cpswitch_c_active": False,
                 "title": "Intensity Distribution",
                 "tt_decimals": 2,
-                "data_labels": ["Sample", "Contaminants"],
+                "data_labels": boxplot_label,
                 "xlab": "log2(Intensity)",
             }
             box_html = box.plot(distribution_box, pconfig=draw_config)
             self.add_section(
-                # name='Intensity Distribution (Box Plot)',
                 name="Intensity Distribution",
                 anchor="intensity_distribution_box",
-                # description='Intensity boxplots by experimental groups.',
                 helptext="""
                 Intensity boxplots by experimental groups. Groups are user-defined during MaxQuant configuration. 
                 This plot displays a (customizable) threshold line for the desired mean intensity of proteins. 
@@ -3649,12 +3588,11 @@ class QuantMSModule(BaseMultiqcModule):
                 "cpswitch_c_active": False,
                 "title": "LFQ Intensity Distribution",
                 "tt_decimals": 2,
-                "data_labels": ["Sample", "Contaminants"],
+                "data_labels": boxplot_label,
                 "xlab": "log2(Intensity)",
             }
             box_html = box.plot(distribution_box, pconfig=draw_config)
             self.add_section(
-                # name='LFQ Intensity Distribution (Box Plot)',
                 name="LFQ Intensity Distribution",
                 anchor="lfq_intensity_distribution_box",
                 description="Label-free quantification (LFQ) intensity boxplots by experimental groups.",
@@ -3679,12 +3617,11 @@ class QuantMSModule(BaseMultiqcModule):
                 "cpswitch_c_active": False,
                 "title": "Peptide Intensity Distribution",
                 "tt_decimals": 2,
-                "data_labels": ["Sample", "Contaminants"],
+                "data_labels": boxplot_label,
                 "xlab": "log2(Intensity)",
             }
             box_html = box.plot(distribution_box, pconfig=draw_config)
             self.add_section(
-                # name='Peptide Intensity Distribution (Box Plot)',
                 name="Peptide Intensity Distribution",
                 anchor="peptide_intensity_distribution_box",
                 description="Peptide precursor intensity per Raw file from evidence.txt WITHOUT match-between-runs evidence.",
