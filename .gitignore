@@ -1,5 +1,4 @@
 # Repo specific
-tests/
 multiqc_data/
 
 # Byte-compiled / optimized / DLL files

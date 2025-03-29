@@ -12,7 +12,7 @@ authors = [
 keywords = [
     "quantms",
     "proteomics",
-    "quality control", 
+    "quality control",
     "MultiQC"
 ]
 classifiers = [

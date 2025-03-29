@@ -1,0 +1,15 @@
+# Ignore extracted MaxQuant test data
+txt_20min/
+
+# Ignore the original zip file
+txt_20min.zip
+
+# Ignore the minimal directory with uncompressed files
+txt_20min_minimal/*.txt
+
+# Ignore the compressed archives
+txt_20min_compressed.tar.gz
+txt_20min_minimal.tar.gz
+
+# Keep the compressed individual files in PXD003133-22min
+!PXD003133-22min/*.gz
