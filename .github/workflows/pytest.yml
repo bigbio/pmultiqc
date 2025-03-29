@@ -16,6 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        lfs: true
+    
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
@@ -26,6 +29,16 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install pytest pytest-cov
         pip install .
+    
+    - name: Verify test data files
+      run: |
+        ls -la tests/resources/maxquant/PXD003133-22min/
+        echo "Checking if test data files exist..."
+        if [ ! -f "tests/resources/maxquant/PXD003133-22min/proteinGroups.txt.gz" ]; then
+          echo "Warning: Test data files are missing. Tests may be skipped."
+        else
+          echo "Test data files found."
+        fi
     
     - name: Test with pytest
       run: |
