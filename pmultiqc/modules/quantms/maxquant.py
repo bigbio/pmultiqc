@@ -9,10 +9,10 @@ import os
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+from .histogram import Histogram
 
-def read(
-    file_path: Union[Path, str], file_type: str = None, filter_type: str = None
-) -> pd.DataFrame:
+
+def read(file_path, file_type=None, filter_type=None):
 
     mq_data = pd.read_csv(file_path, sep="\t", low_memory=False)
 
@@ -161,7 +161,7 @@ def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> dict[An
 
 
 # 1-2. PG: ~Intensity distribution
-def pg_intensity_distr(mq_data: pd.DataFrame, intensity_cols: List[str]) -> Dict[str, Any]:
+def pg_intensity_distr(mq_data, intensity_cols):
 
     if any(column not in mq_data.columns for column in intensity_cols):
         return None
@@ -238,7 +238,7 @@ def get_summary(file_path: Union[Path, str]):
 
 
 # 3. evidence.txt
-def get_evidence(file_path: Union[Path, str]) -> Dict[str, Any]:
+def get_evidence(file_path):
     mq_data = read(file_path, filter_type="Reverse")
 
     if not all(column in mq_data.columns for column in ["Type"]):
@@ -304,7 +304,7 @@ def get_evidence(file_path: Union[Path, str]) -> Dict[str, Any]:
 
 
 # 3-1. evidence.txt: Top Contaminants per Raw file
-def evidence_top_contaminants(evidence_df: pd.DataFrame, top_n: int = 5):
+def evidence_top_contaminants(evidence_df, top_n):
     if any(
         column not in evidence_df.columns
         for column in ["Potential contaminant", "Proteins", "Intensity", "Raw file"]
@@ -368,7 +368,8 @@ def evidence_top_contaminants(evidence_df: pd.DataFrame, top_n: int = 5):
     return top_contaminant_dict
 
 
-def evidence_peptide_intensity(evidence_df: pd.DataFrame):
+# 3-2. evidence.txt: peptide intensity distribution
+def evidence_peptide_intensity(evidence_df):
     if any(column not in evidence_df.columns for column in ["Intensity", "Raw file"]):
         return None
 
@@ -396,7 +397,7 @@ def evidence_peptide_intensity(evidence_df: pd.DataFrame):
 
 
 # 3-3.evidence.txt: charge distribution
-def evidence_charge_distribution(evidence_data: pd.DataFrame):
+def evidence_charge_distribution(evidence_data):
     if any(column not in evidence_data.columns for column in ["Charge", "Raw file"]):
         return None
 
@@ -423,7 +424,7 @@ def evidence_charge_distribution(evidence_data: pd.DataFrame):
 
 
 # 3-4.evidence.txt: Modifications per Raw file
-def evidence_modified(evidence_data: pd.DataFrame):
+def evidence_modified(evidence_data):
     if any(column not in evidence_data.columns for column in ["Modifications", "Raw file"]):
         return None
 
@@ -463,7 +464,7 @@ def evidence_modified(evidence_data: pd.DataFrame):
 
 
 # 3-5.evidence.txt: IDs over RT
-def evidence_rt_count(evidence_data: pd.DataFrame):
+def evidence_rt_count(evidence_data):
     if any(column not in evidence_data.columns for column in ["Retention time", "Raw file"]):
         return None
 
@@ -489,7 +490,7 @@ def evidence_rt_count(evidence_data: pd.DataFrame):
 
 
 # 3-6.evidence.txt: Peak width over RT
-def evidence_peak_width_rt(evidence_data: pd.DataFrame):
+def evidence_peak_width_rt(evidence_data):
     if any(
         column not in evidence_data.columns
         for column in ["Retention length", "Retention time", "Raw file"]
@@ -523,7 +524,7 @@ def evidence_peak_width_rt(evidence_data: pd.DataFrame):
 
 
 # 3-7.evidence.txt: Oversampling (MS/MS counts per 3D-peak)
-def evidence_oversampling(evidence_data: pd.DataFrame):
+def evidence_oversampling(evidence_data):
     if any(column not in evidence_data.columns for column in ["MS/MS Count", "Raw file"]):
         return None
 
@@ -551,7 +552,7 @@ def evidence_oversampling(evidence_data: pd.DataFrame):
 
 
 # 3-8.evidence.txt: Uncalibrated mass error
-def evidence_uncalibrated_mass_error(evidence_data: pd.DataFrame):
+def evidence_uncalibrated_mass_error(evidence_data):
     if any(
         column not in evidence_data.columns
         for column in ["Uncalibrated Mass Error [ppm]", "Raw file"]
@@ -573,7 +574,7 @@ def evidence_uncalibrated_mass_error(evidence_data: pd.DataFrame):
 
 
 # 3-8.evidence.txt: Calibrated mass error
-def evidence_calibrated_mass_error(evidence_data: pd.DataFrame):
+def evidence_calibrated_mass_error(evidence_data):
     if any(column not in evidence_data.columns for column in ["Mass Error [ppm]", "Raw file"]):
         return None
 
@@ -590,7 +591,7 @@ def evidence_calibrated_mass_error(evidence_data: pd.DataFrame):
 
 
 # 3-9.evidence.txt: Peptide ID count
-def evidence_peptide_count(evidence_df: pd.DataFrame, evidence_df_tf: pd.DataFrame):
+def evidence_peptide_count(evidence_df, evidence_df_tf):
     if any(
         column not in evidence_df.columns
         for column in ["Modified sequence", "is_transferred", "Raw file"]
@@ -619,7 +620,7 @@ def evidence_peptide_count(evidence_df: pd.DataFrame, evidence_df_tf: pd.DataFra
         [evidence_data[required_cols], evidence_data_tf[required_cols]], axis=0, ignore_index=True
     )
 
-    def get_peptide_counts(evd_df: pd.DataFrame):
+    def get_peptide_counts(evd_df):
 
         peptide_counts = pd.DataFrame()
         for raw_file, group in evd_df.groupby("Raw file"):
@@ -694,7 +695,7 @@ def evidence_peptide_count(evidence_df: pd.DataFrame, evidence_df_tf: pd.DataFra
 
 
 # 3-10.evidence.txt: ProteinGroups count
-def evidence_protein_count(evidence_df: pd.DataFrame, evidence_df_tf: pd.DataFrame):
+def evidence_protein_count(evidence_df, evidence_df_tf):
     if any(
         column not in evidence_df.columns
         for column in ["Protein group IDs", "is_transferred", "Raw file"]
@@ -722,7 +723,7 @@ def evidence_protein_count(evidence_df: pd.DataFrame, evidence_df_tf: pd.DataFra
         [evidence_data[required_cols], evidence_data_tf[required_cols]], axis=0, ignore_index=True
     )
 
-    def get_protein_group_counts(evd_df: pd.DataFrame):
+    def get_protein_group_counts(evd_df):
 
         protein_group_counts = pd.DataFrame()
         for raw_file, group in evd_df.groupby("Raw file"):
@@ -900,7 +901,7 @@ def get_msms_scans(file_path: Union[Path, str]):
 
 
 # 5-1.msmsScans.txt: Ion Injection Time over RT
-def msms_scans_ion_injec_time_rt(msms_scans_df: pd.DataFrame):
+def msms_scans_ion_injec_time_rt(msms_scans_df):
     if any(column not in msms_scans_df.columns for column in ["Raw file", "Ion injection time"]):
         return None
 
@@ -951,7 +952,7 @@ def msms_scans_ion_injec_time_rt(msms_scans_df: pd.DataFrame):
 
 
 # 5-2.msmsScans.txt: TopN over RT
-def msms_scans_top_over_rt(msms_scans_df: pd.DataFrame):
+def msms_scans_top_over_rt(msms_scans_df):
     if any(
         column not in msms_scans_df.columns
         for column in ["Raw file", "Retention time", "Scan event number"]
@@ -1003,7 +1004,7 @@ def msms_scans_top_over_rt(msms_scans_df: pd.DataFrame):
 
 
 # 5-3.msmsScans.txt: TopN
-def msms_scans_top_n(msms_scans_df: pd.DataFrame):
+def msms_scans_top_n(msms_scans_df):
     if any(column not in msms_scans_df.columns for column in ["Raw file", "Scan event number"]):
         return None
 
@@ -1067,7 +1068,7 @@ def msms_scans_top_n(msms_scans_df: pd.DataFrame):
 
 
 # 6.parameters.txt
-def get_parameters(file_path: Union[Path, str]):
+def get_parameters(file_path):
     mq_data = read(file_path)
 
     parameters_tb_dict = parameters_table(mq_data)
@@ -1079,7 +1080,7 @@ def get_parameters(file_path: Union[Path, str]):
 
 
 # 6-1.parameters.txt: Parameters
-def parameters_table(parameters_df: pd.DataFrame):
+def parameters_table(parameters_df):
     if any(column not in parameters_df.columns for column in ["Parameter", "Value"]):
         return None
 

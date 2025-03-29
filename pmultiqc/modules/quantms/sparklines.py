@@ -5,10 +5,10 @@ import logging
 import random
 import textwrap
 from multiqc import config, report
-from multiqc.utils import mqc_colour
+from multiqc.utils import util_functions, mqc_colour
 from multiqc.plots import table_object, violin
 from multiqc.plots.table_object import TableConfig
-from multiqc.plots.table_object import ValueT
+from multiqc.plots.table_object import DataTable, ValueT
 from typing import Dict
 
 logger = logging.getLogger(__name__)

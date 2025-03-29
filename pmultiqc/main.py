@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-""" MultiQC pmultiqc plugin functions
-
+"""
+MultiQC pmultiqc plugin functions
 """
 
 from __future__ import print_function

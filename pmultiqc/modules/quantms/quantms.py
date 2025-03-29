@@ -11,6 +11,7 @@ import logging
 from multiqc import config, report
 
 from multiqc import BaseMultiqcModule
+from scipy.special import log_ndtr
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc.plots import table, bargraph, linegraph, heatmap, box, scatter
 from multiqc.utils.mqc_colour import mqc_colour_scale
