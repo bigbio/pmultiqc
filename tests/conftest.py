@@ -61,7 +61,7 @@ def proteingroups_df():
     """Return a pandas DataFrame of the proteinGroups.txt.gz file."""
     file_path = COMPRESSED_DATA_DIR / "proteinGroups.txt.gz"
     if os.path.exists(file_path):
-        with gzip.open(file_path, 'rt') as f:
+        with gzip.open(file_path, "rt") as f:
             return pd.read_csv(f, sep="\t", low_memory=False)
     return None
 
@@ -71,7 +71,7 @@ def evidence_df():
     """Return a pandas DataFrame of the evidence.txt.gz file."""
     file_path = COMPRESSED_DATA_DIR / "evidence.txt.gz"
     if os.path.exists(file_path):
-        with gzip.open(file_path, 'rt') as f:
+        with gzip.open(file_path, "rt") as f:
             return pd.read_csv(f, sep="\t", low_memory=False)
     return None
 
@@ -81,6 +81,6 @@ def summary_df():
     """Return a pandas DataFrame of the summary.txt.gz file."""
     file_path = COMPRESSED_DATA_DIR / "summary.txt.gz"
     if os.path.exists(file_path):
-        with gzip.open(file_path, 'rt') as f:
+        with gzip.open(file_path, "rt") as f:
             return pd.read_csv(f, sep="\t", low_memory=False)
     return None

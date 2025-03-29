@@ -370,10 +370,7 @@ def evidence_top_contaminants(evidence_df, top_n):
 
 # 3-2. evidence.txt: peptide intensity distribution
 def evidence_peptide_intensity(evidence_df):
-    if any(
-        column not in evidence_df.columns
-        for column in ["Intensity", "Raw file"]
-    ):
+    if any(column not in evidence_df.columns for column in ["Intensity", "Raw file"]):
         return None
 
     # Take the logarithm and remove zero values
@@ -401,10 +398,7 @@ def evidence_peptide_intensity(evidence_df):
 
 # 3-3.evidence.txt: charge distribution
 def evidence_charge_distribution(evidence_data):
-    if any(
-        column not in evidence_data.columns
-        for column in ["Charge", "Raw file"]
-    ):
+    if any(column not in evidence_data.columns for column in ["Charge", "Raw file"]):
         return None
 
     if "Potential contaminant" in evidence_data.columns:
@@ -431,10 +425,7 @@ def evidence_charge_distribution(evidence_data):
 
 # 3-4.evidence.txt: Modifications per Raw file
 def evidence_modified(evidence_data):
-    if any(
-        column not in evidence_data.columns
-        for column in ["Modifications", "Raw file"]
-    ):
+    if any(column not in evidence_data.columns for column in ["Modifications", "Raw file"]):
         return None
 
     if "Potential contaminant" in evidence_data.columns:
@@ -474,10 +465,7 @@ def evidence_modified(evidence_data):
 
 # 3-5.evidence.txt: IDs over RT
 def evidence_rt_count(evidence_data):
-    if any(
-        column not in evidence_data.columns
-        for column in ["Retention time", "Raw file"]
-    ):
+    if any(column not in evidence_data.columns for column in ["Retention time", "Raw file"]):
         return None
 
     if "Potential contaminant" in evidence_data.columns:
@@ -537,10 +525,7 @@ def evidence_peak_width_rt(evidence_data):
 
 # 3-7.evidence.txt: Oversampling (MS/MS counts per 3D-peak)
 def evidence_oversampling(evidence_data):
-    if any(
-        column not in evidence_data.columns
-        for column in ["MS/MS Count", "Raw file"]
-    ):
+    if any(column not in evidence_data.columns for column in ["MS/MS Count", "Raw file"]):
         return None
 
     if "Potential contaminant" in evidence_data.columns:
@@ -590,10 +575,7 @@ def evidence_uncalibrated_mass_error(evidence_data):
 
 # 3-8.evidence.txt: Calibrated mass error
 def evidence_calibrated_mass_error(evidence_data):
-    if any(
-        column not in evidence_data.columns
-        for column in ["Mass Error [ppm]", "Raw file"]
-    ):
+    if any(column not in evidence_data.columns for column in ["Mass Error [ppm]", "Raw file"]):
         return None
 
     if "Potential contaminant" in evidence_data.columns:
@@ -629,7 +611,9 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
         evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
     if "Potential contaminant" in evidence_data_tf.columns:
-        evidence_data_tf = evidence_data_tf[evidence_data_tf["Potential contaminant"] != "+"].copy()
+        evidence_data_tf = evidence_data_tf[
+            evidence_data_tf["Potential contaminant"] != "+"
+        ].copy()
 
     required_cols = ["Raw file", "is_transferred", "Modified sequence"]
     evid_df = pd.concat(
@@ -730,7 +714,9 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
     if "Potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
     if "Potential contaminant" in evidence_data_tf.columns:
-        evidence_data_tf = evidence_data_tf[evidence_data_tf["Potential contaminant"] != "+"].copy()
+        evidence_data_tf = evidence_data_tf[
+            evidence_data_tf["Potential contaminant"] != "+"
+        ].copy()
 
     required_cols = ["Raw file", "is_transferred", "Protein group IDs"]
     evid_df = pd.concat(

@@ -3552,7 +3552,7 @@ class QuantMSModule(BaseMultiqcModule):
             boxplot_label = ["Sample", "Contaminants"]
         else:
             boxplot_label = ["Sample"]
-            distribution_box = distribution_box[: 1]
+            distribution_box = distribution_box[:1]
 
         # 'intensity'
         if fig_type == "intensity":
