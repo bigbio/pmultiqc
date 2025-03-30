@@ -31,13 +31,13 @@ python -m pytest tests/
 To run a specific test file:
 
 ```bash
-python -m pytest tests/maxquant_tests.py
+python -m pytest tests/test_maxquant.py
 ```
 
 To run tests with verbose output:
 
 ```bash
-python -m pytest tests/maxquant_tests.py -v
+python -m pytest tests/test_maxquant.py -v
 ```
 
 ### Running Tests in PyCharm
