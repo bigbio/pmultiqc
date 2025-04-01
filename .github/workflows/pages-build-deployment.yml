@@ -7,45 +7,136 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: main
-          submodules: recursive
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-depth: 1
-          fetch-tags: false
-          show-progress: true
-          lfs: false
-          set-safe-directory: true
-
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
-          source: ./docs
-          destination: ./docs/_site
-          future: false
-          verbose: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          source: docs/
+          destination: docs/_site
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
 
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          timeout: 600000
-          error_count: 10
-          reporting_interval: 5000
-          artifact_name: github-pages
-          preview: false
+
+# jobs:
+#   build:
+#     # <Not provided for brevity>
+#     # At a minimum this job should upload artifacts using actions/upload-pages-artifact
+
+#   deploy:
+#     needs: build
+
+#     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+#     permissions:
+#       pages: write      # to deploy to Pages
+#       id-token: write   # to verify the deployment originates from an appropriate source
+
+#     # Deploy to the github-pages environment
+#     environment:
+#       name: github-pages
+#       url: ${{ steps.deployment.outputs.page_url }}
+
+#     # Specify runner + deployment step
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Deploy to GitHub Pages
+#         id: deployment
+#         uses: actions/deploy-pages@v4 # or specific "vX.X.X" version tag for this action
+
+
+
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: write
+
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+#         with:
+#           ref: main
+#           token: ${{ secrets.GITHUB_TOKEN }}
+#           fetch-depth: 0
+
+#       - name: Set up Ruby
+#         uses: ruby/setup-ruby@v1
+#         with:
+#           ruby-version: '3.0'
+
+#       - name: Install dependencies
+#         run: |
+#           gem install bundler
+#           bundle install
+
+#       - name: Build with Jekyll
+#         run: |
+#           bundle exec jekyll build --destination ./docs/_site
+
+#       - name: Deploy to GitHub Pages
+#         uses: peaceiris/actions-gh-pages@v3
+#         with:
+#           github_token: ${{ secrets.GITHUB_TOKEN }}
+#           publish_dir: docs/_site
+#           publish_branch: main
+
+
+
+# name: Build and Deploy to GitHub Pages
+
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     branches: [ main ]
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       id-token: write
+#       contents: write
+
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+#         with:
+#           ref: main
+#           submodules: recursive
+#           token: ${{ secrets.GITHUB_TOKEN }}
+#           ssh-strict: true
+#           ssh-user: git
+#           persist-credentials: true
+#           clean: true
+#           sparse-checkout-cone-mode: true
+#           fetch-depth: 1
+#           fetch-tags: false
+#           show-progress: true
+#           lfs: false
+#           set-safe-directory: true
+
+#       - name: Build with Jekyll
+#         uses: actions/jekyll-build-pages@v1
+#         with:
+#           source: ./docs
+#           destination: ./docs/_site
+#           future: false
+#           verbose: true
+#           token: ${{ secrets.GITHUB_TOKEN }}
+
+#       - name: Deploy to GitHub Pages
+#         uses: actions/deploy-pages@v4
+#         with:
+#           token: ${{ secrets.GITHUB_TOKEN }}
+#           timeout: 600000
+#           error_count: 10
+#           reporting_interval: 5000
+#           artifact_name: github-pages
+#           preview: false
