@@ -1,5 +1,0 @@
-Sample	1	2	>= 3
-SF_200217_pPeptideLibrary_pool1_HCDOT_rep1.mzML	26.0	17.0	31.0
-SF_200217_pPeptideLibrary_pool1_HCDOT_rep2.mzML	25.0	8.0	34.0
-SF_200217_pPeptideLibrary_pool2_HCDOT_rep1.mzML	74.0	30.0	44.0
-SF_200217_pPeptideLibrary_pool2_HCDOT_rep2.mzML	85.0	23.0	40.0
