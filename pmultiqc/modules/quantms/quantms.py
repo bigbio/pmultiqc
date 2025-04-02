@@ -19,17 +19,17 @@ import pandas as pd
 from functools import reduce
 import re
 from pyteomics import mztab, mzid, mgf
-from pyopenms import IdXMLFile, MzMLFile, MSExperiment, OpenMSBuildInfo, AASequence
+from pyopenms import OpenMSBuildInfo, AASequence
 import os
 import sqlite3
 import numpy as np
-import math
 import copy
 import json
 
 from . import sparklines
 from .ms_functions import get_ms_qc_info
 from . import maxquant
+from ..common import ms_io
 from ..common.histogram import Histogram
 
 # Initialise the main MultiQC logger
@@ -1751,147 +1751,43 @@ class QuantMSModule(BaseMultiqcModule):
         self.mzml_charge_plot_1 = copy.deepcopy(self.mzml_charge_plot)
         self.mzml_peaks_ms2_plot_1 = copy.deepcopy(self.mzml_peaks_ms2_plot)
 
-        mzml_table = {}
-        heatmap_charge = {}
         self.ms_without_psm = []
 
-        def add_ms_values(info_df, ms_name):
-            charge_state = int(info_df["Charge"]) if info_df["Charge"] is not None else None
-            base_peak_intensity = (
-                float(info_df["Base_Peak_Intensity"])
-                if info_df["Base_Peak_Intensity"] is not None
-                else None
+        mzml_table = {}
+        heatmap_charge = {}
+
+        # Use the refactored functions from ms_io.py
+        if self.read_ms_info:
+            result = ms_io.read_ms_info(
+                self.ms_info_path,
+                self.ms_with_psm,
+                self.identified_spectrum,
+                self.mzml_charge_plot,
+                self.mzml_peak_distribution_plot,
+                self.mzml_peaks_ms2_plot,
+                self.mzml_charge_plot_1,
+                self.mzml_peak_distribution_plot_1,
+                self.mzml_peaks_ms2_plot_1,
+                self.ms_without_psm,
+                self.enable_dia
             )
-            peak_per_ms2 = int(info_df["MS_peaks"]) if info_df["MS_peaks"] is not None else None
+            mzml_table, heatmap_charge, self.total_ms2_spectra, self.ms1_tic, self.ms1_bpc, self.ms1_peaks, self.ms1_general_stats = result
+        else:
+            result = ms_io.read_mzmls(
+                self.ms_paths,
+                self.ms_with_psm,
+                self.identified_spectrum,
+                self.mzml_charge_plot,
+                self.mzml_peak_distribution_plot,
+                self.mzml_peaks_ms2_plot,
+                self.mzml_charge_plot_1,
+                self.mzml_peak_distribution_plot_1,
+                self.mzml_peaks_ms2_plot_1,
+                self.ms_without_psm,
+                self.enable_dia
+            )
+            mzml_table, heatmap_charge, self.total_ms2_spectra = result
 
-            if self.enable_dia:
-                self.mzml_charge_plot.add_value(charge_state)
-                self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
-                self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
-                return
-
-            if ms_name in self.ms_with_psm:
-                if info_df["SpectrumID"] in self.identified_spectrum[ms_name]:
-                    self.mzml_charge_plot.add_value(charge_state)
-                    self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
-                    self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
-                else:
-                    self.mzml_charge_plot_1.add_value(charge_state)
-                    self.mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
-                    self.mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
-            else:
-                if ms_name not in self.ms_without_psm:
-                    self.ms_without_psm.append(ms_name)
-
-        def read_mzmls():
-            exp = MSExperiment()
-            for m in self.ms_paths:
-                ms1_number = 0
-                ms2_number = 0
-                log.info(
-                    "{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
-                )
-                MzMLFile().load(m, exp)
-                log.info(
-                    "{}: Done parsing mzML file {}...".format(
-                        datetime.now().strftime("%H:%M:%S"), m
-                    )
-                )
-                m = self.file_prefix(m)
-                log.info(
-                    "{}: Aggregating mzML file {}...".format(
-                        datetime.now().strftime("%H:%M:%S"), m
-                    )
-                )
-                charge_2 = 0
-                for i in exp:
-                    if i.getMSLevel() == 1:
-                        ms1_number += 1
-                    elif i.getMSLevel() == 2:
-                        ms2_number += 1
-                        charge_state = i.getPrecursors()[0].getCharge()
-                        peaks_tuple = i.get_peaks()
-                        peak_per_ms2 = len(peaks_tuple[0])
-                        if i.getMetaValue("base peak intensity"):
-                            base_peak_intensity = i.getMetaValue("base peak intensity")
-                        else:
-                            base_peak_intensity = (
-                                max(peaks_tuple[1]) if len(peaks_tuple[1]) > 0 else None
-                            )
-
-                        if charge_state == 2:
-                            charge_2 += 1
-
-                        if self.enable_dia:
-                            self.mzml_charge_plot.add_value(charge_state)
-                            self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
-                            self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
-                            continue
-
-                        if m in self.ms_with_psm:
-                            if i.getNativeID() in self.identified_spectrum[m]:
-                                self.mzml_charge_plot.add_value(charge_state)
-                                self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
-                                self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
-                            else:
-                                self.mzml_charge_plot_1.add_value(charge_state)
-                                self.mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
-                                self.mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
-                        else:
-                            if m not in self.ms_without_psm:
-                                self.ms_without_psm.append(m)
-
-                heatmap_charge[m] = charge_2 / ms2_number
-                self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
-                mzml_table[m] = {"MS1_Num": ms1_number}
-                mzml_table[m]["MS2_Num"] = ms2_number
-                log.info(
-                    "{}: Done aggregating mzML file {}...".format(
-                        datetime.now().strftime("%H:%M:%S"), m
-                    )
-                )
-
-        def read_ms_info():
-            for file in self.ms_info_path:
-                log.info(
-                    "{}: Parsing ms_statistics dataframe {}...".format(
-                        datetime.now().strftime("%H:%M:%S"), file
-                    )
-                )
-                mzml_df = pd.read_parquet(file)
-                m = self.file_prefix(file).replace("_ms_info", "")
-                if m not in mzml_table:
-                    mzml_table[m] = dict.fromkeys(["MS1_Num", "MS2_Num", "Charge_2"], 0)
-                charge_group = mzml_df.groupby("precursor_charge").size()
-                ms_level_group = mzml_df.groupby("ms_level").size()
-                charge_2 = charge_group[2] if 2 in charge_group else 0
-                ms1_number = int(ms_level_group[1]) if 1 in ms_level_group else 0
-                ms2_number = int(ms_level_group[2]) if 2 in ms_level_group else 0
-                self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
-                mzml_table[m].update({"MS1_Num": mzml_table[m]["MS1_Num"] + ms1_number})
-                mzml_table[m].update({"MS2_Num": mzml_table[m]["MS2_Num"] + ms2_number})
-                mzml_table[m].update({"Charge_2": mzml_table[m]["Charge_2"] + charge_2})
-
-                (
-                    self.ms1_tic[os.path.basename(file).replace("_ms_info.parquet", "")],
-                    self.ms1_bpc[os.path.basename(file).replace("_ms_info.parquet", "")],
-                    self.ms1_peaks[os.path.basename(file).replace("_ms_info.parquet", "")],
-                    self.ms1_general_stats[os.path.basename(file).replace("_ms_info.parquet", "")],
-                ) = get_ms_qc_info(mzml_df)
-
-                group = mzml_df[mzml_df["ms_level"] == 2]
-                del mzml_df
-                group.apply(add_ms_values, args=(m,), axis=1)
-
-                for m in mzml_table.keys():
-                    heatmap_charge[m] = mzml_table[m]["Charge_2"] / mzml_table[m]["MS2_Num"]
-                log.info(
-                    "{}: Done aggregating ms_statistics dataframe {}...".format(
-                        datetime.now().strftime("%H:%M:%S"), file
-                    )
-                )
-
-        read_ms_info() if self.read_ms_info else read_mzmls()
         for i in self.ms_without_psm:
             log.warning("No PSM found in '{}'!".format(i))
 
@@ -1946,229 +1842,23 @@ class QuantMSModule(BaseMultiqcModule):
 
         return mzml_table
 
+        return mzml_table
+
     def parse_idxml(self, mzml_table):
-        consensus_paths = []
-        for raw_id in self.idx_paths:
-            if "consensus" in os.path.split(raw_id)[1]:
-                consensus_paths.append(raw_id)
-                self.idx_paths.remove(raw_id)
+        # Use the refactored function from ms_io.py
+        result = ms_io.parse_idxml(
+            self.idx_paths,
+            mzml_table,
+            self.xcorr_hist_range,
+            self.hyper_hist_range,
+            self.spec_evalue_hist_range,
+            self.pep_hist_range,
+            self.mL_spec_ident_final,
+            self.mzml_peptide_map,
+            config.kwargs["remove_decoy"]
+        )
 
-        self.MSGF_label, self.Comet_label, self.Sage_label = False, False, False
-        self.search_engine = {
-            "SpecE": OrderedDict(),
-            "xcorr": OrderedDict(),
-            "hyper": OrderedDict(),
-            "PEPs": OrderedDict(),
-            "consensus_support": OrderedDict(),
-            "data_label": OrderedDict(),
-        }
-        spec_e_label, xcorr_label, hyper_label, peps_label, consensus_label = [], [], [], [], []
-
-        for raw_id in self.idx_paths:
-
-            # log.info("Parsing search result file {}...".format(raw_id))
-            log.info(
-                "{}: Parsing search result file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), raw_id
-                )
-            )
-
-            protein_ids = []
-            peptide_ids = []
-            IdXMLFile().load(raw_id, protein_ids, peptide_ids)
-            raw_id = self.file_prefix(raw_id)
-            ## TODO I would use the QC functionality of pyopenms. Should be much faster.
-            if config.kwargs["remove_decoy"]:
-                identified_num = len(
-                    set(
-                        [
-                            i.getMetaValue("spectrum_reference")
-                            for i in peptide_ids
-                            if i.getHits()[0].getMetaValue("target_decoy") == "target"
-                        ]
-                    )
-                )
-            else:
-                identified_num = len(peptide_ids)
-
-            ## TODO make clear if this is before or after first step of filtering
-            ms_name = self.file_prefix(
-                protein_ids[0].getMetaValue("spectra_data")[0].decode("UTF-8")
-            )
-            search_engine = protein_ids[0].getSearchEngine()
-
-            self.search_engine["SpecE"][raw_id] = OrderedDict()
-            self.search_engine["xcorr"][raw_id] = OrderedDict()
-            self.search_engine["hyper"][raw_id] = OrderedDict()
-            self.search_engine["PEPs"][raw_id] = OrderedDict()
-
-            xcorr_breaks = list(
-                np.arange(
-                    self.xcorr_hist_range["start"],
-                    self.xcorr_hist_range["end"] + self.xcorr_hist_range["step"],
-                    self.xcorr_hist_range["step"],
-                ).round(2)
-            )
-
-            hyper_breaks = list(
-                np.arange(
-                    self.hyper_hist_range["start"],
-                    self.hyper_hist_range["end"] + self.hyper_hist_range["step"],
-                    self.hyper_hist_range["step"],
-                ).round(2)
-            )
-
-            spec_e_breaks = list(
-                np.arange(
-                    self.spec_evalue_hist_range["start"],
-                    self.spec_evalue_hist_range["end"] + self.spec_evalue_hist_range["step"],
-                    self.spec_evalue_hist_range["step"],
-                ).round(2)
-            )
-            spec_e_breaks.append(float("inf"))
-            spec_e_breaks.sort()
-
-            pep_breaks = list(
-                np.arange(
-                    self.pep_hist_range["start"],
-                    self.pep_hist_range["end"] + self.pep_hist_range["step"],
-                    self.pep_hist_range["step"],
-                ).round(2)
-            )
-
-            bar_stacks = ["target", "decoy", "target+decoy"]
-            cross_corr = Histogram(
-                "Comet cross-correlation score",
-                plot_category="range",
-                stacks=bar_stacks,
-                breaks=xcorr_breaks,
-            )
-            hyper = Histogram(
-                "Sage hyperscore", plot_category="range", stacks=bar_stacks, breaks=hyper_breaks
-            )
-            spectral_e = Histogram(
-                "MSGF spectral E-value",
-                plot_category="range",
-                stacks=bar_stacks,
-                breaks=spec_e_breaks,
-            )
-            posterior_error = Histogram(
-                "Posterior error probability",
-                plot_category="range",
-                stacks=bar_stacks,
-                breaks=pep_breaks,
-            )
-            consensus_support = Histogram(
-                "Consensus PSM number", plot_category="frequency", stacks=bar_stacks
-            )
-
-            if search_engine == "MSGF+" or "msgf" in raw_id:
-                mzml_table[ms_name]["MSGF"] = identified_num
-                self.MSGF_label = True
-                spec_e_label.append({"name": raw_id, "ylab": "Counts"})
-                peps_label.append({"name": raw_id, "ylab": "Counts"})
-                for peptide_id in peptide_ids:
-                    for hit in peptide_id.getHits():
-                        spec_e = (
-                            hit.getMetaValue("SpecEvalue-score")
-                            if hit.getMetaValue("SpecEvalue-score")
-                            else hit.getMetaValue("MS:1002052")
-                        )
-                        log_spec_e = -math.log(spec_e, 10)
-                        pep = (
-                            hit.getMetaValue("MS:1001493")
-                            if hit.getMetaValue("MS:1001493")
-                            else hit.getScore()
-                        )
-                        spectral_e.add_value(log_spec_e, stack=hit.getMetaValue("target_decoy"))
-                        posterior_error.add_value(pep, stack=hit.getMetaValue("target_decoy"))
-
-                spectral_e.to_dict()
-                posterior_error.to_dict()
-                self.search_engine["SpecE"][raw_id] = spectral_e.dict["data"]
-                self.search_engine["PEPs"][raw_id] = posterior_error.dict["data"]
-
-            elif search_engine == "Comet" or "comet" in raw_id:
-                self.Comet_label = True
-                mzml_table[ms_name]["Comet"] = identified_num
-                xcorr_label.append({"name": raw_id, "ylab": "Counts"})
-                peps_label.append({"name": raw_id, "ylab": "Counts"})
-                for peptide_id in peptide_ids:
-                    for hit in peptide_id.getHits():
-                        xcorr = hit.getMetaValue("MS:1002252")
-                        pep = (
-                            hit.getMetaValue("MS:1001493")
-                            if hit.getMetaValue("MS:1001493")
-                            else hit.getScore()
-                        )
-                        cross_corr.add_value(xcorr, stack=hit.getMetaValue("target_decoy"))
-                        posterior_error.add_value(pep, stack=hit.getMetaValue("target_decoy"))
-
-                cross_corr.to_dict()
-                posterior_error.to_dict()
-                self.search_engine["xcorr"][raw_id] = cross_corr.dict["data"]
-                self.search_engine["PEPs"][raw_id] = posterior_error.dict["data"]
-
-            elif search_engine == "Sage" or "sage" in raw_id:
-                self.Sage_label = True
-                mzml_table[ms_name]["Sage"] = identified_num
-                hyper_label.append({"name": raw_id, "ylab": "Counts"})
-                peps_label.append({"name": raw_id, "ylab": "Counts"})
-                for peptide_id in peptide_ids:
-                    for hit in peptide_id.getHits():
-                        hyper = hit.getMetaValue("hyperscore")
-                        pep = (
-                            hit.getMetaValue("MS:1001493")
-                            if hit.getMetaValue("MS:1001493")
-                            else hit.getScore()
-                        )
-                        hyper.add_value(hyper, stack=hit.getMetaValue("target_decoy"))
-                        posterior_error.add_value(pep, stack=hit.getMetaValue("target_decoy"))
-
-                hyper.to_dict()
-                posterior_error.to_dict()
-                self.search_engine["hyper"][raw_id] = hyper.dict["data"]
-                self.search_engine["PEPs"][raw_id] = posterior_error.dict["data"]
-
-            else:
-                mzml_table[ms_name][search_engine] = identified_num
-
-            mzml_table[ms_name]["num_quant_psms"] = (
-                self.mL_spec_ident_final[ms_name]
-                if ms_name in self.mL_spec_ident_final.keys()
-                else 0
-            )
-            mzml_table[ms_name]["num_quant_peps"] = (
-                len(self.mzml_peptide_map[ms_name])
-                if ms_name in self.mL_spec_ident_final.keys()
-                else 0
-            )
-
-        for raw_id in consensus_paths:
-            log.info("Parsing consensus file {}...".format(raw_id))
-            protein_ids = []
-            peptide_ids = []
-            IdXMLFile().load(raw_id, protein_ids, peptide_ids)
-            raw_id = self.file_prefix(raw_id)
-            consensus_label.append({"name": raw_id, "ylab": "Counts"})
-            self.search_engine["consensus_support"][raw_id] = OrderedDict()
-
-            for peptide_id in peptide_ids:
-                for hit in peptide_id.getHits():
-                    support = hit.getMetaValue("consensus_support")
-                    consensus_support.add_value(support, stack=hit.getMetaValue("target_decoy"))
-            consensus_support.to_dict()
-
-            for i in consensus_support.dict["data"].keys():
-                self.search_engine["consensus_support"][raw_id][i] = consensus_support.dict[
-                    "data"
-                ][i]
-
-        self.search_engine["data_label"] = {
-            "score_label": [spec_e_label, xcorr_label, hyper_label],
-            "peps_label": peps_label,
-            "consensus_label": consensus_label,
-        }
+        self.search_engine, self.MSGF_label, self.Comet_label, self.Sage_label = result
 
         # mass spectrum files sorted based on experimental file
         for spectrum_name in self.exp_design_table.keys():
