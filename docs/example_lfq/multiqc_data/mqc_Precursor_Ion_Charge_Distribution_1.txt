@@ -1,3 +1,0 @@
-Sample	2	3	4	5	6
-identified_spectra	134.0	60.0	5.0	0.0	0.0
-unidentified_spectra	2073.0	756.0	89.0	18.0	1.0

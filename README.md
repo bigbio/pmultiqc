@@ -146,14 +146,7 @@ pmultiqc generates a comprehensive report with multiple sections:
 
 ## Example Reports
 
-You can find example reports in the `docs` directory:
-
-- [LFQ Example](docs/example_lfq/multiqc_report.html)
-- [TMT Example](docs/example_tmt/multiqc_report.html)
-- [DIA Example](docs/example_dia/multiqc_report.html)
-- [MaxQuant Example](docs/example_maxquant/multiqc_report.html)
-- [mzIdentML with mzML Example](docs/example_mzid_mzml/multiqc_report.html)
-- [mzIdentML with MGF Example](docs/example_mzid_mgf/multiqc_report.html)
+You can find example reports on the [docs page](https://bigbio.github.io/pmultiqc).
 
 ## Development
 

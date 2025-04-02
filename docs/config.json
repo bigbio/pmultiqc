@@ -1,0 +1,58 @@
+{
+    "projects": [
+        {
+            "accession": "lfq",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/lfq/lfq.zip"
+            ],
+            "path": "docs/lfq",
+            "file_type": "lfq"
+        },
+        {
+            "accession": "dia",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia.zip"
+            ],
+            "path": "docs/dia",
+            "file_type": "dia"
+        },
+        {
+            "accession": "tmt",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/tmt-replicates/tmt-replicates.zip"
+            ],
+            "path": "docs/tmt",
+            "file_type": "tmt"
+        },
+        {
+            "accession": "PXD003133",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip"
+            ],
+            "path": "docs/PXD003133",
+            "file_type": "maxquant"
+        },
+        {
+            "accession": "PXD054720",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mgf",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mzid.gz",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mgf",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mzid.gz",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001236.mgf",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001236.mzid.gz"
+            ],
+            "path": "docs/PXD054720",
+            "file_type": "mzid"
+        },
+        {
+            "accession": "PXD051187",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzML",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzid.gz"
+            ],
+            "path": "docs/PXD051187",
+            "file_type": "mzid"
+        }
+    ]
+}

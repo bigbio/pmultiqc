@@ -6,18 +6,41 @@ import re
 import numpy as np
 import os
 
+from pandas._typing import ReadCsvBuffer
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-from .histogram import Histogram
+from pmultiqc.modules.common.file_utils import get_filename
+from ...logging import get_logger, Timer
+
+# Initialize logger for this module
+logger = get_logger("pmultiqc.modules.quantms.maxquant")
 
 
-def read(file_path, file_type=None, filter_type=None):
+def read(
+    file: Path | ReadCsvBuffer[bytes] | ReadCsvBuffer[str] | str,
+    file_type: str=None,
+    filter_type: str=None,
+):
+    """
+    Read MaxQuant output files and perform initial processing.
 
-    mq_data = pd.read_csv(file_path, sep="\t", low_memory=False)
+    Args:
+        file: Path to the csv file containing the information
+        file_type: Type of file (protgroup, summary, etc.)
+        filter_type: Type of filtering to apply (e.g., "Reverse")
+
+    Returns:
+        Processed pandas DataFrame
+    """
+    file_name = get_filename(file)
+    with Timer(logger, f"Reading file {os.path.basename(file_name)}"):
+        mq_data = pd.read_csv(file, sep="\t", low_memory=False)
+        logger.info(f"Loaded {len(mq_data)} rows from {os.path.basename(file_name)}")
 
     # Field correction for different versions of MaxQuant
     if "Contaminant" in mq_data.columns:
+        logger.debug("Renaming 'Contaminant' column to 'Potential contaminant'")
         mq_data = mq_data.rename(columns={"Contaminant": "Potential contaminant"})
 
     if filter_type == "Reverse":
@@ -28,16 +51,21 @@ def read(file_path, file_type=None, filter_type=None):
         # These should be removed for further data analysis.
         # The 50% rule is in place to prevent spurious protein hits to erroneously flag the protein group as reverse.
         if "Reverse" in mq_data.columns:
+            reverse_count = mq_data[mq_data["Reverse"] == "+"].shape[0]
             mq_data = mq_data[mq_data["Reverse"] != "+"].reset_index(drop=True)
+            logger.info(
+                f"Filtered out {reverse_count} reverse entries, {len(mq_data)} entries remaining"
+            )
 
     # proteinGroups.txt
     if file_type == "protgroup":
-
+        logger.debug("Processing proteinGroups file")
         if "Mol. weight [kDa]" in mq_data.columns:
-
             intensity_cols = [
                 col for col in mq_data.columns if re.search(r"intensity", col, re.IGNORECASE)
             ]
+            logger.debug(f"Found {len(intensity_cols)} intensity columns")
+
             new_intensity_cols = [
                 re.sub(r"intensity", "AbInd", col, flags=re.IGNORECASE) for col in intensity_cols
             ]
@@ -45,119 +73,174 @@ def read(file_path, file_type=None, filter_type=None):
             for col, new_col in zip(intensity_cols, new_intensity_cols):
                 mq_data[new_col] = mq_data[col] / mq_data["Mol. weight [kDa]"]
                 mq_data = mq_data.copy()
+
+            logger.debug(f"Created {len(new_intensity_cols)} abundance index columns")
         else:
+            logger.error("The column 'Mol. weight [kDa]' could not be found!")
             raise ValueError("The column 'Mol. weight [kDa]' could not be found!")
 
     # summary.txt
     if file_type == "summary":
+        logger.debug("Processing summary file")
         row_index = mq_data.notna().sum(axis=1) > 2
         row_index.iloc[-1] = False
 
+        original_len = len(mq_data)
         mq_data = mq_data[row_index]
+        logger.debug(f"Filtered summary file from {original_len} to {len(mq_data)} rows")
 
     return mq_data
 
 
 # 1. proteinGroups.txt
 def get_protegroups(file_path: str) -> Dict[str, dict]:
-    mq_data = read(file_path, "protgroup", filter_type="Reverse")
+    """
+    Process proteinGroups.txt file and extract various metrics.
 
-    # 'intensity'
-    intensity_hlm_exp_cols = [
-        col for col in mq_data.columns if re.match(r"^Intensity [HLM] \S+$", col)
-    ]
-    intensity_exp_cols = [col for col in mq_data.columns if re.match(r"^Intensity \S+$", col)]
-    intensity_cols = [col for col in mq_data.columns if re.match(r"Intensity$", col)]
+    Args:
+        file_path: Path to the proteinGroups.txt file
 
-    intensity_columns = []
+    Returns:
+        Dictionary containing various metrics extracted from the proteinGroups file
+    """
+    with Timer(logger, "Processing proteinGroups data"):
+        mq_data = read(file_path, "protgroup", filter_type="Reverse")
+        logger.info(f"Processing proteinGroups data with {len(mq_data)} entries")
 
-    if len(intensity_hlm_exp_cols):
-        intensity_columns = intensity_hlm_exp_cols
-    elif len(intensity_exp_cols):
-        intensity_columns = intensity_exp_cols
-    elif len(intensity_cols):
-        intensity_columns = intensity_cols
+        # 'intensity'
+        intensity_hlm_exp_cols = [
+            col for col in mq_data.columns if re.match(r"^Intensity [HLM] \S+$", col)
+        ]
+        intensity_exp_cols = [col for col in mq_data.columns if re.match(r"^Intensity \S+$", col)]
+        intensity_cols = [col for col in mq_data.columns if re.match(r"Intensity$", col)]
 
-    # 1: PG: ~Contaminants
-    if "Potential contaminant" in mq_data.columns:
-        contaminant_percent_dict = pg_contaminants(mq_data, intensity_columns)
-    else:
-        contaminant_percent_dict = None
+        intensity_columns = []
 
-    # 2. PG: ~Intensity distribution
-    intensity_distr_dict = pg_intensity_distr(mq_data, intensity_columns)
+        if len(intensity_hlm_exp_cols):
+            intensity_columns = intensity_hlm_exp_cols
+            logger.debug(f"Using {len(intensity_hlm_exp_cols)} HLM intensity columns")
+        elif len(intensity_exp_cols):
+            intensity_columns = intensity_exp_cols
+            logger.debug(f"Using {len(intensity_exp_cols)} experiment intensity columns")
+        elif len(intensity_cols):
+            intensity_columns = intensity_cols
+            logger.debug(f"Using {len(intensity_cols)} basic intensity columns")
 
-    # 'LFQ intensity'
-    lfq_intensity_hlm_exp_cols = [
-        col for col in mq_data.columns if re.match(r"^LFQ intensity [HLM] \S+$", col)
-    ]
-    lfq_intensity_exp_cols = [
-        col for col in mq_data.columns if re.match(r"^LFQ intensity \S+$", col)
-    ]
+        logger.debug(f"Found {len(intensity_columns)} total intensity columns")
 
-    lfq_intensity_columns = []
+        # 1: PG: ~Contaminants
+        if "Potential contaminant" in mq_data.columns:
+            logger.debug("Processing contaminants")
+            contaminant_percent_dict = pg_contaminants(mq_data, intensity_columns)
+        else:
+            logger.debug("No contaminant column found")
+            contaminant_percent_dict = None
 
-    if len(lfq_intensity_hlm_exp_cols):
-        lfq_intensity_columns = lfq_intensity_hlm_exp_cols
-    elif len(lfq_intensity_exp_cols):
-        lfq_intensity_columns = lfq_intensity_exp_cols
+        # 2. PG: ~Intensity distribution
+        logger.debug("Calculating intensity distribution")
+        intensity_distr_dict = pg_intensity_distr(mq_data, intensity_columns)
 
-    # LFQ
-    if lfq_intensity_columns:
-        lfq_intensity_distr = pg_intensity_distr(mq_data, lfq_intensity_columns)
-    else:
-        lfq_intensity_distr = None
+        # 'LFQ intensity'
+        logger.debug("Looking for LFQ intensity columns")
+        lfq_intensity_hlm_exp_cols = [
+            col for col in mq_data.columns if re.match(r"^LFQ intensity [HLM] \S+$", col)
+        ]
+        lfq_intensity_exp_cols = [
+            col for col in mq_data.columns if re.match(r"^LFQ intensity \S+$", col)
+        ]
 
-    # PCA
-    if len(intensity_columns) > 1:
-        raw_intensity_pca = pg_pca(mq_data, intensity_columns)
-    else:
-        raw_intensity_pca = None
+        lfq_intensity_columns = []
 
-    if len(lfq_intensity_columns) > 1:
-        lfq_intensity_pca = pg_pca(mq_data, lfq_intensity_columns)
-    else:
-        lfq_intensity_pca = None
+        if len(lfq_intensity_hlm_exp_cols):
+            lfq_intensity_columns = lfq_intensity_hlm_exp_cols
+            logger.debug(f"Using {len(lfq_intensity_hlm_exp_cols)} HLM LFQ intensity columns")
+        elif len(lfq_intensity_exp_cols):
+            lfq_intensity_columns = lfq_intensity_exp_cols
+            logger.debug(f"Using {len(lfq_intensity_exp_cols)} experiment LFQ intensity columns")
 
-    return {
-        "pg_contaminant": contaminant_percent_dict,
-        "pg_intensity_distri": intensity_distr_dict,
-        # 'intensity_cols': intensity_columns,
-        # 'lfq_intensity_cols': lfq_intensity_columns,
-        # 'pg_data': mq_data,
-        "pg_lfq_intensity_distri": lfq_intensity_distr,
-        "raw_intensity_pca": raw_intensity_pca,
-        "lfq_intensity_pca": lfq_intensity_pca,
-    }
+        logger.debug(f"Found {len(lfq_intensity_columns)} total LFQ intensity columns")
+
+        # LFQ
+        if lfq_intensity_columns:
+            logger.debug("Calculating LFQ intensity distribution")
+            lfq_intensity_distr = pg_intensity_distr(mq_data, lfq_intensity_columns)
+        else:
+            logger.debug("No LFQ intensity columns found")
+            lfq_intensity_distr = None
+
+        # PCA
+        if len(intensity_columns) > 1:
+            logger.debug("Calculating raw intensity PCA")
+            raw_intensity_pca = pg_pca(mq_data, intensity_columns)
+        else:
+            logger.debug("Not enough intensity columns for PCA")
+            raw_intensity_pca = None
+
+        if len(lfq_intensity_columns) > 1:
+            logger.debug("Calculating LFQ intensity PCA")
+            lfq_intensity_pca = pg_pca(mq_data, lfq_intensity_columns)
+        else:
+            logger.debug("Not enough LFQ intensity columns for PCA")
+            lfq_intensity_pca = None
+
+        result = {
+            "pg_contaminant": contaminant_percent_dict,
+            "pg_intensity_distri": intensity_distr_dict,
+            # 'intensity_cols': intensity_columns,
+            # 'lfq_intensity_cols': lfq_intensity_columns,
+            # 'pg_data': mq_data,
+            "pg_lfq_intensity_distri": lfq_intensity_distr,
+            "raw_intensity_pca": raw_intensity_pca,
+            "lfq_intensity_pca": lfq_intensity_pca,
+        }
+
+        logger.info("Completed processing proteinGroups data")
+        return result
 
 
 # 1-1. PG:~Contaminants
 def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> dict[Any, dict[str, Any]]:
+    """
+    Calculate the percentage of contaminants in each group.
 
-    if any(column not in mq_data.columns for column in intensity_cols):
-        return None
+    Args:
+        mq_data: DataFrame containing protein groups data
+        intensity_cols: List of intensity column names
 
-    df1 = mq_data[intensity_cols].sum().to_frame().reset_index()
-    df1.columns = ["group", "total_intensity"]
+    Returns:
+        Dictionary mapping group names to contaminant percentages
+    """
+    with Timer(logger, "Calculating contaminant percentages"):
+        if any(column not in mq_data.columns for column in intensity_cols):
+            logger.warning("Some intensity columns not found in data")
+            return None
 
-    df2 = (
-        mq_data[mq_data["Potential contaminant"] == "+"][intensity_cols]
-        .sum()
-        .to_frame()
-        .reset_index()
-    )
-    df2.columns = ["group", "contaminant_total_intensity"]
+        logger.debug(f"Calculating total intensity for {len(intensity_cols)} columns")
+        df1 = mq_data[intensity_cols].sum().to_frame().reset_index()
+        df1.columns = ["group", "total_intensity"]
 
-    result_df = pd.merge(df1, df2, on="group", how="inner")
-    result_df["contaminant_percent"] = (
-        result_df["contaminant_total_intensity"] / result_df["total_intensity"] * 100.00
-    )
+        contaminant_count = mq_data[mq_data["Potential contaminant"] == "+"].shape[0]
+        logger.debug(f"Found {contaminant_count} contaminant entries")
 
-    result_dict = dict()
-    for k, v in dict(zip(result_df["group"], result_df["contaminant_percent"])).items():
-        result_dict[k] = {"Potential Contaminants": v}
+        df2 = (
+            mq_data[mq_data["Potential contaminant"] == "+"][intensity_cols]
+            .sum()
+            .to_frame()
+            .reset_index()
+        )
+        df2.columns = ["group", "contaminant_total_intensity"]
 
-    return result_dict
+        result_df = pd.merge(df1, df2, on="group", how="inner")
+        result_df["contaminant_percent"] = (
+            result_df["contaminant_total_intensity"] / result_df["total_intensity"] * 100.00
+        )
+
+        result_dict = dict()
+        for k, v in dict(zip(result_df["group"], result_df["contaminant_percent"])).items():
+            result_dict[k] = {"Potential Contaminants": v}
+
+        logger.info(f"Calculated contaminant percentages for {len(result_dict)} groups")
+        return result_dict
 
 
 # 1-2. PG: ~Intensity distribution
@@ -222,26 +305,63 @@ def pg_pca(pg_data: pd.DataFrame, cols_name: List[str]):
 
 # 2. summary.txt
 def get_summary(file_path: Union[Path, str]):
-    mq_data = read(file_path, "summary")
+    """
+    Process summary.txt file and extract MS/MS identification percentages.
 
-    if any(column not in mq_data.columns for column in ["Raw file", "MS/MS Identified [%]"]):
-        return None
+    Args:
+        file_path: Path to the summary.txt file
 
-    if all(mq_data["MS/MS Identified [%]"] == 0):
-        return None
+    Returns:
+        Dictionary mapping raw file names to MS/MS identification percentages
+    """
+    with Timer(logger, "Processing summary data"):
+        mq_data = read(file_path, "summary")
+        logger.info(f"Processing summary data with {len(mq_data)} entries")
 
-    msms_identified = dict()
-    for k, v in dict(zip(mq_data["Raw file"], mq_data["MS/MS Identified [%]"])).items():
-        msms_identified[k] = {"MS/MS Identified": v}
+        if any(column not in mq_data.columns for column in ["Raw file", "MS/MS Identified [%]"]):
+            logger.warning("Required columns not found in summary file")
+            return None
 
-    return msms_identified
+        if all(mq_data["MS/MS Identified [%]"] == 0):
+            logger.warning("All MS/MS identification percentages are zero")
+            return None
+
+        msms_identified = dict()
+        for k, v in dict(zip(mq_data["Raw file"], mq_data["MS/MS Identified [%]"])).items():
+            msms_identified[k] = {"MS/MS Identified": v}
+
+        logger.info(
+            f"Extracted MS/MS identification percentages for {len(msms_identified)} raw files"
+        )
+        return msms_identified
 
 
 # 3. evidence.txt
 def get_evidence(file_path):
+    """
+    Process evidence.txt file and extract various metrics.
+
+    Args:
+        file_path: Path to the evidence.txt file
+
+    Returns:
+        Dictionary containing various metrics extracted from the evidence file
+    """
     mq_data = read(file_path, filter_type="Reverse")
 
+    # Count peptides and MS/MS spectra
+    total_entries = len(mq_data)
+    unique_peptides = (
+        mq_data["Modified sequence"].nunique() if "Modified sequence" in mq_data.columns else 0
+    )
+    msms_count = mq_data["MS/MS Count"].sum() if "MS/MS Count" in mq_data.columns else 0
+
+    logger.info(
+        f"Processing evidence data with {total_entries} entries, {unique_peptides} unique peptides, and {msms_count} MS/MS spectra"
+    )
+
     if not all(column in mq_data.columns for column in ["Type"]):
+        logger.error('Missing required columns (#Type) in "evidence.txt"!')
         raise ValueError('Missing required columns (#Type) in "evidence.txt"!')
 
     mq_data["is_transferred"] = mq_data["Type"] == "MULTI-MATCH"
@@ -249,43 +369,59 @@ def get_evidence(file_path):
     evidence_df = mq_data[mq_data["Type"] != "MULTI-MATCH"].copy()
     evidence_df_tf = mq_data[mq_data["Type"] == "MULTI-MATCH"].copy()
 
+    logger.info(
+        f"Found {len(evidence_df)} direct matches and {len(evidence_df_tf)} transferred matches"
+    )
+
     # Top Contaminants per Raw file
     if "Potential contaminant" in evidence_df.columns:
+        logger.debug("Processing top contaminants")
         top_cont_dict = evidence_top_contaminants(evidence_df, top_n=5)
     else:
+        logger.debug("No contaminant column found")
         top_cont_dict = None
 
     # peptide intensity distribution
+    logger.debug("Calculating peptide intensity distribution")
     peptide_intensity_dict = evidence_peptide_intensity(evidence_df)
 
     # Distribution of precursor charges
+    logger.debug("Calculating charge distribution")
     charge_counts_dict = evidence_charge_distribution(evidence_df)
 
     # Modifications per Raw file
+    logger.debug("Processing modifications")
     modified_dict = evidence_modified(evidence_df)
 
     # rt_count_dict
+    logger.debug("Calculating retention time counts")
     rt_count_dict = evidence_rt_count(evidence_df)
 
     # Peak width over RT
+    logger.debug("Calculating peak width over retention time")
     peak_rt_dict = evidence_peak_width_rt(evidence_df)
 
     # Oversampling
+    logger.debug("Calculating oversampling")
     oversampling_dict = evidence_oversampling(evidence_df)
 
     # Uncalibrated Mass Error
+    logger.debug("Calculating uncalibrated mass error")
     uncalibrated_mass_error = evidence_uncalibrated_mass_error(evidence_df)
 
-    # Uncalibrated Mass Error
+    # Calibrated Mass Error
+    logger.debug("Calculating calibrated mass error")
     calibrated_mass_error = evidence_calibrated_mass_error(evidence_df)
 
     # Peptide ID count
+    logger.debug("Counting peptide IDs")
     peptide_id_count = evidence_peptide_count(evidence_df, evidence_df_tf)
 
     # ProteinGroups count
+    logger.debug("Counting protein groups")
     protein_group_count = evidence_protein_count(evidence_df, evidence_df_tf)
 
-    return {
+    result = {
         "top_contaminants": top_cont_dict,
         "peptide_intensity": peptide_intensity_dict,
         "charge_counts": charge_counts_dict,
@@ -301,6 +437,9 @@ def get_evidence(file_path):
         "peptide_id_count": peptide_id_count,
         "protein_group_count": protein_group_count,
     }
+
+    logger.info("Completed processing evidence data")
+    return result
 
 
 # 3-1. evidence.txt: Top Contaminants per Raw file
@@ -814,18 +953,42 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
 
 # 4.msms.txt
 def get_msms(file_path: Union[Path, str], evidence_df: pd.DataFrame = None):
+    """
+    Process msms.txt file and extract various metrics.
+
+    Args:
+        file_path: Path to the msms.txt file
+        evidence_df: Evidence DataFrame for cross-referencing
+
+    Returns:
+        Dictionary containing metrics extracted from the msms file
+    """
     mq_data = read(file_path)
 
+    # Count MS/MS spectra and peptides
+    total_entries = len(mq_data)
+    unique_peptides = mq_data["Sequence"].nunique() if "Sequence" in mq_data.columns else 0
+    unique_proteins = mq_data["Proteins"].nunique() if "Proteins" in mq_data.columns else 0
+
+    logger.info(
+        f"Processing msms data with {total_entries} MS/MS spectra, {unique_peptides} unique peptides, and {unique_proteins} unique proteins"
+    )
+
     if evidence_df is None:
+        logger.warning("No evidence data provided, skipping missed cleavages calculation")
         return {"missed_cleavages": None}
 
     # Missed cleavages per Raw file
+    logger.debug("Calculating missed cleavages")
     missed_cleavages = msms_missed_cleavages(mq_data, evidence_df)
 
-    return {
+    result = {
         # 'mq_data': mq_data,
         "missed_cleavages": missed_cleavages
     }
+
+    logger.info("Completed processing msms data")
+    return result
 
 
 # 4-1.msms.txt: Missed cleavages per Raw file
@@ -877,27 +1040,52 @@ def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
 
 # 5.msScans.txt
 def get_msms_scans(file_path: Union[Path, str]):
+    """
+    Process msmsScans.txt or msScans.txt file and extract various metrics.
+
+    Args:
+        file_path: Path to the msmsScans.txt or msScans.txt file
+
+    Returns:
+        Dictionary containing metrics extracted from the msmsScans file
+    """
     mq_data = read(file_path)
+
+    # Count MS scans and get retention time range
+    total_scans = len(mq_data)
+    rt_min = mq_data["Retention time"].min() if "Retention time" in mq_data.columns else 0
+    rt_max = mq_data["Retention time"].max() if "Retention time" in mq_data.columns else 0
+    raw_files = mq_data["Raw file"].nunique() if "Raw file" in mq_data.columns else 0
+
+    logger.info(
+        f"Processing msmsScans data with {total_scans} scans across {raw_files} raw files (RT range: {rt_min:.2f}-{rt_max:.2f} min)"
+    )
 
     # TODO check 'Scan event number'
 
+    logger.debug("Rounding retention time values")
     mq_data["round_RT"] = mq_data["Retention time"].apply(lambda x: round(x / 2) * 2)
 
     # Ion Injection Time over RT
+    logger.debug("Calculating ion injection time over retention time")
     ion_injec_time_rt = msms_scans_ion_injec_time_rt(mq_data)
 
     # TopN over RT
+    logger.debug("Calculating TopN over retention time")
     top_over_rt = msms_scans_top_over_rt(mq_data)
 
     # TopN
+    logger.debug("Calculating TopN")
     top_n = msms_scans_top_n(mq_data)
 
-    return {
-        # 'mq_data': mq_data,
+    result = {
         "ion_injec_time_rt": ion_injec_time_rt,
         "top_n": top_n,
         "top_over_rt": top_over_rt,
     }
+
+    logger.info("Completed processing msmsScans data")
+    return result
 
 
 # 5-1.msmsScans.txt: Ion Injection Time over RT
@@ -1068,26 +1256,52 @@ def msms_scans_top_n(msms_scans_df):
 
 
 # 6.parameters.txt
-def get_parameters(file_path):
-    mq_data = read(file_path)
+def get_parameters(file_path: Path | ReadCsvBuffer[bytes] | ReadCsvBuffer[str] | str):
+    """
+    Process parameters.txt file and extract parameters table.
 
+    Args:
+        file_path: Path to the parameters.txt file
+
+    Returns:
+        Dictionary containing parameters table
+    """
+    mq_data = read(file_path)
+    logger.info(f"Processing parameters data with {len(mq_data)} entries")
+
+    logger.debug("Extracting parameters table")
     parameters_tb_dict = parameters_table(mq_data)
 
-    return {
-        # 'mq_data': mq_data,
+    result = {
         "parameters_tb_dict": parameters_tb_dict
     }
+
+    logger.info("Completed processing parameters data")
+    return result
 
 
 # 6-1.parameters.txt: Parameters
 def parameters_table(parameters_df):
+    """
+    Extract parameters table from parameters DataFrame.
+
+    Args:
+        parameters_df: DataFrame containing parameters data
+
+    Returns:
+        Dictionary containing parameters table
+    """
     if any(column not in parameters_df.columns for column in ["Parameter", "Value"]):
+        logger.warning("Required columns not found in parameters table")
         return None
 
+    logger.debug("Filtering AIF parameters")
     parameters_data = parameters_df[~parameters_df["Parameter"].str.startswith("AIF")]
 
+    logger.debug("Processing FASTA file paths")
     fasta_files = parameters_data[parameters_data["Parameter"] == "Fasta file"]["Value"].values[0]
     fasta_files = fasta_files.split(";")
+    logger.debug(f"Found {len(fasta_files)} FASTA files")
 
     def parse_location(location):
         if "\\" in location:
@@ -1096,7 +1310,9 @@ def parameters_table(parameters_df):
 
     fasta_file_list = [parse_location(fasta_file) for fasta_file in fasta_files]
     fasta_file_list = ";".join(fasta_file_list)
+    logger.debug(f"Processed FASTA file paths: {fasta_file_list}")
 
+    logger.debug("Creating parameters table")
     table_data = parameters_data.drop_duplicates(subset="Parameter", keep="first").reset_index(
         drop=True
     )
@@ -1106,4 +1322,5 @@ def parameters_table(parameters_df):
     for index, row in table_data.iterrows():
         parameters_dict[index + 1] = row.to_dict()
 
+    logger.debug(f"Created parameters table with {len(parameters_dict)} entries")
     return parameters_dict
