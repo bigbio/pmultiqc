@@ -11,7 +11,6 @@ import logging
 from multiqc import config, report
 
 from multiqc import BaseMultiqcModule
-from scipy.special import log_ndtr
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc.plots import table, bargraph, linegraph, heatmap, box, scatter
 from multiqc.utils.mqc_colour import mqc_colour_scale
@@ -28,10 +27,10 @@ import math
 import copy
 import json
 
-from .histogram import Histogram
 from . import sparklines
 from .ms_functions import get_ms_qc_info
 from . import maxquant
+from ..common.histogram import Histogram
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -302,7 +301,7 @@ class QuantMSModule(BaseMultiqcModule):
             return None
 
         self.ms_with_psm = list()
-        self.Total_Protein_Identified = 0
+        self.total_protein_identified = 0
         self.cal_num_table_data = dict()
         self.oversampling = dict()
         self.identified_spectrum = dict()
@@ -314,11 +313,11 @@ class QuantMSModule(BaseMultiqcModule):
         self.is_bruker = False
         self.read_ms_info = False
         self.heatmap_charge_score = dict()
-        self.MissedCleavages_heatmap_score = dict()
-        self.ID_RT_score = dict()
-        self.HeatmapOverSamplingScore = dict()
-        self.HeatmapPepMissingScore = dict()
-        self.MissedCleavagesVar_score = dict()
+        self.missed_clevages_heatmap_score = dict()
+        self.id_rt_score = dict()
+        self.heatmap_over_sampling_score = dict()
+        self.heatmap_pep_missing_score = dict()
+        self.missed_cleavages_var_score = dict()
         self.pep_table_exists = False
         self.ms_info = dict()
         self.ms_info["charge_distribution"] = dict()
@@ -326,8 +325,8 @@ class QuantMSModule(BaseMultiqcModule):
         self.ms_info["peak_distribution"] = dict()
 
         self.ms_paths = []
-        for mzML_file in self.find_log_files("quantms/mzML", filecontents=False):
-            self.ms_paths.append(os.path.join(mzML_file["root"], mzML_file["fn"]))
+        for mzml_current_file in self.find_log_files("quantms/mzML", filecontents=False):
+            self.ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
 
         self.ms_info_path = []
 
@@ -392,16 +391,16 @@ class QuantMSModule(BaseMultiqcModule):
                     "Neither exp_design nor sdrf can be found! Please provide or correct your multiqc_config.yml."
                 )
 
-            self.PSM_table = dict()
+            self.psm_table = dict()
             self.mzml_peptide_map = dict()
             self.pep_quant_table = dict()
             self.mzml_table = OrderedDict()
             self.search_engine = OrderedDict()
-            self.XCORR_HIST_RANGE = {"start": 0, "end": 5, "step": 0.1}
-            self.HYPER_HIST_RANGE = {"start": 0, "end": 5, "step": 0.1}
-            self.SPECEVALUE_HIST_RANGE = {"start": 0, "end": 20, "step": 0.4}
-            self.PEP_HIST_RANGE = {"start": 0, "end": 1, "step": 0.02}
-            self.Total_Protein_Quantified = 0
+            self.xcorr_hist_range = {"start": 0, "end": 5, "step": 0.1}
+            self.hyper_hist_range = {"start": 0, "end": 5, "step": 0.1}
+            self.spec_evalue_hist_range = {"start": 0, "end": 20, "step": 0.4}
+            self.pep_hist_range = {"start": 0, "end": 1, "step": 0.02}
+            self.total_protein_quantified = 0
             self.out_csv_data = dict()
             self.mL_spec_ident_final = dict()
             self.delta_mass_percent = dict()
@@ -426,7 +425,7 @@ class QuantMSModule(BaseMultiqcModule):
                     ]
 
             for f in self.find_log_files("quantms/mztab", filecontents=False):
-                self.out_mzTab_path = os.path.join(f["root"], f["fn"])
+                self.out_mztab_path = os.path.join(f["root"], f["fn"])
                 self.parse_out_mztab()
 
             for report in self.find_log_files("quantms/diann_report", filecontents=False):
@@ -552,11 +551,11 @@ class QuantMSModule(BaseMultiqcModule):
                             v,
                             self.heatmap_pep_intensity[k],
                             self.heatmap_charge_score[k],
-                            self.MissedCleavages_heatmap_score[k],
-                            self.MissedCleavagesVar_score[k],
-                            self.ID_RT_score[k],
-                            self.HeatmapOverSamplingScore[k],
-                            self.HeatmapPepMissingScore[k],
+                            self.missed_clevages_heatmap_score[k],
+                            self.missed_cleavages_var_score[k],
+                            self.id_rt_score[k],
+                            self.heatmap_over_sampling_score[k],
+                            self.heatmap_pep_missing_score[k],
                         ]
                     )
         else:
@@ -575,11 +574,11 @@ class QuantMSModule(BaseMultiqcModule):
                     heat_map_score.append(
                         [
                             self.heatmap_charge_score[k],
-                            self.MissedCleavages_heatmap_score[k],
-                            self.MissedCleavagesVar_score[k],
-                            self.ID_RT_score[k],
-                            self.HeatmapOverSamplingScore[k],
-                            self.HeatmapPepMissingScore[k],
+                            self.missed_clevages_heatmap_score[k],
+                            self.missed_cleavages_var_score[k],
+                            self.id_rt_score[k],
+                            self.heatmap_over_sampling_score[k],
+                            self.heatmap_pep_missing_score[k],
                         ]
                     )
 
@@ -720,7 +719,7 @@ class QuantMSModule(BaseMultiqcModule):
         headers = OrderedDict()
         if self.enable_dia:
             summary_table = {
-                self.Total_Peptide_Count: {"#Proteins Quantified": self.Total_Protein_Quantified}
+                self.Total_Peptide_Count: {"#Proteins Quantified": self.total_protein_quantified}
             }
             col_header = "#Peptides Quantified"
         else:
@@ -736,12 +735,12 @@ class QuantMSModule(BaseMultiqcModule):
             ] = self.Total_Peptide_Count
             summary_table[self.total_ms2_spectra][
                 "#Proteins Identified"
-            ] = self.Total_Protein_Identified
+            ] = self.total_protein_identified
 
             if not config.kwargs.get("mzid_plugin", False):
                 summary_table[self.total_ms2_spectra][
                     "#Proteins Quantified"
-                ] = self.Total_Protein_Quantified
+                ] = self.total_protein_quantified
 
             headers["#Identified MS2 Spectra"] = {
                 "description": "Total number of MS/MS spectra identified",
@@ -1508,7 +1507,7 @@ class QuantMSModule(BaseMultiqcModule):
         for name, group in psm.groupby("stand_spectra_ref"):
             sc = group["missed_cleavages"].value_counts()
             mis_0 = sc.get(0, 0)
-            self.MissedCleavages_heatmap_score[name] = mis_0 / sc[:].sum()
+            self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
 
             x = group["retention_time"] / np.sum(group["retention_time"])
             n = len(group["retention_time"])
@@ -1516,12 +1515,12 @@ class QuantMSModule(BaseMultiqcModule):
             worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
             sc = np.sum(np.abs(x - y) ** 0.5) / n
             if worst == 0:
-                self.ID_RT_score[name] = 1.0
+                self.id_rt_score[name] = 1.0
             else:
-                self.ID_RT_score[name] = float((worst - sc) / worst)
+                self.id_rt_score[name] = float((worst - sc) / worst)
 
             #  For HeatMapOverSamplingScore
-            self.HeatmapOverSamplingScore[name] = self.oversampling[name]["1"] / np.sum(
+            self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
                 list(self.oversampling[name].values())
             )
 
@@ -1536,16 +1535,16 @@ class QuantMSModule(BaseMultiqcModule):
                 )
                 / global_peps_count
             )
-            self.HeatmapPepMissingScore[name] = np.minimum(1.0, id_fraction)
+            self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
 
-        median = np.median(list(self.MissedCleavages_heatmap_score.values()))
-        self.MissedCleavagesVar_score = dict(
+        median = np.median(list(self.missed_clevages_heatmap_score.values()))
+        self.missed_cleavages_var_score = dict(
             zip(
-                self.MissedCleavages_heatmap_score.keys(),
+                self.missed_clevages_heatmap_score.keys(),
                 list(
                     map(
                         lambda v: 1 - np.abs(v - median),
-                        self.MissedCleavages_heatmap_score.values(),
+                        self.missed_clevages_heatmap_score.values(),
                     )
                 ),
             )
@@ -1554,7 +1553,7 @@ class QuantMSModule(BaseMultiqcModule):
 
     def cal_heat_map_score(self):
         log.info("Calculating Heatmap Scores...")
-        mztab_data = mztab.MzTab(self.out_mzTab_path)
+        mztab_data = mztab.MzTab(self.out_mztab_path)
         psm = mztab_data.spectrum_match_table
         meta_data = dict(mztab_data.metadata)
         if self.pep_table_exists:
@@ -1616,7 +1615,7 @@ class QuantMSModule(BaseMultiqcModule):
         for name, group in psm.groupby("stand_spectra_ref"):
             sc = group["missed_cleavages"].value_counts()
             mis_0 = sc[0] if 0 in sc else 0
-            self.MissedCleavages_heatmap_score[name] = mis_0 / sc[:].sum()
+            self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
 
             x = group["retention_time"] / np.sum(group["retention_time"])
             n = len(group["retention_time"])
@@ -1624,12 +1623,12 @@ class QuantMSModule(BaseMultiqcModule):
             worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
             sc = np.sum(np.abs(x - y) ** 0.5) / n
             if worst == 0:
-                self.ID_RT_score[name] = 1.0
+                self.id_rt_score[name] = 1.0
             else:
-                self.ID_RT_score[name] = float((worst - sc) / worst)
+                self.id_rt_score[name] = float((worst - sc) / worst)
 
             #  For HeatMapOverSamplingScore
-            self.HeatmapOverSamplingScore[name] = self.oversampling[name]["1"] / np.sum(
+            self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
                 list(self.oversampling[name].values())
             )
 
@@ -1642,16 +1641,16 @@ class QuantMSModule(BaseMultiqcModule):
                 )
                 / global_peps_count
             )
-            self.HeatmapPepMissingScore[name] = np.minimum(1.0, id_fraction)
+            self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
 
-        median = np.median(list(self.MissedCleavages_heatmap_score.values()))
-        self.MissedCleavagesVar_score = dict(
+        median = np.median(list(self.missed_clevages_heatmap_score.values()))
+        self.missed_cleavages_var_score = dict(
             zip(
-                self.MissedCleavages_heatmap_score.keys(),
+                self.missed_clevages_heatmap_score.keys(),
                 list(
                     map(
                         lambda v: 1 - np.abs(v - median),
-                        self.MissedCleavages_heatmap_score.values(),
+                        self.missed_clevages_heatmap_score.values(),
                     )
                 ),
             )
@@ -1863,8 +1862,8 @@ class QuantMSModule(BaseMultiqcModule):
                 m = self.file_prefix(file).replace("_ms_info", "")
                 if m not in mzml_table:
                     mzml_table[m] = dict.fromkeys(["MS1_Num", "MS2_Num", "Charge_2"], 0)
-                charge_group = mzml_df.groupby("Charge").size()
-                ms_level_group = mzml_df.groupby("MSLevel").size()
+                charge_group = mzml_df.groupby("precursor_charge").size()
+                ms_level_group = mzml_df.groupby("ms_level").size()
                 charge_2 = charge_group[2] if 2 in charge_group else 0
                 ms1_number = int(ms_level_group[1]) if 1 in ms_level_group else 0
                 ms2_number = int(ms_level_group[2]) if 2 in ms_level_group else 0
@@ -1880,7 +1879,7 @@ class QuantMSModule(BaseMultiqcModule):
                     self.ms1_general_stats[os.path.basename(file).replace("_ms_info.parquet", "")],
                 ) = get_ms_qc_info(mzml_df)
 
-                group = mzml_df[mzml_df["MSLevel"] == 2]
+                group = mzml_df[mzml_df["ms_level"] == 2]
                 del mzml_df
                 group.apply(add_ms_values, args=(m,), axis=1)
 
@@ -2005,25 +2004,25 @@ class QuantMSModule(BaseMultiqcModule):
 
             xcorr_breaks = list(
                 np.arange(
-                    self.XCORR_HIST_RANGE["start"],
-                    self.XCORR_HIST_RANGE["end"] + self.XCORR_HIST_RANGE["step"],
-                    self.XCORR_HIST_RANGE["step"],
+                    self.xcorr_hist_range["start"],
+                    self.xcorr_hist_range["end"] + self.xcorr_hist_range["step"],
+                    self.xcorr_hist_range["step"],
                 ).round(2)
             )
 
             hyper_breaks = list(
                 np.arange(
-                    self.HYPER_HIST_RANGE["start"],
-                    self.HYPER_HIST_RANGE["end"] + self.HYPER_HIST_RANGE["step"],
-                    self.HYPER_HIST_RANGE["step"],
+                    self.hyper_hist_range["start"],
+                    self.hyper_hist_range["end"] + self.hyper_hist_range["step"],
+                    self.hyper_hist_range["step"],
                 ).round(2)
             )
 
             spec_e_breaks = list(
                 np.arange(
-                    self.SPECEVALUE_HIST_RANGE["start"],
-                    self.SPECEVALUE_HIST_RANGE["end"] + self.SPECEVALUE_HIST_RANGE["step"],
-                    self.SPECEVALUE_HIST_RANGE["step"],
+                    self.spec_evalue_hist_range["start"],
+                    self.spec_evalue_hist_range["end"] + self.spec_evalue_hist_range["step"],
+                    self.spec_evalue_hist_range["step"],
                 ).round(2)
             )
             spec_e_breaks.append(float("inf"))
@@ -2031,9 +2030,9 @@ class QuantMSModule(BaseMultiqcModule):
 
             pep_breaks = list(
                 np.arange(
-                    self.PEP_HIST_RANGE["start"],
-                    self.PEP_HIST_RANGE["end"] + self.PEP_HIST_RANGE["step"],
-                    self.PEP_HIST_RANGE["step"],
+                    self.pep_hist_range["start"],
+                    self.pep_hist_range["end"] + self.pep_hist_range["step"],
+                    self.pep_hist_range["step"],
                 ).round(2)
             )
 
@@ -2178,18 +2177,18 @@ class QuantMSModule(BaseMultiqcModule):
     def parse_out_mztab(self):
         log.info(
             "{}: Parsing mzTab file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.out_mzTab_path
+                datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
             )
         )
-        mztab_data = mztab.MzTab(self.out_mzTab_path)
+        mztab_data = mztab.MzTab(self.out_mztab_path)
         log.info(
             "{}: Done parsing mzTab file {}.".format(
-                datetime.now().strftime("%H:%M:%S"), self.out_mzTab_path
+                datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
             )
         )
         log.info(
             "{}: Aggregating mzTab file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.out_mzTab_path
+                datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
             )
         )
         pep_table = mztab_data.peptide_table
@@ -2260,10 +2259,10 @@ class QuantMSModule(BaseMultiqcModule):
 
         prot["protein_group"] = prot["ambiguity_members"].apply(lambda x: x.replace(",", ";"))
 
-        self.Total_Protein_Identified = len(prot.index)
+        self.total_protein_identified = len(prot.index)
 
         prot.dropna(how="all", subset=prot_abundance_cols, inplace=True)
-        self.Total_Protein_Quantified = len(prot.index)
+        self.total_protein_quantified = len(prot.index)
 
         self.pep_plot = Histogram("Number of peptides per proteins", plot_category="frequency")
 
@@ -2592,7 +2591,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             log.info(
                 "{}: Done aggregating mzTab file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.out_mzTab_path
+                    datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
                 )
             )
 
@@ -2937,7 +2936,7 @@ class QuantMSModule(BaseMultiqcModule):
         if config.kwargs["remove_decoy"]:
             mzid_table = mzid_table[~mzid_table["isDecoy"]]
 
-        self.Total_Protein_Identified = mzid_table["accession_group"].nunique()
+        self.total_protein_identified = mzid_table["accession_group"].nunique()
 
         self.pep_plot = Histogram("Number of peptides per proteins", plot_category="frequency")
 
@@ -3060,7 +3059,7 @@ class QuantMSModule(BaseMultiqcModule):
         report_data["sequence"] = report_data.apply(
             lambda x: re.sub(pattern, "", x["Modified.Sequence"]), axis=1
         )
-        self.Total_Protein_Quantified = len(set(report_data["Protein.Names"]))
+        self.total_protein_quantified = len(set(report_data["Protein.Names"]))
         self.Total_Peptide_Count = len(set(report_data["sequence"]))
         protein_pep_map = report_data.groupby("Protein.Group").sequence.apply(list).to_dict()
 

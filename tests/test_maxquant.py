@@ -1,10 +1,10 @@
+import logging
 import os
-import re
 import gzip
 import pytest
 import pandas as pd
 import numpy as np
-from pathlib import Path
+from pmultiqc.modules.quantms.maxquant import get_parameters
 
 
 class TestMaxquant:
@@ -105,15 +105,14 @@ class TestMaxquant:
 
         # Read the file
         with gzip.open(parameters_file, "rt") as f:
-            df = pd.read_csv(f, sep="\t", low_memory=False)
+            parameters = get_parameters(f)
 
         # Check that the dataframe is not empty
-        assert not df.empty, "parameters.txt is empty"
+        assert parameters, "parameters.txt is not empty"
 
         # Check for expected columns
-        expected_columns = ["Parameter", "Value"]
-        for col in expected_columns:
-            assert col in df.columns, f"Expected column {col} not found in parameters.txt"
+        for param_key, param_value in parameters["parameters_tb_dict"].values():
+            logging.info("{}:{}".format(param_key, param_value))
 
     def test_mock_read_function(self, proteingroups_df):
         """Test a mock version of the read function."""
