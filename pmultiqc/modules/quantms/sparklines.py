@@ -2,19 +2,17 @@
 
 from collections import defaultdict, OrderedDict
 import logging
-import random
 import textwrap
 from multiqc import config, report
-from multiqc.utils import util_functions, mqc_colour
+from multiqc.utils import mqc_colour
 from multiqc.plots import table_object, violin
 from multiqc.plots.table_object import TableConfig
-from multiqc.plots.table_object import DataTable, ValueT
+from multiqc.plots.table_object import ValueT
 from typing import Dict
 
 logger = logging.getLogger(__name__)
 
 letters = "abcdefghijklmnopqrstuvwxyz"
-
 
 def plot(data, headers=None, pconfig=None, max_value=0.0):
 
@@ -23,15 +21,22 @@ def plot(data, headers=None, pconfig=None, max_value=0.0):
     if pconfig is None:
         pconfig = {}
 
-    pconfig = TableConfig(**pconfig)
+    plot_anchor = pconfig["anchor"]
+    del pconfig["anchor"]
+    table_pconfig = TableConfig(**pconfig)
 
     # Make a DataTable object
-    dt = table_object.DataTable.create(data, pconfig, headers)
+    dt = table_object.DataTable.create(data=data,
+                                       table_id=pconfig['id'],
+                                       table_anchor=plot_anchor,
+                                       pconfig=table_pconfig,
+                                       headers=headers)
 
-    s_names = set()
-    for d in dt.raw_data:
-        for s_name in d.keys():
-            s_names.add(s_name)
+    # s_names = set()
+    # for d in dt.raw_data:
+    #     for s_name in d.keys():
+    #         s_names.add(s_name)
+    s_names = set(dt.sections[0].rows_by_sgroup.keys())
 
     # Make a violin plot if we have lots of samples
     if len(s_names) >= config.max_table_rows and pconfig.no_violin is not True:
@@ -46,9 +51,7 @@ def plot(data, headers=None, pconfig=None, max_value=0.0):
     else:
         return make_table(dt, max_value)
 
-
 def make_table(dt, max_value):
-
     # table_id = dt.pconfig.get("id", "table_{}".format("".join(random.sample(letters, 4))))
     table_id = dt.id
     table_id = report.save_htmlid(table_id)
@@ -71,7 +74,8 @@ def make_table(dt, max_value):
         "Peptides_Number",
         "Average Spectrum Counting",
     ]
-    for idx, k, header in dt.get_headers_in_order():
+    # for idx, k, header in dt.get_headers_in_order():
+    for _, k, header in dt.get_headers_in_order():
 
         rid = header.rid
         # Build the table header cell
@@ -82,7 +86,7 @@ def make_table(dt, max_value):
         hide = ""
         muted = ""
         checked = ' checked="checked"'
-        if header.hidden is True:
+        if header.hidden:
             hide = "hidden"
             muted = " text-muted"
             checked = ""
@@ -165,10 +169,16 @@ def make_table(dt, max_value):
         cond_formatting_colours.extend(config.table_cond_formatting_colours)
 
         # Add the data table cells
-        for s_name, samp in dt.raw_data[idx].items():
+        # for s_name, samp in dt.raw_data[idx].items():
+        # Multiqc 1.22 --> 1.26
+        for _, raw_data in dt.sections[0].rows_by_sgroup.items():
+            s_name = raw_data[0].sample
+            samp = raw_data[0].raw_data
+
             if k in samp:
                 val: ValueT = samp[k]
-                valstr: str = dt.formatted_data[idx][s_name][k]
+                # valstr: str = dt.formatted_data[idx][s_name][k]
+                valstr: str = str(samp[k])
                 # kname = "{}_{}".format(header["namespace"], rid)
                 # dt.raw_vals[s_name][kname] = val
                 raw_vals[s_name][f"{header.namespace}_{rid}"] = val

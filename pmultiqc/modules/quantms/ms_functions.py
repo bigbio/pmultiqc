@@ -26,8 +26,16 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
     @param ms_info:
     @return:
     """
-    ms1_info = ms_info[ms_info["MSLevel"] == 1]
-    ms2_info = ms_info[ms_info["MSLevel"] == 2]
+    ms_info = ms_info.rename(columns={
+        "ms_level": "MSLevel",
+        "rt": "Retention_Time",
+        "summed_peak_intensities": "Summed_Peak_Intensities",
+        "num_peaks": "MS_peaks",
+        "acquisition_datetime": "AcquisitionDateTime"
+    })
+
+    ms1_info = ms_info[ms_info["MSLevel"] == 1].copy()
+    ms2_info = ms_info[ms_info["MSLevel"] == 2].copy()
     ms1_info["rt_normalize"] = (
         ms1_info.sort_values(by="Retention_Time")["Retention_Time"] / SECOND_RESOLUTION
     ).astype(int)
