@@ -68,7 +68,8 @@ def run_pmultiqc(download_path, report_path, plugin_type):
         command = ["multiqc", "--mzid_plugin", download_path, "-o", report_path]
 
     elif plugin_type == 'dia' or plugin_type == 'tmt' or plugin_type == 'lfq':
-        command = ["multiqc", download_path, "-o", report_path]
+        command = ["multiqc", download_path, "--config",
+                   os.path.join(download_path, "multiqc_config.yml") , "-o", report_path]
     
     subprocess.run(
         command,

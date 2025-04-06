@@ -8,7 +8,7 @@ import itertools
 from datetime import datetime
 from operator import itemgetter
 import logging
-from multiqc import config, report
+from multiqc import config
 
 from multiqc import BaseMultiqcModule
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
@@ -462,6 +462,7 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_peaks_per_ms2()
                 self.draw_peak_intensity_distribution()
                 self.draw_oversampling()
+                self.draw_delta_mass()
 
             # TODO what if multiple are found??
             # if config.kwargs.get('disable_table', True):
@@ -1289,6 +1290,7 @@ class QuantMSModule(BaseMultiqcModule):
                     },
                 ],
             }
+
         line_html = linegraph.plot([self.delta_mass, self.delta_mass_percent], lineconfig)
 
         self.add_section(
@@ -1469,7 +1471,7 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
     def mzid_cal_heat_map_score(self, psm):
-        log.info("Calculating Heatmap Scores...")
+        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
 
         # HeatMapMissedCleavages
         global_peps = psm[["PeptideSequence", "Modifications"]].drop_duplicates()
@@ -1549,10 +1551,10 @@ class QuantMSModule(BaseMultiqcModule):
                 ),
             )
         )
-        log.info("Done calculating Heatmap Scores.")
+        log.info("{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S")))
 
     def cal_heat_map_score(self):
-        log.info("Calculating Heatmap Scores...")
+        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
         mztab_data = mztab.MzTab(self.out_mztab_path)
         psm = mztab_data.spectrum_match_table
         meta_data = dict(mztab_data.metadata)
@@ -1599,7 +1601,7 @@ class QuantMSModule(BaseMultiqcModule):
             config.kwargs["remove_decoy"]
             and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
         ):
-            psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0]
+            psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
         psm.loc[:, "stand_spectra_ref"] = psm.apply(
             lambda x: self.file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
             axis=1,
@@ -1655,7 +1657,7 @@ class QuantMSModule(BaseMultiqcModule):
                 ),
             )
         )
-        log.info("Done calculating Heatmap Scores.")
+        log.info("{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S")))
 
     # if missed.cleavages is not given, it is assumed that Trypsin was used for digestion
     @staticmethod
@@ -1842,8 +1844,6 @@ class QuantMSModule(BaseMultiqcModule):
 
         return mzml_table
 
-        return mzml_table
-
     def parse_idxml(self, mzml_table):
         # Use the refactored function from ms_io.py
         result = ms_io.parse_idxml(
@@ -1943,7 +1943,7 @@ class QuantMSModule(BaseMultiqcModule):
         prot = prot[prot["opt_global_result_type"] != "protein_details"]
 
         if config.kwargs["remove_decoy"]:
-            psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1]
+            psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1].copy()
             # TODO do we really want to remove groups that contain a single decoy? I would say ALL members need to be decoy.
             prot = prot[~prot["accession"].str.contains(config.kwargs["decoy_affix"])]
 
@@ -2332,6 +2332,7 @@ class QuantMSModule(BaseMultiqcModule):
             pconfig = {
                 "id": "quantification_of_protein",  # ID used for the table
                 "title": "quantification information of protein",
+                "anchor": "",
                 # Title of the table. Used in the column config modal
                 "save_file": False,  # Whether to save the table data to a file
                 "raw_data_fn": "multiqc_quantification_of_protein_table",  # File basename to use for raw data file
@@ -2822,7 +2823,7 @@ class QuantMSModule(BaseMultiqcModule):
             }
 
     def parse_msstats_input(self):
-        log.info("Parsing MSstats input file " + self.msstats_input_path)
+        log.info("{}: Parsing MSstats input file {}...".format(datetime.now().strftime("%H:%M:%S"), self.msstats_input_path))
         msstats_data = pd.read_csv(self.msstats_input_path)
         ## TODO we probably shouldn't even write out 0-intensity values to MSstats csv
         msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
@@ -2832,8 +2833,6 @@ class QuantMSModule(BaseMultiqcModule):
         msstats_data[["PeptideSequence", "Modification"]] = msstats_data.apply(
             lambda x: find_modification(x["PeptideSequence"]), axis=1, result_type="expand"
         )
-
-        max_pep_intensity = 0.0
 
         reps_per_condition = (
             self.sample_df.groupby("MSstats_Condition")["MSstats_BioReplicate"].agg(list).to_dict()
@@ -2890,27 +2889,34 @@ class QuantMSModule(BaseMultiqcModule):
         sql_col = 'PeptideID,PeptideSequence,Modification,ProteinName,BestSearchScore, "Average Intensity"'
         sql_t = "(" + ",".join(["?"] * (len(conditions) * 2 + 6)) + ")"
 
-        headers = OrderedDict()
-        headers = {  # 'PeptideID': {'name': 'PeptideID'}, # this is the index
-            "PeptideSequence": {"rid": "PeptideSequence"},
-            "Modification": {"rid": "Modification"},
-            "ProteinName": {"rid": "ProteinName"},
-            "BestSearchScore": {"rid": "BestSearchScore", "format": "{:,.5e}"},
-            "Average Intensity": {"rid": "Average Intensity", "format": "{:,.3f}"},
+        headers = {
+            "ProteinName": {
+                "title": "Protein Name",
+                "description": "Name/Identifier(s) of the protein (group)",
+                "minrange": "200"
+                },
+            "PeptideSequence": {"title": "Peptide Sequence"},
+            "BestSearchScore": {
+                "title": "Best Search Score",
+                "format": "{:,.4f}"
+                },
+            "Average Intensity": {
+                "title": "Average Intensity",
+                "description": "Average intensity across all conditions",
+                "format": "{:,.4f}"
+                }
         }
 
         for s in conditions:
             cur.execute('ALTER TABLE PEPQUANT ADD "' + str(s) + '" VARCHAR')
             con.commit()
             sql_col += ', "' + str(s) + '"'
-            headers[str(s)] = {"rid": s, "format": "{:,.5f}"}
+            headers[str(s)] = {"title": s, "format": "{:,.4f}"}
 
         for s in list(map(lambda x: str(x) + "_distribution", conditions)):
             cur.execute('ALTER TABLE PEPQUANT ADD "' + s + '" VARCHAR(100)')
             con.commit()
             sql_col += ', "' + s + '"'
-            # we need a thousandsSep_format otherwise commas will be replaced
-            headers[str(s)] = {"rid": s}
 
         # PeptideID is index
         all_term = (
@@ -2930,46 +2936,23 @@ class QuantMSModule(BaseMultiqcModule):
         )
         con.commit()
 
-        pconfig = {
-            "id": "quantification_of_peptides",  # ID used for the table
+        draw_config = {
+            "namespace": "",
+            "id": "quantification_of_peptides",
             "title": "quantification information of peptides",
-            # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_quantification_of_peptides_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": False,  # Only show columns that are defined in the headers config
+            "save_file": False,
+            "sort_rows": False,
+            "only_defined_headers": True,
             "col1_header": "PeptideID",
             "no_violin": True,
         }
 
         # only use the first 50 lines for the table
-        table_html = sparklines.plot(
-            data=msstats_data_dict_pep_init,
+        max_pep_intensity = 50
+        table_html = table.plot(
+            dict(itertools.islice(msstats_data_dict_pep_init.items(), max_pep_intensity)),
             headers=headers,
-            pconfig=pconfig,
-            max_value=max_pep_intensity,
-        )
-        pattern = re.compile(r'<small id="quantification_of_peptides_numrows_text"')
-        index = re.search(pattern, table_html).span()[0]
-        t_html = (
-            table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" '
-            'onkeyup="searchQuantFunction()" id="quant_search">'
-            '<select name="quant_search_col" id="quant_search_col">'
-        )
-        for key in ["ProteinName", "PeptideSequence", "Modification", "PeptideID"]:
-            t_html += "<option>" + key + "</option>"
-        table_html = (
-            t_html + "</select>" + '<button type="button" class="btn btn-default '
-            'btn-sm" id="quant_reset" onclick="quantFirst()">Reset</button>' + table_html[index:]
-        )
-        table_html = (
-            table_html
-            + """<div class="page_control"><span id="quantFirst">First Page</span><span 
-        id="quantPre"> Previous Page</span><span id="quantNext">Next Page </span><span id="quantLast">Last 
-        Page</span><span id="quantPageNum"></span>Page/Total <span id="quantTotalPage"></span>Pages <input 
-        type="number" name="" id="pep_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
-        onkeydown="quant_page_jump()" min="1"/> </div> """
-        )
+            pconfig=draw_config)
 
         # Add a report section with the line plot
         self.add_section(
@@ -2989,8 +2972,6 @@ class QuantMSModule(BaseMultiqcModule):
                     """,
             plot=table_html,
         )
-
-        report.plot_by_id["peptides_quant_result"] = table_html
 
         # Helper functions for pandas
         def json_to_dict(s):
@@ -3034,27 +3015,21 @@ class QuantMSModule(BaseMultiqcModule):
             itertools.islice(msstats_data_dict_prot_full.items(), 50)
         )
 
-        headers = OrderedDict()
-        # This will be the rowheader/index
-        # headers['ProteinID'] = {
-        #    'name': 'Protein ID',
-        #    'description': 'Count(s) of the protein (group)',
-        #    'format': '{:,.0f}'
-        # }
-        headers["ProteinName"] = {
-            "rid": "Protein Name",
-            "description": "Name/Identifier(s) of the protein (group)",
-            "format": "{:,.0f}",
-        }
-        headers["Peptides_Number"] = {
-            "rid": "Number of Peptides",
-            "description": "Number of peptides per proteins",
-            "format": "{:,.0f}",
-        }
-        headers["Average Intensity"] = {
-            "rid": "Average Intensity",
-            "description": "Average intensity across all conditions",
-            "format": "{:,.3f}",
+        headers = {
+            "ProteinName": {
+                "title": "Protein Name",
+                "description": "Name/Identifier(s) of the protein (group)"
+                },
+            "Peptides_Number": {
+                "title": "Number of Peptides",
+                "description": "Number of peptides per proteins",
+                "format": "{:,.0f}"
+                },
+            "Average Intensity": {
+                "title": "Average Intensity",
+                "description": "Average intensity across all conditions",
+                "format": "{:,.4f}"
+                }
         }
 
         # upload protein table to sqlite database
@@ -3069,13 +3044,12 @@ class QuantMSModule(BaseMultiqcModule):
             cur.execute('ALTER TABLE PROTQUANT ADD "' + str(s) + '" VARCHAR')
             con.commit()
             sql_col += ', "' + str(s) + '"'
-            headers[str(s)] = {"rid": s}
+            headers[str(s)] = {"title": s, "format": "{:,.4f}"}
 
         for s in list(map(lambda x: str(x) + "_distribution", conditions)):
             cur.execute('ALTER TABLE PROTQUANT ADD "' + s + '" VARCHAR(100)')
             con.commit()
             sql_col += ', "' + s + '"'
-            headers[str(s)] = {"rid": s}
 
         # ProteinID is index
         all_term = (
@@ -3089,44 +3063,17 @@ class QuantMSModule(BaseMultiqcModule):
         )
         con.commit()
 
-        pconfig = {
-            "id": "quantification_of_protein",  # ID used for the table
+        draw_config = {
+            "namespace": "",
+            "id": "quantification_of_protein",
             "title": "quantification information of protein",
-            # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_quantification_of_protein_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": False,  # Only show columns that are defined in the headers config
+            "save_file": False,
+            "sort_rows": False,
+            "only_defined_headers": True,
             "col1_header": "ProteinID",
-            # 'format': '{:,.5f}',
             "no_violin": True,
         }
-
-        table_html = sparklines.plot(
-            msstats_data_dict_prot_init, headers, pconfig=pconfig, max_value=max_prot_intensity
-        )
-        pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
-        index = re.search(pattern, table_html).span()[0]
-        t_html = (
-            table_html[:index] + '<input type="text" placeholder="search..." class="searchInput" '
-            'onkeyup="searchProtFunction()" id="prot_search">'
-            '<select name="prot_search_col" id="prot_search_col">'
-        )
-        for key in ["ProteinName", "Peptides_Number", "ProteinID"]:
-            t_html += "<option>" + key + "</option>"
-        table_html = (
-            t_html + "</select>" + '<button type="button" class="btn btn-default '
-            'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[index:]
-        )
-        table_html = (
-            table_html
-            + """<div class="page_control"><span id="protFirst">First Page</span><span 
-        id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last 
-        Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input 
-        type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
-        onkeydown="prot_page_jump()" min="1"/> </div> """
-        )
-
+        table_html = table.plot(msstats_data_dict_prot_init, headers=headers, pconfig=draw_config)
         self.add_section(
             name="Protein Quantification Table",
             anchor="protein_quant_result",
@@ -3144,9 +3091,6 @@ class QuantMSModule(BaseMultiqcModule):
                     """,
             plot=table_html,
         )
-        report.plot_by_id["protein_quant_result"] = table_html
-        self.sections[-1].plot_id = "protein_quant_result"
-        self.sections[-2].plot_id = "peptides_quant_result"
 
     # MaxQuant Files
     def maxquant_file_path(self):
