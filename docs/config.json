@@ -1,11 +1,11 @@
 {
     "projects": [
         {
-            "accession": "lfq",
+            "accession": "LFQ_PXD007683",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/lfq/lfq.zip"
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/LFQ_PXD007683.zip"
             ],
-            "path": "docs/lfq",
+            "path": "docs/LFQ_PXD007683",
             "file_type": "lfq"
         },
         {
@@ -17,11 +17,11 @@
             "file_type": "dia"
         },
         {
-            "accession": "tmt",
+            "accession": "TMT_PXD007683",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/tmt-replicates/tmt-replicates.zip"
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip"
             ],
-            "path": "docs/tmt",
+            "path": "docs/TMT_PXD007683",
             "file_type": "tmt"
         },
         {
