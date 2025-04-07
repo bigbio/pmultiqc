@@ -13,6 +13,7 @@ from datetime import datetime
 from collections import OrderedDict
 from pyopenms import IdXMLFile, MzMLFile, MSExperiment
 import math
+import re
 
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.quantms.ms_functions import get_ms_qc_info
@@ -30,7 +31,7 @@ def file_prefix(path):
         raise SystemExit(f"Illegal file path: {path}")
 
 
-def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum,
+def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum_scan_id,
                   mzml_charge_plot, mzml_peak_distribution_plot, mzml_peaks_ms2_plot,
                   mzml_charge_plot_1, mzml_peak_distribution_plot_1, mzml_peaks_ms2_plot_1,
                   ms_without_psm, enable_dia=False):
@@ -38,10 +39,11 @@ def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum,
     Process MS values from a dataframe row and add them to the appropriate histograms
 
     Args:
-        info_df: DataFrame row containing MS information
+        info_df: Series row containing MS information
         ms_name: Name of the MS file
         ms_with_psm: List of MS files with PSMs
-        identified_spectrum: Dictionary of identified spectra by MS file
+        identified_spectrum_scan_id: List of identified spectra by MS file
+        # identified_spectrum: Dictionary of identified spectra by MS file
         mzml_charge_plot: Histogram for charge distribution of identified spectra
         mzml_peak_distribution_plot: Histogram for peak distribution of identified spectra
         mzml_peaks_ms2_plot: Histogram for peaks per MS2 of identified spectra
@@ -51,22 +53,37 @@ def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum,
         ms_without_psm: List of MS files without PSMs
         enable_dia: Whether DIA mode is enabled
     """
-    charge_state = int(info_df["Charge"]) if info_df["Charge"] is not None else None
+    # info_df is a Pandas.Seires not a DataFrame
+        # "precursor_charge" --> "Charge",
+        # "base_peak_intensity" --> "Base_Peak_Intensity",
+        # "num_peaks": --> "MS_peaks"
+
+    # charge_state = int(info_df["Charge"]) if info_df["Charge"] is not None else None
+    # base_peak_intensity = (
+    #     float(info_df["Base_Peak_Intensity"])
+    #     if info_df["Base_Peak_Intensity"] is not None
+    #     else None
+    # )
+    # peak_per_ms2 = int(info_df["MS_peaks"]) if info_df["MS_peaks"] is not None else None
+
+    charge_state = int(info_df["precursor_charge"]) if info_df["precursor_charge"] is not None else None
     base_peak_intensity = (
-        float(info_df["Base_Peak_Intensity"])
-        if info_df["Base_Peak_Intensity"] is not None
+        float(info_df["base_peak_intensity"])
+        if info_df["base_peak_intensity"] is not None
         else None
     )
-    peak_per_ms2 = int(info_df["MS_peaks"]) if info_df["MS_peaks"] is not None else None
+    peak_per_ms2 = int(info_df["num_peaks"]) if info_df["num_peaks"] is not None else None
 
     if enable_dia:
         mzml_charge_plot.add_value(charge_state)
         mzml_peak_distribution_plot.add_value(base_peak_intensity)
         mzml_peaks_ms2_plot.add_value(peak_per_ms2)
         return
-
+    
     if ms_name in ms_with_psm:
-        if info_df["SpectrumID"] in identified_spectrum[ms_name]:
+        # only "scan" in info_df not "SpectrumID"
+        # if info_df["SpectrumID"] in identified_spectrum[ms_name]:
+        if info_df["scan"] in identified_spectrum_scan_id:
             mzml_charge_plot.add_value(charge_state)
             mzml_peak_distribution_plot.add_value(base_peak_intensity)
             mzml_peaks_ms2_plot.add_value(peak_per_ms2)
@@ -177,9 +194,9 @@ def read_mzmls(ms_paths, ms_with_psm, identified_spectrum,
 
 
 def read_ms_info(ms_info_path, ms_with_psm, identified_spectrum,
-                mzml_charge_plot, mzml_peak_distribution_plot, mzml_peaks_ms2_plot,
-                mzml_charge_plot_1, mzml_peak_distribution_plot_1, mzml_peaks_ms2_plot_1,
-                ms_without_psm, enable_dia=False):
+                 mzml_charge_plot, mzml_peak_distribution_plot, mzml_peaks_ms2_plot,
+                 mzml_charge_plot_1, mzml_peak_distribution_plot_1, mzml_peaks_ms2_plot_1,
+                 ms_without_psm, enable_dia=False):
     """
     Read MS info files and extract information
 
@@ -206,7 +223,7 @@ def read_ms_info(ms_info_path, ms_with_psm, identified_spectrum,
     ms1_bpc = {}
     ms1_peaks = {}
     ms1_general_stats = {}
-
+    
     for file in ms_info_path:
         log.info(
             "{}: Parsing ms_statistics dataframe {}...".format(
@@ -237,10 +254,13 @@ def read_ms_info(ms_info_path, ms_with_psm, identified_spectrum,
         group = mzml_df[mzml_df["ms_level"] == 2]
         del mzml_df
 
+        identified_spectrum_scan_id = [re.search(r'scan=(\d+)', spectrum_id).group(1) 
+                                        for spectrum_id in identified_spectrum[m]]
+    
         # Apply add_ms_values to each row
         for _, row in group.iterrows():
             add_ms_values(
-                row, m, ms_with_psm, identified_spectrum,
+                row, m, ms_with_psm, identified_spectrum_scan_id,
                 mzml_charge_plot, mzml_peak_distribution_plot, mzml_peaks_ms2_plot,
                 mzml_charge_plot_1, mzml_peak_distribution_plot_1, mzml_peaks_ms2_plot_1,
                 ms_without_psm, enable_dia
@@ -476,7 +496,7 @@ def parse_idxml(idx_paths, mzml_table, xcorr_hist_range, hyper_hist_range,
         )
 
     for raw_id in consensus_paths:
-        log.info("Parsing consensus file {}...".format(raw_id))
+        log.info("{}: Parsing consensus file {}...".format(datetime.now().strftime("%H:%M:%S"), format(raw_id)))
         protein_ids = []
         peptide_ids = []
         IdXMLFile().load(raw_id, protein_ids, peptide_ids)
