@@ -1560,7 +1560,7 @@ class QuantMSModule(BaseMultiqcModule):
         meta_data = dict(mztab_data.metadata)
         if self.pep_table_exists:
             pep_table = mztab_data.peptide_table
-            pep_table = pep_table.fillna(np.nan)
+            pep_table = pep_table.fillna(np.nan).copy()
             pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
                 lambda x: self.file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
                 axis=1,

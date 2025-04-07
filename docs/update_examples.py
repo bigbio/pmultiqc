@@ -60,16 +60,22 @@ def delete_old_examples(folder_path):
             shutil.rmtree(file_path)
             print(f"Deleted folder: {file_path}")
 
-def run_pmultiqc(download_path, report_path, plugin_type):
+def run_pmultiqc(download_path, accession, report_path, plugin_type):
     if plugin_type == "maxquant":
         command = ["multiqc", "--parse_maxquant", download_path, "-o", report_path]
         
     elif plugin_type == "mzid":
         command = ["multiqc", "--mzid_plugin", download_path, "-o", report_path]
 
-    elif plugin_type == 'dia' or plugin_type == 'tmt' or plugin_type == 'lfq':
+    elif plugin_type == 'tmt' or plugin_type == 'lfq':
         command = ["multiqc", download_path, "--config",
-                   os.path.join(download_path, "multiqc_config.yml") , "-o", report_path]
+                   os.path.join(download_path, accession, "multiqc_config.yml") ,
+                   "-o", report_path]
+        
+    elif plugin_type == 'dia':
+        command = ["multiqc", download_path, "--config",
+                   os.path.join(download_path, "multiqc_config.yml") ,
+                   "-o", report_path]
     
     subprocess.run(
         command,
@@ -89,6 +95,7 @@ def new_examples(config_file):
 
     for project in config.get("projects"):
 
+        accession = project.get("accession")
         urls = project.get("urls")
         report_path = project.get("path")
         file_type = project.get("file_type")
@@ -104,7 +111,7 @@ def new_examples(config_file):
         Path(report_path).mkdir(parents=True, exist_ok=True)
         delete_old_examples(report_path)
 
-        run_pmultiqc(download_path, report_path, file_type)
+        run_pmultiqc(download_path, accession, report_path, file_type)
 
         shutil.rmtree(download_path)
 
