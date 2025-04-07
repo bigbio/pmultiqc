@@ -24,8 +24,8 @@ The example data information can be found in the `config.json`.
 
 ## Example reports:
 
-- [LFQ Example](lfq/multiqc_report.html)
-- [TMT Example](tmt/multiqc_report.html)
+- [LFQ Example](LFQ_PXD007683/multiqc_report.html)
+- [TMT Example](TMT_PXD007683/multiqc_report.html)
 - [DIA Example](dia/multiqc_report.html)
 - [MaxQuant Example](PXD003133/multiqc_report.html)
 - [mzIdentML with mzML Example](PXD051187/multiqc_report.html)
@@ -39,6 +39,5 @@ This project is licensed under the terms of the LICENSE file included in the rep
 
 If you use pmultiqc in your research, please cite:
 
-```
 pmultiqc: A MultiQC plugin for proteomics quality control
 https://github.com/bigbio/pmultiqc
