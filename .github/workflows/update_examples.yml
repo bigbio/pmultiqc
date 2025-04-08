@@ -1,24 +1,16 @@
 name: Auto update examples
+
 on:
   push:
-    branches: [ main ]
-  pull_request:
     branches: [ main ]
 
 jobs:
   update_examples:
-    if: "! contains(github.event.head_commit.message, 'auto-update examples')"
+    if: "! contains(github.event.head_commit.message, 'Update pmultiqc documentation and examples')"
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      workflows: write  # Keep this permission to allow workflow updates
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Needed for creating branches and diffs
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -35,16 +27,39 @@ jobs:
         run: |
           python docs/update_examples.py
 
-      - name: Create pull request
-        id: cpr
+      - name: Check if changes were made
+        id: check_changes
+        run: |
+          if [[ -n $(git status --porcelain docs/) ]]; then
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check for existing PR
+        if: steps.check_changes.outputs.changes_detected == 'true'
+        id: check_pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: pulls } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:dev-docs-update`,
+              base: 'main',
+              state: 'open'
+            });
+            return pulls.length > 0 ? 'exists' : 'not_exists';
+          result-encoding: string
+
+      - name: Create Pull Request
+        if: steps.check_changes.outputs.changes_detected == 'true' && steps.check_pr.outputs.result == 'not_exists'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "auto-update examples"
-          committer: GitHub Actions <actions@github.com>
-          author: GitHub Actions <actions@github.com>
-          branch: dev-docs-update
-          delete-branch: true
+          commit-message: "Update pmultiqc documentation and examples"
           title: "Auto-update examples"
           body: "This PR updates the docs with the latest example output."
           base: main
+          branch: dev-docs-update
+          delete-branch: true
