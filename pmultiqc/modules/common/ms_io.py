@@ -31,10 +31,20 @@ def file_prefix(path):
         raise SystemExit(f"Illegal file path: {path}")
 
 
-def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum_scan_id,
-                  mzml_charge_plot, mzml_peak_distribution_plot, mzml_peaks_ms2_plot,
-                  mzml_charge_plot_1, mzml_peak_distribution_plot_1, mzml_peaks_ms2_plot_1,
-                  ms_without_psm, enable_dia=False):
+def add_ms_values(
+    info_df,
+    ms_name,
+    ms_with_psm,
+    identified_spectrum_scan_id,
+    mzml_charge_plot,
+    mzml_peak_distribution_plot,
+    mzml_peaks_ms2_plot,
+    mzml_charge_plot_1,
+    mzml_peak_distribution_plot_1,
+    mzml_peaks_ms2_plot_1,
+    ms_without_psm,
+    enable_dia=False,
+):
     """
     Process MS values from a dataframe row and add them to the appropriate histograms
 
@@ -54,9 +64,9 @@ def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum_scan_id,
         enable_dia: Whether DIA mode is enabled
     """
     # info_df is a Pandas.Seires not a DataFrame
-        # "precursor_charge" --> "Charge",
-        # "base_peak_intensity" --> "Base_Peak_Intensity",
-        # "num_peaks": --> "MS_peaks"
+    # "precursor_charge" --> "Charge",
+    # "base_peak_intensity" --> "Base_Peak_Intensity",
+    # "num_peaks": --> "MS_peaks"
 
     # charge_state = int(info_df["Charge"]) if info_df["Charge"] is not None else None
     # base_peak_intensity = (
@@ -66,7 +76,9 @@ def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum_scan_id,
     # )
     # peak_per_ms2 = int(info_df["MS_peaks"]) if info_df["MS_peaks"] is not None else None
 
-    charge_state = int(info_df["precursor_charge"]) if info_df["precursor_charge"] is not None else None
+    charge_state = (
+        int(info_df["precursor_charge"]) if info_df["precursor_charge"] is not None else None
+    )
     base_peak_intensity = (
         float(info_df["base_peak_intensity"])
         if info_df["base_peak_intensity"] is not None
@@ -79,7 +91,7 @@ def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum_scan_id,
         mzml_peak_distribution_plot.add_value(base_peak_intensity)
         mzml_peaks_ms2_plot.add_value(peak_per_ms2)
         return
-    
+
     if ms_name in ms_with_psm:
         # only "scan" in info_df not "SpectrumID"
         # if info_df["SpectrumID"] in identified_spectrum[ms_name]:
@@ -96,10 +108,19 @@ def add_ms_values(info_df, ms_name, ms_with_psm, identified_spectrum_scan_id,
             ms_without_psm.append(ms_name)
 
 
-def read_mzmls(ms_paths, ms_with_psm, identified_spectrum,
-               mzml_charge_plot, mzml_peak_distribution_plot, mzml_peaks_ms2_plot,
-               mzml_charge_plot_1, mzml_peak_distribution_plot_1, mzml_peaks_ms2_plot_1,
-               ms_without_psm, enable_dia=False):
+def read_mzmls(
+    ms_paths,
+    ms_with_psm,
+    identified_spectrum,
+    mzml_charge_plot,
+    mzml_peak_distribution_plot,
+    mzml_peaks_ms2_plot,
+    mzml_charge_plot_1,
+    mzml_peak_distribution_plot_1,
+    mzml_peaks_ms2_plot_1,
+    ms_without_psm,
+    enable_dia=False,
+):
     """
     Read mzML files and extract information
 
@@ -127,20 +148,12 @@ def read_mzmls(ms_paths, ms_with_psm, identified_spectrum,
     for m in ms_paths:
         ms1_number = 0
         ms2_number = 0
-        log.info(
-            "{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
-        )
+        log.info("{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
         MzMLFile().load(m, exp)
-        log.info(
-            "{}: Done parsing mzML file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), m
-            )
-        )
+        log.info("{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
         m_name = file_prefix(m)
         log.info(
-            "{}: Aggregating mzML file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), m_name
-            )
+            "{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m_name)
         )
         charge_2 = 0
         for i in exp:
@@ -154,9 +167,7 @@ def read_mzmls(ms_paths, ms_with_psm, identified_spectrum,
                 if i.getMetaValue("base peak intensity"):
                     base_peak_intensity = i.getMetaValue("base peak intensity")
                 else:
-                    base_peak_intensity = (
-                        max(peaks_tuple[1]) if len(peaks_tuple[1]) > 0 else None
-                    )
+                    base_peak_intensity = max(peaks_tuple[1]) if len(peaks_tuple[1]) > 0 else None
 
                 if charge_state == 2:
                     charge_2 += 1
@@ -193,10 +204,19 @@ def read_mzmls(ms_paths, ms_with_psm, identified_spectrum,
     return mzml_table, heatmap_charge, total_ms2_spectra
 
 
-def read_ms_info(ms_info_path, ms_with_psm, identified_spectrum,
-                 mzml_charge_plot, mzml_peak_distribution_plot, mzml_peaks_ms2_plot,
-                 mzml_charge_plot_1, mzml_peak_distribution_plot_1, mzml_peaks_ms2_plot_1,
-                 ms_without_psm, enable_dia=False):
+def read_ms_info(
+    ms_info_path,
+    ms_with_psm,
+    identified_spectrum,
+    mzml_charge_plot,
+    mzml_peak_distribution_plot,
+    mzml_peaks_ms2_plot,
+    mzml_charge_plot_1,
+    mzml_peak_distribution_plot_1,
+    mzml_peaks_ms2_plot_1,
+    ms_without_psm,
+    enable_dia=False,
+):
     """
     Read MS info files and extract information
 
@@ -223,7 +243,7 @@ def read_ms_info(ms_info_path, ms_with_psm, identified_spectrum,
     ms1_bpc = {}
     ms1_peaks = {}
     ms1_general_stats = {}
-    
+
     for file in ms_info_path:
         log.info(
             "{}: Parsing ms_statistics dataframe {}...".format(
@@ -254,16 +274,26 @@ def read_ms_info(ms_info_path, ms_with_psm, identified_spectrum,
         group = mzml_df[mzml_df["ms_level"] == 2]
         del mzml_df
 
-        identified_spectrum_scan_id = [re.search(r'scan=(\d+)', spectrum_id).group(1) 
-                                        for spectrum_id in identified_spectrum[m]]
-    
+        identified_spectrum_scan_id = [
+            re.search(r"scan=(\d+)", spectrum_id).group(1)
+            for spectrum_id in identified_spectrum[m]
+        ]
+
         # Apply add_ms_values to each row
         for _, row in group.iterrows():
             add_ms_values(
-                row, m, ms_with_psm, identified_spectrum_scan_id,
-                mzml_charge_plot, mzml_peak_distribution_plot, mzml_peaks_ms2_plot,
-                mzml_charge_plot_1, mzml_peak_distribution_plot_1, mzml_peaks_ms2_plot_1,
-                ms_without_psm, enable_dia
+                row,
+                m,
+                ms_with_psm,
+                identified_spectrum_scan_id,
+                mzml_charge_plot,
+                mzml_peak_distribution_plot,
+                mzml_peaks_ms2_plot,
+                mzml_charge_plot_1,
+                mzml_peak_distribution_plot_1,
+                mzml_peaks_ms2_plot_1,
+                ms_without_psm,
+                enable_dia,
             )
 
         for m in mzml_table.keys():
@@ -278,12 +308,28 @@ def read_ms_info(ms_info_path, ms_with_psm, identified_spectrum,
             )
         )
 
-    return mzml_table, heatmap_charge, total_ms2_spectra, ms1_tic, ms1_bpc, ms1_peaks, ms1_general_stats
+    return (
+        mzml_table,
+        heatmap_charge,
+        total_ms2_spectra,
+        ms1_tic,
+        ms1_bpc,
+        ms1_peaks,
+        ms1_general_stats,
+    )
 
 
-def parse_idxml(idx_paths, mzml_table, xcorr_hist_range, hyper_hist_range,
-                spec_evalue_hist_range, pep_hist_range, mL_spec_ident_final,
-                mzml_peptide_map, remove_decoy=True):
+def parse_idxml(
+    idx_paths,
+    mzml_table,
+    xcorr_hist_range,
+    hyper_hist_range,
+    spec_evalue_hist_range,
+    pep_hist_range,
+    mL_spec_ident_final,
+    mzml_peptide_map,
+    remove_decoy=True,
+):
     """
     Parse idXML files and extract information
 
@@ -343,9 +389,7 @@ def parse_idxml(idx_paths, mzml_table, xcorr_hist_range, hyper_hist_range,
         else:
             identified_num = len(peptide_ids)
 
-        ms_name = file_prefix(
-            protein_ids[0].getMetaValue("spectra_data")[0].decode("UTF-8")
-        )
+        ms_name = file_prefix(protein_ids[0].getMetaValue("spectra_data")[0].decode("UTF-8"))
         search_engine_name = protein_ids[0].getSearchEngine()
 
         search_engine["SpecE"][raw_id_name] = OrderedDict()
@@ -485,18 +529,18 @@ def parse_idxml(idx_paths, mzml_table, xcorr_hist_range, hyper_hist_range,
             mzml_table[ms_name][search_engine_name] = identified_num
 
         mzml_table[ms_name]["num_quant_psms"] = (
-            mL_spec_ident_final[ms_name]
-            if ms_name in mL_spec_ident_final.keys()
-            else 0
+            mL_spec_ident_final[ms_name] if ms_name in mL_spec_ident_final.keys() else 0
         )
         mzml_table[ms_name]["num_quant_peps"] = (
-            len(mzml_peptide_map[ms_name])
-            if ms_name in mL_spec_ident_final.keys()
-            else 0
+            len(mzml_peptide_map[ms_name]) if ms_name in mL_spec_ident_final.keys() else 0
         )
 
     for raw_id in consensus_paths:
-        log.info("{}: Parsing consensus file {}...".format(datetime.now().strftime("%H:%M:%S"), format(raw_id)))
+        log.info(
+            "{}: Parsing consensus file {}...".format(
+                datetime.now().strftime("%H:%M:%S"), format(raw_id)
+            )
+        )
         protein_ids = []
         peptide_ids = []
         IdXMLFile().load(raw_id, protein_ids, peptide_ids)
@@ -511,9 +555,7 @@ def parse_idxml(idx_paths, mzml_table, xcorr_hist_range, hyper_hist_range,
         consensus_support.to_dict()
 
         for i in consensus_support.dict["data"].keys():
-            search_engine["consensus_support"][raw_id_name][i] = consensus_support.dict[
-                "data"
-            ][i]
+            search_engine["consensus_support"][raw_id_name][i] = consensus_support.dict["data"][i]
 
     search_engine["data_label"] = {
         "score_label": [spec_e_label, xcorr_label, hyper_label],
