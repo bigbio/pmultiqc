@@ -3,14 +3,11 @@ name: Auto update examples
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   update_examples:
+    if: "! contains(github.event.head_commit.message, 'Update pmultiqc documentation and examples')"
     runs-on: ubuntu-latest
-    if: github.event.head_commit.author.name != 'GitHub Actions'
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,7 +32,7 @@ jobs:
       - name: Commit and push changes to dev-docs-update
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "auto-update examples"
+          commit_message: "Update pmultiqc documentation and examples"
           branch: dev-docs-update
           create_branch: true
           push_options: '--force'
@@ -47,7 +44,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "auto-update examples"
+          commit-message: "Update pmultiqc documentation and examples"
           title: "Auto-update examples"
           body: "This PR updates the docs with the latest example output."
           base: main
