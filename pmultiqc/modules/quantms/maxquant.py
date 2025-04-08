@@ -19,8 +19,8 @@ logger = get_logger("pmultiqc.modules.quantms.maxquant")
 
 def read(
     file: Path | ReadCsvBuffer[bytes] | ReadCsvBuffer[str] | str,
-    file_type: str=None,
-    filter_type: str=None,
+    file_type: str = None,
+    filter_type: str = None,
 ):
     """
     Read MaxQuant output files and perform initial processing.
@@ -1272,9 +1272,7 @@ def get_parameters(file_path: Path | ReadCsvBuffer[bytes] | ReadCsvBuffer[str] |
     logger.debug("Extracting parameters table")
     parameters_tb_dict = parameters_table(mq_data)
 
-    result = {
-        "parameters_tb_dict": parameters_tb_dict
-    }
+    result = {"parameters_tb_dict": parameters_tb_dict}
 
     logger.info("Completed processing parameters data")
     return result

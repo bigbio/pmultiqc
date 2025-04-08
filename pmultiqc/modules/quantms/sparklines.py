@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 letters = "abcdefghijklmnopqrstuvwxyz"
 
+
 def plot(data, headers=None, pconfig=None, max_value=0.0):
 
     if headers is None:
@@ -26,11 +27,13 @@ def plot(data, headers=None, pconfig=None, max_value=0.0):
     table_pconfig = TableConfig(**pconfig)
 
     # Make a DataTable object
-    dt = table_object.DataTable.create(data=data,
-                                       table_id=pconfig['id'],
-                                       table_anchor=plot_anchor,
-                                       pconfig=table_pconfig,
-                                       headers=headers)
+    dt = table_object.DataTable.create(
+        data=data,
+        table_id=pconfig["id"],
+        table_anchor=plot_anchor,
+        pconfig=table_pconfig,
+        headers=headers,
+    )
 
     # s_names = set()
     # for d in dt.raw_data:
@@ -50,6 +53,7 @@ def plot(data, headers=None, pconfig=None, max_value=0.0):
         return warning + violin.plot(data, headers, pconfig)
     else:
         return make_table(dt, max_value)
+
 
 def make_table(dt, max_value):
     # table_id = dt.pconfig.get("id", "table_{}".format("".join(random.sample(letters, 4))))

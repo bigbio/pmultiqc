@@ -1551,7 +1551,9 @@ class QuantMSModule(BaseMultiqcModule):
                 ),
             )
         )
-        log.info("{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S")))
+        log.info(
+            "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
+        )
 
     def cal_heat_map_score(self):
         log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
@@ -1657,7 +1659,9 @@ class QuantMSModule(BaseMultiqcModule):
                 ),
             )
         )
-        log.info("{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S")))
+        log.info(
+            "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
+        )
 
     # if missed.cleavages is not given, it is assumed that Trypsin was used for digestion
     @staticmethod
@@ -1771,9 +1775,17 @@ class QuantMSModule(BaseMultiqcModule):
                 self.mzml_peak_distribution_plot_1,
                 self.mzml_peaks_ms2_plot_1,
                 self.ms_without_psm,
-                self.enable_dia
+                self.enable_dia,
             )
-            mzml_table, heatmap_charge, self.total_ms2_spectra, self.ms1_tic, self.ms1_bpc, self.ms1_peaks, self.ms1_general_stats = result
+            (
+                mzml_table,
+                heatmap_charge,
+                self.total_ms2_spectra,
+                self.ms1_tic,
+                self.ms1_bpc,
+                self.ms1_peaks,
+                self.ms1_general_stats,
+            ) = result
         else:
             result = ms_io.read_mzmls(
                 self.ms_paths,
@@ -1786,7 +1798,7 @@ class QuantMSModule(BaseMultiqcModule):
                 self.mzml_peak_distribution_plot_1,
                 self.mzml_peaks_ms2_plot_1,
                 self.ms_without_psm,
-                self.enable_dia
+                self.enable_dia,
             )
             mzml_table, heatmap_charge, self.total_ms2_spectra = result
 
@@ -1855,7 +1867,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.pep_hist_range,
             self.mL_spec_ident_final,
             self.mzml_peptide_map,
-            config.kwargs["remove_decoy"]
+            config.kwargs["remove_decoy"],
         )
 
         self.search_engine, self.MSGF_label, self.Comet_label, self.Sage_label = result
@@ -2823,7 +2835,11 @@ class QuantMSModule(BaseMultiqcModule):
             }
 
     def parse_msstats_input(self):
-        log.info("{}: Parsing MSstats input file {}...".format(datetime.now().strftime("%H:%M:%S"), self.msstats_input_path))
+        log.info(
+            "{}: Parsing MSstats input file {}...".format(
+                datetime.now().strftime("%H:%M:%S"), self.msstats_input_path
+            )
+        )
         msstats_data = pd.read_csv(self.msstats_input_path)
         ## TODO we probably shouldn't even write out 0-intensity values to MSstats csv
         msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
@@ -2893,18 +2909,15 @@ class QuantMSModule(BaseMultiqcModule):
             "ProteinName": {
                 "title": "Protein Name",
                 "description": "Name/Identifier(s) of the protein (group)",
-                "minrange": "200"
-                },
+                "minrange": "200",
+            },
             "PeptideSequence": {"title": "Peptide Sequence"},
-            "BestSearchScore": {
-                "title": "Best Search Score",
-                "format": "{:,.4f}"
-                },
+            "BestSearchScore": {"title": "Best Search Score", "format": "{:,.4f}"},
             "Average Intensity": {
                 "title": "Average Intensity",
                 "description": "Average intensity across all conditions",
-                "format": "{:,.4f}"
-                }
+                "format": "{:,.4f}",
+            },
         }
 
         for s in conditions:
@@ -2952,7 +2965,8 @@ class QuantMSModule(BaseMultiqcModule):
         table_html = table.plot(
             dict(itertools.islice(msstats_data_dict_pep_init.items(), max_pep_intensity)),
             headers=headers,
-            pconfig=draw_config)
+            pconfig=draw_config,
+        )
 
         # Add a report section with the line plot
         self.add_section(
@@ -3018,18 +3032,18 @@ class QuantMSModule(BaseMultiqcModule):
         headers = {
             "ProteinName": {
                 "title": "Protein Name",
-                "description": "Name/Identifier(s) of the protein (group)"
-                },
+                "description": "Name/Identifier(s) of the protein (group)",
+            },
             "Peptides_Number": {
                 "title": "Number of Peptides",
                 "description": "Number of peptides per proteins",
-                "format": "{:,.0f}"
-                },
+                "format": "{:,.0f}",
+            },
             "Average Intensity": {
                 "title": "Average Intensity",
                 "description": "Average intensity across all conditions",
-                "format": "{:,.4f}"
-                }
+                "format": "{:,.4f}",
+            },
         }
 
         # upload protein table to sqlite database

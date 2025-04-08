@@ -26,10 +26,10 @@ def get_filename(file: Union[Path, io.BufferedReader, io.StringIO, str]) -> Opti
 
     # Check if it's a string (filepath)
     if isinstance(file, str):
-        return Path(file).name if '/' in file or '\\' in file else file
+        return Path(file).name if "/" in file or "\\" in file else file
 
     # Check if it's a buffer with a name attribute (some file objects have this)
-    if hasattr(file, 'name') and isinstance(file.name, str):
+    if hasattr(file, "name") and isinstance(file.name, str):
         return Path(file.name).name
 
     # For StringIO/BytesIO objects without names or other cases
