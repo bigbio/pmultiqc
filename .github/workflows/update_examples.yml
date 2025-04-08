@@ -27,18 +27,33 @@ jobs:
         run: |
           python docs/update_examples.py
 
-      - name: Commit and push changes to dev-docs-update
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update pmultiqc documentation and examples"
-          branch: dev-docs-update
-          create_branch: true
-          push_options: '--force'
-          commit_user_name: GitHub Actions
-          commit_user_email: actions@github.com
-          file_pattern: docs/*
+      - name: Check if changes were made
+        id: check_changes
+        run: |
+          if [[ -n $(git status --porcelain docs/) ]]; then
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Create Pull Request to main
+      - name: Check for existing PR
+        if: steps.check_changes.outputs.changes_detected == 'true'
+        id: check_pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: pulls } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:dev-docs-update`,
+              base: 'main',
+              state: 'open'
+            });
+            return pulls.length > 0 ? 'exists' : 'not_exists';
+          result-encoding: string
+
+      - name: Create Pull Request
+        if: steps.check_changes.outputs.changes_detected == 'true' && steps.check_pr.outputs.result == 'not_exists'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
