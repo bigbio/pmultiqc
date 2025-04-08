@@ -1,11 +1,105 @@
-# pmultiqc Examples
+# pmultiqc
 
-This directory contains examples for the pmultiqc project.
+[![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
+[![Upload Python Package](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml)
+![PyPI - Version](https://img.shields.io/pypi/v/pmultiqc?style=flat)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/pmultiqc)
+![Pepy Total Downloads](https://img.shields.io/pepy/dt/pmultiqc)
+![GitHub Repo stars](https://img.shields.io/github/stars/bigbio/pmultiqc)
 
-## Plugins:
+
+## What is pmultiqc?
+
+pmultiqc is a MultiQC plugin for comprehensive quality control reporting of proteomics data. It generates interactive HTML reports with visualizations and metrics to help you assess the quality of your mass spectrometry-based proteomics experiments.
+
+### Key Features
+
+- Works with multiple proteomics data formats and analysis pipelines
+- Generates interactive HTML reports with visualizations
+- Provides comprehensive QC metrics for MS data
+- Supports different quantification methods (LFQ, TMT, DIA)
+- Integrates with the MultiQC framework
+
+## Supported Data Sources
+
+pmultiqc supports the following data sources:
+
+1. **[quantms pipeline](https://github.com/nf-core/quantms)** output files:
+   - `experimental_design.tsv`: Experimental design file
+   - `*.mzTab`: Results of the identification
+   - `*msstats*.csv`: MSstats/MSstatsTMT input files
+   - `*.mzML`: Spectra files
+   - `*ms_info.tsv`: MS quality control information
+   - `*.idXML`: Identification results
+   - `*.yml`: Pipeline parameters (optional)
+   - `diann_report.tsv`: DIA-NN main report (DIA analysis only)
+
+2. **[MaxQuant](https://www.maxquant.org)** result files:
+   - `parameters.txt`: Analysis parameters
+   - `proteinGroups.txt`: Protein identification results
+   - `summary.txt`: Summary statistics
+   - `evidence.txt`: Peptide evidence
+   - `msms.txt`: MS/MS scan information
+   - `msmsScans.txt`: MS/MS scan details
+
+3. **mzIdentML** files:
+   - `*.mzid`: Identification results
+   - `*.mzML` or `*.mgf`: Corresponding spectra files
+
+## Installation
+
+```bash
+# Install from PyPI
+pip install pmultiqc
+
+# Or install from source
+git clone https://github.com/bigbio/pmultiqc
+cd pmultiqc
+pip install -e .
+```
+
+## Usage
+
+pmultiqc is used as a plugin for MultiQC. After installation, you can run it using the MultiQC command-line interface.
+
+### Basic Usage
+
+```bash
+multiqc {analysis_dir} -o {output_dir}
+```
+
+Where:
+- `{analysis_dir}` is the directory containing your proteomics data files
+- `{output_dir}` is the directory where you want to save the report
+
+### Examples
+
+#### For quantms pipeline results
+
+```bash
+# Basic usage
+multiqc /path/to/quantms/results -o ./report
+
+# With specific options
+multiqc /path/to/quantms/results -o ./report --remove_decoy --condition factor
+```
+
+#### For MaxQuant results
+
+```bash
+multiqc --parse_maxquant /path/to/maxquant/results -o ./report
+```
+
+#### For mzIdentML files
+
+```bash
+multiqc --mzid_plugin /path/to/mzid/files -o ./report
+```
+
+### Command-line Options
 
 | Option | Description | Default |
-|--------|-------------|---------|
+|---|---|---|
 | `--raw` | Keep filenames in experimental design output as raw | `False` |
 | `--condition` | Create conditions from provided columns | - |
 | `--remove_decoy` | Remove decoy peptides when counting | `True` |
@@ -19,17 +113,59 @@ This directory contains examples for the pmultiqc project.
 | `--parse_maxquant` | Generate reports based on MaxQuant results | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
 
-## Example Data
-The example data information can be found in the `config.json`.
+## QC Metrics and Visualizations
 
-## Example reports:
+pmultiqc generates a comprehensive report with multiple sections:
 
-- [LFQ Example](LFQ_PXD007683/multiqc_report.html)
-- [TMT Example](TMT_PXD007683/multiqc_report.html)
-- [DIA Example](dia/multiqc_report.html)
-- [MaxQuant Example](PXD003133/multiqc_report.html)
-- [mzIdentML with mzML Example](PXD051187/multiqc_report.html)
-- [mzIdentML with MGF Example](PXD054720/multiqc_report.html)
+### General Report
+
+- **Experimental Design**: Overview of the dataset structure
+- **Pipeline Performance Overview**: Key metrics including:
+  - Contaminants Score
+  - Peptide Intensity
+  - Charge Score
+  - Missed Cleavages
+  - ID rate over RT
+  - MS2 OverSampling
+  - Peptide Missing Value
+- **Summary Table**: Spectra counts, identification rates, peptide and protein counts
+- **MS1 Information**: Quality metrics at MS1 level
+- **Pipeline Results Statistics**: Overall identification results
+- **Number of Peptides per Protein**: Distribution of peptide counts per protein
+
+### Results Tables
+
+- **Peptide Table**: First 500 peptides in the dataset
+- **PSM Table**: First 500 PSMs (Peptide-Spectrum Matches)
+
+### Identification Statistics
+
+- **Spectra Tracking**: Summary of identification results by file
+- **Search Engine Scores**: Distribution of search engine scores
+- **Precursor Charges Distribution**: Distribution of precursor ion charges
+- **Number of Peaks per MS/MS Spectrum**: Peak count distribution
+- **Peak Intensity Distribution**: MS2 peak intensity distribution
+- **Oversampling Distribution**: Analysis of MS2 oversampling
+- **Delta Mass**: Mass accuracy distribution
+- **Peptide/Protein Quantification Tables**: Quantitative levels across conditions
+
+## Example Reports
+
+You can find example reports on the [docs page](https://bigbio.github.io/pmultiqc).
+
+## Contributing
+
+To contribute to pmultiqc:
+
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/pmultiqc`
+3. Create a feature branch: `git checkout -b new-feature`
+4. Make your changes
+5. Install in development mode: `pip install -e .`
+6. Test your changes: `cd tests && multiqc resources/LFQ -o ./`
+7. Commit your changes: `git commit -am 'Add new feature'`
+8. Push to the branch: `git push origin new-feature`
+9. Submit a pull request
 
 ## License
 
@@ -39,5 +175,22 @@ This project is licensed under the terms of the LICENSE file included in the rep
 
 If you use pmultiqc in your research, please cite:
 
+```
 pmultiqc: A MultiQC plugin for proteomics quality control
 https://github.com/bigbio/pmultiqc
+```
+
+## Examples
+
+This directory contains examples for the pmultiqc project.  See the table below for details.
+
+| Example Type | Description | Link |
+|---|---|---|
+| LFQ | Label-free quantification | [LFQ Example](LFQ_PXD007683/multiqc_report.html) |
+| TMT | Tandem mass tag | [TMT Example](TMT_PXD007683/multiqc_report.html) |
+| DIA | Data-independent acquisition | [DIA Example](dia/multiqc_report.html) |
+| MaxQuant | MaxQuant results | [MaxQuant Example](PXD003133/multiqc_report.html) |
+| mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](PXD051187/multiqc_report.html) |
+| mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](PXD054720/multiqc_report.html) |
+
+Replace `<path_to_your_data>` with the path to your data directory. Make sure that the data directory contains the necessary files for pmultiqc to process. For more information, please refer to the [pmultiqc documentation](https://github.com/bigbio/pmultiqc).

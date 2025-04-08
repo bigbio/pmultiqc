@@ -2,6 +2,10 @@
 
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
 [![Upload Python Package](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml)
+![PyPI - Version](https://img.shields.io/pypi/v/pmultiqc?style=flat)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/pmultiqc)
+![Pepy Total Downloads](https://img.shields.io/pepy/dt/pmultiqc)
+![GitHub Repo stars](https://img.shields.io/github/stars/bigbio/pmultiqc)
 
 ## What is pmultiqc?
 
