@@ -52,7 +52,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/LFQ_PXD007683.zip
           unzip -d ./lfq LFQ_PXD007683.zip
-          multiqc ./lfq --config ./lfq/LFQ_PXD007683/multiqc_config.yml -o ./results_lfq
+          multiqc ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -75,7 +75,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip
           unzip -d ./tmt TMT_PXD007683.zip
-          multiqc ./tmt --config ./tmt/TMT_PXD007683/multiqc_config.yml -o ./results_tmt
+          multiqc ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -96,8 +96,8 @@ jobs:
         run: pip install .
       - name: Test DIA dataset
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia.zip
-          unzip -d ./dia dia.zip
+          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia_81923.zip
+          unzip -d ./dia dia_81923.zip
           multiqc ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
       - uses: actions/upload-artifact@v4
         if: always()
