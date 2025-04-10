@@ -104,8 +104,7 @@ def add_ms_values(
             mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
             mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
     else:
-        if ms_name not in ms_without_psm:
-            ms_without_psm.append(ms_name)
+        ms_without_psm.append(ms_name)
 
 
 def read_mzmls(
@@ -351,8 +350,11 @@ def parse_idxml(
     for raw_id in idx_paths:
         if "consensus" in os.path.split(raw_id)[1]:
             consensus_paths.append(raw_id)
-            idx_paths.remove(raw_id)
 
+    for raw_id in consensus_paths:
+        if raw_id in idx_paths:
+            idx_paths.remove(raw_id)
+            
     MSGF_label, Comet_label, Sage_label = False, False, False
     search_engine = {
         "SpecE": OrderedDict(),
@@ -453,9 +455,6 @@ def parse_idxml(
             stacks=bar_stacks,
             breaks=pep_breaks,
         )
-        consensus_support = Histogram(
-            "Consensus PSM number", plot_category="frequency", stacks=bar_stacks
-        )
 
         if search_engine_name == "MSGF+" or "msgf" in raw_id_name:
             mzml_table[ms_name]["MSGF"] = identified_num
@@ -545,8 +544,13 @@ def parse_idxml(
         peptide_ids = []
         IdXMLFile().load(raw_id, protein_ids, peptide_ids)
         raw_id_name = file_prefix(raw_id)
+
         consensus_label.append({"name": raw_id_name, "ylab": "Counts"})
         search_engine["consensus_support"][raw_id_name] = OrderedDict()
+        
+        consensus_support = Histogram(
+            "Consensus PSM number", plot_category="frequency", stacks=bar_stacks
+        )
 
         for peptide_id in peptide_ids:
             for hit in peptide_id.getHits():
