@@ -727,7 +727,7 @@ class QuantMSModule(BaseMultiqcModule):
             },
         }
         table_html = table.plot(rows_by_group, headers, pconfig)
-        
+
         # Add a report section with the line plot
         self.add_section(
             name="Experimental Design",
@@ -1343,7 +1343,7 @@ class QuantMSModule(BaseMultiqcModule):
             # helptext="This statistic is extracted from idXML files.",
         )
         # Create scores summary plot
-        [MSGF_labels, Comet_labels, Sage_labels] = self.search_engine["data_label"]["score_label"]
+        [msgf_labels, comet_labels, sage_labels] = self.search_engine["data_label"]["score_label"]
 
         spec_e_pconfig = {
             "id": "search_scores_summary",  # ID used for the table
@@ -1354,7 +1354,7 @@ class QuantMSModule(BaseMultiqcModule):
             "height": 550,
             "tt_suffix": "",
             "tt_decimals": 0,
-            "data_labels": MSGF_labels,
+            "data_labels": msgf_labels,
         }
 
         xcorr_pconfig = {
@@ -1366,7 +1366,7 @@ class QuantMSModule(BaseMultiqcModule):
             "height": 550,
             "tt_suffix": "",
             "tt_decimals": 0,
-            "data_labels": Comet_labels,
+            "data_labels": comet_labels,
         }
 
         hyper_pconfig = {
@@ -1378,7 +1378,7 @@ class QuantMSModule(BaseMultiqcModule):
             "height": 550,
             "tt_suffix": "",
             "tt_decimals": 0,
-            "data_labels": Sage_labels,
+            "data_labels": sage_labels,
         }
 
         bar_cats = OrderedDict()
