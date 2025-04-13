@@ -8,12 +8,13 @@ import itertools
 from datetime import datetime
 from operator import itemgetter
 import logging
-from multiqc import config
+from multiqc import config, BaseMultiqcModule
 
-from multiqc import BaseMultiqcModule
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc.plots import table, bargraph, linegraph, heatmap, box, scatter
-from multiqc.utils.mqc_colour import mqc_colour_scale
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
+from typing import Dict, List
 
 import pandas as pd
 from functools import reduce
@@ -636,6 +637,7 @@ class QuantMSModule(BaseMultiqcModule):
         if self.file_df["Spectra_Filepath"][0].endswith((".d", ".d.tar")):
             self.is_bruker = True
 
+        # Get self.exp_design_table
         for file in np.unique(self.file_df["Run"].tolist()):
             file_index = self.file_df[self.file_df["Run"] == file]
             self.exp_design_table[file] = {
@@ -661,33 +663,47 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
         # Create table plot
+        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
+
+        for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
+            file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
+            sample_df_slice = self.sample_df[self.sample_df["Sample"] ==sample].copy()
+            row_data: List[InputRow] = []
+            row_data.append(
+                InputRow(
+                    sample=SampleName(sample),
+                    data={
+                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
+                        "Fraction_Group": "",
+                        "Fraction": "",
+                        "Label": "",
+                        }))
+            for _, row in file_df_sample.iterrows():
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(row["Run"]),
+                        data={
+                            "MSstats_Condition": "",
+                            "MSstats_BioReplicate": "",
+                            "Fraction_Group": row["Fraction_Group"],
+                            "Fraction": row["Fraction"],
+                            "Label": row["Label"],
+                            }))
+            group_name: SampleGroup = SampleGroup(sample)
+            rows_by_group[group_name] = row_data
+
         pconfig = {
-            "id": "Experimental_Design",  # ID used for the table
-            "title": "Experimental Design",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_Experimental_Design_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": False,  # Only show columns that are defined in the headers config
-            "col1_header": "Spectra File",
+            "id": "experimental_design",
+            "title": "Experimental Design",
+            "save_file": False,
+            "raw_data_fn": "multiqc_Experimental_Design_table",
             "no_violin": True,
-            # 'format': '{:,.0f}',  # The header used for the first column
         }
         headers = {
-            "Fraction_Group": {
-                "title": "Fraction_Group",
-                "description": "Fraction_Group",
-            },
-            "Fraction": {
-                "title": "Fraction",
-                "description": "Fraction identifier",
-            },
-            "Label": {
-                "title": "Label",
-                "description": "Label",
-            },
             "Sample": {
-                "title": "Sample",
-                "description": "Sample Name",
+                "title": "Sample [Spectra File]",
+                "description": "",
             },
             "MSstats_Condition": {
                 "title": "MSstats_Condition",
@@ -697,9 +713,21 @@ class QuantMSModule(BaseMultiqcModule):
                 "title": "MSstats_BioReplicate",
                 "description": "MSstats BioReplicate",
             },
+            "Fraction_Group": {
+                "title": "Fraction_Group",
+                "description": "Fraction Group",
+            },
+            "Fraction": {
+                "title": "Fraction",
+                "description": "Fraction Identifier",
+            },
+            "Label": {
+                "title": "Label",
+                "description": "Label",
+            },
         }
-        table_html = table.plot(self.exp_design_table, headers, pconfig)
-
+        table_html = table.plot(rows_by_group, headers, pconfig)
+        
         # Add a report section with the line plot
         self.add_section(
             name="Experimental Design",
