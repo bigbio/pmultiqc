@@ -667,7 +667,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
             file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-            sample_df_slice = self.sample_df[self.sample_df["Sample"] ==sample].copy()
+            sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
             row_data: List[InputRow] = []
             row_data.append(
                 InputRow(
@@ -678,7 +678,9 @@ class QuantMSModule(BaseMultiqcModule):
                         "Fraction_Group": "",
                         "Fraction": "",
                         "Label": "",
-                        }))
+                    },
+                )
+            )
             for _, row in file_df_sample.iterrows():
                 row_data.append(
                     InputRow(
@@ -689,7 +691,9 @@ class QuantMSModule(BaseMultiqcModule):
                             "Fraction_Group": row["Fraction_Group"],
                             "Fraction": row["Fraction"],
                             "Label": row["Label"],
-                            }))
+                        },
+                    )
+                )
             group_name: SampleGroup = SampleGroup(sample)
             rows_by_group[group_name] = row_data
 
@@ -821,6 +825,7 @@ class QuantMSModule(BaseMultiqcModule):
                 "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
                 "title": "Total Ion Chromatograms",
                 "ylab": "Ion Count",
+                "xlab": "Retention Time (min)",
                 "ymin": 0,
             }
             ms1_tic_html = linegraph.plot(self.ms1_tic, ms1_tic_config)
@@ -828,7 +833,15 @@ class QuantMSModule(BaseMultiqcModule):
                 name="MS1 Information",
                 anchor="ms1_information",
                 description="#### MS1 quality control information extracted from the spectrum files",
-                helptext="TODO: add description here @Yasset",
+                helptext="This plot displays Total Ion Chromatograms (TICs) from MS1 scans across all analyzed samples. The x-axis represents the retention time, while the y-axis shows the ion count intensity. Each colored line represents a different sample. "
+                "The TIC provides an overview of the total ion signal throughout your LC-MS/MS run, showing when most compounds elute from the chromatography column. Key features to look for include:"
+                "1. Overall intensity pattern: Consistent baseline and relative peak heights across samples indicate good reproducibility"
+                "2. Major peaks: Prominent peaks should appear at similar retention times across samples."
+                "3. Signal-to-noise ratio: Higher peaks relative to baseline noise indicate better sensitivity"
+                "4. Chromatographic resolution: Well-separated peaks suggest good chromatographic performance"
+                "5. Signal drift: Gradual decrease in intensity may indicate MS source contamination or chromatography issues"
+                ""
+                "Unusual patterns, such as shifted retention times, missing peaks, or significantly different intensities may indicate sample preparation inconsistencies, chromatography problems, or MS instrumentation issues that warrant further investigation.",
                 plot=ms1_tic_html,
             )
 
@@ -997,7 +1010,7 @@ class QuantMSModule(BaseMultiqcModule):
                 {"name": "Percentage", "ylab": "Percentage [%]"},
             ]
         pconfig = {
-            "id": "number_of_peptides_per_proteins",    # ID used for the table
+            "id": "number_of_peptides_per_proteins",  # ID used for the table
             "cpswitch": False,
             "title": "Number of Peptides identified per Protein",
             "xlab": "Number of Peptides",
