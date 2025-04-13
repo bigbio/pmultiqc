@@ -851,6 +851,7 @@ class QuantMSModule(BaseMultiqcModule):
                 "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
                 "title": "MS1 BPC",
                 "ylab": "Ion Count",
+                "xlab": "Retention Time (min)",
                 "ymin": 0,
             }
             ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
@@ -873,12 +874,31 @@ class QuantMSModule(BaseMultiqcModule):
                 "tt_label": "<b>{point.x} Peak Count:</b> {point.y}",
                 "title": "MS1 Peaks",
                 "ylab": "Peak Count",
+                "xlab": "Retention Time (min)",
                 "ymin": 0,
             }
             ms1_peaks_html = linegraph.plot(self.ms1_peaks, ms1_peaks_config)
             self.add_section(
                 description="""#### MS1 Peaks from the spectrum files""",
-                helptext="TODO: add description here @Yasset",
+                helptext="This plot shows the number of peaks detected in MS1 scans over the course of each sample run."
+                         " The x-axis represents retention time (in minutes), while the y-axis displays the number of"
+                         " distinct ion signals (peaks) identified in each MS1 scan. The MS1 peak count reflects spectral"
+                         " complexity and provides insight into instrument performance during the LC-MS analysis."
+                         " Key aspects to consider include:"
+                         " 1. Overall pattern: Peak counts typically increase during the elution of complex mixtures and"
+                         " decrease during column washing or re-equilibration phases."
+                         " 2. Peak density: Higher counts suggest more complex spectra, potentially indicating a greater"
+                         " number of compounds present at that time point."
+                         " 3. Peak Consistency across samples: Similar profiles among replicates or related samples"
+                         " indicate good analytical reproducibility."
+                         " 4. Sudden drops: Abrupt decreases in peak count may point to transient ionization issues,"
+                         " spray instability, or chromatographic disruptions."
+                         " 5. Baseline values: The minimum peak count observed reflects the level of background noise"
+                         " or instrument sensitivity in the absence of eluting compounds."
+                         ""
+                         " Monitoring MS1 peak counts complements total ion chromatogram (TIC) and base peak chromatogram"
+                         " (BPC) data, offering an additional layer of quality control related to signal complexity,"
+                         " instrument stability, and sample composition.",
                 plot=ms1_peaks_html,
             )
 
@@ -1485,7 +1505,6 @@ class QuantMSModule(BaseMultiqcModule):
 
         self.add_section(
             description="""#### Summary of Posterior Error Probabilities (PEP)""",
-            # TODO: add description here @Yasset
             helptext="This statistic is extracted from idXML files.",
             plot=pep_bar_html,
         )
@@ -3455,7 +3474,6 @@ class QuantMSModule(BaseMultiqcModule):
             name="Charge-state of per Raw file",
             anchor="Charge_state_of_per_Raw_file",
             description="The distribution of the charge-state of the precursor ion, excluding potential contaminants.",
-            # TODO: add description here @Yasset
             helptext="The distribution of the charge-state of the precursor ion, excluding potential contaminants.",
             plot=bar_html,
         )
