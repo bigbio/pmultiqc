@@ -177,3 +177,4 @@ If you use pmultiqc in your research, please cite:
 ```
 pmultiqc: A MultiQC plugin for proteomics quality control
 https://github.com/bigbio/pmultiqc
+```

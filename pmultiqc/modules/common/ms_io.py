@@ -104,8 +104,7 @@ def add_ms_values(
             mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
             mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
     else:
-        if ms_name not in ms_without_psm:
-            ms_without_psm.append(ms_name)
+        ms_without_psm.append(ms_name)
 
 
 def read_mzmls(
@@ -326,7 +325,7 @@ def parse_idxml(
     hyper_hist_range,
     spec_evalue_hist_range,
     pep_hist_range,
-    mL_spec_ident_final,
+    ml_spec_ident_final,
     mzml_peptide_map,
     remove_decoy=True,
 ):
@@ -340,7 +339,7 @@ def parse_idxml(
         hyper_hist_range: Range for hyper histogram
         spec_evalue_hist_range: Range for spec_evalue histogram
         pep_hist_range: Range for PEP histogram
-        mL_spec_ident_final: Dictionary of identified spectra counts
+        ml_spec_ident_final: Dictionary of identified spectra counts
         mzml_peptide_map: Dictionary of peptide maps
         remove_decoy: Whether to remove decoy hits
 
@@ -351,9 +350,12 @@ def parse_idxml(
     for raw_id in idx_paths:
         if "consensus" in os.path.split(raw_id)[1]:
             consensus_paths.append(raw_id)
+
+    for raw_id in consensus_paths:
+        if raw_id in idx_paths:
             idx_paths.remove(raw_id)
 
-    MSGF_label, Comet_label, Sage_label = False, False, False
+    msgf_label, comet_label, sage_label = False, False, False
     search_engine = {
         "SpecE": OrderedDict(),
         "xcorr": OrderedDict(),
@@ -453,13 +455,10 @@ def parse_idxml(
             stacks=bar_stacks,
             breaks=pep_breaks,
         )
-        consensus_support = Histogram(
-            "Consensus PSM number", plot_category="frequency", stacks=bar_stacks
-        )
 
         if search_engine_name == "MSGF+" or "msgf" in raw_id_name:
             mzml_table[ms_name]["MSGF"] = identified_num
-            MSGF_label = True
+            msgf_label = True
             spec_e_label.append({"name": raw_id_name, "ylab": "Counts"})
             peps_label.append({"name": raw_id_name, "ylab": "Counts"})
             for peptide_id in peptide_ids:
@@ -484,7 +483,7 @@ def parse_idxml(
             search_engine["PEPs"][raw_id_name] = posterior_error.dict["data"]
 
         elif search_engine_name == "Comet" or "comet" in raw_id_name:
-            Comet_label = True
+            comet_label = True
             mzml_table[ms_name]["Comet"] = identified_num
             xcorr_label.append({"name": raw_id_name, "ylab": "Counts"})
             peps_label.append({"name": raw_id_name, "ylab": "Counts"})
@@ -505,7 +504,7 @@ def parse_idxml(
             search_engine["PEPs"][raw_id_name] = posterior_error.dict["data"]
 
         elif search_engine_name == "Sage" or "sage" in raw_id_name:
-            Sage_label = True
+            sage_label = True
             mzml_table[ms_name]["Sage"] = identified_num
             hyper_label.append({"name": raw_id_name, "ylab": "Counts"})
             peps_label.append({"name": raw_id_name, "ylab": "Counts"})
@@ -529,10 +528,10 @@ def parse_idxml(
             mzml_table[ms_name][search_engine_name] = identified_num
 
         mzml_table[ms_name]["num_quant_psms"] = (
-            mL_spec_ident_final[ms_name] if ms_name in mL_spec_ident_final.keys() else 0
+            ml_spec_ident_final[ms_name] if ms_name in ml_spec_ident_final.keys() else 0
         )
         mzml_table[ms_name]["num_quant_peps"] = (
-            len(mzml_peptide_map[ms_name]) if ms_name in mL_spec_ident_final.keys() else 0
+            len(mzml_peptide_map[ms_name]) if ms_name in ml_spec_ident_final.keys() else 0
         )
 
     for raw_id in consensus_paths:
@@ -545,8 +544,13 @@ def parse_idxml(
         peptide_ids = []
         IdXMLFile().load(raw_id, protein_ids, peptide_ids)
         raw_id_name = file_prefix(raw_id)
+
         consensus_label.append({"name": raw_id_name, "ylab": "Counts"})
         search_engine["consensus_support"][raw_id_name] = OrderedDict()
+
+        consensus_support = Histogram(
+            "Consensus PSM number", plot_category="frequency", stacks=bar_stacks
+        )
 
         for peptide_id in peptide_ids:
             for hit in peptide_id.getHits():
@@ -563,4 +567,4 @@ def parse_idxml(
         "consensus_label": consensus_label,
     }
 
-    return search_engine, MSGF_label, Comet_label, Sage_label
+    return search_engine, msgf_label, comet_label, sage_label

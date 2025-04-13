@@ -8,12 +8,13 @@ import itertools
 from datetime import datetime
 from operator import itemgetter
 import logging
-from multiqc import config
+from multiqc import config, BaseMultiqcModule
 
-from multiqc import BaseMultiqcModule
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc.plots import table, bargraph, linegraph, heatmap, box, scatter
-from multiqc.utils.mqc_colour import mqc_colour_scale
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
+from typing import Dict, List
 
 import pandas as pd
 from functools import reduce
@@ -247,7 +248,7 @@ class QuantMSModule(BaseMultiqcModule):
                 )
             if ms_ms_identified:
                 self.draw_summary(ms_ms_identified)
-            # self.draw_intensity_his(get_evidence_dicts['peptide_intensity']['histogram'], fig_type='peptide_intensity')
+
             if get_evidence_dicts["peptide_intensity"]:
                 self.draw_intensity_box(
                     get_evidence_dicts["peptide_intensity"]["box"], fig_type="peptide_intensity"
@@ -636,6 +637,7 @@ class QuantMSModule(BaseMultiqcModule):
         if self.file_df["Spectra_Filepath"][0].endswith((".d", ".d.tar")):
             self.is_bruker = True
 
+        # Get self.exp_design_table
         for file in np.unique(self.file_df["Run"].tolist()):
             file_index = self.file_df[self.file_df["Run"] == file]
             self.exp_design_table[file] = {
@@ -661,49 +663,71 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
         # Create table plot
-        pconfig = {
-            "id": "Experimental_Design",  # ID used for the table
-            "title": "Experimental Design",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_Experimental_Design_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": False,  # Only show columns that are defined in the headers config
-            "col1_header": "Spectra File",
-            "no_violin": True,
-            # 'format': '{:,.0f}',  # The header used for the first column
-        }
-        headers = OrderedDict()
-        set3_scale = mqc_colour_scale(name="Set3")
-        maxnr = len(self.file_df.index)
-        set3_colors = set3_scale.get_colours(name="Set3")
-        colors = dict((str(i + 1), set3_colors[i % len(set3_colors)]) for i in range(maxnr))
+        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
-        headers["Fraction_Group"] = {
-            "description": "Fraction_Group",
-            "bgcols": colors,
+        for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
+            file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
+            sample_df_slice = self.sample_df[self.sample_df["Sample"] ==sample].copy()
+            row_data: List[InputRow] = []
+            row_data.append(
+                InputRow(
+                    sample=SampleName(sample),
+                    data={
+                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
+                        "Fraction_Group": "",
+                        "Fraction": "",
+                        "Label": "",
+                        }))
+            for _, row in file_df_sample.iterrows():
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(row["Run"]),
+                        data={
+                            "MSstats_Condition": "",
+                            "MSstats_BioReplicate": "",
+                            "Fraction_Group": row["Fraction_Group"],
+                            "Fraction": row["Fraction"],
+                            "Label": row["Label"],
+                            }))
+            group_name: SampleGroup = SampleGroup(sample)
+            rows_by_group[group_name] = row_data
+
+        pconfig = {
+            "id": "experimental_design",
+            "title": "Experimental Design",
+            "save_file": False,
+            "raw_data_fn": "multiqc_Experimental_Design_table",
+            "no_violin": True,
         }
-        headers["Fraction"] = {
-            "description": "Fraction identifier",
-            "bgcols": colors,
+        headers = {
+            "Sample": {
+                "title": "Sample [Spectra File]",
+                "description": "",
+            },
+            "MSstats_Condition": {
+                "title": "MSstats_Condition",
+                "description": "MSstats Condition",
+            },
+            "MSstats_BioReplicate": {
+                "title": "MSstats_BioReplicate",
+                "description": "MSstats BioReplicate",
+            },
+            "Fraction_Group": {
+                "title": "Fraction_Group",
+                "description": "Fraction Group",
+            },
+            "Fraction": {
+                "title": "Fraction",
+                "description": "Fraction Identifier",
+            },
+            "Label": {
+                "title": "Label",
+                "description": "Label",
+            },
         }
-        headers["Label"] = {
-            "description": "Label",
-            "bgcols": colors,
-        }
-        headers["Sample"] = {
-            "description": "Sample Name",
-            "bgcols": colors,
-        }
-        headers["MSstats_Condition"] = {
-            "description": "MSstats Condition",
-            "bgcols": colors,
-        }
-        headers["MSstats_BioReplicate"] = {
-            "description": "MSstats BioReplicate",
-            "bgcols": colors,
-        }
-        table_html = table.plot(self.exp_design_table, headers, pconfig)
-        # table_html = sparklines.plot(self.exp_design_table, headers, pconfig)
+        table_html = table.plot(rows_by_group, headers, pconfig)
+
         # Add a report section with the line plot
         self.add_section(
             name="Experimental Design",
@@ -768,14 +792,16 @@ class QuantMSModule(BaseMultiqcModule):
         table_html = table.plot(summary_table, headers, pconfig)
 
         if config.kwargs.get("mzid_plugin", False):
-            description_str = "This plot shows the summary statistics of the submitted data"
+            description_str = "This plot shows the summary statistics of the submitted data."
+            # TODO: add description here @Yasset
             helptext_str = """
-                        This plot shows the summary statistics of the submitted data
+                        This plot shows the summary statistics of the submitted data.
                         """
         else:
-            description_str = "This table shows the quantms pipeline summary statistics"
+            description_str = "This table shows the quantms pipeline summary statistics."
+            # TODO: add description here @Yasset
             helptext_str = """
-                        This table shows the quantms pipeline summary statistics
+                        This table shows the quantms pipeline summary statistics.
                         """
 
         # Add a report section with the table
@@ -801,7 +827,8 @@ class QuantMSModule(BaseMultiqcModule):
             self.add_section(
                 name="MS1 Information",
                 anchor="ms1_information",
-                description="""MS1 quality control information extracted from the spectrum files.""",
+                description="#### MS1 quality control information extracted from the spectrum files",
+                helptext="TODO: add description here @Yasset",
                 plot=ms1_tic_html,
             )
 
@@ -815,8 +842,8 @@ class QuantMSModule(BaseMultiqcModule):
             }
             ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
             self.add_section(
-                description="""#### MS1 base peak chromatograms extracted from the spectrum files
-                """,
+                description="#### MS1 base peak chromatograms extracted from the spectrum files",
+                helptext="TODO: add description here @Yasset",
                 plot=ms1_bpc_html,
             )
 
@@ -830,8 +857,8 @@ class QuantMSModule(BaseMultiqcModule):
             }
             ms1_peaks_html = linegraph.plot(self.ms1_peaks, ms1_peaks_config)
             self.add_section(
-                description="""#### MS1 Peaks from the spectrum files
-                """,
+                description="""#### MS1 Peaks from the spectrum files""",
+                helptext="TODO: add description here @Yasset",
                 plot=ms1_peaks_html,
             )
 
@@ -844,8 +871,8 @@ class QuantMSModule(BaseMultiqcModule):
             }
             table_html = table.plot(self.ms1_general_stats, pconfig=tconfig)
             self.add_section(
-                description="""#### General stats for MS1 information from .d files
-                """,
+                description="#### General stats for MS1 information from .d files",
+                helptext="TODO: add description here @Yasset",
                 plot=table_html,
             )
 
@@ -862,45 +889,37 @@ class QuantMSModule(BaseMultiqcModule):
             "no_violin": True,
             # 'format': '{:,.0f}'  # The header used for the first column
         }
-        colors = dict((str(i + 1), "#ffffff") for i in range(len(self.file_df.index)))
-        headers = OrderedDict()
 
         # TODO BIG! We desperately need rules for naming columns!
-
-        headers["sample_name"] = {
-            "title": "Sample Name",
-            "description": "Sample identifier",
-            "bgcols": colors,
-        }
-        headers["condition"] = {
-            "title": "Condition",
-            "description": "Combination of possible study variables",
-            "bgcols": colors,
-        }
-        headers["fraction"] = {
-            "title": "Fraction",
-            "description": "Fraction identifier",
-            "bgcols": colors,
-        }
-        headers["peptide_num"] = {
-            "title": "#Peptide IDs",
-            "description": "The number of identified PSMs in the pipeline",
-            "color": "#ffffff",
-        }
-        headers["unique_peptide_num"] = {
-            "title": "#Unambiguous Peptide IDs",
-            "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database.",
-            "color": "#ffffff",
-        }
-        headers["modified_peptide_num"] = {
-            "title": "#Modified Peptide IDs",
-            "description": "Number of modified identified peptides in the pipeline",
-            "color": "#ffffff",
-        }
-        headers["protein_num"] = {
-            "title": "#Protein (group) IDs",
-            "description": "The number of identified protein(group)s in the pipeline",
-            "color": "#ffffff",
+        headers = {
+            "sample_name": {
+                "title": "Sample Name",
+                "description": "Sample identifier",
+            },
+            "condition": {
+                "title": "Condition",
+                "description": "Combination of possible study variables",
+            },
+            "fraction": {
+                "title": "Fraction",
+                "description": "Fraction identifier",
+            },
+            "peptide_num": {
+                "title": "#Peptide IDs",
+                "description": "The number of identified PSMs in the pipeline",
+            },
+            "unique_peptide_num": {
+                "title": "#Unambiguous Peptide IDs",
+                "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
+            },
+            "modified_peptide_num": {
+                "title": "#Modified Peptide IDs",
+                "description": "Number of modified identified peptides in the pipeline",
+            },
+            "protein_num": {
+                "title": "#Protein (group) IDs",
+                "description": "The number of identified protein(group)s in the pipeline",
+            },
         }
         table_html = table.plot(self.cal_num_table_data, headers, pconfig)
 
@@ -908,9 +927,8 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Pipeline Result Statistics",
             anchor="Pipeline Result Statistics",
-            description="This plot shows the quantms pipeline final result",
+            description="This plot shows the quantms pipeline final result.",
             helptext="""
-            This plot shows the quantms pipeline final result.
             Including Sample Name、Possible Study Variables、identified the number of peptide in the pipeline、
             and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained 
             from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
@@ -930,29 +948,24 @@ class QuantMSModule(BaseMultiqcModule):
             "no_violin": True,
             # 'format': '{:,.0f}'  # The header used for the first column
         }
-
-        headers = OrderedDict()
-        headers["peptide_num"] = {
-            "title": "#Peptide IDs",
-            "description": "The number of identified PSMs in the pipeline",
-            "color": "#ffffff",
+        headers = {
+            "peptide_num": {
+                "title": "#Peptide IDs",
+                "description": "The number of identified PSMs in the pipeline",
+            },
+            "unique_peptide_num": {
+                "title": "#Unambiguous Peptide IDs",
+                "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
+            },
+            "modified_peptide_num": {
+                "title": "#Modified Peptide IDs",
+                "description": "Number of modified identified peptides in the pipeline",
+            },
+            "protein_num": {
+                "title": "#Protein (group) IDs",
+                "description": "The number of identified protein(group)s in the pipeline",
+            },
         }
-        headers["unique_peptide_num"] = {
-            "title": "#Unambiguous Peptide IDs",
-            "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database.",
-            "color": "#ffffff",
-        }
-        headers["modified_peptide_num"] = {
-            "title": "#Modified Peptide IDs",
-            "description": "Number of modified identified peptides in the pipeline",
-            "color": "#ffffff",
-        }
-        headers["protein_num"] = {
-            "title": "#Protein (group) IDs",
-            "description": "The number of identified protein(group)s in the pipeline",
-            "color": "#ffffff",
-        }
-
         table_html = table.plot(self.cal_num_table_data, headers, pconfig)
 
         # Add a report section with the line plot
@@ -971,6 +984,7 @@ class QuantMSModule(BaseMultiqcModule):
     # draw number of peptides per proteins
     def draw_num_pep_per_protein(self):
         # Create table plot
+
         if any([len(i) >= 100 for i in self.pep_plot.dict["data"].values()]):
             data_labels = ["Frequency", "Percentage"]
         else:
@@ -980,10 +994,10 @@ class QuantMSModule(BaseMultiqcModule):
                     "ylab": "Frequency",
                     "title": "Number of Peptides identified Per Protein",
                 },
-                {"name": "Percentage", "ylab": "Percentage(%)"},
+                {"name": "Percentage", "ylab": "Percentage [%]"},
             ]
         pconfig = {
-            "id": "number_of_peptides_per_proteins",  # ID used for the table
+            "id": "number_of_peptides_per_proteins",    # ID used for the table
             "cpswitch": False,
             "title": "Number of Peptides identified per Protein",
             "xlab": "Number of Peptides",
@@ -996,7 +1010,6 @@ class QuantMSModule(BaseMultiqcModule):
             ["Frequency", "Percentage"],
             pconfig,
         )
-
         if config.kwargs.get("mzid_plugin", False):
             description_str = (
                 "This plot shows the number of peptides per protein in the submitted data"
@@ -1096,9 +1109,10 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_peak_intensity_distribution(self):
         pconfig = {
             "id": "peak_intensity_distribution",
-            "cpswitch": False,
+            "cpswitch": True,
             "title": "Peak Intensity Distribution",
             "ylab": "Count",
+            "tt_decimals": 0,
         }
         if config.kwargs.get("mzid_plugin", False) and self.mgf_paths:
             cats = self.mgf_peak_distribution_plot.dict["cats"]
@@ -1130,8 +1144,9 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_precursor_charge_distribution(self):
         pconfig = {
             "id": "Precursor_Ion_Charge_Distribution",
-            "cpswitch": False,
+            "cpswitch": True,
             "title": "Precursor Ion Charge Distribution",
+            "tt_decimals": 0,
             "ylab": "Count",
         }
         if config.kwargs.get("mzid_plugin", False) and self.mgf_paths:
@@ -1142,9 +1157,9 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Distribution of precursor charges",
             anchor="Distribution of precursor charges",
-            description="""This is a bar chart representing the distribution of the precursor ion charges 
-                        for a given whole experiment. 
-                        """,
+            description="""
+            This is a bar chart representing the distribution of the precursor ion charges for a given whole experiment.
+            """,
             helptext="""This information can be used to identify potential ionization problems 
                         including many 1+ charges from an ESI ionization source or an unexpected 
                         distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ 
@@ -1157,9 +1172,10 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_peaks_per_ms2(self):
         pconfig = {
             "id": "peaks_per_ms2",
-            "cpswitch": False,
+            "cpswitch": True,
             "title": "Number of Peaks per MS/MS spectrum",
             "ylab": "Count",
+            "tt_decimals": 0,
         }
         if config.kwargs.get("mzid_plugin", False) and self.mgf_paths:
             cats = self.mgf_peaks_ms2_plot.dict["cats"]
@@ -1169,14 +1185,16 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Number of Peaks per MS/MS spectrum",
             anchor="Number of Peaks per MS/MS spectrum",
-            description="""This chart represents a histogram containing the number of peaks per MS/MS spectrum 
-            in a given experiment. This chart assumes centroid data. Too few peaks can identify poor fragmentation 
+            description="""
+            This chart represents a histogram containing the number of peaks per MS/MS spectrum 
+            in a given experiment.
+            """,
+            helptext="""
+            This chart assumes centroid data. Too few peaks can identify poor fragmentation 
             or a detector fault, as opposed to a large number of peaks representing very noisy spectra. 
             This chart is extensively dependent on the pre-processing steps performed to the spectra 
             (centroiding, deconvolution, peak picking approach, etc).
-                        """,
-            helptext="""
-                    """,
+            """,
             plot=bar_html,
         )
 
@@ -1184,9 +1202,10 @@ class QuantMSModule(BaseMultiqcModule):
         # Create bar plot
         pconfig = {
             "id": "Oversampling_Distribution",
-            "cpswitch": False,
+            "cpswitch": True,
             "title": "MS2 counts per 3D-peak",
             "ylab": "Count",
+            "tt_decimals": 0,
         }
         cats = self.oversampling_plot.dict["cats"]
         bar_html = bargraph.plot(self.oversampling, cats, pconfig)
@@ -1194,17 +1213,19 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Oversampling Distribution",
             anchor="Oversampling (MS/MS counts per 3D-peak)",
-            description="""An oversampled 3D-peak is defined as a peak whose peptide ion 
-                (same sequence and same charge state) was identified by at least two distinct MS2 spectra 
-                in the same Raw file. 
-                                """,
-            helptext="""For high complexity samples, oversampling of individual 3D-peaks automatically leads to 
-                undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
-                Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
-                exclusion windows for data independent acquisitions.
-                
-                * Heatmap score [EVD: MS2 Oversampling]: The percentage of non-oversampled 3D-peaks.
-                            """,
+            description="""
+            An oversampled 3D-peak is defined as a peak whose peptide ion 
+            (same sequence and same charge state) was identified by at least two distinct MS2 spectra 
+            in the same Raw file.
+            """,
+            helptext="""
+            For high complexity samples, oversampling of individual 3D-peaks automatically leads to 
+            undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
+            Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
+            exclusion windows for data independent acquisitions.
+            
+            * Heatmap score [EVD: MS2 Oversampling]: The percentage of non-oversampled 3D-peaks.
+            """,
             plot=bar_html,
         )
 
@@ -1296,16 +1317,17 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Delta Mass",
             anchor="delta_mass",
-            description="""This chart represents the distribution of the relative frequency of experimental 
-                            precursor ion mass (m/z) - theoretical precursor ion mass (m/z). 
-                            """,
+            description="""
+            This chart represents the distribution of the relative frequency of experimental 
+            precursor ion mass (m/z) - theoretical precursor ion mass (m/z).
+            """,
             helptext="""
-                    Mass deltas close to zero reflect more accurate identifications and also 
-                    that the reporting of the amino acid modifications and charges have been done accurately. 
-                    This plot can highlight systematic bias if not centered on zero. 
-                    Other distributions can reflect modifications not being reported properly. 
-                    Also it is easy to see the different between the target and the decoys identifications.
-                    """,
+            Mass deltas close to zero reflect more accurate identifications and also 
+            that the reporting of the amino acid modifications and charges have been done accurately. 
+            This plot can highlight systematic bias if not centered on zero. 
+            Other distributions can reflect modifications not being reported properly. 
+            Also it is easy to see the different between the target and the decoys identifications.
+            """,
             plot=line_html,
         )
 
@@ -1314,49 +1336,49 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Summary of Search Engine Scores",
             anchor="search_engine_summary",
-            description="These plots contain search scores and PEPs counts for different search engines in different files, "
-            "and they also contain a summary of the consensus PSMs if two or more search engines are used",
-            helptext="""
-                        This statistic is extracted from idXML files. 
-                    """,
+            description="""
+            These plots contain search scores and PEPs counts for different search engines in different files, 
+            and they also contain a summary of the consensus PSMs if two or more search engines are used.
+            """,
+            # helptext="This statistic is extracted from idXML files.",
         )
         # Create scores summary plot
-        [MSGF_labels, Comet_labels, Sage_labels] = self.search_engine["data_label"]["score_label"]
+        [msgf_labels, comet_labels, sage_labels] = self.search_engine["data_label"]["score_label"]
 
         spec_e_pconfig = {
             "id": "search_scores_summary",  # ID used for the table
-            "cpswitch": False,
+            "cpswitch": True,
             "title": "Summary of Spectral E-values",
             "xlab": "MSGF -lg(SpecEvalue) ranges",
             "stacking": "normal",
             "height": 550,
-            "tt_suffix": "%",
+            "tt_suffix": "",
             "tt_decimals": 0,
-            "data_labels": MSGF_labels,
+            "data_labels": msgf_labels,
         }
 
         xcorr_pconfig = {
             "id": "search_scores_summary",  # ID used for the table
-            "cpswitch": False,
+            "cpswitch": True,
             "title": "Summary of cross-correlation scores",
             "xlab": "Comet xcorr ranges",
             "stacking": "normal",
             "height": 550,
-            "tt_suffix": "%",
+            "tt_suffix": "",
             "tt_decimals": 0,
-            "data_labels": Comet_labels,
+            "data_labels": comet_labels,
         }
 
         hyper_pconfig = {
             "id": "search_scores_summary",  # ID used for the table
-            "cpswitch": False,
+            "cpswitch": True,
             "title": "Summary of Hyperscore",
             "xlab": "Sage hyperscore ranges",
             "stacking": "normal",
             "height": 550,
-            "tt_suffix": "%",
+            "tt_suffix": "",
             "tt_decimals": 0,
-            "data_labels": Sage_labels,
+            "data_labels": sage_labels,
         }
 
         bar_cats = OrderedDict()
@@ -1387,24 +1409,33 @@ class QuantMSModule(BaseMultiqcModule):
 
         if spec_e_bar_html != "":
             self.add_section(
-                description="""#### SpecEvalue Description
-                SpecEvalue : Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
+                description="""
+                #### SpecEvalue Description
+                """,
+                helptext="""
+                This statistic is extracted from idXML files. SpecEvalue: Spectral E-values, the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
                 """,
                 plot=spec_e_bar_html,
             )
 
         if xcorr_bar_html != "":
             self.add_section(
-                description="""#### xcorr description
-                xcorr : cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
+                description="""
+                #### xcorr description
+                """,
+                helptext="""
+                This statistic is extracted from idXML files. xcorr: cross-correlation scores, the search score of Comet. The value used for plotting is xcorr.
                 """,
                 plot=xcorr_bar_html,
             )
 
         if hyper_bar_html != "":
             self.add_section(
-                description="""#### hyperscore description
-                hyperscore : Hyperscore, the search score of Sage. The value used for plotting is hyperscore.
+                description="""
+                #### hyperscore description
+                """,
+                helptext="""
+                This statistic is extracted from idXML files. hyperscore: Hyperscore, the search score of Sage. The value used for plotting is hyperscore.
                 """,
                 plot=hyper_bar_html,
             )
@@ -1412,12 +1443,12 @@ class QuantMSModule(BaseMultiqcModule):
         # Create PEPs summary plot
         pep_pconfig = {
             "id": "search_engine_PEP",  # ID used for the table
-            "cpswitch": False,
+            "cpswitch": True,
             "title": "Summary of Search Engine PEP",
             "xlab": "PEP ranges",
             "stacking": "normal",
             "height": 550,
-            "tt_suffix": "%",
+            "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": self.search_engine["data_label"]["peps_label"],
         }
@@ -1428,6 +1459,8 @@ class QuantMSModule(BaseMultiqcModule):
 
         self.add_section(
             description="""#### Summary of Posterior Error Probabilities (PEP)""",
+            # TODO: add description here @Yasset
+            helptext="This statistic is extracted from idXML files.",
             plot=pep_bar_html,
         )
         # Create identified number plot
@@ -1435,11 +1468,11 @@ class QuantMSModule(BaseMultiqcModule):
             consensus_support_cats = [bar_cats] * len(self.search_engine["consensus_support"])
             consensus_pconfig = {
                 "id": "consensus_summary",  # ID used for the table
-                "cpswitch": False,
+                "cpswitch": True,
                 "title": "Consensus Across Search Engines",
                 "stacking": "normal",
                 "height": 256,
-                "tt_suffix": "%",
+                "tt_suffix": "",
                 "tt_decimals": 0,
                 "data_labels": self.search_engine["data_label"]["consensus_label"],
             }
@@ -1451,10 +1484,14 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
             self.add_section(
-                description="""#### Summary of consensus support for PSMs
-                Consensus support is a measure of agreement between search engines. Every peptide sequence in the analysis has been
-                identified by at least one search run. The consensus support defines which fraction (between 0 and 1) of the remaining
-                search runs "supported" a peptide identification that was kept. The meaning of "support" differs slightly between
+                description="""
+                #### Summary of consensus support for PSMs
+                """,
+                helptext="""
+                Consensus support is a measure of agreement between search engines. 
+                Every peptide sequence in the analysis has been identified by at least one search run. 
+                The consensus support defines which fraction (between 0 and 1) of the remaining search runs "supported" a peptide 
+                identification that was kept. The meaning of "support" differs slightly between
                 algorithms: For best, worst, average and rank, each search run supports peptides that it has also identified among its
                 top considered_hits candidates. So the "consensus support" simply gives the fraction of additional search engines that
                 have identified a peptide. (For example, if there are three search runs, peptides identified by two of them will have a
@@ -2972,18 +3009,22 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Peptides Quantification Table",
             anchor="peptides_quant_result",
-            description="This plot shows the quantification information of peptides"
-            " in the final result (mainly the mzTab file).",
+            description="""
+            This plot shows the quantification information of peptides in the final result (mainly the mzTab file).
+            """,
             helptext="""
-                    The quantification information of peptides is obtained from the MSstats input file. 
-                    The table shows the quantitative level and distribution of peptides in different study variables, run and peptiforms. The distribution show all the intensity values in a bar plot above and below the average intensity for all the fractions, runs and peptiforms.
+            The quantification information of peptides is obtained from the MSstats input file. 
+            The table shows the quantitative level and distribution of peptides in different study variables, 
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            the average intensity for all the fractions, runs and peptiforms.
 
-                    * BestSearchScore: It is equal to 1 - min(Q.Value) for DIA datasets. Then it is equal to 1 - min(best_search_engine_score[1]), which is from best_search_engine_score[1] column in mzTab peptide table for DDA datasets.
-                    * Average Intensity: Average intensity of each peptide sequence across all conditions with NA=0 or NA ignored.
-                    * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, and then mean intensity in technical replicates/biological replicates separately.
-                    Click `Show replicates` to switch to bar plots for every replicate.
-
-                    """,
+            * BestSearchScore: It is equal to 1 - min(Q.Value) for DIA datasets. Then it is equal to 
+            1 - min(best_search_engine_score[1]), which is from best_search_engine_score[1] column in mzTab 
+            peptide table for DDA datasets.
+            * Average Intensity: Average intensity of each peptide sequence across all conditions with NA=0 or NA ignored.
+            * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, 
+            and then mean intensity in technical replicates/biological replicates separately.
+            """,
             plot=table_html,
         )
 
@@ -3091,18 +3132,17 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Protein Quantification Table",
             anchor="protein_quant_result",
-            description="This plot shows the quantification information of proteins"
-            " in the final result (mainly the mzTab file).",
+            description="""
+            This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
+            """,
             helptext="""
-                    The quantification information of proteins is obtained from the msstats input file. 
-                    The table shows the quantitative level and distribution of proteins in different study variables and run.
+            The quantification information of proteins is obtained from the msstats input file. 
+            The table shows the quantitative level and distribution of proteins in different study variables and run.
 
-                    * Peptides_Number: The number of peptides for each protein.
-                    * Average Intensity: Average intensity of each protein across all conditions with NA=0 or NA ignored.
-                    * Protein intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of peptides.
-                    
-                    Click `Show replicates` to switch to bar plots of quantities in each replicate.
-                    """,
+            * Peptides_Number: The number of peptides for each protein.
+            * Average Intensity: Average intensity of each protein across all conditions with NA=0 or NA ignored.
+            * Protein intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of peptides.
+            """,
             plot=table_html,
         )
 
@@ -3337,7 +3377,7 @@ class QuantMSModule(BaseMultiqcModule):
             name="MS/MS Identified per Raw File",
             anchor="msms_identified_per_raw_file",
             description="MS/MS identification rate per Raw file from summary.txt.",
-            helptext="MS/MS identification rate per Raw file from summary.txt.",
+            helptext="TODO: add description here @Yasset",
             plot=bar_html,
         )
 
@@ -3359,7 +3399,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Top5 Contaminants per Raw file",
             anchor="top_contaminants_per_raw_file",
-            # description='',
+            description="""The five most abundant external protein contaminants by Raw file""",
             helptext="""
             pmultiqc will explicitly show the five most abundant external protein contaminants 
             (as detected via MaxQuant's contaminants FASTA file) by Raw file, and summarize the 
@@ -3377,8 +3417,7 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_evidence_charge(self, charge_data):
         draw_config = {
             "id": "Charge_state_of_per_Raw_file",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
+            "cpswitch": True,
             "title": "Charge-state of per Raw file",
             "tt_decimals": 0,
             "ylab": "Count",
@@ -3390,6 +3429,7 @@ class QuantMSModule(BaseMultiqcModule):
             name="Charge-state of per Raw file",
             anchor="Charge_state_of_per_Raw_file",
             description="The distribution of the charge-state of the precursor ion, excluding potential contaminants.",
+            # TODO: add description here @Yasset
             helptext="The distribution of the charge-state of the precursor ion, excluding potential contaminants.",
             plot=bar_html,
         )
@@ -3425,7 +3465,7 @@ class QuantMSModule(BaseMultiqcModule):
             "title": "IDs over RT",
             "ymin": 0,
             "tt_decimals": 3,
-            "ylab": "Counts",
+            "ylab": "Count",
             "xlab": "Retention time [min]",
             "showlegend": True,
         }
@@ -3549,8 +3589,7 @@ class QuantMSModule(BaseMultiqcModule):
             fig_title = "Peptide ID Count"
         draw_config = {
             "id": "peptide_id_count",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
+            "cpswitch": True,
             "title": fig_title,
             "tt_decimals": 0,
             "ylab": "Count",
@@ -3591,8 +3630,7 @@ class QuantMSModule(BaseMultiqcModule):
             fig_title = "ProteinGroups Count"
         draw_config = {
             "id": "protein_group_count",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
+            "cpswitch": True,
             "title": fig_title,
             "tt_decimals": 0,
             "ylab": "Count",
@@ -3681,6 +3719,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_section(
             name="Ion Injection Time over RT",
             anchor="ion_injection_time_over_rt",
+            # TODO: add description here @Yasset
             # description='Ion Injection Time over RT.',
             helptext="""
             Ion injection time score - should be as low as possible to allow fast cycles. Correlated with peptide intensity. 
@@ -3719,8 +3758,7 @@ class QuantMSModule(BaseMultiqcModule):
     def draw_msms_scans_top_n(self, top_n_data):
         draw_config = {
             "id": "top_n",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
+            "cpswitch": True,
             "title": "TopN",
             "stacking": "group",
             "tt_decimals": 0,
