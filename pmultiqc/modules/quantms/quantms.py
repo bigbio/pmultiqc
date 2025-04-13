@@ -833,15 +833,15 @@ class QuantMSModule(BaseMultiqcModule):
                 name="MS1 Information",
                 anchor="ms1_information",
                 description="#### MS1 quality control information extracted from the spectrum files",
-                helptext="This plot displays Total Ion Chromatograms (TICs) from MS1 scans across all analyzed samples. The x-axis represents the retention time, while the y-axis shows the ion count intensity. Each colored line represents a different sample. "
-                "The TIC provides an overview of the total ion signal throughout your LC-MS/MS run, showing when most compounds elute from the chromatography column. Key features to look for include:"
-                "1. Overall intensity pattern: Consistent baseline and relative peak heights across samples indicate good reproducibility"
-                "2. Major peaks: Prominent peaks should appear at similar retention times across samples."
-                "3. Signal-to-noise ratio: Higher peaks relative to baseline noise indicate better sensitivity"
-                "4. Chromatographic resolution: Well-separated peaks suggest good chromatographic performance"
-                "5. Signal drift: Gradual decrease in intensity may indicate MS source contamination or chromatography issues"
+                helptext="This plot displays Total Ion Chromatograms (TICs) derived from MS1 scans across all analyzed samples. The x-axis represents retention time, and the y-axis shows the total ion intensity at each time point. Each colored trace corresponds to a different sample."
+                "The TIC provides a global view of the ion signal throughout the LC-MS/MS run, reflecting when compounds elute from the chromatography column. Key aspects to assess include:"
+                "1. Overall intensity pattern: A consistent baseline and similar peak profiles across samples indicate good reproducibility."
+                "2. Major peak alignment: Prominent peaks appearing at similar retention times suggest stable chromatographic performance."
+                "3. Signal-to-noise ratio: High peaks relative to baseline noise reflect better sensitivity."
+                "4. Chromatographic resolution: Sharp, well-separated peaks indicate effective separation."
+                "5. Signal drift: A gradual decline in signal intensity across the run may point to source contamination or chromatography issues."
                 ""
-                "Unusual patterns, such as shifted retention times, missing peaks, or significantly different intensities may indicate sample preparation inconsistencies, chromatography problems, or MS instrumentation issues that warrant further investigation.",
+                "Deviations such as shifted retention times, missing peaks, or inconsistent intensities may signal problems in sample preparation, LC conditions, or mass spectrometer performance that require further investigation.",
                 plot=ms1_tic_html,
             )
 
@@ -856,7 +856,14 @@ class QuantMSModule(BaseMultiqcModule):
             ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
             self.add_section(
                 description="#### MS1 base peak chromatograms extracted from the spectrum files",
-                helptext="TODO: add description here @Yasset",
+                helptext="The Base Peak Chromatogram (BPC) displays the intensity of the most abundant ion at each retention"
+                         " time point across your LC-MS run. Unlike the Total Ion Chromatogram (TIC) which shows the summed"
+                         " intensity of all ions, the BPC highlights the strongest signals, providing better visualization"
+                         " of compounds with high abundance while reducing baseline noise. This makes it particularly useful"
+                         " for identifying major components in complex samples, monitoring dominant species, and providing"
+                         " clearer peak visualization when signal-to-noise ratio is a concern. Comparing BPC patterns across"
+                         " samples allows you to evaluate consistency in the detection of high-abundance compounds"
+                         " and can reveal significant variations in sample composition or instrument performance.",
                 plot=ms1_bpc_html,
             )
 
@@ -884,8 +891,14 @@ class QuantMSModule(BaseMultiqcModule):
             }
             table_html = table.plot(self.ms1_general_stats, pconfig=tconfig)
             self.add_section(
-                description="#### General stats for MS1 information from .d files",
-                helptext="TODO: add description here @Yasset",
+                description="#### General stats for MS1 information extracted from the spectrum files",
+                helptext="This table presents general statistics for MS1 information extracted from mass spectrometry data files."
+                         " It displays MS runs with their acquisition dates and times."
+                         " For each file, the table shows two key metrics: TotalCurrent (the sum of all MS1 ion intensities throughout the run) and ScanCurrent (the sum of MS2 ion intensities)."
+                         " These values provide a quick overview of the total ion signals detected during both survey scans (MS1) and fragmentation scans (MS2),"
+                         " allowing for comparison of overall signal intensity across samples. Consistent TotalCurrent and ScanCurrent values across similar samples typically"
+                         " indicate good reproducibility in the mass spectrometry analysis, while significant variations may suggest issues with sample preparation,"
+                         " instrument performance, or ionization efficiency. The blue shading helps visualize the relative intensity differences between samples.",
                 plot=table_html,
             )
 

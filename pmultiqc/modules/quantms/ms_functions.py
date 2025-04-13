@@ -9,7 +9,7 @@
 
 import pandas as pd
 
-# The time resulution in seconds.
+# The time resolution in seconds.
 # Larger values will result in smaller data files as outputs
 # and will slightly smooth the data. 5 seconds seems to be
 # a good value for qc purposes.
