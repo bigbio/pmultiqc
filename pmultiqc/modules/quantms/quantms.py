@@ -407,7 +407,6 @@ class QuantMSModule(BaseMultiqcModule):
             self.delta_mass_percent = dict()
             self.heatmap_con_score = dict()
             self.heatmap_pep_intensity = {}
-            self.exp_design_table = dict()
             self.ms1_tic = dict()
             self.ms1_bpc = dict()
             self.ms1_peaks = dict()
@@ -634,33 +633,10 @@ class QuantMSModule(BaseMultiqcModule):
         # One table format would actually be even easier. You can just use pandas.read_tsv
         self.sample_df, self.file_df = read_openms_design(self.exp_design)
 
+        self.exp_design_runs = np.unique(self.file_df["Run"].tolist())
+
         if self.file_df["Spectra_Filepath"][0].endswith((".d", ".d.tar")):
             self.is_bruker = True
-
-        # Get self.exp_design_table
-        for file in np.unique(self.file_df["Run"].tolist()):
-            file_index = self.file_df[self.file_df["Run"] == file]
-            self.exp_design_table[file] = {
-                "Fraction_Group": file_index["Fraction_Group"].tolist()[0]
-            }
-            self.exp_design_table[file]["Fraction"] = file_index["Fraction"].tolist()[0]
-            self.exp_design_table[file]["Label"] = "|".join(file_index["Label"])
-            sample = file_index["Sample"].tolist()
-            self.exp_design_table[file]["Sample"] = "|".join(sample)
-            self.exp_design_table[file]["MSstats_Condition"] = ",".join(
-                [
-                    row["MSstats_Condition"]
-                    for _, row in self.sample_df.iterrows()
-                    if row["Sample"] in sample
-                ]
-            )
-            self.exp_design_table[file]["MSstats_BioReplicate"] = "|".join(
-                [
-                    row["MSstats_BioReplicate"]
-                    for _, row in self.sample_df.iterrows()
-                    if row["Sample"] in sample
-                ]
-            )
 
         # Create table plot
         rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
@@ -937,51 +913,80 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
     def draw_quantms_identi_num(self):
+        # Create table data
+        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
+
+        for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
+            file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
+            sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
+            row_data: List[InputRow] = []
+            row_data.append(
+                InputRow(
+                    sample=SampleName(sample),
+                    data={
+                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                        "Fraction": "",
+                        "Peptide_Num": "",
+                        "Unique_Peptide_Num": "",
+                        "Modified_Peptide_Num": "",
+                        "Protein_Num": "",
+                    },
+                )
+            )
+            for _, row in file_df_sample.iterrows():
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(row["Run"]),
+                        data={
+                            "MSstats_Condition": "",
+                            "Fraction": row["Fraction"],
+                            "Peptide_Num": self.cal_num_table_data[row["Run"]]["peptide_num"],
+                            "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]]["unique_peptide_num"],
+                            "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]]["modified_peptide_num"],
+                            "Protein_Num": self.cal_num_table_data[row["Run"]]["protein_num"],
+                            },
+                        )
+                    )   
+            group_name: SampleGroup = SampleGroup(sample)
+            rows_by_group[group_name] = row_data
+
         # Create table plot
         pconfig = {
-            "id": "result statistics",  # ID used for the table
-            "title": "pipeline result statistics",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_result statistics_table",  # File basename to use for raw data file
-            "sort_rows": True,  # Whether to sort rows alphabetically
-            "only_defined_headers": False,  # Only show columns that are defined in the headers config
-            "col1_header": "Spectra File",
+            "id": "pipeline_result_statistics",
+            "title": "Pipeline Result Statistics",
+            "save_file": False,
+            "raw_data_fn": "multiqc_pipeline_result_statistics",
             "no_violin": True,
-            # 'format': '{:,.0f}'  # The header used for the first column
         }
-
         # TODO BIG! We desperately need rules for naming columns!
         headers = {
-            "sample_name": {
-                "title": "Sample Name",
-                "description": "Sample identifier",
+            "MSstats_Condition": {
+                "title": "MSstats_Condition",
+                "description": "MSstats Condition",
             },
-            "condition": {
-                "title": "Condition",
-                "description": "Combination of possible study variables",
-            },
-            "fraction": {
+            "Fraction": {
                 "title": "Fraction",
-                "description": "Fraction identifier",
+                "description": "Fraction Identifier",
             },
-            "peptide_num": {
+            "Peptide_Num": {
                 "title": "#Peptide IDs",
                 "description": "The number of identified PSMs in the pipeline",
             },
-            "unique_peptide_num": {
+            "Unique_Peptide_Num": {
                 "title": "#Unambiguous Peptide IDs",
                 "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
             },
-            "modified_peptide_num": {
+            "Modified_Peptide_Num": {
                 "title": "#Modified Peptide IDs",
                 "description": "Number of modified identified peptides in the pipeline",
             },
-            "protein_num": {
+            "Protein_Num": {
                 "title": "#Protein (group) IDs",
                 "description": "The number of identified protein(group)s in the pipeline",
             },
         }
-        table_html = table.plot(self.cal_num_table_data, headers, pconfig)
+
+        table_html = table.plot(rows_by_group, headers, pconfig)
 
         # Add a report section with the line plot
         self.add_section(
@@ -1030,8 +1035,8 @@ class QuantMSModule(BaseMultiqcModule):
 
         # Add a report section with the line plot
         self.add_section(
-            name="Submitted Result Statistics",
-            anchor="Submitted Result Statistics",
+            name="Pipeline Result Statistics",
+            anchor="Pipeline Result Statistics",
             description="This plot shows the submitted results",
             helptext="""
             This plot shows the submitted results.
@@ -1969,7 +1974,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.search_engine, self.MSGF_label, self.Comet_label, self.Sage_label = result
 
         # mass spectrum files sorted based on experimental file
-        for spectrum_name in self.exp_design_table.keys():
+        for spectrum_name in self.exp_design_runs:
             self.mzml_table[spectrum_name] = mzml_table[spectrum_name]
 
     def parse_out_mztab(self):
@@ -2106,9 +2111,6 @@ class QuantMSModule(BaseMultiqcModule):
 
         for m, group in psm.groupby("filename"):
             m = os.path.basename(m)
-            self.cal_num_table_data[m] = {"sample_name": self.exp_design_table[m]["Sample"]}
-            self.cal_num_table_data[m]["condition"] = self.exp_design_table[m]["MSstats_Condition"]
-            self.cal_num_table_data[m]["fraction"] = self.exp_design_table[m]["Fraction"]
 
             if config.kwargs["remove_decoy"]:
                 group = group[group["opt_global_cv_MS:1002217_decoy_peptide"] == 0]
@@ -2139,7 +2141,7 @@ class QuantMSModule(BaseMultiqcModule):
                 proteins.remove(None)
 
             ## TODO this is not really the number of proteins but the number of protein groups
-            self.cal_num_table_data[m]["protein_num"] = len(proteins)
+            self.cal_num_table_data[m] = {"protein_num": len(proteins)}
             self.cal_num_table_data[m]["peptide_num"] = len(peptides)
             self.cal_num_table_data[m]["unique_peptide_num"] = len(unique_peptides)
 
@@ -2156,9 +2158,6 @@ class QuantMSModule(BaseMultiqcModule):
         )
         for i in self.ms_without_psm:
             self.cal_num_table_data[i] = {
-                "sample_name": self.exp_design_table[i]["Sample"],
-                "condition": self.exp_design_table[i]["MSstats_Condition"],
-                "fraction": self.exp_design_table[i]["Fraction"],
                 "protein_num": 0,
                 "peptide_num": 0,
                 "unique_peptide_num": 0,
@@ -2891,16 +2890,8 @@ class QuantMSModule(BaseMultiqcModule):
         for run_file, group in report_data.groupby("File.Name"):
             run_file = self.file_prefix(run_file)
             self.ms_with_psm.append(run_file)
-            self.cal_num_table_data[run_file] = {
-                "sample_name": self.exp_design_table[run_file]["Sample"]
-            }
-            self.cal_num_table_data[run_file]["condition"] = self.exp_design_table[run_file][
-                "MSstats_Condition"
-            ]
-            self.cal_num_table_data[run_file]["fraction"] = self.exp_design_table[run_file][
-                "Fraction"
-            ]
-            self.cal_num_table_data[run_file]["protein_num"] = len(set(group["Protein.Ids"]))
+
+            self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Ids"]))}
             self.cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
             peptides = set(group["Modified.Sequence"])
             modified_pep = list(
@@ -2921,9 +2912,6 @@ class QuantMSModule(BaseMultiqcModule):
 
         for i in self.ms_without_psm:
             self.cal_num_table_data[i] = {
-                "sample_name": self.exp_design_table[i]["Sample"],
-                "condition": self.exp_design_table[i]["MSstats_Condition"],
-                "fraction": self.exp_design_table[i]["Fraction"],
                 "protein_num": 0,
                 "peptide_num": 0,
                 "unique_peptide_num": 0,
