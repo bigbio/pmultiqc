@@ -2,21 +2,86 @@ import os
 import json
 import subprocess
 import shutil
+import time
+import urllib
 import zipfile
 import gzip
 import tarfile
+from ftplib import FTP
 from pathlib import Path
+from urllib.parse import urlparse
+
+from tqdm import tqdm
 
 
-def download_file(url, save_path):
-    print(f"Downloading {url} to {save_path} ...")
-    subprocess.run(
-        ["wget", "-nv", "-P", save_path, url],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    print(f"File downloaded successfully: {os.path.basename(url)}")
+def download_file(url, save_path, max_retries=3, backoff_factor=2):
+    parsed_url = urlparse(url)
+    filename = os.path.basename(parsed_url.path)
+    local_filepath = os.path.join(save_path, filename)
+    Path(save_path).mkdir(parents=True, exist_ok=True)
+
+    ftp_url = url.replace("https://", "ftp://", 1)
+    ftp_parsed = urlparse(ftp_url)
+    ftp_host = ftp_parsed.hostname
+    ftp_path = ftp_parsed.path
+
+    # -------- Try FTP first --------
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"[Attempt {attempt}] Trying FTP download: {ftp_host}{ftp_path}")
+            ftp = FTP(ftp_host, timeout=30)
+            ftp.login()
+            total_size = ftp.size(ftp_path)
+
+            with open(local_filepath, "wb") as f, tqdm(
+                total=total_size, unit="B", unit_scale=True, desc=filename
+            ) as pbar:
+                def callback(data):
+                    f.write(data)
+                    pbar.update(len(data))
+
+                ftp.retrbinary(f"RETR {ftp_path}", callback)
+
+            ftp.quit()
+            print(f"✅ FTP download complete: {filename}")
+            return  # success
+        except Exception as ftp_err:
+            print(f"⚠️ FTP attempt {attempt} failed: {ftp_err}")
+            if attempt < max_retries:
+                sleep_time = backoff_factor ** attempt
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+            else:
+                print("FTP download failed after maximum retries. Trying HTTPS...")
+
+    # -------- Try HTTPS fallback --------
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"[Attempt {attempt}] Trying HTTPS download: {url}")
+
+            def reporthook(block_num, block_size, total_size):
+                if reporthook.pbar is None:
+                    reporthook.pbar = tqdm(total=total_size, unit="B", unit_scale=True, desc=filename)
+                downloaded = block_num * block_size
+                reporthook.pbar.update(downloaded - reporthook.pbar.n)
+
+            reporthook.pbar = None
+
+            urllib.request.urlretrieve(url, local_filepath, reporthook)
+            if reporthook.pbar:
+                reporthook.pbar.close()
+
+            print(f"✅ HTTPS download complete: {filename}")
+            return  # success
+        except Exception as http_err:
+            print(f"⚠️ HTTPS attempt {attempt} failed: {http_err}")
+            if attempt < max_retries:
+                sleep_time = backoff_factor ** attempt
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+            else:
+                print("❌ All download attempts failed.")
+                raise http_err
 
 
 def extract_zip(file_path, extract_to):
