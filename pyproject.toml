@@ -3,7 +3,7 @@ name = "pmultiqc"
 description = "Python package for quality control of proteomics datasets, based on multiqc package"
 readme = "README.md"
 license = "MIT"
-version = "0.0.26"
+version = "0.0.27"
 authors = [
     "Yasset Perez-Riverol <ypriverol@gmail.com>",
     "Dai Chengxin <chengxin2024@126.com>",
