@@ -41,7 +41,7 @@ jobs:
         source $CONDA/etc/profile.d/conda.sh
         conda activate pmultiqc
         conda build recipe
-        PACKAGE_PATH=$(find /usr/share/miniconda/envs/sdrf-pipelines/conda-bld/noarch/ -name "pmultiqc-*.tar.bz2" | head -n 1)
+        PACKAGE_PATH=$(conda build recipe --output)
         conda install --offline "$PACKAGE_PATH"
       shell: bash -l {0}
 
