@@ -17,6 +17,7 @@ requirements:
   host:
     - python >=3.10,<3.13
     - pip
+    - poetry-core
   run:
     - python >=3.10,<3.13
     - pytest
