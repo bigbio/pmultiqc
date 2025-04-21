@@ -20,8 +20,15 @@ jobs:
         python-version: 3.11
         channels: conda-forge,defaults,bioconda
 
-    - name: Explicitly add default channel
-      run: conda config --add channels defaults
+    - name: Set up conda config
+      run: |
+        cat <<EOF > ~/.condarc
+channels:
+  - defaults
+  - bioconda
+  - conda-forge
+channel_priority: true
+EOF
       
     - name: Create conda environment
       run: conda env create -f environment.yml

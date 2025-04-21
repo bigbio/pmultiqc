@@ -419,6 +419,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.ms1_bpc = dict()
             self.ms1_peaks = dict()
             self.ms1_general_stats = dict()
+            self.is_multi_conditions = False
             # parse input data
             # draw the experimental design
             self.draw_exp_design()
@@ -635,7 +636,7 @@ class QuantMSModule(BaseMultiqcModule):
                     """,
             plot=hm_html,
         )
-
+ 
     def draw_exp_design(self):
         # Currently this only supports the OpenMS two-table format (default in quantms pipeline)
         # One table format would actually be even easier. You can just use pandas.read_tsv
@@ -647,39 +648,149 @@ class QuantMSModule(BaseMultiqcModule):
             self.is_bruker = True
 
         # Create table plot
+        pattern = r'^(\w+=[^=;]+)(;\w+=[^=;]+)*$'
+        self.is_multi_conditions = all(self.sample_df["MSstats_Condition"].apply(lambda x: bool(re.match(pattern, str(x)))))
+
         rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
-        for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
-            file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-            sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-            row_data: List[InputRow] = []
-            row_data.append(
-                InputRow(
-                    sample=SampleName(sample),
-                    data={
-                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
-                        "Fraction_Group": "",
-                        "Fraction": "",
-                        "Label": "",
-                    },
-                )
-            )
-            for _, row in file_df_sample.iterrows():
+        if self.is_multi_conditions:
+            for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
+                file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
+                sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
+                row_data: List[InputRow] = []
+
+                sample_data = {}
+                for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                    sample_data["MSstats_Condition_" + str(k)] = v
+                
+                sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
+                sample_data["Fraction_Group"] = ""
+                sample_data["Fraction"] = ""
+                sample_data["Label"] = ""
+
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
+                        sample=SampleName(sample),
+                        data=sample_data,
+                    )
+                )
+
+                for _, row in file_df_sample.iterrows():
+
+                    sample_data = {}
+                    for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                        sample_data["MSstats_Condition_" + str(k)] = ""
+
+                    sample_data["MSstats_BioReplicate"] = ""
+                    sample_data["Fraction_Group"] = row["Fraction_Group"]
+                    sample_data["Fraction"] = row["Fraction"]
+                    sample_data["Label"] = row["Label"]
+
+                    row_data.append(
+                        InputRow(
+                            sample=SampleName(row["Run"]),
+                            data=sample_data,
+                        )
+                    )
+                group_name: SampleGroup = SampleGroup(sample)
+                rows_by_group[group_name] = row_data
+            headers = {}
+            headers["Sample"] = {
+                "title": "Sample [Spectra File]",
+                "description": "",
+                "scale": False,
+            }
+            for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                headers["MSstats_Condition_" + str(k)] ={
+                    "title": "MSstats Condition: " + str(k),
+                    "description": "",
+                    "scale": False,
+                }
+            headers["MSstats_BioReplicate"] = {
+                "title": "MSstats BioReplicate",
+                "description": "",
+                "scale": False,
+            }
+            headers["Fraction_Group"] = {
+                "title": "Fraction Group",
+                "description": "",
+                "scale": False,
+            }
+            headers["Fraction"] = {
+                "title": "Fraction",
+                "description": "Fraction Identifier",
+                "scale": False,
+            }
+            headers["Label"] = {
+                "title": "Label",
+                "description": "",
+                "scale": False,
+            }
+        else:
+            for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
+                file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
+                sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
+                row_data: List[InputRow] = []
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(sample),
                         data={
-                            "MSstats_Condition": "",
-                            "MSstats_BioReplicate": "",
-                            "Fraction_Group": row["Fraction_Group"],
-                            "Fraction": row["Fraction"],
-                            "Label": row["Label"],
+                            "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                            "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
+                            "Fraction_Group": "",
+                            "Fraction": "",
+                            "Label": "",
                         },
                     )
                 )
-            group_name: SampleGroup = SampleGroup(sample)
-            rows_by_group[group_name] = row_data
+                for _, row in file_df_sample.iterrows():
+                    row_data.append(
+                        InputRow(
+                            sample=SampleName(row["Run"]),
+                            data={
+                                "MSstats_Condition": "",
+                                "MSstats_BioReplicate": "",
+                                "Fraction_Group": row["Fraction_Group"],
+                                "Fraction": row["Fraction"],
+                                "Label": row["Label"],
+                            },
+                        )
+                    )
+                group_name: SampleGroup = SampleGroup(sample)
+                rows_by_group[group_name] = row_data
+
+            headers = {
+                "Sample": {
+                    "title": "Sample [Spectra File]",
+                    "description": "",
+                    "scale": False,
+                },
+                "MSstats_Condition": {
+                    "title": "MSstats Condition",
+                    "description": "MSstats Condition",
+                    "scale": False,
+                },
+                "MSstats_BioReplicate": {
+                    "title": "MSstats BioReplicate",
+                    "description": "MSstats BioReplicate",
+                    "scale": False,
+                },
+                "Fraction_Group": {
+                    "title": "Fraction Group",
+                    "description": "Fraction Group",
+                    "scale": False,
+                },
+                "Fraction": {
+                    "title": "Fraction",
+                    "description": "Fraction Identifier",
+                    "scale": False,
+                },
+                "Label": {
+                    "title": "Label",
+                    "description": "Label",
+                    "scale": False,
+                },
+            }
 
         pconfig = {
             "id": "experimental_design",
@@ -688,38 +799,7 @@ class QuantMSModule(BaseMultiqcModule):
             "raw_data_fn": "multiqc_Experimental_Design_table",
             "no_violin": True,
         }
-        headers = {
-            "Sample": {
-                "title": "Sample [Spectra File]",
-                "description": "",
-                "scale": False,
-            },
-            "MSstats_Condition": {
-                "title": "MSstats_Condition",
-                "description": "MSstats Condition",
-                "scale": False,
-            },
-            "MSstats_BioReplicate": {
-                "title": "MSstats_BioReplicate",
-                "description": "MSstats BioReplicate",
-                "scale": False,
-            },
-            "Fraction_Group": {
-                "title": "Fraction_Group",
-                "description": "Fraction Group",
-                "scale": False,
-            },
-            "Fraction": {
-                "title": "Fraction",
-                "description": "Fraction Identifier",
-                "scale": False,
-            },
-            "Label": {
-                "title": "Label",
-                "description": "Label",
-                "scale": False,
-            },
-        }
+
         table_html = table.plot(rows_by_group, headers, pconfig)
 
         # Add a report section with the line plot
@@ -946,39 +1026,142 @@ class QuantMSModule(BaseMultiqcModule):
         # Create table data
         rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
-        for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
-            file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-            sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-            row_data: List[InputRow] = []
-            row_data.append(
-                InputRow(
-                    sample=SampleName(sample),
-                    data={
-                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                        "Fraction": "",
-                        "Peptide_Num": "",
-                        "Unique_Peptide_Num": "",
-                        "Modified_Peptide_Num": "",
-                        "Protein_Num": "",
-                    },
-                )
-            )
-            for _, row in file_df_sample.iterrows():
+        if self.is_multi_conditions:
+            for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
+                file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
+                sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
+                row_data: List[InputRow] = []
+
+                sample_data = {}
+                for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                    sample_data["MSstats_Condition_" + str(k)] = v
+                
+                sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
+                sample_data["Fraction"] = ""
+                sample_data["Peptide_Num"] = ""
+                sample_data["Unique_Peptide_Num"] = ""
+                sample_data["Modified_Peptide_Num"] = ""
+                sample_data["Protein_Num"] = ""
+
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
-                        data={
-                            "MSstats_Condition": "",
-                            "Fraction": row["Fraction"],
-                            "Peptide_Num": self.cal_num_table_data[row["Run"]]["peptide_num"],
-                            "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]]["unique_peptide_num"],
-                            "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]]["modified_peptide_num"],
-                            "Protein_Num": self.cal_num_table_data[row["Run"]]["protein_num"],
-                            },
+                        sample=SampleName(sample),
+                        data=sample_data,
+                    )
+                )
+
+                for _, row in file_df_sample.iterrows():
+
+                    sample_data = {}
+                    for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                        sample_data["MSstats_Condition_" + str(k)] = ""
+
+                    sample_data["Fraction"] = row["Fraction"]
+                    sample_data["Peptide_Num"] = self.cal_num_table_data[row["Run"]]["peptide_num"]
+                    sample_data["Unique_Peptide_Num"] = self.cal_num_table_data[row["Run"]]["unique_peptide_num"]
+                    sample_data["Modified_Peptide_Num"] = self.cal_num_table_data[row["Run"]]["modified_peptide_num"]
+                    sample_data["Protein_Num"] = self.cal_num_table_data[row["Run"]]["protein_num"]
+
+                    row_data.append(
+                        InputRow(
+                            sample=SampleName(row["Run"]),
+                            data=sample_data,
                         )
-                    )   
-            group_name: SampleGroup = SampleGroup(sample)
-            rows_by_group[group_name] = row_data
+                    ) 
+                group_name: SampleGroup = SampleGroup(sample)
+                rows_by_group[group_name] = row_data
+                
+            headers = {}
+            for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                headers["MSstats_Condition_" + str(k)] ={
+                    "title": "MSstats Condition: " + str(k),
+                    "description": "",
+                    "scale": False,
+                }
+            headers["Fraction"] = {
+                "title": "Fraction",
+                "description": "Fraction Identifier",
+                "scale": False,
+            }
+            headers["Peptide_Num"] = {
+                "title": "#Peptide IDs",
+                "description": "The number of identified PSMs in the pipeline",
+            }
+            headers["Unique_Peptide_Num"] = {
+                "title": "#Unambiguous Peptide IDs",
+                "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
+            }
+            headers["Modified_Peptide_Num"] = {
+                "title": "#Modified Peptide IDs",
+                "description": "Number of modified identified peptides in the pipeline",
+            }
+            headers["Protein_Num"] = {
+                "title": "#Protein (group) IDs",
+                "description": "The number of identified protein(group)s in the pipeline",
+            }
+        else:
+            for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
+                file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
+                sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
+                row_data: List[InputRow] = []
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(sample),
+                        data={
+                            "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                            "Fraction": "",
+                            "Peptide_Num": "",
+                            "Unique_Peptide_Num": "",
+                            "Modified_Peptide_Num": "",
+                            "Protein_Num": "",
+                        },
+                    )
+                )
+                for _, row in file_df_sample.iterrows():
+                    row_data.append(
+                        InputRow(
+                            sample=SampleName(row["Run"]),
+                            data={
+                                "MSstats_Condition": "",
+                                "Fraction": row["Fraction"],
+                                "Peptide_Num": self.cal_num_table_data[row["Run"]]["peptide_num"],
+                                "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]]["unique_peptide_num"],
+                                "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]]["modified_peptide_num"],
+                                "Protein_Num": self.cal_num_table_data[row["Run"]]["protein_num"],
+                                },
+                            )
+                        )   
+                group_name: SampleGroup = SampleGroup(sample)
+                rows_by_group[group_name] = row_data
+
+            headers = {
+                "MSstats_Condition": {
+                    "title": "MSstats_Condition",
+                    "description": "MSstats Condition",
+                    "scale": False,
+                },
+                "Fraction": {
+                    "title": "Fraction",
+                    "description": "Fraction Identifier",
+                    "scale": False,
+                },
+                "Peptide_Num": {
+                    "title": "#Peptide IDs",
+                    "description": "The number of identified PSMs in the pipeline",
+                },
+                "Unique_Peptide_Num": {
+                    "title": "#Unambiguous Peptide IDs",
+                    "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
+                },
+                "Modified_Peptide_Num": {
+                    "title": "#Modified Peptide IDs",
+                    "description": "Number of modified identified peptides in the pipeline",
+                },
+                "Protein_Num": {
+                    "title": "#Protein (group) IDs",
+                    "description": "The number of identified protein(group)s in the pipeline",
+                },
+            }
 
         # Create table plot
         pconfig = {
@@ -987,35 +1170,6 @@ class QuantMSModule(BaseMultiqcModule):
             "save_file": False,
             "raw_data_fn": "multiqc_pipeline_result_statistics",
             "no_violin": True,
-        }
-        # TODO BIG! We desperately need rules for naming columns!
-        headers = {
-            "MSstats_Condition": {
-                "title": "MSstats_Condition",
-                "description": "MSstats Condition",
-                "scale": False,
-            },
-            "Fraction": {
-                "title": "Fraction",
-                "description": "Fraction Identifier",
-                "scale": False,
-            },
-            "Peptide_Num": {
-                "title": "#Peptide IDs",
-                "description": "The number of identified PSMs in the pipeline",
-            },
-            "Unique_Peptide_Num": {
-                "title": "#Unambiguous Peptide IDs",
-                "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
-            },
-            "Modified_Peptide_Num": {
-                "title": "#Modified Peptide IDs",
-                "description": "Number of modified identified peptides in the pipeline",
-            },
-            "Protein_Num": {
-                "title": "#Protein (group) IDs",
-                "description": "The number of identified protein(group)s in the pipeline",
-            },
         }
 
         table_html = table.plot(rows_by_group, headers, pconfig)
@@ -1479,9 +1633,6 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
         bar_cats = OrderedDict()
-        # bar_cats["target"] = {"name": "target", "color": "#2b908f"}
-        # bar_cats["decoy"] = {"name": "decoy", "color": "#90ed7d"}
-        # bar_cats["target+decoy"] = {"name": "target+decoy", "color": "#434348"}
         bar_cats["target"] = {"name": "target"}
         bar_cats["decoy"] = {"name": "decoy"}
         bar_cats["target+decoy"] = {"name": "target+decoy"}
@@ -3899,3 +4050,10 @@ def find_modification(peptide):
     original_mods = ",".join(str(i) for i in original_mods) if len(original_mods) > 0 else "nan"
 
     return AASequence.fromString(peptide).toUnmodifiedString(), original_mods
+
+def condition_split(conditions):
+    items = conditions.split(';')
+    key_value_pairs = [item.split('=') for item in items if '=' in item]
+
+    result_dict = {k.strip(): v.strip() for k, v in key_value_pairs}
+    return result_dict
