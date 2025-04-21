@@ -547,7 +547,6 @@ def parse_idxml(
         raw_id_name = file_prefix(raw_id)
 
         consensus_label.append({"name": raw_id_name, "ylab": "Counts"})
-        # search_engine["consensus_support"][raw_id_name] = OrderedDict()
 
         consensus_support = Histogram(
             "Consensus PSM number", plot_category="frequency", stacks=bar_stacks
@@ -560,7 +559,6 @@ def parse_idxml(
         consensus_support.to_dict()
 
         for i in consensus_support.dict["data"].keys():
-            # search_engine["consensus_support"][raw_id_name][i] = consensus_support.dict["data"][i]
             search_engine["consensus_support"][f"{raw_id_name} ({i})"] = consensus_support.dict["data"][i]
 
     search_engine["data_label"] = {
