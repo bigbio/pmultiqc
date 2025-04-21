@@ -426,12 +426,13 @@ def parse_idxml(
         spec_e_breaks.sort()
 
         pep_breaks = list(
-            np.arange(
-                pep_hist_range["start"],
-                pep_hist_range["end"] + pep_hist_range["step"],
-                pep_hist_range["step"],
-            ).round(2)
-        )
+            np.concatenate(
+                [
+                    np.arange(pep_hist_range["start"], pep_hist_range["low_thresh"], pep_hist_range["low_step"]),
+                    np.arange(pep_hist_range["low_thresh"], pep_hist_range["high_thresh"], pep_hist_range["high_step"]),
+                    np.arange(pep_hist_range["high_thresh"], pep_hist_range["end"] + 0.01, pep_hist_range["low_step"])
+                ]
+            ).round(2))
 
         bar_stacks = ["target", "decoy", "target+decoy"]
         cross_corr = Histogram(
@@ -546,7 +547,7 @@ def parse_idxml(
         raw_id_name = file_prefix(raw_id)
 
         consensus_label.append({"name": raw_id_name, "ylab": "Counts"})
-        search_engine["consensus_support"][raw_id_name] = OrderedDict()
+        # search_engine["consensus_support"][raw_id_name] = OrderedDict()
 
         consensus_support = Histogram(
             "Consensus PSM number", plot_category="frequency", stacks=bar_stacks
@@ -559,7 +560,8 @@ def parse_idxml(
         consensus_support.to_dict()
 
         for i in consensus_support.dict["data"].keys():
-            search_engine["consensus_support"][raw_id_name][i] = consensus_support.dict["data"][i]
+            # search_engine["consensus_support"][raw_id_name][i] = consensus_support.dict["data"][i]
+            search_engine["consensus_support"][f"{raw_id_name} ({i})"] = consensus_support.dict["data"][i]
 
     search_engine["data_label"] = {
         "score_label": [spec_e_label, xcorr_label, hyper_label],

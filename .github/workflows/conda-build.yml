@@ -20,6 +20,9 @@ jobs:
         python-version: 3.11
         channels: conda-forge,defaults,bioconda
 
+    - name: Explicitly add default channel
+      run: conda config --add channels defaults
+      
     - name: Create conda environment
       run: conda env create -f environment.yml
 

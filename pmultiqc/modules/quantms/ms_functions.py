@@ -8,6 +8,7 @@
 """
 
 import pandas as pd
+import numpy as np
 
 # The time resolution in seconds.
 # Larger values will result in smaller data files as outputs
@@ -62,8 +63,8 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
 
     general_stats = {
         "AcquisitionDateTime": ms1_info["AcquisitionDateTime"][0],
-        "TotalCurrent": ms1_info["Summed_Peak_Intensities"].sum(),
-        "ScanCurrent": ms2_info["Summed_Peak_Intensities"].sum(),
+        "log10(TotalCurrent)": np.log10(ms1_info["Summed_Peak_Intensities"].sum()),
+        "log10(ScanCurrent)": np.log10(ms2_info["Summed_Peak_Intensities"].sum()),
     }
 
     return tic_data, bpc_data, ms1_peaks, general_stats

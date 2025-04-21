@@ -400,7 +400,15 @@ class QuantMSModule(BaseMultiqcModule):
             self.xcorr_hist_range = {"start": 0, "end": 5, "step": 0.1}
             self.hyper_hist_range = {"start": 0, "end": 5, "step": 0.1}
             self.spec_evalue_hist_range = {"start": 0, "end": 20, "step": 0.4}
-            self.pep_hist_range = {"start": 0, "end": 1, "step": 0.02}
+            self.pep_hist_range = {
+                "start": 0,
+                "end": 1,
+                "low_thresh": 0.3,
+                "high_thresh": 0.7,
+                "end": 1,
+                "low_step": 0.03,
+                "high_step": 0.08
+                }
             self.total_protein_quantified = 0
             self.out_csv_data = dict()
             self.mL_spec_ident_final = dict()
@@ -684,26 +692,32 @@ class QuantMSModule(BaseMultiqcModule):
             "Sample": {
                 "title": "Sample [Spectra File]",
                 "description": "",
+                "scale": False,
             },
             "MSstats_Condition": {
                 "title": "MSstats_Condition",
                 "description": "MSstats Condition",
+                "scale": False,
             },
             "MSstats_BioReplicate": {
                 "title": "MSstats_BioReplicate",
                 "description": "MSstats BioReplicate",
+                "scale": False,
             },
             "Fraction_Group": {
                 "title": "Fraction_Group",
                 "description": "Fraction Group",
+                "scale": False,
             },
             "Fraction": {
                 "title": "Fraction",
                 "description": "Fraction Identifier",
+                "scale": False,
             },
             "Label": {
                 "title": "Label",
                 "description": "Label",
+                "scale": False,
             },
         }
         table_html = table.plot(rows_by_group, headers, pconfig)
@@ -894,10 +908,26 @@ class QuantMSModule(BaseMultiqcModule):
             tconfig = {
                 "id": "ms_general_stats",
                 "title": "General Stats",
-                "only_defined_headers": False,
+                "only_defined_headers": True,
                 "col1_header": "File",
             }
-            table_html = table.plot(self.ms1_general_stats, pconfig=tconfig)
+            headers = {
+                "File": {
+                    "title": "File",
+                },
+                "AcquisitionDateTime": {
+                    "title": "Acquisition Date Time",
+                },
+                "log10(TotalCurrent)": {
+                    "title": "log10(Total Current)",
+                    "format": "{:,.4f}", 
+                },
+                "log10(ScanCurrent)": {
+                    "title": "log10(Scan Current)",
+                    "format": "{:,.4f}",
+                },
+            }
+            table_html = table.plot(self.ms1_general_stats, headers=headers, pconfig=tconfig)
             self.add_section(
                 description="#### General stats for MS1 information extracted from the spectrum files",
                 helptext="""
@@ -963,10 +993,12 @@ class QuantMSModule(BaseMultiqcModule):
             "MSstats_Condition": {
                 "title": "MSstats_Condition",
                 "description": "MSstats Condition",
+                "scale": False,
             },
             "Fraction": {
                 "title": "Fraction",
                 "description": "Fraction Identifier",
+                "scale": False,
             },
             "Peptide_Num": {
                 "title": "#Peptide IDs",
@@ -1447,9 +1479,12 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
         bar_cats = OrderedDict()
-        bar_cats["target"] = {"name": "target", "color": "#2b908f"}
-        bar_cats["decoy"] = {"name": "decoy", "color": "#90ed7d"}
-        bar_cats["target+decoy"] = {"name": "target+decoy", "color": "#434348"}
+        # bar_cats["target"] = {"name": "target", "color": "#2b908f"}
+        # bar_cats["decoy"] = {"name": "decoy", "color": "#90ed7d"}
+        # bar_cats["target+decoy"] = {"name": "target+decoy", "color": "#434348"}
+        bar_cats["target"] = {"name": "target"}
+        bar_cats["decoy"] = {"name": "decoy"}
+        bar_cats["target+decoy"] = {"name": "target+decoy"}
 
         spec_e_cats = [bar_cats] * len(self.search_engine["SpecE"])
         xcorr_cats = [bar_cats] * len(self.search_engine["xcorr"])
@@ -1529,7 +1564,6 @@ class QuantMSModule(BaseMultiqcModule):
         )
         # Create identified number plot
         if len(self.search_engine["data_label"]["consensus_label"]) != 0:
-            consensus_support_cats = [bar_cats] * len(self.search_engine["consensus_support"])
             consensus_pconfig = {
                 "id": "consensus_summary",  # ID used for the table
                 "cpswitch": True,
@@ -1538,15 +1572,12 @@ class QuantMSModule(BaseMultiqcModule):
                 "height": 256,
                 "tt_suffix": "",
                 "tt_decimals": 0,
-                "data_labels": self.search_engine["data_label"]["consensus_label"],
             }
-
             consensus_bar_html = bargraph.plot(
-                list(self.search_engine["consensus_support"].values()),
-                consensus_support_cats,
+                self.search_engine["consensus_support"],
+                bar_cats,
                 consensus_pconfig,
             )
-
             self.add_section(
                 description="""
                 #### Summary of consensus support for PSMs
