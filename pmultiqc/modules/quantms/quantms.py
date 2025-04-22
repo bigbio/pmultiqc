@@ -27,8 +27,6 @@ import numpy as np
 import copy
 import json
 
-import plotly.graph_objs as go
-
 from . import sparklines
 from .ms_functions import get_ms_qc_info
 from . import maxquant
@@ -1538,7 +1536,7 @@ class QuantMSModule(BaseMultiqcModule):
                     },
                 ]
                 pconfig = {
-                    "id": "delta_mass_yue",
+                    "id": "delta_mass",
                     "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
                     "title": "Delta m/z",
                     "xlab": "Experimental m/z - Theoretical m/z",
@@ -1568,7 +1566,7 @@ class QuantMSModule(BaseMultiqcModule):
                     },
                 ]
                 pconfig = {
-                    "id": "delta_mass_yue",
+                    "id": "delta_mass",
                     "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
                     "title": "Delta m/z",
                     "xlab": "Experimental m/z - Theoretical m/z",
@@ -1624,7 +1622,7 @@ class QuantMSModule(BaseMultiqcModule):
                     },
                 ]
                 pconfig = {
-                    "id": "delta_mass_yue",
+                    "id": "delta_mass",
                     "colors": {"target": "#b2df8a"},
                     "title": "Delta m/z",
                     "xlab": "Experimental m/z - Theoretical m/z",
@@ -1653,7 +1651,7 @@ class QuantMSModule(BaseMultiqcModule):
                     },
                 ]
                 pconfig = {
-                    "id": "delta_mass_yue",
+                    "id": "delta_mass",
                     "colors": {"target": "#b2df8a"},
                     "title": "Delta m/z",
                     "xlab": "Experimental m/z - Theoretical m/z",
