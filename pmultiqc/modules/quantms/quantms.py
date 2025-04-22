@@ -412,7 +412,6 @@ class QuantMSModule(BaseMultiqcModule):
             self.total_protein_quantified = 0
             self.out_csv_data = dict()
             self.mL_spec_ident_final = dict()
-            self.delta_mass_percent = dict()
             self.heatmap_con_score = dict()
             self.heatmap_pep_intensity = {}
             self.ms1_tic = dict()
@@ -1482,88 +1481,184 @@ class QuantMSModule(BaseMultiqcModule):
 
     def draw_delta_mass(self):
 
-        self.delta_mass_percent["target"] = dict(
-            zip(
-                self.delta_mass["target"].keys(),
-                list(
-                    map(
-                        lambda v: v / len(self.delta_mass["target"]),
-                        self.delta_mass["target"].values(),
-                    )
-                ),
-            )
-        )
-        if "decoy" in self.delta_mass.keys():
-            self.delta_mass_percent["decoy"] = dict(
-                zip(
-                    self.delta_mass["decoy"].keys(),
-                    list(
-                        map(
-                            lambda v: v / len(self.delta_mass["decoy"]),
-                            self.delta_mass["decoy"].values(),
-                        )
-                    ),
-                )
-            )
-            lineconfig = {
-                # Building the plot
-                "id": "delta_mass",  # HTML ID used for plot
-                "tt_label": "<b>{point.x} Delta mass error:</b> {point.y}",
-                # Plot configuration
-                "title": "Delta m/z",  # Plot title - should be in format "Module Name: Plot Title"
-                "xlab": "Experimental m/z - Theoretical m/z",  # X axis label
-                "ylab": "Relative Frequency",  # Y axis label
-                "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
-                "xmax": max(
-                    list(self.delta_mass["decoy"].keys())
-                    + (list(self.delta_mass["target"].keys()))
-                )
-                + 0.01,
-                "xmin": min(
-                    list(self.delta_mass["decoy"].keys())
-                    + (list(self.delta_mass["target"].keys()))
-                )
-                - 0.01,
-                "data_labels": [
-                    {
-                        "name": "Counts",
-                        "ylab": "Count",
-                        "tt_label": "<b>{point.x} Mass delta counts</b>: {point.y}",
-                    },
-                    {
-                        "name": "Relative Frequency",
-                        "ylab": "Relative Frequency",
-                        "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}",
-                    },
-                ],
-            }
-        else:
-            lineconfig = {
-                # Building the plot
-                "id": "delta_mass",  # HTML ID used for plot
-                "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}",
-                # Plot configuration
-                "title": "Delta m/z",  # Plot title - should be in format "Module Name: Plot Title"
-                "xlab": "Experimental m/z - Theoretical m/z",  # X axis label
-                "ylab": "Relative Frequency",  # Y axis label
-                "colors": {"target": "#b2df8a"},
-                "xmax": max(list(self.delta_mass["target"].keys())) + 0.01,
-                "xmin": min((list(self.delta_mass["target"].keys()))) - 0.01,
-                "data_labels": [
-                    {
-                        "name": "Counts",
-                        "ylab": "Count",
-                        "tt_label": "<b>{point.x} Mass delta counts</b>: {point.y}",
-                    },
-                    {
-                        "name": "Relative Frequency",
-                        "ylab": "Relative Frequency",
-                        "tt_label": "<b>{point.x} Mass delta relative frequency</b>: {point.y}",
-                    },
-                ],
-            }
+        # Computing relative frequency
+        delta_mass = self.delta_mass
+        delta_mass_percent = dict()
 
-        line_html = linegraph.plot([self.delta_mass, self.delta_mass_percent], lineconfig)
+        delta_mass_percent["target"] = {k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()}
+        
+        if delta_mass["decoy"]:
+
+            delta_mass_percent["decoy"] = {k: v / sum(delta_mass["decoy"].values()) for k, v in delta_mass["decoy"].items()}
+
+            if any(abs(x) > 1 for x in (list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys()))):
+
+                delta_mass_range = dict()
+                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= 1}
+                delta_mass_range["decoy"] = {k: v for k, v in delta_mass["decoy"].items() if abs(k) <= 1}
+
+                delta_mass_percent_range = dict()
+                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= 1}
+                delta_mass_percent_range["decoy"] = {k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= 1}
+
+                data_label = [
+                    {
+                        "name": "Count (range: -1 to 1)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": 1.01,
+                        "xmin": -1.01,
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (range: -1 to 1)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": 1.01,
+                        "xmin": -1.01,
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Count (All Data)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": max(list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())) + 0.25,
+                        "xmin": min(list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())) - 0.25,
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (All Data)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": max(list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())) + 0.25,
+                        "xmin": min(list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())) - 0.25,
+                        "ymin": 0,
+                    },
+                ]
+                pconfig = {
+                    "id": "delta_mass",
+                    "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
+                    "title": "Delta m/z",
+                    "xlab": "Experimental m/z - Theoretical m/z",
+                    "data_labels": data_label,
+                    "style": "lines+markers",
+                    "showlegend": True,
+                }
+                line_html = linegraph.plot([delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent], pconfig)
+
+            else:
+                data_label = [
+                    {
+                        "name": "Count (All Data)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": 1.01,
+                        "xmin": -1.01,
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (All Data)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta elative frequency: {point.y}",
+                        "xmax": 1.01,
+                        "xmin": -1.01,
+                        "ymin": 0,
+                    },
+                ]
+                pconfig = {
+                    "id": "delta_mass",
+                    "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
+                    "title": "Delta m/z",
+                    "xlab": "Experimental m/z - Theoretical m/z",
+                    "data_labels": data_label,
+                    "style": "lines+markers",
+                    "showlegend": True,
+                }
+                line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
+        # no decoy
+        else:
+            delta_mass = {k: v for k, v in delta_mass.items() if k not in ["decoy"]}
+
+            if any(abs(x) > 1 for x in list(delta_mass["target"].keys())):
+
+                delta_mass_range = dict()
+                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= 1}
+
+                delta_mass_percent_range = dict()
+                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= 1}
+
+                data_label = [
+                    {
+                        "name": "Count (range: -1 to 1)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": 1.01,
+                        "xmin": -1.01,
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (range: -1 to 1)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": 1.01,
+                        "xmin": -1.01,
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Count (All Data)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x}Mass delta counts: {point.y}",
+                        "xmax": max(list(delta_mass["target"].keys())) + 0.25,
+                        "xmin": min(list(delta_mass["target"].keys())) - 0.25,
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (All Data)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": max(list(delta_mass["target"].keys())) + 0.25,
+                        "xmin": min(list(delta_mass["target"].keys())) - 0.25,
+                        "ymin": 0,
+                    },
+                ]
+                pconfig = {
+                    "id": "delta_mass",
+                    "colors": {"target": "#b2df8a"},
+                    "title": "Delta m/z",
+                    "xlab": "Experimental m/z - Theoretical m/z",
+                    "data_labels": data_label,
+                    "style": "lines+markers",
+                }
+                line_html = linegraph.plot([delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent], pconfig)
+
+            else:
+                data_label = [
+                    {
+                        "name": "Count (All Data)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": 1.01,
+                        "xmin": -1.01,
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (All Data)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": 1.01,
+                        "xmin": -1.01,
+                        "ymin": 0,
+                    },
+                ]
+                pconfig = {
+                    "id": "delta_mass",
+                    "colors": {"target": "#b2df8a"},
+                    "title": "Delta m/z",
+                    "xlab": "Experimental m/z - Theoretical m/z",
+                    "data_labels": data_label,
+                    "style": "lines+markers",
+                }
+                line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
 
         self.add_section(
             name="Delta Mass",
