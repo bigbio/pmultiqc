@@ -1,0 +1,61 @@
+name: Conda Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: 3.11
+        channels: conda-forge,defaults,bioconda
+    - name: Create conda environment
+      run: conda env create -f environment.yml
+
+    - name: Activate conda environment
+      run: |
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate pmultiqc
+      shell: bash
+
+    - name: Install conda-build
+      run: |
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate pmultiqc
+        conda install -n pmultiqc conda-build anaconda-client
+      shell: bash -l {0}
+
+    - name: Activate conda environment and build package
+      run: |
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate pmultiqc
+        conda build recipe
+        PACKAGE_PATH=$(conda build recipe --output)
+        conda install --offline "$PACKAGE_PATH"
+      shell: bash -l {0}
+
+    - name: Test the installed package
+      run: |
+        conda activate pmultiqc
+        parse_sdrf --help
+      shell: bash -l {0}
+
+    - name: Test validation of SDRF file
+      run: |
+        conda activate pmultiqc
+        mkdir -p ~/mzid_mzML
+        wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzML
+        wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzid.gz
+        gunzip ~/mzid_mzML/33060_Control_vs_Infection_JMI.mzid.gz
+        multiqc --mzid_plugin ~/mzid_mzML -o ./results_mzid_mzML
+      shell: bash -l {0}
