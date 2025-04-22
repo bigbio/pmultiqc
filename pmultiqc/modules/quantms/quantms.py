@@ -1579,6 +1579,8 @@ class QuantMSModule(BaseMultiqcModule):
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
         # no decoy
         else:
+            delta_mass = {k: v for k, v in delta_mass.items() if k not in ["decoy"]}
+
             if any(abs(x) > 1 for x in list(delta_mass["target"].keys())):
 
                 delta_mass_range = dict()
