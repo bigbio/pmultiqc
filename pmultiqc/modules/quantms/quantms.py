@@ -615,7 +615,7 @@ class QuantMSModule(BaseMultiqcModule):
             "zlab": "Score",
             "tt_decimals": 4,
             "square": False,
-            "colstops": self.color_list,
+            "colstops": self.heatmap_color_list,
         }
 
         hm_html = heatmap.plot(heat_map_score, xnames, ynames, pconfig)
