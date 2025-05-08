@@ -1916,15 +1916,6 @@ class QuantMSModule(BaseMultiqcModule):
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
 
             self.id_rt_score[name] = qualUniform(group["retention_time"])
-            # x = group["retention_time"] / np.sum(group["retention_time"])
-            # n = len(group["retention_time"])
-            # y = np.sum(x) / n
-            # worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
-            # sc = np.sum(np.abs(x - y) ** 0.5) / n
-            # if worst == 0:
-            #     self.id_rt_score[name] = 1.0
-            # else:
-            #     self.id_rt_score[name] = float((worst - sc) / worst)
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -2027,16 +2018,6 @@ class QuantMSModule(BaseMultiqcModule):
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
             
             self.id_rt_score[name] = qualUniform(group["retention_time"])
-
-            # x = group["retention_time"] / np.sum(group["retention_time"])
-            # n = len(group["retention_time"])
-            # y = np.sum(x) / n
-            # worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
-            # sc = np.sum(np.abs(x - y) ** 0.5) / n
-            # if worst == 0:
-            #     self.id_rt_score[name] = 1.0
-            # else:
-            #     self.id_rt_score[name] = float((worst - sc) / worst)
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
