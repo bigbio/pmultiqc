@@ -11,6 +11,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from pmultiqc.modules.common.file_utils import get_filename
+from ..common.calc_utils import qualUniform
 from ...logging import get_logger, Timer
 
 # Initialize logger for this module
@@ -459,15 +460,6 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
 
     evidence_data = evidence_df.copy()
 
-    def qualUniform(group_df):
-        x = group_df["Retention time"] / np.nansum(group_df["Retention time"])
-        n = group_df["Retention time"].notna().sum()
-        y = np.nansum(x) / n
-        worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
-        sc = np.sum(np.abs(x - y) ** 0.5) / n
-        result = 1.0 if worst == 0 else float((worst - sc) / worst)
-        return result
-
     # 8. Pep Missing Values
     global_peps = evidence_df["Modified sequence"].unique()
     global_peps_count = len(global_peps)
@@ -496,7 +488,7 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
         heatmap_dict[raw_file] = {
             "Contaminants": contaminant,
             "Peptide Intensity": peptide_intensity,
-            "ID rate over RT": qualUniform(group),      # 6. ID rate over RT
+            "ID rate over RT": qualUniform(group["Retention time"]),      # 6. ID rate over RT
             "Pep Missing Values": pep_missing_values,
         }
 

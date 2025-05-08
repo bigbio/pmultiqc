@@ -33,6 +33,7 @@ from .ms_functions import get_ms_qc_info
 from . import maxquant
 from ..common import ms_io
 from ..common.histogram import Histogram
+from ..common.calc_utils import qualUniform
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -234,13 +235,13 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_parameters(get_parameter_dicts["parameters_tb_dict"])
 
             # HeatMap
-            heatmap_data = maxquant.calculate_heatmap(
+            self.maxquant_heatmap = maxquant.calculate_heatmap(
                 evidence_df=get_evidence_dicts["evidence_df"],
                 oversampling=get_evidence_dicts["oversampling"]["plot_data"],
                 msms_missed_cleavages=get_msms_dicts["missed_cleavages"]["plot_data"]
                 )
-            if heatmap_data:
-                self.draw_maxquant_heatmap(heatmap_data)
+            if self.maxquant_heatmap:
+                self.draw_heatmap()
 
             # Intensity
             if get_protegroups_dicts["pg_intensity_distri"]:
@@ -553,57 +554,6 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
     def draw_heatmap(self):
-        heat_map_score = []
-        if self.pep_table_exists:
-            xnames = [
-                "Contaminants",
-                "Peptide Intensity",
-                "Charge",
-                "Missed Cleavages",
-                "Missed Cleavages Var",
-                "ID rate over RT",
-                "MS2 OverSampling",
-                "Pep Missing Values",
-            ]
-            ynames = []
-            for k, v in self.heatmap_con_score.items():
-                if k in self.ms_with_psm:
-                    ynames.append(k)
-                    heat_map_score.append(
-                        [
-                            v,
-                            self.heatmap_pep_intensity[k],
-                            self.heatmap_charge_score[k],
-                            self.missed_clevages_heatmap_score[k],
-                            self.missed_cleavages_var_score[k],
-                            self.id_rt_score[k],
-                            self.heatmap_over_sampling_score[k],
-                            self.heatmap_pep_missing_score[k],
-                        ]
-                    )
-        else:
-            xnames = [
-                "Charge",
-                "Missed Cleavages",
-                "Missed Cleavages Var",
-                "ID rate over RT",
-                "MS2 OverSampling",
-                "Pep Missing Values",
-            ]
-            ynames = []
-            for k, v in self.heatmap_charge_score.items():
-                if k in self.ms_with_psm:
-                    ynames.append(k)
-                    heat_map_score.append(
-                        [
-                            self.heatmap_charge_score[k],
-                            self.missed_clevages_heatmap_score[k],
-                            self.missed_cleavages_var_score[k],
-                            self.id_rt_score[k],
-                            self.heatmap_over_sampling_score[k],
-                            self.heatmap_pep_missing_score[k],
-                        ]
-                    )
 
         pconfig = {
             "id": "HeatMap",
@@ -618,12 +568,70 @@ class QuantMSModule(BaseMultiqcModule):
             "colstops": self.heatmap_color_list,
         }
 
-        hm_html = heatmap.plot(heat_map_score, xnames, ynames, pconfig)
+        if config.kwargs.get("parse_maxquant", False):
+            hm_html = heatmap.plot(data=self.maxquant_heatmap, pconfig=pconfig)
+            description_text = "This heatmap provides an overview of the performance of the MaxQuant results."
+
+        else:
+            heat_map_score = []
+            if self.pep_table_exists:
+                xnames = [
+                    "Contaminants",
+                    "Peptide Intensity",
+                    "Charge",
+                    "Missed Cleavages",
+                    "Missed Cleavages Var",
+                    "ID rate over RT",
+                    "MS2 OverSampling",
+                    "Pep Missing Values",
+                ]
+                ynames = []
+                for k, v in self.heatmap_con_score.items():
+                    if k in self.ms_with_psm:
+                        ynames.append(k)
+                        heat_map_score.append(
+                            [
+                                v,
+                                self.heatmap_pep_intensity[k],
+                                self.heatmap_charge_score[k],
+                                self.missed_clevages_heatmap_score[k],
+                                self.missed_cleavages_var_score[k],
+                                self.id_rt_score[k],
+                                self.heatmap_over_sampling_score[k],
+                                self.heatmap_pep_missing_score[k],
+                            ]
+                        )
+            else:
+                xnames = [
+                    "Charge",
+                    "Missed Cleavages",
+                    "Missed Cleavages Var",
+                    "ID rate over RT",
+                    "MS2 OverSampling",
+                    "Pep Missing Values",
+                ]
+                ynames = []
+                for k, v in self.heatmap_charge_score.items():
+                    if k in self.ms_with_psm:
+                        ynames.append(k)
+                        heat_map_score.append(
+                            [
+                                self.heatmap_charge_score[k],
+                                self.missed_clevages_heatmap_score[k],
+                                self.missed_cleavages_var_score[k],
+                                self.id_rt_score[k],
+                                self.heatmap_over_sampling_score[k],
+                                self.heatmap_pep_missing_score[k],
+                            ]
+                        )
+            hm_html = heatmap.plot(heat_map_score, xnames, ynames, pconfig)
+            description_text = "This heatmap provides an overview of the performance of the quantms."
+        
         # Add a report section with the heatmap plot
         self.add_section(
             name="HeatMap",
-            anchor="quantms_heatmap",
-            description="This heatmap shows a performance overview of the pipeline",
+            anchor="pmultiqc_heatmap",
+            description=description_text,
             helptext="""
                     This plot shows the pipeline performance overview. Some metrics are calculated.
                     
@@ -1472,8 +1480,9 @@ class QuantMSModule(BaseMultiqcModule):
         pconfig = {
             "id": "Oversampling_Distribution",
             "cpswitch": True,
+            "cpswitch_c_active": False,
             "title": "MS2 counts per 3D-peak",
-            "ylab": "Count",
+            "ylab": "MS2 counts per 3D-peak [%]",
             "tt_decimals": 0,
         }
         cats = self.oversampling_plot.dict["cats"]
@@ -1492,8 +1501,6 @@ class QuantMSModule(BaseMultiqcModule):
             undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
             Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
             exclusion windows for data independent acquisitions.
-            
-            * Heatmap score [EVD: MS2 Oversampling]: The percentage of non-oversampled 3D-peaks.
             """,
             plot=bar_html,
         )
@@ -1908,15 +1915,16 @@ class QuantMSModule(BaseMultiqcModule):
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
 
-            x = group["retention_time"] / np.sum(group["retention_time"])
-            n = len(group["retention_time"])
-            y = np.sum(x) / n
-            worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
-            sc = np.sum(np.abs(x - y) ** 0.5) / n
-            if worst == 0:
-                self.id_rt_score[name] = 1.0
-            else:
-                self.id_rt_score[name] = float((worst - sc) / worst)
+            self.id_rt_score[name] = qualUniform(group["retention_time"])
+            # x = group["retention_time"] / np.sum(group["retention_time"])
+            # n = len(group["retention_time"])
+            # y = np.sum(x) / n
+            # worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
+            # sc = np.sum(np.abs(x - y) ** 0.5) / n
+            # if worst == 0:
+            #     self.id_rt_score[name] = 1.0
+            # else:
+            #     self.id_rt_score[name] = float((worst - sc) / worst)
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -2017,16 +2025,18 @@ class QuantMSModule(BaseMultiqcModule):
             sc = group["missed_cleavages"].value_counts()
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
+            
+            self.id_rt_score[name] = qualUniform(group["retention_time"])
 
-            x = group["retention_time"] / np.sum(group["retention_time"])
-            n = len(group["retention_time"])
-            y = np.sum(x) / n
-            worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
-            sc = np.sum(np.abs(x - y) ** 0.5) / n
-            if worst == 0:
-                self.id_rt_score[name] = 1.0
-            else:
-                self.id_rt_score[name] = float((worst - sc) / worst)
+            # x = group["retention_time"] / np.sum(group["retention_time"])
+            # n = len(group["retention_time"])
+            # y = np.sum(x) / n
+            # worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
+            # sc = np.sum(np.abs(x - y) ** 0.5) / n
+            # if worst == 0:
+            #     self.id_rt_score[name] = 1.0
+            # else:
+            #     self.id_rt_score[name] = float((worst - sc) / worst)
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -3522,62 +3532,6 @@ class QuantMSModule(BaseMultiqcModule):
 
         return maxquant_paths
 
-    # MaxQuant HeatMap
-    def draw_maxquant_heatmap(self, heatmap_data):
-
-        pconfig = {
-            "id": "heatmap",
-            "title": "Performance Overview",
-            "min": 0,
-            "max": 1,
-            "xlab": "Metrics",
-            "ylab": "RawName",
-            "zlab": "Score",
-            "tt_decimals": 4,
-            "square": False,
-            "xcats_samples": False,
-            "ycats_samples": False,
-            "colstops": self.heatmap_color_list,
-        }
-    
-        hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
-
-        # Add a report section with the heatmap plot
-        self.add_section(
-            name="HeatMap",
-            anchor="maxquant_heatmap",
-            description="This heatmap provides an overview of the performance of the MaxQuant results.",
-            helptext="""
-                    This plot shows the pipeline performance overview. Some metrics are calculated.
-                    
-                    * Heatmap score[Contaminants]: as fraction of summed intensity with 0 = sample full of contaminants; 
-                        1 = no contaminants
-                    * Heatmap score[Pep Intensity (>23.0)]: Linear scale of the median intensity reaching the threshold, 
-                        i.e. reaching 2^21 of 2^23 gives score 0.25.
-                    * Heatmap score[Charge]: Deviation of the charge 2 proportion from a representative 
-                        Raw file (median). For typtic digests, peptides of charge 2 (one N-terminal and one at 
-                        tryptic C-terminal R or K residue) should be dominant. Ionization issues (voltage?), 
-                        in-source fragmentation, missed cleavages and buffer irregularities can cause a shift 
-                        (see Bittremieux 2017, DOI: 10.1002/mas.21544).
-                    * Heatmap score [Missed Cleavages]: the fraction (0% - 100%) of fully cleaved peptides per Raw file
-                    * Heatmap score [Missed Cleavages Var]: each Raw file is scored for its deviation from the ‘average’ digestion 
-                        state of the current study.
-                    * Heatmap score [ID rate over RT]: Judge column occupancy over retention time. 
-                        Ideally, the LC gradient is chosen such that the number of identifications 
-                        (here, after FDR filtering) is uniform over time, to ensure consistent instrument duty cycles. 
-                        Sharp peaks and uneven distribution of identifications over time indicate potential for LC gradient 
-                        optimization.Scored using ‘Uniform’ scoring function. i.e. constant receives good score, extreme shapes are bad.
-                    * Heatmap score [MS2 Oversampling]: The percentage of non-oversampled 3D-peaks. An oversampled 
-                        3D-peak is defined as a peak whose peptide ion (same sequence and same charge state) was 
-                        identified by at least two distinct MS2 spectra in the same Raw file. For high complexity samples, 
-                        oversampling of individual 3D-peaks automatically leads to undersampling or even omission of other 3D-peaks, 
-                        reducing the number of identified peptides.
-                    * Heatmap score [Pep Missing Values]: Linear scale of the fraction of missing peptides.
-                    
-                    """,
-            plot=hm_html,
-        )
-
 
     # MaxQuant parameters table
     def draw_parameters(self, parameter_table):
@@ -3906,21 +3860,19 @@ class QuantMSModule(BaseMultiqcModule):
     # MaxQuant Fig 13
     def draw_evidence_oversampling(self, oversampling_data):
         draw_config = {
-            "id": "oversampling",
+            "id": "oversampling_distribution",
             "cpswitch": False,
             "cpswitch_c_active": False,
-            # 'title': 'Oversampling (MS/MS counts per 3D-peak)',
-            "title": "Oversampling",
+            "title": "MS2 counts per 3D-peak",
             "tt_decimals": 2,
-            "ylab": "MS/MS counts per 3D-peak [%]",
+            "ylab": "MS2 counts per 3D-peak [%]",
         }
         bar_html = bargraph.plot(
             oversampling_data["plot_data"], cats=oversampling_data["cats"], pconfig=draw_config
         )
         self.add_section(
-            # name='Oversampling (MS/MS counts per 3D-peak)',
-            name="Oversampling",
-            anchor="oversampling",
+            name="Oversampling Distribution",
+            anchor="oversampling_distribution",
             description="""
             An oversampled 3D-peak is defined as a peak whose peptide ion (same sequence 
             and same charge state) was identified by at least two distinct MS2 spectra in the same Raw file.
@@ -3972,7 +3924,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.add_section(
                 name="Calibrated Mass Error",
                 anchor="Calibrated_mass_error_box",
-                description="Mass accuracy after calibration (Excludes Contaminants).",
+                description="[Excludes Contaminants] Mass accuracy after calibration.",
                 helptext="""
                 Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison 
                 to the predicted monoisotopic mass of the identified peptide sequence in parts per million. 
