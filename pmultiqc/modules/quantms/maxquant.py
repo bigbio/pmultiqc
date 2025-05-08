@@ -527,7 +527,7 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
     for raw_file, value in oversampling.items():
         heatmap_dict[raw_file]["MS2 OverSampling"] = np.minimum(1.0, (value["1"] / 100))
 
-    # Sort the x-axis
+    # Sort the xnames
     heatmap_xname_order = [
         "Contaminants",
         "Peptide Intensity",

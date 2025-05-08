@@ -1935,7 +1935,6 @@ class QuantMSModule(BaseMultiqcModule):
             sc = group["missed_cleavages"].value_counts()
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-
             self.id_rt_score[name] = qualUniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
@@ -2037,7 +2036,6 @@ class QuantMSModule(BaseMultiqcModule):
             sc = group["missed_cleavages"].value_counts()
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            
             self.id_rt_score[name] = qualUniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
