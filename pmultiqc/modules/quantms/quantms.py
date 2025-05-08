@@ -286,7 +286,8 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_evidence_protein_group_count(get_evidence_dicts["protein_group_count"])
 
             if get_evidence_dicts["oversampling"]:
-                self.draw_evidence_oversampling(get_evidence_dicts["oversampling"])
+                self.maxquant_oversampling = get_evidence_dicts["oversampling"]
+                self.draw_oversampling()
 
             if get_msms_dicts["missed_cleavages"]:
                 self.draw_msms_missed_cleavages(get_msms_dicts["missed_cleavages"])
@@ -1476,17 +1477,37 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def draw_oversampling(self):
-        # Create bar plot
-        pconfig = {
-            "id": "Oversampling_Distribution",
-            "cpswitch": True,
-            "cpswitch_c_active": False,
-            "title": "MS2 counts per 3D-peak",
-            "ylab": "MS2 counts per 3D-peak [%]",
-            "tt_decimals": 0,
-        }
-        cats = self.oversampling_plot.dict["cats"]
-        bar_html = bargraph.plot(self.oversampling, cats, pconfig)
+
+        if config.kwargs.get("parse_maxquant", False):
+            draw_config = {
+                "id": "oversampling_distribution",
+                "cpswitch": False,
+                "cpswitch_c_active": False,
+                "title": "MS2 counts per 3D-peak",
+                "tt_decimals": 2,
+                "ylab": "MS2 counts per 3D-peak [%]",
+            }
+            bar_html = bargraph.plot(
+                data=self.maxquant_oversampling["plot_data"],
+                cats=self.maxquant_oversampling["cats"],
+                pconfig=draw_config
+            )
+
+        else:
+            draw_config = {
+                "id": "Oversampling_Distribution",
+                "cpswitch": True,
+                "cpswitch_c_active": False,
+                "title": "MS2 counts per 3D-peak",
+                "ylab": "MS2 counts per 3D-peak [%]",
+                "tt_decimals": 0,
+            }
+            bar_html = bargraph.plot(
+                data=self.oversampling,
+                cats=self.oversampling_plot.dict["cats"],
+                pconfig=draw_config
+            )
+
         # Add a report section with the bar plot
         self.add_section(
             name="Oversampling Distribution",
@@ -3836,35 +3857,6 @@ class QuantMSModule(BaseMultiqcModule):
             is one parameter of optimal and reproducible chromatographic separation.
             """,
             plot=linegraph_html,
-        )
-
-    # MaxQuant Fig 13
-    def draw_evidence_oversampling(self, oversampling_data):
-        draw_config = {
-            "id": "oversampling_distribution",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
-            "title": "MS2 counts per 3D-peak",
-            "tt_decimals": 2,
-            "ylab": "MS2 counts per 3D-peak [%]",
-        }
-        bar_html = bargraph.plot(
-            oversampling_data["plot_data"], cats=oversampling_data["cats"], pconfig=draw_config
-        )
-        self.add_section(
-            name="Oversampling Distribution",
-            anchor="oversampling_distribution",
-            description="""
-            An oversampled 3D-peak is defined as a peak whose peptide ion (same sequence 
-            and same charge state) was identified by at least two distinct MS2 spectra in the same Raw file.
-            """,
-            helptext="""
-            For high complexity samples, oversampling of individual 3D-peaks automatically leads to undersampling 
-            or even omission of other 3D-peaks, reducing the number of identified peptides. Oversampling occurs 
-            in low-complexity samples or long LC gradients, as well as undersized dynamic exclusion windows 
-            for data independent acquisitions.
-            """,
-            plot=bar_html,
         )
 
     # MaxQuant Fig 15
