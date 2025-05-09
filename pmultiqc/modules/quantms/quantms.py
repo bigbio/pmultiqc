@@ -26,12 +26,14 @@ import sqlite3
 import numpy as np
 import copy
 import json
+from matplotlib.colors import to_hex, LinearSegmentedColormap
 
 from . import sparklines
 from .ms_functions import get_ms_qc_info
 from . import maxquant
 from ..common import ms_io
 from ..common.histogram import Histogram
+from ..common.calc_utils import qualUniform
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -82,6 +84,10 @@ class QuantMSModule(BaseMultiqcModule):
         # Halt execution if we've disabled the plugin
         if config.kwargs.get("disable_plugin", True):
             return None
+
+        # HeatMap color list
+        color_map = LinearSegmentedColormap.from_list("red_green", ["#ff0000", "#00ff00"])
+        self.heatmap_color_list = [[s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]]
 
         # Parse MaxQuant results
         if config.kwargs.get("parse_maxquant", False):
@@ -228,6 +234,15 @@ class QuantMSModule(BaseMultiqcModule):
             if get_parameter_dicts["parameters_tb_dict"]:
                 self.draw_parameters(get_parameter_dicts["parameters_tb_dict"])
 
+            # HeatMap
+            self.maxquant_heatmap = maxquant.calculate_heatmap(
+                evidence_df=get_evidence_dicts["evidence_df"],
+                oversampling=get_evidence_dicts["oversampling"]["plot_data"],
+                msms_missed_cleavages=get_msms_dicts["missed_cleavages"]["plot_data"]
+                )
+            if self.maxquant_heatmap:
+                self.draw_heatmap()
+
             # Intensity
             if get_protegroups_dicts["pg_intensity_distri"]:
                 self.draw_intensity_box(
@@ -271,7 +286,8 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_evidence_protein_group_count(get_evidence_dicts["protein_group_count"])
 
             if get_evidence_dicts["oversampling"]:
-                self.draw_evidence_oversampling(get_evidence_dicts["oversampling"])
+                self.maxquant_oversampling = get_evidence_dicts["oversampling"]
+                self.draw_oversampling()
 
             if get_msms_dicts["missed_cleavages"]:
                 self.draw_msms_missed_cleavages(get_msms_dicts["missed_cleavages"])
@@ -539,72 +555,84 @@ class QuantMSModule(BaseMultiqcModule):
         }
 
     def draw_heatmap(self):
-        heat_map_score = []
-        if self.pep_table_exists:
-            xnames = [
-                "Contaminants",
-                "Peptide Intensity",
-                "Charge",
-                "Missed Cleavages",
-                "Missed Cleavages Var",
-                "ID rate over RT",
-                "MS2 OverSampling",
-                "Pep Missing Values",
-            ]
-            ynames = []
-            for k, v in self.heatmap_con_score.items():
-                if k in self.ms_with_psm:
-                    ynames.append(k)
-                    heat_map_score.append(
-                        [
-                            v,
-                            self.heatmap_pep_intensity[k],
-                            self.heatmap_charge_score[k],
-                            self.missed_clevages_heatmap_score[k],
-                            self.missed_cleavages_var_score[k],
-                            self.id_rt_score[k],
-                            self.heatmap_over_sampling_score[k],
-                            self.heatmap_pep_missing_score[k],
-                        ]
-                    )
-        else:
-            xnames = [
-                "Charge",
-                "Missed Cleavages",
-                "Missed Cleavages Var",
-                "ID rate over RT",
-                "MS2 OverSampling",
-                "Pep Missing Values",
-            ]
-            ynames = []
-            for k, v in self.heatmap_charge_score.items():
-                if k in self.ms_with_psm:
-                    ynames.append(k)
-                    heat_map_score.append(
-                        [
-                            self.heatmap_charge_score[k],
-                            self.missed_clevages_heatmap_score[k],
-                            self.missed_cleavages_var_score[k],
-                            self.id_rt_score[k],
-                            self.heatmap_over_sampling_score[k],
-                            self.heatmap_pep_missing_score[k],
-                        ]
-                    )
 
         pconfig = {
             "id": "HeatMap",
-            "title": "Performance Overview",  # Plot title - should be in format "Module Name: Plot Title"
-            "xlab": "metrics",  # X-axis title
-            "ylab": "RawName",  # Y-axis title
+            "title": "Performance Overview",
+            "min": 0,
+            "max": 1,
+            "xlab": "Metrics",
+            "ylab": "RawName",
+            "zlab": "Score",
+            "tt_decimals": 4,
             "square": False,
+            "colstops": self.heatmap_color_list,
         }
 
-        hm_html = heatmap.plot(heat_map_score, xnames, ynames, pconfig)
+        if config.kwargs.get("parse_maxquant", False):
+            hm_html = heatmap.plot(data=self.maxquant_heatmap, pconfig=pconfig)
+            description_text = "This heatmap provides an overview of the performance of the MaxQuant results."
+
+        else:
+            heat_map_score = []
+            if self.pep_table_exists:
+                xnames = [
+                    "Contaminants",
+                    "Peptide Intensity",
+                    "Charge",
+                    "Missed Cleavages",
+                    "Missed Cleavages Var",
+                    "ID rate over RT",
+                    "MS2 OverSampling",
+                    "Pep Missing Values",
+                ]
+                ynames = []
+                for k, v in self.heatmap_con_score.items():
+                    if k in self.ms_with_psm:
+                        ynames.append(k)
+                        heat_map_score.append(
+                            [
+                                v,
+                                self.heatmap_pep_intensity[k],
+                                self.heatmap_charge_score[k],
+                                self.missed_clevages_heatmap_score[k],
+                                self.missed_cleavages_var_score[k],
+                                self.id_rt_score[k],
+                                self.heatmap_over_sampling_score[k],
+                                self.heatmap_pep_missing_score[k],
+                            ]
+                        )
+            else:
+                xnames = [
+                    "Charge",
+                    "Missed Cleavages",
+                    "Missed Cleavages Var",
+                    "ID rate over RT",
+                    "MS2 OverSampling",
+                    "Pep Missing Values",
+                ]
+                ynames = []
+                for k, v in self.heatmap_charge_score.items():
+                    if k in self.ms_with_psm:
+                        ynames.append(k)
+                        heat_map_score.append(
+                            [
+                                self.heatmap_charge_score[k],
+                                self.missed_clevages_heatmap_score[k],
+                                self.missed_cleavages_var_score[k],
+                                self.id_rt_score[k],
+                                self.heatmap_over_sampling_score[k],
+                                self.heatmap_pep_missing_score[k],
+                            ]
+                        )
+            hm_html = heatmap.plot(heat_map_score, xnames, ynames, pconfig)
+            description_text = "This heatmap provides an overview of the performance of the quantms."
+        
         # Add a report section with the heatmap plot
         self.add_section(
             name="HeatMap",
-            anchor="quantms_heatmap",
-            description="This heatmap shows a performance overview of the pipeline",
+            anchor="pmultiqc_heatmap",
+            description=description_text,
             helptext="""
                     This plot shows the pipeline performance overview. Some metrics are calculated.
                     
@@ -616,9 +644,9 @@ class QuantMSModule(BaseMultiqcModule):
                         Raw file (median). For typtic digests, peptides of charge 2 (one N-terminal and one at 
                         tryptic C-terminal R or K residue) should be dominant. Ionization issues (voltage?), 
                         in-source fragmentation, missed cleavages and buffer irregularities can cause a shift 
-                        (see Bittremieux 2017, DOI: 10.1002/mas.21544 ).
-                    * Heatmap score [MC]: the fraction (0% - 100%) of fully cleaved peptides per Raw file
-                    * Heatmap score [MC Var]: each Raw file is scored for its deviation from the ‘average’ digestion 
+                        (see Bittremieux 2017, DOI: 10.1002/mas.21544).
+                    * Heatmap score [Missed Cleavages]: the fraction (0% - 100%) of fully cleaved peptides per Raw file
+                    * Heatmap score [Missed Cleavages Var]: each Raw file is scored for its deviation from the ‘average’ digestion 
                         state of the current study.
                     * Heatmap score [ID rate over RT]: Judge column occupancy over retention time. 
                         Ideally, the LC gradient is chosen such that the number of identifications 
@@ -630,7 +658,7 @@ class QuantMSModule(BaseMultiqcModule):
                         identified by at least two distinct MS2 spectra in the same Raw file. For high complexity samples, 
                         oversampling of individual 3D-peaks automatically leads to undersampling or even omission of other 3D-peaks, 
                         reducing the number of identified peptides.
-                    * Heatmap score [Pep Missing]: Linear scale of the fraction of missing peptides.
+                    * Heatmap score [Pep Missing Values]: Linear scale of the fraction of missing peptides.
                     
                     """,
             plot=hm_html,
@@ -1449,16 +1477,37 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     def draw_oversampling(self):
-        # Create bar plot
-        pconfig = {
-            "id": "Oversampling_Distribution",
-            "cpswitch": True,
-            "title": "MS2 counts per 3D-peak",
-            "ylab": "Count",
-            "tt_decimals": 0,
-        }
-        cats = self.oversampling_plot.dict["cats"]
-        bar_html = bargraph.plot(self.oversampling, cats, pconfig)
+
+        if config.kwargs.get("parse_maxquant", False):
+            draw_config = {
+                "id": "oversampling_distribution",
+                "cpswitch": False,
+                "cpswitch_c_active": False,
+                "title": "MS2 counts per 3D-peak",
+                "tt_decimals": 2,
+                "ylab": "MS2 counts per 3D-peak [%]",
+            }
+            bar_html = bargraph.plot(
+                data=self.maxquant_oversampling["plot_data"],
+                cats=self.maxquant_oversampling["cats"],
+                pconfig=draw_config
+            )
+
+        else:
+            draw_config = {
+                "id": "Oversampling_Distribution",
+                "cpswitch": True,
+                "cpswitch_c_active": False,
+                "title": "MS2 counts per 3D-peak",
+                "ylab": "MS2 counts per 3D-peak [%]",
+                "tt_decimals": 0,
+            }
+            bar_html = bargraph.plot(
+                data=self.oversampling,
+                cats=self.oversampling_plot.dict["cats"],
+                pconfig=draw_config
+            )
+
         # Add a report section with the bar plot
         self.add_section(
             name="Oversampling Distribution",
@@ -1473,8 +1522,6 @@ class QuantMSModule(BaseMultiqcModule):
             undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
             Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
             exclusion windows for data independent acquisitions.
-            
-            * Heatmap score [EVD: MS2 Oversampling]: The percentage of non-oversampled 3D-peaks.
             """,
             plot=bar_html,
         )
@@ -1888,16 +1935,7 @@ class QuantMSModule(BaseMultiqcModule):
             sc = group["missed_cleavages"].value_counts()
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-
-            x = group["retention_time"] / np.sum(group["retention_time"])
-            n = len(group["retention_time"])
-            y = np.sum(x) / n
-            worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
-            sc = np.sum(np.abs(x - y) ** 0.5) / n
-            if worst == 0:
-                self.id_rt_score[name] = 1.0
-            else:
-                self.id_rt_score[name] = float((worst - sc) / worst)
+            self.id_rt_score[name] = qualUniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -1998,16 +2036,7 @@ class QuantMSModule(BaseMultiqcModule):
             sc = group["missed_cleavages"].value_counts()
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-
-            x = group["retention_time"] / np.sum(group["retention_time"])
-            n = len(group["retention_time"])
-            y = np.sum(x) / n
-            worst = ((1 - y) ** 0.5) * 1 / n + (y**0.5) * (n - 1) / n
-            sc = np.sum(np.abs(x - y) ** 0.5) / n
-            if worst == 0:
-                self.id_rt_score[name] = 1.0
-            else:
-                self.id_rt_score[name] = float((worst - sc) / worst)
+            self.id_rt_score[name] = qualUniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -3503,6 +3532,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         return maxquant_paths
 
+
     # MaxQuant parameters table
     def draw_parameters(self, parameter_table):
         draw_config = {
@@ -3827,37 +3857,6 @@ class QuantMSModule(BaseMultiqcModule):
             plot=linegraph_html,
         )
 
-    # MaxQuant Fig 13
-    def draw_evidence_oversampling(self, oversampling_data):
-        draw_config = {
-            "id": "oversampling",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
-            # 'title': 'Oversampling (MS/MS counts per 3D-peak)',
-            "title": "Oversampling",
-            "tt_decimals": 2,
-            "ylab": "MS/MS counts per 3D-peak [%]",
-        }
-        bar_html = bargraph.plot(
-            oversampling_data["plot_data"], cats=oversampling_data["cats"], pconfig=draw_config
-        )
-        self.add_section(
-            # name='Oversampling (MS/MS counts per 3D-peak)',
-            name="Oversampling",
-            anchor="oversampling",
-            description="""
-            An oversampled 3D-peak is defined as a peak whose peptide ion (same sequence 
-            and same charge state) was identified by at least two distinct MS2 spectra in the same Raw file.
-            """,
-            helptext="""
-            For high complexity samples, oversampling of individual 3D-peaks automatically leads to undersampling 
-            or even omission of other 3D-peaks, reducing the number of identified peptides. Oversampling occurs 
-            in low-complexity samples or long LC gradients, as well as undersized dynamic exclusion windows 
-            for data independent acquisitions.
-            """,
-            plot=bar_html,
-        )
-
     # MaxQuant Fig 15
     def draw_mass_error_box(self, mass_error_data, fig_type):
         # fig_type: 'uncalibrated' or 'calibrated'
@@ -3896,7 +3895,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.add_section(
                 name="Calibrated Mass Error",
                 anchor="Calibrated_mass_error_box",
-                description="Mass accuracy after calibration (Excludes Contaminants).",
+                description="[Excludes Contaminants] Mass accuracy after calibration.",
                 helptext="""
                 Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison 
                 to the predicted monoisotopic mass of the identified peptide sequence in parts per million. 

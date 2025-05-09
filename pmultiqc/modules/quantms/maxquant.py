@@ -11,6 +11,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from pmultiqc.modules.common.file_utils import get_filename
+from ..common.calc_utils import qualUniform
 from ...logging import get_logger, Timer
 
 # Initialize logger for this module
@@ -442,6 +443,112 @@ def get_evidence(file_path):
     return result
 
 
+# HeatMap
+def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
+
+    if any(x is None for x in (evidence_df, oversampling, msms_missed_cleavages)):
+        return None
+    
+    if any(
+        column not in evidence_df.columns
+        for column in ["Potential contaminant", "Intensity", "Raw file", "Retention time", "Charge"]
+    ):
+        return None
+    
+    if evidence_df[evidence_df["Potential contaminant"] == "+"].empty:
+        logger.info("The evidence.txt file does not contain any contaminants")
+
+    evidence_data = evidence_df.copy()
+
+    # 8. Pep Missing Values
+    global_peps = evidence_df["Modified sequence"].unique()
+    global_peps_count = len(global_peps)
+
+    heatmap_dict = dict()
+    for raw_file, group in evidence_data[
+        [
+            "Potential contaminant", "Intensity", "Retention time",
+            "Raw file", "Modified sequence"
+            ]
+        ].groupby("Raw file"):
+
+        # 1. Contaminants
+        contaminant = 1 - (group[group["Potential contaminant"] == "+"]["Intensity"].sum() 
+                           / group["Intensity"].sum())
+        
+        # 2. Peptide Intensity
+        peptide_intensity = np.minimum(1.0, np.nanmedian(group["Intensity"]) / (2**23))
+
+        # 8. Pep Missing Values
+        pep_missing_values = np.minimum(
+            1.0,
+            len(set(global_peps) & set(group["Modified sequence"].unique())) / global_peps_count
+        )
+
+        heatmap_dict[raw_file] = {
+            "Contaminants": contaminant,
+            "Peptide Intensity": peptide_intensity,
+            "ID rate over RT": qualUniform(group["Retention time"]),      # 6. ID rate over RT
+            "Pep Missing Values": pep_missing_values,
+        }
+
+    # 4. Missed Cleavages
+    missed_cleavages = {key: value["0"] / 100 for key, value in msms_missed_cleavages.items()}
+
+    # 5. Missed Cleavages Var
+    mc_median = np.median(list(missed_cleavages.values()))
+    missed_cleavages_var = dict(
+        zip(
+            missed_cleavages.keys(),
+            list(map(lambda v: 1 - np.abs(v - mc_median), missed_cleavages.values())),
+        )
+    )
+    for raw_file in missed_cleavages.keys():
+        heatmap_dict[raw_file]["Missed Cleavages"] = missed_cleavages[raw_file]
+        heatmap_dict[raw_file]["Missed Cleavages Var"] = missed_cleavages_var[raw_file]
+
+    # 3. Charge
+    charge = dict()
+    for raw_file, group in evidence_data.loc[
+        ~evidence_data["is_transferred"], ["Charge", "Raw file"]
+        ].groupby("Raw file"):
+        charge[raw_file] = group["Charge"].value_counts()[2] / len(group)
+    charge_median = np.median(list(charge.values()))
+    heatmap_charge = dict(
+        zip(
+            charge.keys(),
+            list(map(lambda v: 1 - np.abs(v - charge_median), charge.values())),
+        )
+    )
+    for raw_file in heatmap_charge.keys():
+        heatmap_dict[raw_file]["Charge"] = heatmap_charge[raw_file]
+
+    # 7. MS2 OverSampling
+    for raw_file, value in oversampling.items():
+        heatmap_dict[raw_file]["MS2 OverSampling"] = np.minimum(1.0, (value["1"] / 100))
+
+    # Sort the xnames
+    heatmap_xname_order = [
+        "Contaminants",
+        "Peptide Intensity",
+        "Charge",
+        "Missed Cleavages",
+        "Missed Cleavages Var",
+        "ID rate over RT",
+        "MS2 OverSampling",
+        "Pep Missing Values",
+    ]
+
+    for raw_file in heatmap_charge.keys():
+        heatmap_dict[raw_file] = {
+            key: heatmap_dict[raw_file][key]
+            for key in heatmap_xname_order
+            if key in heatmap_dict[raw_file].keys()
+        }
+
+    return heatmap_dict
+
+
 # 3-1. evidence.txt: Top Contaminants per Raw file
 def evidence_top_contaminants(evidence_df, top_n):
     if any(
@@ -450,6 +557,10 @@ def evidence_top_contaminants(evidence_df, top_n):
     ):
         return None
 
+    if evidence_df[evidence_df["Potential contaminant"] == "+"].empty:
+        logger.info("The evidence.txt file does not contain any contaminants")
+        return None
+    
     evidence_data = evidence_df.copy()
 
     if "Protein Names" in evidence_data.columns:
