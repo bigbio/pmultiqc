@@ -273,8 +273,11 @@ def read_ms_info(
         group = mzml_df[mzml_df["ms_level"] == 2]
         del mzml_df
 
+        if not identified_spectrum:
+            raise ValueError("ms_io: The identified_spectrum is missing. Please check your mzTab file!")
+
         identified_spectrum_scan_id = [
-            re.search(r"scan=(\d+)", spectrum_id).group(1)
+            spectra_ref_check(spectrum_id)
             for spectrum_id in identified_spectrum[m]
         ]
 
@@ -568,3 +571,21 @@ def parse_idxml(
     }
 
     return search_engine, msgf_label, comet_label, sage_label
+
+
+def spectra_ref_check(spectra_ref):
+
+    match_scan = re.search(r"scan=(\d+)", spectra_ref)
+    if match_scan:
+        return match_scan.group(1)
+    
+    match_spectrum = re.search(r"spectrum=(\d+)", spectra_ref)
+    if match_spectrum:
+        return match_spectrum.group(1)
+    
+    try:
+        if int(spectra_ref):
+            return spectra_ref
+
+    except ValueError:
+        raise ValueError("Please check the 'spectra_ref' field in your mzTab file.")

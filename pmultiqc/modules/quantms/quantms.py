@@ -2359,12 +2359,14 @@ class QuantMSModule(BaseMultiqcModule):
         prot = prot[fixed_cols + score_cols + prot_abundance_cols + opt_cols]
 
         # We only need the overall protein (group) scores and abundances. Currently we do not care about details of single proteins (length, description,...)
-        prot = prot[prot["opt_global_result_type"] != "protein_details"]
+        prot = prot[prot["opt_global_result_type"] != "protein_details"].copy()
 
         if config.kwargs["remove_decoy"]:
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1].copy()
             # TODO do we really want to remove groups that contain a single decoy? I would say ALL members need to be decoy.
             prot = prot[~prot["accession"].str.contains(config.kwargs["decoy_affix"])]
+
+        prot.dropna(subset=["ambiguity_members"], inplace=True)
 
         prot["protein_group"] = prot["ambiguity_members"].apply(lambda x: x.replace(",", ";"))
 
