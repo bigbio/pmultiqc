@@ -573,19 +573,21 @@ def parse_idxml(
     return search_engine, msgf_label, comet_label, sage_label
 
 
-def spectra_ref_check(spectra_ref):
+ def spectra_ref_check(spectra_ref):
 
-    match_scan = re.search(r"scan=(\d+)", spectra_ref)
-    if match_scan:
-        return match_scan.group(1)
-    
-    match_spectrum = re.search(r"spectrum=(\d+)", spectra_ref)
-    if match_spectrum:
-        return match_spectrum.group(1)
-    
-    try:
-        if int(spectra_ref):
-            return spectra_ref
+     match_scan = re.search(r"scan=(\d+)", spectra_ref)
+     if match_scan:
+         return match_scan.group(1)
+     
+     match_spectrum = re.search(r"spectrum=(\d+)", spectra_ref)
+     if match_spectrum:
+         return match_spectrum.group(1)
+     
+     try:
+         if int(spectra_ref):
+             return spectra_ref
 
-    except ValueError:
-        raise ValueError("Please check the 'spectra_ref' field in your mzTab file.")
+-    except ValueError:
+-        raise ValueError("Please check the 'spectra_ref' field in your mzTab file.")
++    except ValueError:
++        raise ValueError("Please check the 'spectra_ref' field in your mzTab file.") from None
