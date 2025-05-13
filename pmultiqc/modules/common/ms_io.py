@@ -32,18 +32,18 @@ def file_prefix(path):
 
 
 def add_ms_values(
-    info_df,
-    ms_name,
-    ms_with_psm,
-    identified_spectrum_scan_id,
-    mzml_charge_plot,
-    mzml_peak_distribution_plot,
-    mzml_peaks_ms2_plot,
-    mzml_charge_plot_1,
-    mzml_peak_distribution_plot_1,
-    mzml_peaks_ms2_plot_1,
-    ms_without_psm,
-    enable_dia=False,
+        info_df,
+        ms_name,
+        ms_with_psm,
+        identified_spectrum_scan_id,
+        mzml_charge_plot,
+        mzml_peak_distribution_plot,
+        mzml_peaks_ms2_plot,
+        mzml_charge_plot_1,
+        mzml_peak_distribution_plot_1,
+        mzml_peaks_ms2_plot_1,
+        ms_without_psm,
+        enable_dia=False,
 ):
     """
     Process MS values from a dataframe row and add them to the appropriate histograms
@@ -108,17 +108,17 @@ def add_ms_values(
 
 
 def read_mzmls(
-    ms_paths,
-    ms_with_psm,
-    identified_spectrum,
-    mzml_charge_plot,
-    mzml_peak_distribution_plot,
-    mzml_peaks_ms2_plot,
-    mzml_charge_plot_1,
-    mzml_peak_distribution_plot_1,
-    mzml_peaks_ms2_plot_1,
-    ms_without_psm,
-    enable_dia=False,
+        ms_paths,
+        ms_with_psm,
+        identified_spectrum,
+        mzml_charge_plot,
+        mzml_peak_distribution_plot,
+        mzml_peaks_ms2_plot,
+        mzml_charge_plot_1,
+        mzml_peak_distribution_plot_1,
+        mzml_peaks_ms2_plot_1,
+        ms_without_psm,
+        enable_dia=False,
 ):
     """
     Read mzML files and extract information
@@ -204,17 +204,17 @@ def read_mzmls(
 
 
 def read_ms_info(
-    ms_info_path,
-    ms_with_psm,
-    identified_spectrum,
-    mzml_charge_plot,
-    mzml_peak_distribution_plot,
-    mzml_peaks_ms2_plot,
-    mzml_charge_plot_1,
-    mzml_peak_distribution_plot_1,
-    mzml_peaks_ms2_plot_1,
-    ms_without_psm,
-    enable_dia=False,
+        ms_info_path,
+        ms_with_psm,
+        identified_spectrum,
+        mzml_charge_plot,
+        mzml_peak_distribution_plot,
+        mzml_peaks_ms2_plot,
+        mzml_charge_plot_1,
+        mzml_peak_distribution_plot_1,
+        mzml_peaks_ms2_plot_1,
+        ms_without_psm,
+        enable_dia=False,
 ):
     """
     Read MS info files and extract information
@@ -273,8 +273,11 @@ def read_ms_info(
         group = mzml_df[mzml_df["ms_level"] == 2]
         del mzml_df
 
+        if not identified_spectrum:
+            raise ValueError("ms_io: The identified_spectrum is missing. Please check your mzTab file!")
+
         identified_spectrum_scan_id = [
-            re.search(r"scan=(\d+)", spectrum_id).group(1)
+            spectra_ref_check(spectrum_id)
             for spectrum_id in identified_spectrum[m]
         ]
 
@@ -319,15 +322,15 @@ def read_ms_info(
 
 
 def parse_idxml(
-    idx_paths,
-    mzml_table,
-    xcorr_hist_range,
-    hyper_hist_range,
-    spec_evalue_hist_range,
-    pep_hist_range,
-    ml_spec_ident_final,
-    mzml_peptide_map,
-    remove_decoy=True,
+        idx_paths,
+        mzml_table,
+        xcorr_hist_range,
+        hyper_hist_range,
+        spec_evalue_hist_range,
+        pep_hist_range,
+        ml_spec_ident_final,
+        mzml_peptide_map,
+        remove_decoy=True,
 ):
     """
     Parse idXML files and extract information
@@ -568,3 +571,20 @@ def parse_idxml(
     }
 
     return search_engine, msgf_label, comet_label, sage_label
+
+
+def spectra_ref_check(spectra_ref):
+    match_scan = re.search(r"scan=(\d+)", spectra_ref)
+    if match_scan:
+        return match_scan.group(1)
+
+    match_spectrum = re.search(r"spectrum=(\d+)", spectra_ref)
+    if match_spectrum:
+        return match_spectrum.group(1)
+
+    try:
+        if int(spectra_ref):
+            return spectra_ref
+
+    except ValueError:
+        raise ValueError("Please check the 'spectra_ref' field in your mzTab file.")
