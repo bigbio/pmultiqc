@@ -272,14 +272,16 @@ def read_ms_info(
 
         group = mzml_df[mzml_df["ms_level"] == 2]
         del mzml_df
-
-        if not identified_spectrum:
-            raise ValueError("ms_io: The identified_spectrum is missing. Please check your mzTab file!")
-
-        identified_spectrum_scan_id = [
-            spectra_ref_check(spectrum_id)
-            for spectrum_id in identified_spectrum[m]
-        ]
+        
+        if enable_dia:
+            identified_spectrum_scan_id = []
+        else:
+            if not identified_spectrum:
+                raise ValueError("ms_io: The identified_spectrum is missing. Please check your mzTab file!")
+            identified_spectrum_scan_id = [
+                spectra_ref_check(spectrum_id)
+                for spectrum_id in identified_spectrum[m]
+            ]
 
         # Apply add_ms_values to each row
         for _, row in group.iterrows():
