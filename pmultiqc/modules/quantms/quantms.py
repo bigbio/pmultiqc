@@ -358,10 +358,12 @@ class QuantMSModule(BaseMultiqcModule):
             self.mgf_paths = []
             for mgf_file in self.find_log_files("quantms/mgf", filecontents=False):
                 self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
+                self.mgf_paths.sort()
 
             self.mzid_paths = []
             for mzid_file in self.find_log_files("quantms/mzid", filecontents=False):
                 self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
+                self.mzid_paths.sort()
 
             mzid_psm = self.parse_out_mzid()
 
