@@ -156,7 +156,8 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 |---|---|---|
 | LFQ | Label-free quantification | [LFQ Example](https://bigbio.github.io/pmultiqc/LFQ_PXD007683/multiqc_report.html) |
 | TMT | Tandem mass tag | [TMT Example](https://bigbio.github.io/pmultiqc/TMT_PXD007683/multiqc_report.html) |
-| DIA | Data-independent acquisition | [DIA Example](https://bigbio.github.io/pmultiqc/dia/multiqc_report.html) |
+| quantms DIA | Data-independent acquisition | [quantms DIA Example](https://bigbio.github.io/pmultiqc/dia/multiqc_report.html) |
+| DIANN | Data-independent acquisition | [DIANN Example](https://bigbio.github.io/pmultiqc/DIANN/multiqc_report.html) |
 | MaxQuant | MaxQuant results | [MaxQuant Example](https://bigbio.github.io/pmultiqc/PXD003133/multiqc_report.html) |
 | mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://bigbio.github.io/pmultiqc/PXD051187/multiqc_report.html) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://bigbio.github.io/pmultiqc/PXD054720/multiqc_report.html) |
