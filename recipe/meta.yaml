@@ -1,6 +1,6 @@
 # recipe/meta.yaml
 {% set name = "pmultiqc" %}
-{% set version = "0.0.28" %}
+{% set version = "0.0.29" %}
 
 package:
   name: {{ name }}
