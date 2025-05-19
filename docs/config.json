@@ -17,6 +17,14 @@
             "file_type": "dia"
         },
         {
+            "accession": "DIANN",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip"
+            ],
+            "path": "docs/DIANN",
+            "file_type": "DIANN"
+        },
+        {
             "accession": "TMT_PXD007683",
             "urls": [
                 "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip"
