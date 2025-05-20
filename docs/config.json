@@ -22,7 +22,7 @@
                 "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip"
             ],
             "path": "docs/DIANN",
-            "file_type": "DIANN"
+            "file_type": "diann"
         },
         {
             "accession": "TMT_PXD007683",
