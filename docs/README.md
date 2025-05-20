@@ -41,7 +41,11 @@ pmultiqc supports the following data sources:
    - `msms.txt`: MS/MS scan information
    - `msmsScans.txt`: MS/MS scan details
 
-### 3. [mzIdentML](https://www.psidev.info/mzidentml) files:
+### 3. **[DIA-NN](https://aptila.bio)** result files:
+   - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**)
+   - `diann_report.tsv`: DIA-NN main report
+
+### 4. [mzIdentML](https://www.psidev.info/mzidentml) files:
    - `*.mzid`: Identification results
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
@@ -87,6 +91,12 @@ multiqc /path/to/quantms/results -o ./report --remove_decoy --condition factor
 
 ```bash
 multiqc --parse_maxquant /path/to/maxquant/results -o ./report
+```
+
+#### For DIA-NN results
+
+```bash
+multiqc /path/to/diann/results -o ./report
 ```
 
 #### For mzIdentML files
@@ -157,7 +167,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | LFQ | Label-free quantification | [LFQ Example](https://bigbio.github.io/pmultiqc/LFQ_PXD007683/multiqc_report.html) |
 | TMT | Tandem mass tag | [TMT Example](https://bigbio.github.io/pmultiqc/TMT_PXD007683/multiqc_report.html) |
 | quantms DIA | Data-independent acquisition | [quantms DIA Example](https://bigbio.github.io/pmultiqc/dia/multiqc_report.html) |
-| DIANN | Data-independent acquisition | [DIANN Example](https://bigbio.github.io/pmultiqc/DIANN/multiqc_report.html) |
+| DIA-NN | Data-independent acquisition | [DIA-NN Example](https://bigbio.github.io/pmultiqc/DIANN/multiqc_report.html) |
 | MaxQuant | MaxQuant results | [MaxQuant Example](https://bigbio.github.io/pmultiqc/PXD003133/multiqc_report.html) |
 | mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://bigbio.github.io/pmultiqc/PXD051187/multiqc_report.html) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://bigbio.github.io/pmultiqc/PXD054720/multiqc_report.html) |
