@@ -41,7 +41,11 @@ pmultiqc supports the following data sources:
    - `msms.txt`: MS/MS scan information
    - `msmsScans.txt`: MS/MS scan details
 
-3. **mzIdentML** files:
+3. **[DIA-NN](https://aptila.bio)** result files:
+   - `*ms_info.parquet`: mzML Statistics After RAW-to-mzML Conversion (Using **[quantms-utils](https://github.com/bigbio/quantms-utils)**)
+   - `diann_report.tsv`: DIA-NN main report
+
+4. **mzIdentML** files:
    - `*.mzid`: Identification results
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
@@ -87,6 +91,12 @@ multiqc /path/to/quantms/results -o ./report --remove_decoy --condition factor
 
 ```bash
 multiqc --parse_maxquant /path/to/maxquant/results -o ./report
+```
+
+#### For DIA-NN results
+
+```bash
+multiqc /path/to/diann/results -o ./report
 ```
 
 #### For mzIdentML files
