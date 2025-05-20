@@ -42,7 +42,7 @@ pmultiqc supports the following data sources:
    - `msmsScans.txt`: MS/MS scan details
 
 3. **[DIA-NN](https://aptila.bio)** result files:
-   - `*ms_info.parquet`: mzML Statistics After RAW-to-mzML Conversion (Using **[quantms-utils](https://github.com/bigbio/quantms-utils)**)
+   - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**)
    - `diann_report.tsv`: DIA-NN main report
 
 4. **mzIdentML** files:
