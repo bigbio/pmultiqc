@@ -22,6 +22,7 @@ import re
 from pyteomics import mztab, mzid, mgf
 from pyopenms import OpenMSBuildInfo, AASequence
 import os
+from pathlib import Path
 import sqlite3
 import numpy as np
 import copy
@@ -65,9 +66,10 @@ class QuantMSModule(BaseMultiqcModule):
     @staticmethod
     def file_prefix(path):
         try:
+            path = os.path.normpath(path)
             if "\\" in path:
                 path = path.replace("\\", "/")
-            return os.path.splitext(os.path.basename(path))[0]
+            return Path(path).stem
         except:
             raise SystemExit("Illegal file path: {path}")
 
@@ -358,12 +360,12 @@ class QuantMSModule(BaseMultiqcModule):
             self.mgf_paths = []
             for mgf_file in self.find_log_files("quantms/mgf", filecontents=False):
                 self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
-                self.mgf_paths.sort()
+            self.mgf_paths.sort()
 
             self.mzid_paths = []
             for mzid_file in self.find_log_files("quantms/mzid", filecontents=False):
                 self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
-                self.mzid_paths.sort()
+            self.mzid_paths.sort()
 
             mzid_psm = self.parse_out_mzid()
 
@@ -406,12 +408,6 @@ class QuantMSModule(BaseMultiqcModule):
                     self.exp_design = os.path.join(f["root"], f["experimental_design.tsv"])
                     self.enable_sdrf = True
 
-            # TODO in theory the module can work without the design. We just need to remove the according sections!
-            # if not self.enable_sdrf and not self.enable_exp:
-            #     raise AttributeError(
-            #         "Neither exp_design nor sdrf can be found! Please provide or correct your multiqc_config.yml."
-            #     )
-
             self.psm_table = dict()
             self.mzml_peptide_map = dict()
             self.pep_quant_table = dict()
@@ -439,19 +435,20 @@ class QuantMSModule(BaseMultiqcModule):
             self.ms1_peaks = dict()
             self.ms1_general_stats = dict()
             self.is_multi_conditions = False
-            # parse input data
+
             # draw the experimental design
-            if self.enable_exp:
+            if self.enable_exp or self.enable_sdrf:
                 self.draw_exp_design()
 
             for ms_info in self.find_log_files("quantms/ms_info", filecontents=False):
                 self.ms_info_path.append(os.path.join(ms_info["root"], ms_info["fn"]))
-                self.ms_info_path.sort()
-                if len(self.ms_info_path) > 0:
-                    self.read_ms_info = True
-                    self.ms_paths = [
-                        self.file_prefix(i).replace("_ms_info", ".mzML") for i in self.ms_info_path
-                    ]
+            self.ms_info_path.sort()
+            
+            if len(self.ms_info_path) > 0:
+                self.read_ms_info = True
+                self.ms_paths = [
+                    self.file_prefix(i).replace("_ms_info", ".mzML") for i in self.ms_info_path
+                ]
 
             for f in self.find_log_files("quantms/mztab", filecontents=False):
                 self.out_mztab_path = os.path.join(f["root"], f["fn"])
