@@ -1,6 +1,15 @@
 from typing import Union, Optional
 from pathlib import Path
 import io
+import zipfile
+import gzip
+import tarfile
+import os
+import shutil
+
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def get_filename(file: Union[Path, io.BufferedReader, io.StringIO, str]) -> Optional[str]:
@@ -34,3 +43,60 @@ def get_filename(file: Union[Path, io.BufferedReader, io.StringIO, str]) -> Opti
 
     # For StringIO/BytesIO objects without names or other cases
     return None
+
+
+def extract_zip(file_path, extract_to):
+    with zipfile.ZipFile(file_path, "r") as zip_ref:
+        zip_ref.extractall(extract_to)
+        log.info(f"Extracted {file_path} to {extract_to}")
+
+
+def extract_gz(file_path, extract_to):
+    with gzip.open(file_path, "rb") as f_in:
+        out_path = os.path.join(extract_to, os.path.basename(file_path).replace(".gz", ""))
+        with open(out_path, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+            log.info(f"Extracted {file_path} to {out_path}")
+
+
+def extract_tar(file_path, extract_to):
+    with tarfile.open(file_path, "r:*") as tar_ref:
+        tar_ref.extractall(extract_to)
+        log.info(f"Extracted {file_path} to {extract_to}")
+
+
+def extract_archive_file(root_dir, file_name):
+    file_path = os.path.join(root_dir, file_name)
+    # *.zip
+    if file_name.endswith(".zip"):
+        extract_zip(file_path, root_dir)
+    # *.gz
+    elif file_name.endswith(".gz") and not file_name.endswith(".tar.gz"):
+        extract_gz(file_path, root_dir)
+    # .tar, .tar.gz, .tar.bz2
+    elif (
+        file_name.endswith(".tar")
+        or file_name.endswith(".tar.gz")
+        or file_name.endswith(".tgz")
+        or file_name.endswith(".tar.bz2")
+    ):
+        extract_tar(file_path, root_dir)
+
+
+def extract_files(folder_path):
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            extract_archive_file(root, file)
+
+
+def is_archive_file(file_path):
+    archive_types = [".zip", ".gz", ".tar", ".tar.gz", ".tgz", ".tar.bz2"]
+    return any(file_path.lower().endswith(arch_type) for arch_type in archive_types)
+
+
+def get_clean_stem(path):
+    name = Path(path).name
+    for ext in [".tar.gz", ".tar.bz2"]:
+        if name.endswith(ext):
+            return name[: -len(ext)]
+    return Path(path).stem

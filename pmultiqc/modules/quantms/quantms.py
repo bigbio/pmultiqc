@@ -61,7 +61,6 @@ con.commit()
 
 log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
 
-
 class QuantMSModule(BaseMultiqcModule):
     @staticmethod
     def file_prefix(path):
@@ -88,7 +87,7 @@ class QuantMSModule(BaseMultiqcModule):
         # Halt execution if we've disabled the plugin
         if config.kwargs.get("disable_plugin", True):
             return None
-
+        
         # HeatMap color list
         color_map = LinearSegmentedColormap.from_list("red_green", ["#ff0000", "#00ff00"])
         self.heatmap_color_list = [[s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]]
@@ -454,8 +453,8 @@ class QuantMSModule(BaseMultiqcModule):
                 self.out_mztab_path = os.path.join(f["root"], f["fn"])
                 self.parse_out_mztab()
 
-            for report in self.find_log_files("quantms/diann_report", filecontents=False):
-                self.diann_report_path = os.path.join(report["root"], report["fn"])
+            for f in self.find_log_files("quantms/diann_report", filecontents=False):
+                self.diann_report_path = os.path.join(f["root"], f["fn"])
                 self.enable_dia = True
 
             mt = self.parse_mzml()
@@ -490,10 +489,6 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_oversampling()
                 self.draw_delta_mass()
 
-            # TODO what if multiple are found??
-            # if config.kwargs.get('disable_table', True):
-            #     log.info("Skip protein/peptide table plot!")
-            # else:
             for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
                 self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
                 self.msstats_input_valid = True
@@ -882,7 +877,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         # Create table plot
         pconfig = {
-            "id": "identification summary table",  # ID used for the table
+            "id": "identification_summary_table",  # ID used for the table
             "title": "Summary Table",  # Title of the table. Used in the column config modal
             "save_file": False,  # Whether to save the table data to a file
             "raw_data_fn": "multiqc_summary_table_table",  # File basename to use for raw data file
