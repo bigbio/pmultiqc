@@ -8,6 +8,10 @@ from pkg_resources import get_distribution
 import logging
 from multiqc import config
 
+from pathlib import Path
+import os
+from pmultiqc.modules.common.file_utils import is_archive_file, extract_archive_file, get_clean_stem
+
 # Initialise the main MultiQC logger
 log = logging.getLogger("pmultiqc")
 
@@ -30,21 +34,28 @@ def pmultiqc_plugin_execution_start():
 
     log.warning("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 
+    # If a compressed file is submitted, extract it first.
+    analysis_dir_new = list()
+    for anal_dir in config.analysis_dir:
+        if is_archive_file(anal_dir):
+
+            root = Path(anal_dir).parent
+            file = Path(anal_dir).name
+            extract_archive_file(root, file)
+
+            output_dir = os.path.join(root, get_clean_stem(anal_dir))
+            analysis_dir_new.append(output_dir)
+        else:
+            analysis_dir_new.append(anal_dir)
+    config.analysis_dir = analysis_dir_new
+    
+    # Module filename search patterns
     if "quantms/exp_design" not in config.sp:
-        config.update_dict(
-            config.sp,
-            {
-                "quantms/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0},
-                "shared": False,
-            },
-        )
+        config.update_dict(config.sp, {"quantms/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0}})
 
     if "quantms/sdrf" not in config.sp:
-        config.update_dict(
-            config.sp, {"quantms/sdrf": {"fn": "*.sdrf.tsv", "num_lines": 0}, "shared": False}
-        )
+        config.update_dict(config.sp, {"quantms/sdrf": {"fn": "*.sdrf.tsv", "num_lines": 0}})
 
-    # Add to the search patterns used by modules
     if "quantms/mztab" not in config.sp:
         config.update_dict(config.sp, {"quantms/mztab": {"fn": "*.mzTab", "num_lines": 0}})
 
@@ -58,24 +69,16 @@ def pmultiqc_plugin_execution_start():
         config.update_dict(config.sp, {"quantms/mzid": {"fn": "*.mzid", "num_lines": 0}})
 
     if "quantms/ms_info" not in config.sp:
-        config.update_dict(
-            config.sp, {"quantms/ms_info": {"fn": "*_ms_info.parquet", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"quantms/ms_info": {"fn": "*_ms_info.parquet", "num_lines": 0}})
 
     if "quantms/idXML" not in config.sp:
         config.update_dict(config.sp, {"quantms/idXML": {"fn": "*.idXML", "num_lines": 0}})
 
     if "quantms/msstats" not in config.sp:
-        config.update_dict(
-            config.sp, {"quantms/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"quantms/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}})
 
     if "quantms/diann_report" not in config.sp:
-        # TODO Why is the 'shared' suddenly inside the dict???
-        config.update_dict(
-            config.sp,
-            {"quantms/diann_report": {"fn": "*report.tsv", "num_lines": 0, "shared": False}},
-        )
+        config.update_dict(config.sp, {"quantms/diann_report": {"fn": "*report.tsv", "num_lines": 0}})
 
     if "quantms/maxquant_result" not in config.sp:
         config.update_dict(config.sp, {"quantms/maxquant_result": {"fn": "*.txt", "num_lines": 0}})
