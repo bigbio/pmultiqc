@@ -38,13 +38,6 @@ def create_ordered_group_modules(grouped_plot_data: list[dict]):
                 section_id = sect.get("id", f"{mod_id}_section_{i}")
                 section_name = sect.get("name", section_id.replace("_", " ").title())
 
-            # print("section_name:", section_name)
-            # print("anchor:", Anchor(section_id))
-            # print("SectionId(section_id):", SectionId(section_id))
-            # print("group_module.name:", group_module.name)
-            # print("group_module.anchor:", group_module.anchor)
-            # print("group_module.info:", group_module.info)
-
             section = Section(
                 name=section_name or "Unnamed Section",
                 anchor=Anchor(section_id),
@@ -146,17 +139,18 @@ def add_group_modules(groups_dict):
     create_ordered_group_modules(section_group)
 
     config.report_section_order = {
-        "pmultiqc": {"order": 13},
-        "experiment_setup": {"order": 12},
-        "summary_and_heatmap": {"order": 11},
-        "identification_summary": {"order": 10},
-        "search_engine_scores": {"order": 9},
-        "contaminants": {"order": 8},
-        "quantification_analysis": {"order": 7},
-        "ms1_analysis": {"order": 6},
-        "ms2_and_spectral_stats": {"order": 5},
-        "time_and_mass_error_trends": {"order": 4},
-        "bigbio-quantms-summary": {"order": 3},
+        "pmultiqc": {"order": 14},
+        "experiment_setup": {"order": 13},
+        "summary_and_heatmap": {"order": 12},
+        "identification_summary": {"order": 11},
+        "search_engine_scores": {"order": 10},
+        "contaminants": {"order": 9},
+        "quantification_analysis": {"order": 8},
+        "ms1_analysis": {"order": 7},
+        "ms2_and_spectral_stats": {"order": 6},
+        "time_and_mass_error_trends": {"order": 5},
+        "bigbio-quantms-summary": {"order": 4},
+        "nf-core-quantms-methods-description": {"order": 3},
         "software_versions": {"order": 2},
         "nf-core-quantms-summary": {"order": 1},
     }
