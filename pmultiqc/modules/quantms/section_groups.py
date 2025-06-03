@@ -146,14 +146,17 @@ def add_group_modules(groups_dict):
     create_ordered_group_modules(section_group)
 
     config.report_section_order = {
-        "pmultiqc": {"order": 10},
-        "experiment_setup": {"order": 9},
-        "summary_and_heatmap": {"order": 8},
-        "identification_summary": {"order": 7},
-        "search_engine_scores": {"order": 6},
-        "contaminants": {"order": 5},
-        "quantification_analysis": {"order": 4},
-        "ms1_analysis": {"order": 3},
-        "ms2_and_spectral_stats": {"order": 2},
-        "time_and_mass_error_trends": {"order": 1},
+        "pmultiqc": {"order": 13},
+        "experiment_setup": {"order": 12},
+        "summary_and_heatmap": {"order": 11},
+        "identification_summary": {"order": 10},
+        "search_engine_scores": {"order": 9},
+        "contaminants": {"order": 8},
+        "quantification_analysis": {"order": 7},
+        "ms1_analysis": {"order": 6},
+        "ms2_and_spectral_stats": {"order": 5},
+        "time_and_mass_error_trends": {"order": 4},
+        "bigbio-quantms-summary": {"order": 3},
+        "software_versions": {"order": 2},
+        "nf-core-quantms-summary": {"order": 1},
     }
