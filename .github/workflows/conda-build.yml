@@ -39,6 +39,7 @@ jobs:
       run: |
         source $CONDA/etc/profile.d/conda.sh
         conda activate pmultiqc
+        conda config --add channels defaults
         conda build recipe
         PACKAGE_PATH=$(conda build recipe --output)
         conda install --offline "$PACKAGE_PATH"
