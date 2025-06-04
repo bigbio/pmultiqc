@@ -44,7 +44,11 @@ def pmultiqc_plugin_execution_start():
             extract_archive_file(root, file)
 
             output_dir = os.path.join(root, get_clean_stem(anal_dir))
-            analysis_dir_new.append(output_dir)
+
+            if os.path.exists(output_dir):
+                analysis_dir_new.append(output_dir)
+            else:
+                raise SystemExit(f"Illegal file path: {output_dir}")
         else:
             analysis_dir_new.append(anal_dir)
     config.analysis_dir = analysis_dir_new

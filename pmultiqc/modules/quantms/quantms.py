@@ -71,7 +71,7 @@ class QuantMSModule(BaseMultiqcModule):
                 path = path.replace("\\", "/")
             return Path(path).stem
         except:
-            raise SystemExit("Illegal file path: {path}")
+            raise SystemExit(f"Illegal file path: {path}")
 
     def __init__(self):
 
