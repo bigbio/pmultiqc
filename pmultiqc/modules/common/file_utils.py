@@ -67,20 +67,24 @@ def extract_tar(file_path, extract_to):
 
 def extract_archive_file(root_dir, file_name):
     file_path = os.path.join(root_dir, file_name)
-    # *.zip
-    if file_name.endswith(".zip"):
-        extract_zip(file_path, root_dir)
-    # *.gz
-    elif file_name.endswith(".gz") and not file_name.endswith(".tar.gz"):
-        extract_gz(file_path, root_dir)
-    # .tar, .tar.gz, .tar.bz2
-    elif (
-        file_name.endswith(".tar")
-        or file_name.endswith(".tar.gz")
-        or file_name.endswith(".tgz")
-        or file_name.endswith(".tar.bz2")
-    ):
-        extract_tar(file_path, root_dir)
+    
+    try:
+        # *.zip
+        if file_name.endswith(".zip"):
+            extract_zip(file_path, root_dir)
+        # *.gz
+        elif file_name.endswith(".gz") and not file_name.endswith(".tar.gz"):
+            extract_gz(file_path, root_dir)
+        # .tar, .tar.gz, .tar.bz2
+        elif (
+            file_name.endswith(".tar")
+            or file_name.endswith(".tar.gz")
+            or file_name.endswith(".tgz")
+            or file_name.endswith(".tar.bz2")
+        ):
+            extract_tar(file_path, root_dir)
+    except:
+            raise SystemExit(f"Failed to extract: {file_path}")
 
 
 def extract_files(folder_path):
