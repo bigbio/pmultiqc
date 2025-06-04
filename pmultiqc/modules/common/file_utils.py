@@ -83,7 +83,7 @@ def extract_archive_file(root_dir, file_name):
             or file_name.endswith(".tar.bz2")
         ):
             extract_tar(file_path, root_dir)
-    except:
+    except Exception:
             raise SystemExit(f"Failed to extract: {file_path}")
 
 
