@@ -4,14 +4,13 @@ import subprocess
 import shutil
 import time
 import urllib
-import zipfile
-import gzip
-import tarfile
 from ftplib import FTP
 from pathlib import Path
 from urllib.parse import urlparse
 
 from tqdm import tqdm
+
+from pmultiqc.modules.common.file_utils import extract_files
 
 
 def download_file(url, save_path, max_retries=3, backoff_factor=2):
@@ -82,46 +81,6 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
             else:
                 print("❌ All download attempts failed.")
                 raise http_err
-
-
-def extract_zip(file_path, extract_to):
-    with zipfile.ZipFile(file_path, "r") as zip_ref:
-        zip_ref.extractall(extract_to)
-        print(f"Extracted {file_path} to {extract_to}")
-
-
-def extract_gz(file_path, extract_to):
-    with gzip.open(file_path, "rb") as f_in:
-        out_path = os.path.join(extract_to, os.path.basename(file_path).replace(".gz", ""))
-        with open(out_path, "wb") as f_out:
-            shutil.copyfileobj(f_in, f_out)
-            print(f"Extracted {file_path} to {out_path}")
-
-
-def extract_tar(file_path, extract_to):
-    with tarfile.open(file_path, "r:*") as tar_ref:
-        tar_ref.extractall(extract_to)
-        print(f"Extracted {file_path} to {extract_to}")
-
-
-def extract_files(folder_path):
-    for root, _, files in os.walk(folder_path):
-        for file in files:
-            file_path = os.path.join(root, file)
-            # *.zip
-            if file.endswith(".zip"):
-                extract_zip(file_path, root)
-            # *.gz
-            elif file.endswith(".gz") and not file.endswith(".tar.gz"):
-                extract_gz(file_path, root)
-            # .tar, .tar.gz, .tar.bz2
-            elif (
-                file.endswith(".tar")
-                or file.endswith(".tar.gz")
-                or file.endswith(".tgz")
-                or file.endswith(".tar.bz2")
-            ):
-                extract_tar(file_path, root)
 
 
 def delete_old_examples(folder_path):
