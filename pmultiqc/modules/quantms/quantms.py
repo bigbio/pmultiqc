@@ -448,6 +448,8 @@ class QuantMSModule(BaseMultiqcModule):
         self.quantms_pep_intensity = dict()
         self.quantms_contaminant_percent = dict()
         self.quantms_top_contaminant_percent = dict()
+        self.quantms_mass_error = dict()
+        
 
         self.ms_paths = []
         for mzml_current_file in self.find_log_files("quantms/mzML", filecontents=False):
