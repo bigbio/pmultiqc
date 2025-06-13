@@ -329,7 +329,7 @@ def get_summary(file_path: Union[Path, str]):
 
         msms_identified = dict()
         for k, v in dict(zip(mq_data["Raw file"], mq_data["MS/MS Identified [%]"])).items():
-            msms_identified[k] = {"MS/MS Identified": v}
+            msms_identified[k] = {"Identified Rate": v}
 
         logger.info(
             f"Extracted MS/MS identification percentages for {len(msms_identified)} raw files"
@@ -681,26 +681,11 @@ def evidence_modified(evidence_data):
     if "Potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
-    def group_percentage(group):
-        counts = group["Modifications"].str.split(",").explode().value_counts()
-        percentage_df = (counts / len(group["Modifications"]) * 100).reset_index()
-        percentage_df.columns = ["Modifications", "Percentage"]
-
-        # Modified (Total)
-        percentage_df.loc[percentage_df["Modifications"] == "Unmodified", "Percentage"] = (
-            100 - percentage_df.loc[percentage_df["Modifications"] == "Unmodified", "Percentage"]
-        )
-        percentage_df.loc[percentage_df["Modifications"] == "Unmodified", "Modifications"] = (
-            "Modified (Total)"
-        )
-
-        return percentage_df
-
     plot_dict = {}
     modified_cats = []
 
     for raw_file, group in evidence_data.groupby("Raw file"):
-        group_processed = group_percentage(group)
+        group_processed = mod_group_percentage(group)
         plot_dict[raw_file] = dict(
             zip(group_processed["Modifications"], group_processed["Percentage"])
         )
@@ -724,8 +709,14 @@ def evidence_rt_count(evidence_data):
     rt_range = [evidence_data["Retention time"].min(), evidence_data["Retention time"].max()]
 
     def hist_compute(rt_list, rt_range):
+
+        if rt_range[0] < 5:
+            rt_range_min = 0
+        else:
+            rt_range_min = rt_range[0] - 5
+            
         counts, bin_edges = np.histogram(
-            rt_list, bins=np.arange(rt_range[0] - 3, rt_range[1] + 3, 1)
+            rt_list, bins=np.arange(rt_range_min, rt_range[1] + 5, 1)
         )
         bin_mid = (bin_edges[:-1] + bin_edges[1:]) / 2
         rt_counts = pd.DataFrame({"retention_time": bin_mid, "counts": counts})
@@ -753,7 +744,12 @@ def evidence_peak_width_rt(evidence_data):
     evidence_data = evidence_data[["Retention length", "Retention time", "Raw file"]].copy()
 
     rt_range = [evidence_data["Retention time"].min(), evidence_data["Retention time"].max()]
-    breaks = np.arange(rt_range[0] - 3, rt_range[1] + 3, 1)
+
+    if rt_range[0] < 5:
+        rt_range_min = 0
+    else:
+        rt_range_min = rt_range[0] - 5
+    breaks = np.arange(rt_range_min, rt_range[1] + 5, 1)
 
     def rt_rl_compute(group_df):
         group_df["bin"] = np.digitize(group_df["Retention time"], breaks, right=False)
@@ -1433,3 +1429,21 @@ def parameters_table(parameters_df):
 
     logger.debug(f"Created parameters table with {len(parameters_dict)} entries")
     return parameters_dict
+
+
+def mod_group_percentage(group):
+    counts = group["Modifications"].str.split(",").explode().value_counts()
+    percentage_df = (counts / len(group["Modifications"]) * 100).reset_index()
+    percentage_df.columns = ["Modifications", "Percentage"]
+
+    # Modified (Total)
+    percentage_df.loc[percentage_df["Modifications"] == "Unmodified", "Percentage"] = (
+        100 - percentage_df.loc[percentage_df["Modifications"] == "Unmodified", "Percentage"]
+    )
+    percentage_df.loc[percentage_df["Modifications"] == "Unmodified", "Modifications"] = (
+        "Modified (Total)"
+    )
+
+    return percentage_df
+
+

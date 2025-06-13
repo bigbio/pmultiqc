@@ -120,8 +120,8 @@ class QuantMSModule(BaseMultiqcModule):
             # Peptide Spectrum Matches
             # ProteinGroups Count
             # Peptide ID Count
-            # Missed Cleavages per Raw file
-            # Modifications per Raw file
+            # Missed Cleavages Per Raw File
+            # Modifications Per Raw File
             # MS/MS Identified per Raw File
         self.identification_sub_section = list()
 
@@ -161,8 +161,8 @@ class QuantMSModule(BaseMultiqcModule):
             # Delta Mass
             # Pipeline Spectrum Tracking
             # Precursor Ion Charge Distribution / Distribution of precursor charges
-            # Charge-state of per Raw file
-            # MS2 counts per 3D-peak
+            # Charge-state of Per File
+            # MS/MS Counts Per 3D-peak
         self.ms2_sub_section = list()
 
         # 9. Time & Mass Error Trends
@@ -349,7 +349,7 @@ class QuantMSModule(BaseMultiqcModule):
                     get_protegroups_dicts["lfq_intensity_pca"], fig_type="lfq_intensity"
                 )
             if ms_ms_identified:
-                self.draw_summary(ms_ms_identified)
+                self.draw_ms_ms_identified(ms_ms_identified)
 
             if get_evidence_dicts["peptide_intensity"]:
                 self.draw_intensity_box(
@@ -358,14 +358,14 @@ class QuantMSModule(BaseMultiqcModule):
 
             # Contaminants
             if get_protegroups_dicts["pg_contaminant"]:
-                self.draw_pg_contaminants(get_protegroups_dicts["pg_contaminant"])
+                self.draw_potential_contaminants(get_protegroups_dicts["pg_contaminant"])
             if get_evidence_dicts["top_contaminants"]:
-                self.draw_evidence_top_contaminants(get_evidence_dicts["top_contaminants"])
+                self.draw_top_n_contaminants(get_evidence_dicts["top_contaminants"])
 
             if get_evidence_dicts["charge_counts"]:
-                self.draw_evidence_charge(get_evidence_dicts["charge_counts"])
+                self.draw_charge_state(get_evidence_dicts["charge_counts"])
             if get_evidence_dicts["modified_percentage"]:
-                self.draw_evidence_modified(get_evidence_dicts["modified_percentage"])
+                self.draw_modifications(get_evidence_dicts["modified_percentage"])
 
             if get_evidence_dicts["peptide_id_count"]:
                 self.draw_evidence_peptide_id_count(get_evidence_dicts["peptide_id_count"])
@@ -380,7 +380,7 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_msms_missed_cleavages(get_msms_dicts["missed_cleavages"])
 
             if get_evidence_dicts["rt_counts"]:
-                self.draw_evidence_rt_count(get_evidence_dicts["rt_counts"])
+                self.draw_ids_rt_count(get_evidence_dicts["rt_counts"])
             if get_evidence_dicts["peak_rt"]:
                 self.draw_evidence_peak_width_rt(get_evidence_dicts["peak_rt"])
 
@@ -440,6 +440,16 @@ class QuantMSModule(BaseMultiqcModule):
         self.ms_info["charge_distribution"] = dict()
         self.ms_info["peaks_per_ms2"] = dict()
         self.ms_info["peak_distribution"] = dict()
+        self.quantms_missed_cleavages = dict()
+        self.quantms_modified = dict()
+        self.identified_msms_spectra = dict()
+        self.mztab_charge_state = dict()
+        self.quantms_ids_over_rt = dict()
+        self.quantms_pep_intensity = dict()
+        self.quantms_contaminant_percent = dict()
+        self.quantms_top_contaminant_percent = dict()
+        self.quantms_mass_error = dict()
+        
 
         self.ms_paths = []
         for mzml_current_file in self.find_log_files("quantms/mzML", filecontents=False):
@@ -586,6 +596,12 @@ class QuantMSModule(BaseMultiqcModule):
                 self.draw_oversampling()
                 self.draw_delta_mass()
 
+            self.draw_quantms_identification(mt)
+            self.draw_quantms_contaminants()
+            self.draw_quantms_quantification()
+            self.draw_quantms_msms_section()
+            self.draw_quantms_time_section()
+
             for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
                 self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
                 self.msstats_input_valid = True
@@ -593,7 +609,6 @@ class QuantMSModule(BaseMultiqcModule):
 
             if config.kwargs["quantification_method"] == "spectral_counting":
                 # Add a report section with psm table plot from mzTab for spectral counting
-
                 self.add_sub_section(
                     sub_section=self.identification_sub_section,
                     plot=self.psm_table_html,
@@ -997,6 +1012,7 @@ class QuantMSModule(BaseMultiqcModule):
             # 'format': '{:,.0f}',  # The header used for the first column
             "scale": "Set1",
         }
+
         table_html = table.plot(summary_table, headers, pconfig)
 
         if config.kwargs.get("mzid_plugin", False):
@@ -1627,9 +1643,9 @@ class QuantMSModule(BaseMultiqcModule):
                 "id": "oversampling_distribution",
                 "cpswitch": False,
                 "cpswitch_c_active": False,
-                "title": "MS2 counts per 3D-peak",
+                "title": "MS/MS Counts Per 3D-peak",
                 "tt_decimals": 2,
-                "ylab": "MS2 counts per 3D-peak [%]",
+                "ylab": "MS/MS Counts Per 3D-peak [%]",
             }
             bar_html = bargraph.plot(
                 data=self.maxquant_oversampling["plot_data"],
@@ -1639,11 +1655,11 @@ class QuantMSModule(BaseMultiqcModule):
 
         else:
             draw_config = {
-                "id": "Oversampling_Distribution",
+                "id": "oversampling_distribution",
                 "cpswitch": True,
                 "cpswitch_c_active": False,
-                "title": "MS/MS counts per 3D-peak",
-                "ylab": "MS/MS counts per 3D-peak [%]",
+                "title": "MS/MS Counts Per 3D-peak",
+                "ylab": "MS/MS Counts Per 3D-peak [%]",
                 "tt_decimals": 0,
             }
             bar_html = bargraph.plot(
@@ -2077,6 +2093,9 @@ class QuantMSModule(BaseMultiqcModule):
 
         for name, group in psm.groupby("stand_spectra_ref"):
             sc = group["missed_cleavages"].value_counts()
+
+            self.quantms_missed_cleavages[name] = sc.to_dict()
+
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
             self.id_rt_score[name] = qualUniform(group["retention_time"])
@@ -2134,6 +2153,20 @@ class QuantMSModule(BaseMultiqcModule):
                 )
             )
 
+            pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
+
+            # Contaminants
+            if len(pep_table[pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])]) > 0:
+
+                self.quantms_contaminant_percent = self.cal_quantms_contaminant_percent(
+                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy()
+                )
+
+                self.quantms_top_contaminant_percent = self.top_n_contaminant_percent(
+                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(),
+                    5
+                )
+
             for name, group in pep_table.groupby("stand_spectra_ref"):
 
                 self.heatmap_con_score[name] = 1.0 - np.sum(
@@ -2150,8 +2183,15 @@ class QuantMSModule(BaseMultiqcModule):
                             study_variables
                         ].to_numpy()
                     )
+                    self.quantms_pep_intensity[name] = group[(group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)]["average_intensity"].apply(
+                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    )
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
+                    self.quantms_pep_intensity[name] = group["average_intensity"].apply(
+                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    )
+
                 self.heatmap_pep_intensity[name] = np.minimum(
                     1.0, pep_median / (2**23)
                 )  # Threshold
@@ -2178,6 +2218,9 @@ class QuantMSModule(BaseMultiqcModule):
         # Calculate the ID RT Score
         for name, group in psm.groupby("stand_spectra_ref"):
             sc = group["missed_cleavages"].value_counts()
+
+            self.quantms_missed_cleavages[name] = sc.to_dict()
+
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
             self.id_rt_score[name] = qualUniform(group["retention_time"])
@@ -2561,11 +2604,41 @@ class QuantMSModule(BaseMultiqcModule):
 
         ml_spec_ident_final = {}
 
+        # Modifications Name
+        modifi_pattern = re.compile(r"UNIMOD:\d+")
+        unimod_data = UnimodDatabase()
+        def get_unimod_modification(modifis):
+            if isinstance(modifis, str):
+                modifi_matches = modifi_pattern.findall(modifis)
+                mod_list = list()
+                for mod in set(modifi_matches):
+                    mod_list.append(unimod_data.get_by_accession(mod.upper()).get_name())
+                return ",".join(set(mod_list))
+            return "Unmodified"
+        
+        psm["Modifications"] = psm["modifications"].apply(lambda x: get_unimod_modification(x))
+
+        mod_plot_dict = dict()
+        modified_cats = list()
+
         for m, group in psm.groupby("filename"):
             m = os.path.basename(m)
 
             if config.kwargs["remove_decoy"]:
                 group = group[group["opt_global_cv_MS:1002217_decoy_peptide"] == 0]
+
+            # Modifications
+            mod_group_processed = maxquant.mod_group_percentage(group[["sequence", "charge", "Modifications"]].drop_duplicates())
+            mod_plot_dict[m] = dict(
+                zip(mod_group_processed["Modifications"], mod_group_processed["Percentage"])
+            )
+            modified_cats.extend(mod_group_processed["Modifications"])
+
+            # Identified MS2 Spectra Raw File:
+            self.identified_msms_spectra[m] = {
+                "Identified": len(set(group["spectra_ref"]))
+            }
+
             # Each loop resets the instance.
             self.oversampling_plot = Histogram(
                 "MS/MS counts per 3D-peak", plot_category="frequency", breaks=[1, 2, 3]
@@ -2603,6 +2676,32 @@ class QuantMSModule(BaseMultiqcModule):
             self.cal_num_table_data[m]["modified_peptide_num"] = len(modified_pep)
 
             ml_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
+
+        # Modifications
+        self.quantms_modified["plot_data"] = mod_plot_dict
+        self.quantms_modified["cats"] = list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))
+
+        # Charge-state of Per File
+        charge_state_df = psm.groupby(["filename", "charge"]).size().unstack(fill_value=0)
+        charge_state_df.rename(columns=lambda x: str(x), inplace=True)
+        self.mztab_charge_state = {
+            "plot_data": charge_state_df.to_dict(orient="index"),
+            "cats": charge_state_df.columns.tolist()
+        }
+
+        # IDs over RT
+        quantms_rt_file_df = psm[["filename", "retention_time"]].copy()
+        quantms_rt_file_df["Retention time"] = quantms_rt_file_df["retention_time"] / 60
+        quantms_rt_file_df.rename(columns={"filename": "Raw file"}, inplace=True)
+        self.quantms_ids_over_rt = maxquant.evidence_rt_count(quantms_rt_file_df)
+
+        # Mass Error
+        mass_error = psm[["filename", "calc_mass_to_charge", "exp_mass_to_charge"]].copy()
+        mass_error["Mass Error [ppm]"] = (
+            (mass_error["calc_mass_to_charge"] - mass_error["exp_mass_to_charge"]) / mass_error["calc_mass_to_charge"]
+        ) * 1e6
+        mass_error.rename(columns={"filename": "Raw file"}, inplace=True)
+        self.quantms_mass_error = maxquant.evidence_calibrated_mass_error(mass_error)
 
         # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
         self.ms_without_psm = set([self.file_prefix(i) for i in self.ms_paths]) - set(
@@ -3339,9 +3438,35 @@ class QuantMSModule(BaseMultiqcModule):
         }
         self.pep_plot.to_dict(percentage=True, cats=categorys)
 
+        # Modifications Name
+        mod_pattern = re.compile(r"\((.*?)\)")
+        def find_diann_modified(peptide):
+            if isinstance(peptide, str):
+                mods = mod_pattern.findall(peptide)
+                if mods:
+                    mod_type = [
+                        unimod_data.get_by_accession(mod.upper()).get_name() for mod in set(mods)
+                    ]
+                    return ",".join(mod_type)
+                else:
+                    return "Unmodified"
+            return None
+
+        report_data["Modifications"] = report_data["Modified.Sequence"].apply(lambda x: find_diann_modified(x))
+
+        mod_plot_dict = dict()
+        modified_cats = list()
+
         for run_file, group in report_data.groupby("File.Name"):
             run_file = self.file_prefix(run_file)
             self.ms_with_psm.append(run_file)
+
+            # Modifications
+            mod_group_processed = maxquant.mod_group_percentage(group.drop_duplicates())
+            mod_plot_dict[run_file] = dict(
+                zip(mod_group_processed["Modifications"], mod_group_processed["Percentage"])
+            )
+            modified_cats.extend(mod_group_processed["Modifications"])
 
             self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Ids"]))}
             self.cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
@@ -3355,6 +3480,9 @@ class QuantMSModule(BaseMultiqcModule):
             ]
             self.cal_num_table_data[run_file]["unique_peptide_num"] = len(unique_peptides)
             self.cal_num_table_data[run_file]["modified_peptide_num"] = len(modified_pep)
+
+        self.quantms_modified["plot_data"] = mod_plot_dict
+        self.quantms_modified["cats"] = list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))
 
         self.ms_without_psm = set([self.file_prefix(i) for i in self.ms_paths]) - set(
             self.ms_with_psm
@@ -3706,23 +3834,20 @@ class QuantMSModule(BaseMultiqcModule):
                 """
         )
 
-    # MaxQuant Fig 1
-    def draw_pg_contaminants(self, contaminant_percent):
+    # Potential Contaminants per Group
+    def draw_potential_contaminants(self, contaminant_percent):
         draw_config = {
             "id": "potential_contaminants_per_group",
             "cpswitch": False,
             "cpswitch_c_active": False,
-            "title": "Potential Contaminants per Group",
+            "title": "Potential Contaminants Per File",
             "tt_decimals": 2,
             "ylab": "Percent [%]",
         }
         bar_html = bargraph.plot(contaminant_percent, pconfig=draw_config)
-        self.add_sub_section(
-            sub_section=self.contaminants_sub_section,
-            plot=bar_html,
-            order=2,
-            description="Potential contaminants per group from proteinGroups.txt.",
-            helptext="""
+        if config.kwargs.get("parse_maxquant", False):
+            description_text = "Potential contaminants per group from proteinGroups.txt."
+            help_text = """
                 External protein contamination should be controlled for, therefore MaxQuant ships with a 
                 comprehensive, yet customizable protein contamination database, which is searched by MaxQuant 
                 by default. A contamination plot derived from the proteinGroups (PG) table, showing the 
@@ -3730,6 +3855,18 @@ class QuantMSModule(BaseMultiqcModule):
                 
                 Note that this plot is based on experimental groups, and therefore may not correspond 1:1 to Raw files.
                 """
+        else:
+            description_text = "Potential contaminants per file from mzTab."
+            help_text = """
+                A contamination plot derived from the Peptide section of the mzTab file, showing the 
+                fraction of total intensity attributable to contaminants.
+                """
+        self.add_sub_section(
+            sub_section=self.contaminants_sub_section,
+            plot=bar_html,
+            order=2,
+            description=description_text,
+            helptext=help_text
         )
 
     # MaxQuant Fig
@@ -3868,12 +4005,12 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
     # MaxQuant Fig 6
-    def draw_summary(self, msms_identified_percent):
+    def draw_ms_ms_identified(self, msms_identified_percent):
         draw_config = {
             "id": "msms_identified_per_raw_file",
             "cpswitch": False,
             "cpswitch_c_active": False,
-            "title": "MS/MS Identified per Raw File",
+            "title": "MS/MS Identified Per Raw File",
             "tt_decimals": 2,
             "ylab": "MS/MS Identified [%]",
         }
@@ -3883,17 +4020,17 @@ class QuantMSModule(BaseMultiqcModule):
             sub_section=self.identification_sub_section,
             plot=bar_html,
             order=7,
-            description="MS/MS identification rate per Raw file from summary.txt.",
-            helptext="TODO: add description here @Yasset"
+            description="MS/MS identification rate per Raw file.",
+            helptext="MS/MS identification rate per raw file (quantms data from mzTab and mzML files; MaxQuant data from summary.txt)"
         )
 
-    # MaxQuant Fig 7
-    def draw_evidence_top_contaminants(self, top_contaminants_data):
+    # Top5 Contaminants Per Raw File
+    def draw_top_n_contaminants(self, top_contaminants_data):
         draw_config = {
             "id": "top_contaminants_per_raw_file",
             "cpswitch": False,
             "cpswitch_c_active": False,
-            "title": "Top5 Contaminants per Raw file",
+            "title": "Top5 Contaminants Per Raw File",
             "tt_decimals": 2,
             "ylab": "Identified [%]",
         }
@@ -3902,7 +4039,6 @@ class QuantMSModule(BaseMultiqcModule):
             cats=top_contaminants_data["cats"],
             pconfig=draw_config,
         )
-
         self.add_sub_section(
             sub_section=self.contaminants_sub_section,
             plot=bar_html,
@@ -3920,12 +4056,12 @@ class QuantMSModule(BaseMultiqcModule):
                 """
         )
 
-    # MaxQuant Fig 9
-    def draw_evidence_charge(self, charge_data):
+    # Charge-state of Per File
+    def draw_charge_state(self, charge_data):
         draw_config = {
-            "id": "Charge_state_of_per_Raw_file",
+            "id": "charge_state_of_per_raw_file",
             "cpswitch": True,
-            "title": "Charge-state of per Raw file",
+            "title": "Charge-state of Per File",
             "tt_decimals": 0,
             "ylab": "Count",
         }
@@ -3933,21 +4069,28 @@ class QuantMSModule(BaseMultiqcModule):
             charge_data["plot_data"], cats=charge_data["cats"], pconfig=draw_config
         )
 
+        if config.kwargs.get("parse_maxquant", False):
+            description_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
+            help_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
+        else:
+            description_text = "The distribution of precursor ion charge states (based on mzTab data)."
+            help_text = "The distribution of precursor ion charge states (based on mzTab data)."
+
         self.add_sub_section(
             sub_section=self.ms2_sub_section,
             plot=bar_html,
             order=6,
-            description="The distribution of the charge-state of the precursor ion, excluding potential contaminants.",
-            helptext="The distribution of the charge-state of the precursor ion, excluding potential contaminants."
+            description=description_text,
+            helptext=help_text
         )
 
-    # MaxQuant Fig 10
-    def draw_evidence_modified(self, modified_data):
+    # Modifications
+    def draw_modifications(self, modified_data):
         draw_config = {
             "id": "modifications_per_raw_file",
             "cpswitch": False,
             "cpswitch_c_active": False,
-            "title": "Modifications per Raw file",
+            "title": "Modifications Per Raw File",
             "stacking": "group",
             "tt_decimals": 3,
             "ylab": "Occurence [%]",
@@ -3955,7 +4098,6 @@ class QuantMSModule(BaseMultiqcModule):
         bar_html = bargraph.plot(
             modified_data["plot_data"], cats=modified_data["cats"], pconfig=draw_config
         )
-
         self.add_sub_section(
             sub_section=self.identification_sub_section,
             plot=bar_html,
@@ -3966,8 +4108,8 @@ class QuantMSModule(BaseMultiqcModule):
             helptext="Post-translational modifications contained within the identified peptide sequence."
         )
 
-    # MaxQuant Fig 11
-    def draw_evidence_rt_count(self, rt_count_data):
+    # IDs over RT
+    def draw_ids_rt_count(self, rt_count_data):
         draw_config = {
             "id": "IDs_over_RT",
             "cpswitch": False,
@@ -3980,15 +4122,23 @@ class QuantMSModule(BaseMultiqcModule):
             "showlegend": True,
         }
         linegraph_html = linegraph.plot(rt_count_data, pconfig=draw_config)
+        if config.kwargs.get("parse_maxquant", False):
+            description_text = "Distribution of retention time, derived from the evidence table."
+            help_text = """
+                The uncalibrated retention time in minutes in the elution profile of the precursor ion, 
+                and does not include potential contaminants.
+                """
+        else:
+            description_text = "Distribution of retention time, derived from the mzTab."
+            help_text = """
+                The uncalibrated retention time in minutes in the elution profile of the precursor ion.
+                """
         self.add_sub_section(
             sub_section=self.time_mass_sub_section,
             plot=linegraph_html,
             order=1,
-            description="Distribution of retention time, derived from the evidence table.",
-            helptext="""
-                The uncalibrated retention time in minutes in the elution profile of the precursor ion, 
-                and does not include potential contaminants.
-                """
+            description=description_text,
+            helptext=help_text
         )
 
     # MaxQuant Fig 12
@@ -4017,9 +4167,9 @@ class QuantMSModule(BaseMultiqcModule):
                 """
         )
 
-    # MaxQuant Fig 15
+    # Mass Error [ppm] boxplot
     def draw_mass_error_box(self, mass_error_data, fig_type):
-        # fig_type: 'uncalibrated' or 'calibrated'
+
         # 'uncalibrated'
         if fig_type == "uncalibrated":
             draw_config = {
@@ -4029,6 +4179,8 @@ class QuantMSModule(BaseMultiqcModule):
                 "title": "Uncalibrated Mass Error",
                 "tt_decimals": 2,
                 "xlab": "Mass Error [ppm]",
+                "xmax": 10,
+                "xmin": -10,
             }
             box_html = box.plot(mass_error_data, pconfig=draw_config)
             self.add_sub_section(
@@ -4051,6 +4203,8 @@ class QuantMSModule(BaseMultiqcModule):
                 "title": "Calibrated Mass Error",
                 "tt_decimals": 2,
                 "xlab": "Mass Error [ppm]",
+                "xmax": 10,
+                "xmin": -10,
             }
             box_html = box.plot(mass_error_data, pconfig=draw_config)
             self.add_sub_section(
@@ -4061,6 +4215,29 @@ class QuantMSModule(BaseMultiqcModule):
                 helptext="""
                     Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison 
                     to the predicted monoisotopic mass of the identified peptide sequence in parts per million. 
+                    """
+            )
+
+        # quantms
+        if fig_type == "quantms":
+            draw_config = {
+                "id": "mass_error",
+                "cpswitch": False,
+                "cpswitch_c_active": False,
+                "title": "Mass Error",
+                "tt_decimals": 2,
+                "xlab": "Mass Error [ppm]",
+                "xmax": 10,
+                "xmin": -10,
+            }
+            box_html = box.plot(mass_error_data, pconfig=draw_config)
+            self.add_sub_section(
+                sub_section=self.time_mass_sub_section,
+                plot=box_html,
+                order=4,
+                description="Mass Error [ppm] calculated from mzTab. (range: -10 to 10)",
+                helptext="""
+                    Mass Error [ppm] calculated from mzTab: ((𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧 − 𝑒𝑥𝑝𝑒𝑟𝑖𝑚𝑒𝑛𝑡𝑎𝑙 𝑚/𝑧) / (𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧)) × 10^6.
                     """
             )
 
@@ -4132,22 +4309,22 @@ class QuantMSModule(BaseMultiqcModule):
             plot=bar_html,
             order=3,
             description="""
-                    [Excludes Contaminants] Number of Protein groups (after FDR) per Raw file.
-                    """,
+                [Excludes Contaminants] Number of Protein groups (after FDR) per Raw file.
+                """,
             helptext="""
-                    If MBR was enabled, three categories ('Genuine (Exclusive)', 'Genuine + Transferred', 'Transferred (Exclusive)' 
-                    are shown, so the user can judge the gain that MBR provides. Here, 'Transferred (Exclusive)' means that this protein group 
-                    has peptide evidence which originates only from transferred peptide IDs. The quantification is (of course) always from the 
-                    local Raw file. 
-                    Proteins in the 'Genuine + Transferred' category have peptide evidence from within the Raw file by MS/MS, but at the same time 
-                    also peptide IDs transferred to this Raw file using MBR were used. It is not unusual to see the 'Genuine + Transferred' category be the 
-                    rather large, since a protein group usually has peptide evidence from both sources. 
-                    To see of MBR worked, it is better to look at the two MBR-related metrics.
+                If MBR was enabled, three categories ('Genuine (Exclusive)', 'Genuine + Transferred', 'Transferred (Exclusive)' 
+                are shown, so the user can judge the gain that MBR provides. Here, 'Transferred (Exclusive)' means that this protein group 
+                has peptide evidence which originates only from transferred peptide IDs. The quantification is (of course) always from the 
+                local Raw file. 
+                Proteins in the 'Genuine + Transferred' category have peptide evidence from within the Raw file by MS/MS, but at the same time 
+                also peptide IDs transferred to this Raw file using MBR were used. It is not unusual to see the 'Genuine + Transferred' category be the 
+                rather large, since a protein group usually has peptide evidence from both sources. 
+                To see of MBR worked, it is better to look at the two MBR-related metrics.
 
-                    If MBR would be switched off, you can expect to see the number of protein groups corresponding to 'Genuine (Exclusive)' + 'Genuine + Transferred'. 
-                    In general, if the MBR gain is low and the MBR scores are bad (see the two MBR-related metrics), 
-                    MBR should be switched off for the Raw files which are affected (could be a few or all).
-                    """
+                If MBR would be switched off, you can expect to see the number of protein groups corresponding to 'Genuine (Exclusive)' + 'Genuine + Transferred'. 
+                In general, if the MBR gain is low and the MBR scores are bad (see the two MBR-related metrics), 
+                MBR should be switched off for the Raw files which are affected (could be a few or all).
+                """
         )
 
     # MaxQuant Fig 18
@@ -4156,7 +4333,7 @@ class QuantMSModule(BaseMultiqcModule):
             "id": "missed_cleavages_per_raw_file",
             "cpswitch": False,
             "cpswitch_c_active": False,
-            "title": "Missed Cleavages per Raw file",
+            "title": "Missed Cleavages Per Raw File",
             "tt_decimals": 2,
             "ylab": "Missed Cleavages [%]",
         }
@@ -4166,11 +4343,16 @@ class QuantMSModule(BaseMultiqcModule):
             pconfig=draw_config,
         )
 
+        if config.kwargs.get("parse_maxquant", False):
+            description_text = "[Excludes Contaminants] Missed Cleavages per raw file."
+        else:
+            description_text = "Missed Cleavages per raw file."
+
         self.add_sub_section(
             sub_section=self.identification_sub_section,
             plot=bar_html,
             order=5,
-            description="[Excludes Contaminants] Missed Cleavages per Raw file.",
+            description=description_text,
             helptext="""
                 Under optimal digestion conditions (high enzyme grade etc.), only few missed cleavages (MC) are expected. In 
                 general, increased MC counts also increase the number of peptide signals, thus cluttering the available 
@@ -4264,6 +4446,229 @@ class QuantMSModule(BaseMultiqcModule):
                 deliver a sufficient number of peptides to keep the instrument busy. This metric somewhat summarizes "TopN over RT".
                 """
         )
+
+    def cal_quantms_contaminant_percent(self, pep_df):
+
+        group_stats = pep_df.groupby("stand_spectra_ref").agg(
+            total_intensity=("average_intensity", "sum"),
+            cont_intensity=("average_intensity", lambda x: x[pep_df["accession"].str.contains("CONT")].sum())
+        )
+
+        group_stats["contaminant_percent"] = (
+            group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
+        )
+
+        result_dict = dict()
+        for k, v in dict(zip(group_stats.index, group_stats["contaminant_percent"])).items():
+            result_dict[k] = {"Potential Contaminants": v}
+
+        return result_dict
+
+    def top_n_contaminant_percent(self, pep_df, top_n):
+
+        not_cont_tag = "NOT_CONT"
+        pep_df["cont_accession"] = pep_df["accession"].apply(
+            lambda x: x.replace("CONTAMINANT_", "") if x.startswith("CONTAMINANT_") else not_cont_tag
+        )
+
+        pep_contaminant_df = pep_df[pep_df["cont_accession"] != not_cont_tag].copy()
+        contaminant_df = (
+            pep_contaminant_df
+            .groupby("cont_accession", as_index=False)["average_intensity"]
+            .sum()
+            .sort_values(by="average_intensity", ascending=False)
+        )
+
+        top_contaminants = list(contaminant_df.head(top_n).cont_accession)
+
+        plot_dict = dict()
+        plot_cats = list()
+        
+        for file_name, group in pep_df.groupby("stand_spectra_ref"):
+
+            contaminant_rows = group[group["cont_accession"] != not_cont_tag].copy()
+            contaminant_rows.loc[~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"] = (
+                "Other"
+            )
+
+            cont_df = (
+                contaminant_rows
+                .groupby("cont_accession", as_index=False)["average_intensity"]
+                .sum()
+                .sort_values(by="average_intensity", ascending=False)
+                .reset_index(drop=True)
+            )
+            cont_df["contaminant_percent"] = (cont_df["average_intensity"] / group["average_intensity"].sum()) * 100
+
+            plot_dict[file_name] = dict(zip(cont_df["cont_accession"], cont_df["contaminant_percent"]))
+            plot_cats.extend(cont_df["cont_accession"].tolist())
+
+        plot_cats = list(set(plot_cats))
+        if "Other" in plot_cats:
+            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [x for x in plot_cats if x == "Other"]
+
+        result_dict = dict()
+        result_dict["plot_data"] = plot_dict
+        result_dict["cats"] = plot_cats_ordered
+
+        return result_dict
+
+
+    def draw_quantms_identification(self, mzml_table):
+
+        # 1.ProteinGroups Count
+        draw_config = {
+            "id": "protein_group_count",
+            "cpswitch": False,
+            "title": "ProteinGroups Count",
+            "tt_decimals": 0,
+            "ylab": "Count",
+        }
+
+        if self.cal_num_table_data:
+            protein_count = {sample: {"Count": info["protein_num"]} for sample, info in self.cal_num_table_data.items()}
+            peptide_count = {sample: {"Count": info["peptide_num"]} for sample, info in self.cal_num_table_data.items()}
+        else:
+            return
+
+        bar_html = bargraph.plot(
+            protein_count,
+            pconfig=draw_config,
+        )
+        self.add_sub_section(
+            sub_section=self.identification_sub_section,
+            plot=bar_html,
+            order=3,
+            description="Number of protein groups per raw file.",
+            helptext="""
+                Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
+                """
+        )
+
+        # 2.Peptide ID Count
+        draw_config = {
+            "id": "peptide_id_count",
+            "cpswitch": False,
+            "title": "Peptide ID Count",
+            "tt_decimals": 0,
+            "ylab": "Count",
+        }
+        bar_html = bargraph.plot(
+            peptide_count,
+            pconfig=draw_config,
+        )
+        self.add_sub_section(
+            sub_section=self.identification_sub_section,
+            plot=bar_html,
+            order=4,
+            description="""
+                Number of unique (i.e. not counted twice) peptide sequences including modifications per Raw file.
+                """,
+            helptext="""
+                Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
+                """
+        )
+
+        # 3.Missed Cleavages Per Raw File
+        if self.quantms_missed_cleavages:
+            mc_group = {}
+            for sample, counts in self.quantms_missed_cleavages.items():
+                mc_group[sample] = {"0": 0, "1": 0, ">=2": 0}
+                for mc, count in counts.items():
+                    if mc == 0:
+                        mc_group[sample]["0"] += count
+                    elif mc == 1:
+                        mc_group[sample]["1"] += count
+                    else:
+                        mc_group[sample][">=2"] += count
+
+            mc_group_ratio = {}
+            for sample, counts in mc_group.items():
+                total = sum(counts.values())
+                if total == 0:
+                    mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
+                    continue
+                mc_group_ratio[sample] = {
+                    group: count / total * 100
+                    for group, count in counts.items()
+                }
+
+            mc_data = {
+                "plot_data": mc_group_ratio,
+                "cats": ["0", "1", ">=2"]
+            }
+            self.draw_msms_missed_cleavages(mc_data)
+    
+        # 4.Modifications Per Raw File
+        if self.quantms_modified:
+            self.draw_modifications(self.quantms_modified)
+
+        # 5.MS/MS Identified per Raw File
+        if self.identified_msms_spectra and mzml_table:
+
+            msms_identified_rate = dict()
+
+            for m in self.identified_msms_spectra.keys():
+                identified_ms2 = self.identified_msms_spectra[m].get("Identified", 0)
+                all_ms2 = mzml_table.get(m, {}).get("MS2_Num", 0)
+
+                if all_ms2 > 0:
+                    msms_identified_rate[m] = {
+                        "Identified Rate": (identified_ms2 / all_ms2) * 100
+                    }
+
+            self.draw_ms_ms_identified(msms_identified_rate)
+    
+    def draw_quantms_contaminants(self):
+
+        # 1.Potential Contaminants per Group
+        if self.quantms_contaminant_percent:
+            self.draw_potential_contaminants(self.quantms_contaminant_percent)
+
+        # 2.Top5 Contaminants per Raw file
+        if self.quantms_top_contaminant_percent:
+            self.draw_top_n_contaminants(self.quantms_top_contaminant_percent)
+
+
+    def draw_quantms_quantification(self):
+
+        # 1.Peptide Intensity Distribution
+        if self.quantms_pep_intensity:
+            draw_config = {
+            "id": "peptide_intensity_distribution_box",
+            "cpswitch": False,
+            "cpswitch_c_active": False,
+            "title": "Peptide Intensity Distribution",
+            "tt_decimals": 2,
+            "xlab": "log2(Intensity)",
+            }
+            box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
+            self.add_sub_section(
+                sub_section=self.quantification_sub_section,
+                plot=box_html,
+                order=5,
+                description="Peptide intensity per file from mzTab.",
+                helptext="""
+                    Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the 
+                    peptide table in the mzTab file, and then apply a log2 transformation.
+                    """
+            )
+
+    def draw_quantms_msms_section(self):
+        # 1.Charge-state of Per File
+        if self.mztab_charge_state:
+            self.draw_charge_state(self.mztab_charge_state)
+
+    def draw_quantms_time_section(self):
+        # 1.IDs over RT
+        if self.quantms_ids_over_rt:
+            self.draw_ids_rt_count(self.quantms_ids_over_rt)
+
+        # 2.Mass Error
+        if self.quantms_mass_error:
+            self.draw_mass_error_box(self.quantms_mass_error, "quantms")
+            pass
+
 
     # Function of add sub_section 
     def add_sub_section(self, sub_section, plot, order=0, description="", helptext=""):
