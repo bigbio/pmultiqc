@@ -126,6 +126,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.identification_sub_section = list()
 
         # 4. Search Engine Scores
+            # Summary of Andromeda Scores
             # Summary of cross-correlation scores
             # Summary of Spectral E-values
             # Summary of Hyperscore
@@ -158,7 +159,6 @@ class QuantMSModule(BaseMultiqcModule):
         # 8. MS2 & Spectral Stats
             # Number of Peaks per MS/MS spectrum
             # Peak Intensity Distribution
-            # Delta Mass
             # Pipeline Spectrum Tracking
             # Precursor Ion Charge Distribution / Distribution of precursor charges
             # Charge-state of Per File
@@ -168,8 +168,9 @@ class QuantMSModule(BaseMultiqcModule):
         # 9. Time & Mass Error Trends
             # IDs over RT
             # Peak width over RT
+            # Delta Mass [Da]
+            # Delta Mass [ppm] or Calibrated Mass Error
             # Uncalibrated Mass Error
-            # Calibrated Mass Error
             # Ion Injection Time over RT
             # TopN over RT
             # TopN
@@ -221,6 +222,8 @@ class QuantMSModule(BaseMultiqcModule):
                     "pg_lfq_intensity_distri": None,
                     "raw_intensity_pca": None,
                     "lfq_intensity_pca": None,
+                    "protein_summary": None,
+                    "num_pep_per_protein_dict": None,
                 }
 
             # summary.txt
@@ -268,6 +271,9 @@ class QuantMSModule(BaseMultiqcModule):
                     "calibrated_mass_error": None,
                     "peptide_id_count": None,
                     "protein_group_count": None,
+                    "summary_identified_msms_count": None,
+                    "summary_identified_peptides": None,
+                    "maxquant_delta_mass_da": None,
                 }
 
             # msms.txt
@@ -287,7 +293,10 @@ class QuantMSModule(BaseMultiqcModule):
                     )
                 )
             else:
-                get_msms_dicts = {"missed_cleavages": None}
+                get_msms_dicts = {
+                    "missed_cleavages": None,
+                    "search_engine_scores": None,
+                }
 
             # msScans.txt or msmsScans.txt
             if "msmsScans" in self.maxquant_paths.keys():
@@ -315,6 +324,7 @@ class QuantMSModule(BaseMultiqcModule):
                     "ion_injec_time_rt": None,
                     "top_n": None,
                     "top_over_rt": None,
+                    "summary_msms_spectra": None,
                 }
 
             # Parameters
@@ -384,15 +394,41 @@ class QuantMSModule(BaseMultiqcModule):
             if get_evidence_dicts["peak_rt"]:
                 self.draw_evidence_peak_width_rt(get_evidence_dicts["peak_rt"])
 
-            # Uncalibrated/Calibrated Mass Error
+            # Uncalibrated Mass Error
             if get_evidence_dicts["uncalibrated_mass_error"]:
                 self.draw_mass_error_box(
                     get_evidence_dicts["uncalibrated_mass_error"], fig_type="uncalibrated"
                 )
-            if get_evidence_dicts["calibrated_mass_error"]:
-                self.draw_mass_error_box(
-                    get_evidence_dicts["calibrated_mass_error"], fig_type="calibrated"
+
+            # Summary Table
+            if (
+                get_msms_scans_dicts["summary_msms_spectra"]
+                and
+                get_evidence_dicts["summary_stat"]["summary_identified_msms_count"]
+            ):
+
+                self.draw_maxquant_summary_table(
+                    get_msms_scans_dicts["summary_msms_spectra"],
+                    get_evidence_dicts["summary_stat"]["summary_identified_msms_count"],
+                    get_evidence_dicts["summary_stat"]["summary_identified_peptides"],
+                    get_protegroups_dicts["protein_summary"],
                 )
+
+            # Number of Peptides identified Per Protein
+            if get_protegroups_dicts["num_pep_per_protein_dict"]:
+                self.draw_maxquant_num_pep_pro(get_protegroups_dicts["num_pep_per_protein_dict"])
+
+            # MaxQuant: Search Engine Scores
+            if get_msms_dicts["search_engine_scores"]:
+                self.draw_maxquant_scores(get_msms_dicts["search_engine_scores"])
+
+            # MaxQuant: Delta Mass [Da]
+            if get_evidence_dicts["maxquant_delta_mass_da"]:
+                self.draw_delta_mass_da_ppm(get_evidence_dicts["maxquant_delta_mass_da"], "Mass Error [Da]")
+
+            # MaxQuant: Delta Mass [ppm]
+            if get_evidence_dicts["calibrated_mass_error"]:
+                self.draw_delta_mass_da_ppm(get_evidence_dicts["calibrated_mass_error"], "Mass Error [ppm]")
 
             # TopN
             if get_msms_scans_dicts["top_n"]:
@@ -1418,33 +1454,38 @@ class QuantMSModule(BaseMultiqcModule):
 
     # draw number of peptides per proteins
     def draw_num_pep_per_protein(self):
-        # Create table plot
 
         if any([len(i) >= 100 for i in self.pep_plot.dict["data"].values()]):
             data_labels = ["Frequency", "Percentage"]
         else:
             data_labels = [
-                {
-                    "name": "Frequency",
-                    "ylab": "Frequency",
-                    "title": "Number of Peptides identified Per Protein",
-                },
-                {"name": "Percentage", "ylab": "Percentage [%]"},
-            ]
+                    {
+                        "name": "Frequency",
+                        "ylab": "Frequency",
+                        "tt_suffix": "",
+                        "tt_decimals": 0,
+                    },
+                    {
+                        "name": "Percentage",
+                        "ylab": "Percentage [%]",
+                        "tt_suffix": "%",
+                        "tt_decimals": 2,
+                    },
+                ]
+
         pconfig = {
-            "id": "number_of_peptides_per_proteins",  # ID used for the table
+            "id": "number_of_peptides_per_proteins",
             "cpswitch": False,
             "title": "Number of Peptides identified Per Protein",
-            "xlab": "Number of Peptides",
-            "tt_suffix": "",
-            "tt_decimals": 2,
             "data_labels": data_labels,
         }
+
         bar_html = bargraph.plot(
             [self.pep_plot.dict["data"]["frequency"], self.pep_plot.dict["data"]["percentage"]],
             ["Frequency", "Percentage"],
             pconfig,
         )
+
         if config.kwargs.get("mzid_plugin", False):
             description_str = (
                 "This plot shows the number of peptides per protein in the submitted data"
@@ -1697,47 +1738,59 @@ class QuantMSModule(BaseMultiqcModule):
 
             delta_mass_percent["decoy"] = {k: v / sum(delta_mass["decoy"].values()) for k, v in delta_mass["decoy"].items()}
 
-            if any(abs(x) > 1 for x in (list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys()))):
+            x_values = list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())
+
+            range_threshold = 5
+            if max(abs(x) for x in x_values) > range_threshold:
+                range_abs = range_threshold
+            else:
+                range_abs = 1
+            range_step = (max(x_values) - min(x_values)) * 0.05
+
+            if max(abs(x) for x in x_values) > range_abs:
 
                 delta_mass_range = dict()
-                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= 1}
-                delta_mass_range["decoy"] = {k: v for k, v in delta_mass["decoy"].items() if abs(k) <= 1}
+                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs}
+                delta_mass_range["decoy"] = {k: v for k, v in delta_mass["decoy"].items() if abs(k) <= range_abs}
 
                 delta_mass_percent_range = dict()
-                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= 1}
-                delta_mass_percent_range["decoy"] = {k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= 1}
+                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs}
+                delta_mass_percent_range["decoy"] = {k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= range_abs}
+                
+                x_values_adj = list(delta_mass_range["target"].keys()) + list(delta_mass_range["decoy"].keys())
+                range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
 
                 data_label = [
                     {
-                        "name": "Count (range: -1 to 1)",
+                        "name": f"Count (range: -{range_abs} to {range_abs})",
                         "ylab": "Count",
                         "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": 1.01,
-                        "xmin": -1.01,
+                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
                         "ymin": 0,
                     },
                     {
-                        "name": "Relative Frequency (range: -1 to 1)",
+                        "name": f"Relative Frequency (range: -{range_abs} to {range_abs})",
                         "ylab": "Relative Frequency",
                         "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": 1.01,
-                        "xmin": -1.01,
+                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
                         "ymin": 0,
                     },
                     {
                         "name": "Count (All Data)",
                         "ylab": "Count",
                         "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": max(list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())) + 0.25,
-                        "xmin": min(list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())) - 0.25,
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
                     },
                     {
                         "name": "Relative Frequency (All Data)",
                         "ylab": "Relative Frequency",
                         "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": max(list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())) + 0.25,
-                        "xmin": min(list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())) - 0.25,
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
                     },
                 ]
@@ -1750,7 +1803,15 @@ class QuantMSModule(BaseMultiqcModule):
                     "style": "lines+markers",
                     "showlegend": True,
                 }
-                line_html = linegraph.plot([delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent], pconfig)
+                line_html = linegraph.plot(
+                    [
+                        delta_mass_range,
+                        delta_mass_percent_range,
+                        delta_mass,
+                        delta_mass_percent
+                    ],
+                    pconfig
+                )
 
             else:
                 data_label = [
@@ -1758,16 +1819,16 @@ class QuantMSModule(BaseMultiqcModule):
                         "name": "Count (All Data)",
                         "ylab": "Count",
                         "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": 1.01,
-                        "xmin": -1.01,
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
                     },
                     {
                         "name": "Relative Frequency (All Data)",
                         "ylab": "Relative Frequency",
                         "tt_label": "{point.x} Mass delta elative frequency: {point.y}",
-                        "xmax": 1.01,
-                        "xmin": -1.01,
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
                     },
                 ]
@@ -1785,57 +1846,77 @@ class QuantMSModule(BaseMultiqcModule):
         else:
             delta_mass = {k: v for k, v in delta_mass.items() if k not in ["decoy"]}
 
-            if any(abs(x) > 1 for x in list(delta_mass["target"].keys())):
+            x_values = list(delta_mass["target"].keys())
+
+            range_threshold = 5
+            if max(abs(x) for x in x_values) > range_threshold:
+                range_abs = range_threshold
+            else:
+                range_abs = 1
+            range_step = (max(x_values) - min(x_values)) * 0.05
+
+            if max(abs(x) for x in x_values) > range_abs:
 
                 delta_mass_range = dict()
-                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= 1}
+                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs}
 
                 delta_mass_percent_range = dict()
-                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= 1}
+                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs}
+
+                x_values_adj = list(delta_mass_range["target"].keys())
+                range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
 
                 data_label = [
                     {
-                        "name": "Count (range: -1 to 1)",
+                        "name": f"Count (range: -{range_abs} to {range_abs})",
                         "ylab": "Count",
                         "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": 1.01,
-                        "xmin": -1.01,
+                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
                         "ymin": 0,
                     },
                     {
-                        "name": "Relative Frequency (range: -1 to 1)",
+                        "name": f"Relative Frequency (range: -{range_abs} to {range_abs})",
                         "ylab": "Relative Frequency",
                         "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": 1.01,
-                        "xmin": -1.01,
+                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
                         "ymin": 0,
                     },
                     {
                         "name": "Count (All Data)",
                         "ylab": "Count",
-                        "tt_label": "{point.x}Mass delta counts: {point.y}",
-                        "xmax": max(list(delta_mass["target"].keys())) + 0.25,
-                        "xmin": min(list(delta_mass["target"].keys())) - 0.25,
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
                     },
                     {
                         "name": "Relative Frequency (All Data)",
                         "ylab": "Relative Frequency",
                         "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": max(list(delta_mass["target"].keys())) + 0.25,
-                        "xmin": min(list(delta_mass["target"].keys())) - 0.25,
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
                     },
                 ]
                 pconfig = {
-                    "id": "delta_mass",
+                    "id": "delta_mass_da",
                     "colors": {"target": "#b2df8a"},
-                    "title": "Delta Mass",
+                    "title": "Delta Mass [Da]",
                     "xlab": "Experimental m/z - Theoretical m/z",
                     "data_labels": data_label,
                     "style": "lines+markers",
                 }
-                line_html = linegraph.plot([delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent], pconfig)
+                line_html = linegraph.plot(
+                    [
+                        delta_mass_range,
+                        delta_mass_percent_range,
+                        delta_mass,
+                        delta_mass_percent
+                    ],
+                    pconfig
+                )
 
             else:
                 data_label = [
@@ -1843,23 +1924,23 @@ class QuantMSModule(BaseMultiqcModule):
                         "name": "Count (All Data)",
                         "ylab": "Count",
                         "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": 1.01,
-                        "xmin": -1.01,
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
                     },
                     {
                         "name": "Relative Frequency (All Data)",
                         "ylab": "Relative Frequency",
                         "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": 1.01,
-                        "xmin": -1.01,
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
                     },
                 ]
                 pconfig = {
-                    "id": "delta_mass",
+                    "id": "delta_mass_da",
                     "colors": {"target": "#b2df8a"},
-                    "title": "Delta Mass",
+                    "title": "Delta Mass [Da]",
                     "xlab": "Experimental m/z - Theoretical m/z",
                     "data_labels": data_label,
                     "style": "lines+markers",
@@ -1867,7 +1948,7 @@ class QuantMSModule(BaseMultiqcModule):
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
 
         self.add_sub_section(
-            sub_section=self.ms2_sub_section,
+            sub_section=self.time_mass_sub_section,
             plot=line_html,
             order=3,
             description="""
@@ -2695,10 +2776,10 @@ class QuantMSModule(BaseMultiqcModule):
         quantms_rt_file_df.rename(columns={"filename": "Raw file"}, inplace=True)
         self.quantms_ids_over_rt = maxquant.evidence_rt_count(quantms_rt_file_df)
 
-        # Mass Error
+        # Delta Mass [ppm]
         mass_error = psm[["filename", "calc_mass_to_charge", "exp_mass_to_charge"]].copy()
         mass_error["Mass Error [ppm]"] = (
-            (mass_error["calc_mass_to_charge"] - mass_error["exp_mass_to_charge"]) / mass_error["calc_mass_to_charge"]
+            (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"]) / mass_error["calc_mass_to_charge"]
         ) * 1e6
         mass_error.rename(columns={"filename": "Raw file"}, inplace=True)
         self.quantms_mass_error = maxquant.evidence_calibrated_mass_error(mass_error)
@@ -4186,7 +4267,7 @@ class QuantMSModule(BaseMultiqcModule):
             self.add_sub_section(
                 sub_section=self.time_mass_sub_section,
                 plot=box_html,
-                order=3,
+                order=5,
                 description="[Excludes Contaminants] Mass accurary before calibration.",
                 helptext="""
                     Mass error of the uncalibrated mass-over-charge value of the precursor ion in comparison 
@@ -4195,51 +4276,51 @@ class QuantMSModule(BaseMultiqcModule):
             )
 
         # calibrated
-        if fig_type == "calibrated":
-            draw_config = {
-                "id": "calibrated_mass_error_box",
-                "cpswitch": False,
-                "cpswitch_c_active": False,
-                "title": "Calibrated Mass Error",
-                "tt_decimals": 2,
-                "xlab": "Mass Error [ppm]",
-                "xmax": 10,
-                "xmin": -10,
-            }
-            box_html = box.plot(mass_error_data, pconfig=draw_config)
-            self.add_sub_section(
-                sub_section=self.time_mass_sub_section,
-                plot=box_html,
-                order=4,
-                description="[Excludes Contaminants] Mass accuracy after calibration.",
-                helptext="""
-                    Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison 
-                    to the predicted monoisotopic mass of the identified peptide sequence in parts per million. 
-                    """
-            )
+        # if fig_type == "calibrated":
+        #     draw_config = {
+        #         "id": "calibrated_mass_error_box",
+        #         "cpswitch": False,
+        #         "cpswitch_c_active": False,
+        #         "title": "Calibrated Mass Error",
+        #         "tt_decimals": 2,
+        #         "xlab": "Mass Error [ppm]",
+        #         "xmax": 10,
+        #         "xmin": -10,
+        #     }
+        #     box_html = box.plot(mass_error_data, pconfig=draw_config)
+        #     self.add_sub_section(
+        #         sub_section=self.time_mass_sub_section,
+        #         plot=box_html,
+        #         order=6,
+        #         description="[Excludes Contaminants] Mass accuracy after calibration.",
+        #         helptext="""
+        #             Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison 
+        #             to the predicted monoisotopic mass of the identified peptide sequence in parts per million. 
+        #             """
+        #     )
 
         # quantms
-        if fig_type == "quantms":
-            draw_config = {
-                "id": "mass_error",
-                "cpswitch": False,
-                "cpswitch_c_active": False,
-                "title": "Mass Error",
-                "tt_decimals": 2,
-                "xlab": "Mass Error [ppm]",
-                "xmax": 10,
-                "xmin": -10,
-            }
-            box_html = box.plot(mass_error_data, pconfig=draw_config)
-            self.add_sub_section(
-                sub_section=self.time_mass_sub_section,
-                plot=box_html,
-                order=4,
-                description="Mass Error [ppm] calculated from mzTab. (range: -10 to 10)",
-                helptext="""
-                    Mass Error [ppm] calculated from mzTab: ((𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧 − 𝑒𝑥𝑝𝑒𝑟𝑖𝑚𝑒𝑛𝑡𝑎𝑙 𝑚/𝑧) / (𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧)) × 10^6.
-                    """
-            )
+        # if fig_type == "quantms":
+        #     draw_config = {
+        #         "id": "mass_error",
+        #         "cpswitch": False,
+        #         "cpswitch_c_active": False,
+        #         "title": "Mass Error",
+        #         "tt_decimals": 2,
+        #         "xlab": "Mass Error [ppm]",
+        #         "xmax": 10,
+        #         "xmin": -10,
+        #     }
+        #     box_html = box.plot(mass_error_data, pconfig=draw_config)
+        #     self.add_sub_section(
+        #         sub_section=self.time_mass_sub_section,
+        #         plot=box_html,
+        #         order=5,
+        #         description="Mass Error [ppm] calculated from mzTab. (range: -10 to 10)",
+        #         helptext="""
+        #             Mass Error [ppm] calculated from mzTab: ((𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧 − 𝑒𝑥𝑝𝑒𝑟𝑖𝑚𝑒𝑛𝑡𝑎𝑙 𝑚/𝑧) / (𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧)) × 10^6.
+        #             """
+        #     )
 
     # MaxQuant Fig 16
     def draw_evidence_peptide_id_count(self, peptide_id_count_data):
@@ -4389,7 +4470,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_sub_section(
             sub_section=self.time_mass_sub_section,
             plot=linegraph_html,
-            order=5,
+            order=7,
             description="",
             helptext="""
                 Ion injection time score - should be as low as possible to allow fast cycles. Correlated with peptide intensity. 
@@ -4414,7 +4495,7 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_sub_section(
             sub_section=self.time_mass_sub_section,
             plot=linegraph_html,
-            order=6,
+            order=8,
             description="TopN over retention time.",
             helptext="""
                 TopN over retention time. Similar to ID over RT, this metric reflects the complexity of the sample 
@@ -4439,13 +4520,321 @@ class QuantMSModule(BaseMultiqcModule):
         self.add_sub_section(
             sub_section=self.time_mass_sub_section,
             plot=bar_html,
-            order=7,
+            order=9,
             description='This metric somewhat summarizes "TopN over RT"',
             helptext="""
                 Reaching TopN on a regular basis indicates that all sections of the LC gradient 
                 deliver a sufficient number of peptides to keep the instrument busy. This metric somewhat summarizes "TopN over RT".
                 """
         )
+
+    def draw_maxquant_summary_table(
+            self,
+            msms_spectra,
+            identified_msms,
+            identified_peptides,
+            protein_dict
+        ):
+
+        coverage = (identified_msms / msms_spectra) * 100
+
+        summary_table = dict()
+        summary_table[msms_spectra] = {
+            "#Identified MS2 Spectra": identified_msms,
+            "%Identified MS2 Spectra": coverage,
+        }
+
+        if identified_peptides:
+            summary_table[msms_spectra]["#Peptides Identified"] = identified_peptides
+
+        if protein_dict:
+            if protein_dict["num_proteins_identified"]:
+                summary_table[msms_spectra]["#Proteins Identified"] = protein_dict["num_proteins_identified"]
+            if protein_dict["num_proteins_quantified"]:
+                summary_table[msms_spectra]["#Proteins Quantified"] = protein_dict["num_proteins_quantified"]
+
+        headers = OrderedDict()
+        headers = {
+            "#Identified MS2 Spectra": {
+                "title": "#Identified MS2 Spectra",
+                "description": "Total number of MS/MS spectra identified",
+                "format": "{:,.0f}",
+            },
+            "%Identified MS2 Spectra": {
+                "title": "%Identified MS2 Spectra",
+                "description": "Percentage of Identified MS/MS Spectra",
+                "suffix": "%",
+                "format": "{:,.2f}",
+            },
+        }
+
+        headers["#Identified MS2 Spectra"] = {
+            "description": "Total number of MS/MS spectra identified",
+            "format": "{:,.0f}",
+        }
+        headers["%Identified MS2 Spectra"] = {
+            "description": "Percentage of Identified MS/MS Spectra",
+            "format": "{:,.2f}",
+            "suffix": "%",
+        }
+
+        # Create table plot
+        pconfig = {
+            "id": "identification_summary_table",
+            "title": "Summary Table",
+            "save_file": False,
+            "raw_data_fn": "multiqc_summary_table_table",
+            "sort_rows": False,
+            "only_defined_headers": False,
+            "col1_header": "#MS2 Spectra",
+            "scale": "Set1",
+        }
+
+        table_html = table.plot(summary_table, headers, pconfig)
+
+        self.add_sub_section(
+            sub_section=self.summary_sub_section,
+            plot=table_html,
+            order=1,
+            description="This table shows the MaxQuant summary statistics.",
+            helptext="""
+                This table presents summary statistics generated by MaxQuant. 
+                "#MS2 Spectra" is derived from msmsScans.txt (or msScans.txt); 
+                "#Identified MS2 Spectra" and "#Peptides Identified" are derived from evidence.txt; 
+                "#Proteins Identified" and "#Proteins Quantified" are derived from proteinGroups.txt.
+                """
+        )
+
+    # MaxQuant: Number of Peptides identified Per Protein
+    def draw_maxquant_num_pep_pro(self, num_pep_per_protein):
+
+        data_labels = [
+                {
+                    "name": "Frequency",
+                    "ylab": "Frequency",
+                    "tt_suffix": "",
+                    "tt_decimals": 0,
+                },
+                {
+                    "name": "Percentage",
+                    "ylab": "Percentage [%]",
+                    "tt_suffix": "%",
+                    "tt_decimals": 2,
+                },
+            ]
+
+        pconfig = {
+            "id": "number_of_peptides_per_proteins",
+            "cpswitch": False,
+            "title": "Number of Peptides identified Per Protein",
+            "data_labels": data_labels,
+        }
+
+        bar_html = bargraph.plot(
+            data=num_pep_per_protein,
+            cats=["Frequency", "Percentage"],
+            pconfig=pconfig
+        )
+        
+        self.add_sub_section(
+            sub_section=self.identification_sub_section,
+            plot=bar_html,
+            order=1,
+            description="This plot shows the number of peptides per protein in the MaxQuant data.",
+            helptext="""
+                This statistic is extracted from the proteinGroups.txt file. Proteins supported by more peptide 
+                identifications can constitute more confident results.
+                """
+        )
+
+    # Search Engine Scores
+    def draw_maxquant_scores(self, maxquant_scores):
+
+        pconfig = {
+            "id": "summary_of_andromeda_scores",
+            "cpswitch": False,
+            "title": "Summary of Andromeda Scores",
+            "ylab": "Counts",
+            "tt_suffix": "",
+            "tt_decimals": 0,
+            "data_labels": maxquant_scores["data_labels"],
+        }
+
+        bar_html = bargraph.plot(
+            data=maxquant_scores["plot_data"],
+            pconfig=pconfig
+        )
+
+        self.add_sub_section(
+            sub_section=self.search_engine_sub_section,
+            plot=bar_html,
+            order=1,
+            description="",
+            helptext="""
+                    This statistic is extracted from msms.txt. Andromeda score for the best associated MS/MS spectrum.
+                    """
+        )
+
+
+    # MaxQuant: Delta Mass [Da]
+    def draw_delta_mass_da_ppm(self, delta_mass, delta_mass_type):
+
+        # MaxQuant: Delta Mass [Da]
+        if delta_mass_type == "Mass Error [Da]":
+            plot_id = "delta_mass_da"
+            plot_title = "Delta Mass [Da]"
+            plot_xlab = "Experimental m/z - Theoretical m/z"
+            sub_section_order = 3
+            description_text = """
+                This plot is based on the "Mass Error [Da]" column from the evidence.txt generated by MaxQuant.
+                """
+            help_text = """
+                Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison to the
+                predicted monoisotopic mass of the identified peptide sequence in milli-Dalton.
+                """
+        
+        # MaxQuant: Delta Mass [ppm]
+        elif delta_mass_type == "Mass Error [ppm]":
+            plot_id = "delta_mass_ppm"
+            plot_title = "Delta Mass [ppm]"
+            plot_xlab = "Delta Mass [ppm]"
+            sub_section_order = 4
+            description_text = """
+                This plot is based on the "Mass Error [ppm]" column from the evidence.txt generated by MaxQuant.
+                """
+            help_text = """
+                Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison to the 
+                predicted monoisotopic mass of the identified peptide sequence in parts per million.
+                """
+        
+        # quantms: Delta Mass [ppm]
+        elif delta_mass_type == "quantms_ppm":
+            plot_id = "delta_mass_ppm"
+            plot_title = "Delta Mass [ppm]"
+            plot_xlab = "Delta Mass [ppm]"
+            sub_section_order = 4
+            description_text = """
+                Delta Mass [ppm] calculated from mzTab.
+                """
+            help_text = """
+                Delta Mass [ppm] calculated from mzTab: ((𝑒𝑥𝑝𝑒𝑟𝑖𝑚𝑒𝑛𝑡𝑎𝑙 𝑚/𝑧 - 𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧) / (𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧)) × 10^6.
+                """
+
+        x_values = list(delta_mass["count"].keys())
+
+        range_threshold = 5
+        if max(abs(x) for x in x_values) > range_threshold:
+            range_abs = range_threshold
+        else:
+            range_abs = 1
+        range_step = (max(x_values) - min(x_values)) * 0.05
+
+        if max(abs(x) for x in x_values) > range_abs:
+
+            delta_mass_range = {k: v for k, v in delta_mass["count"].items() if abs(k) <= range_abs}
+            delta_mass_percent_range = {k: v for k, v in delta_mass["frequency"].items() if abs(k) <= range_abs}
+
+            x_values_adj = list(delta_mass_range.keys())
+            range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
+            
+            data_label = [
+                {
+                    "name": f"Count (range: -{range_abs} to {range_abs})",
+                    "ylab": "Count",
+                    "tt_label": "{point.x} Mass delta counts: {point.y}",
+                    "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                    "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
+                    "ymin": 0,
+                },
+                {
+                    "name": f"Relative Frequency (range: -{range_abs} to {range_abs})",
+                    "ylab": "Relative Frequency",
+                    "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                    "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                    "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
+                    "ymin": 0,
+                },
+                {
+                    "name": "Count (All Data)",
+                    "ylab": "Count",
+                    "tt_label": "{point.x} Mass delta counts: {point.y}",
+                    "xmax": max(abs(x) for x in x_values) + range_step,
+                    "xmin": -(max(abs(x) for x in x_values) + range_step),
+                    "ymin": 0,
+                },
+                {
+                    "name": "Relative Frequency (All Data)",
+                    "ylab": "Relative Frequency",
+                    "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                    "xmax": max(abs(x) for x in x_values) + range_step,
+                    "xmin": -(max(abs(x) for x in x_values) + range_step),
+                    "ymin": 0,
+                },
+            ]
+
+            pconfig = {
+                "id": plot_id,
+                "title": plot_title,
+                "xlab": plot_xlab,
+                "data_labels": data_label,
+                "style": "lines+markers",
+            }
+
+            line_html = linegraph.plot(
+                [
+                    {"count": delta_mass_range},
+                    {"relative_frequency": delta_mass_percent_range},
+                    {"count": delta_mass["count"]},
+                    {"frequency": delta_mass["frequency"]}
+                ],
+                pconfig
+            )
+
+        else:
+
+            data_label = [
+                {
+                    "name": "Count (All Data)",
+                    "ylab": "Count",
+                    "tt_label": "{point.x} Mass delta counts: {point.y}",
+                    "xmax": max(abs(x) for x in x_values) + range_step,
+                    "xmin": -(max(abs(x) for x in x_values) + range_step),
+                    "ymin": 0,
+                },
+                {
+                    "name": "Relative Frequency (All Data)",
+                    "ylab": "Relative Frequency",
+                    "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                    "xmax": max(abs(x) for x in x_values) + range_step,
+                    "xmin": -(max(abs(x) for x in x_values) + range_step),
+                    "ymin": 0,
+                },
+            ]
+
+            pconfig = {
+                "id": plot_id,
+                "title": plot_title,
+                "xlab": plot_xlab,
+                "data_labels": data_label,
+                "style": "lines+markers",
+            }
+
+            line_html = linegraph.plot(
+                [
+                    {"count": delta_mass["count"]},
+                    {"relative_frequency": delta_mass["frequency"]}
+                ],
+                pconfig
+            )
+
+        self.add_sub_section(
+            sub_section=self.time_mass_sub_section,
+            plot=line_html,
+            order=sub_section_order,
+            description=description_text,
+            helptext=help_text
+        )
+
 
     def cal_quantms_contaminant_percent(self, pep_df):
 
@@ -4654,20 +5043,23 @@ class QuantMSModule(BaseMultiqcModule):
                     """
             )
 
+
     def draw_quantms_msms_section(self):
+
         # 1.Charge-state of Per File
         if self.mztab_charge_state:
             self.draw_charge_state(self.mztab_charge_state)
 
+
     def draw_quantms_time_section(self):
+
         # 1.IDs over RT
         if self.quantms_ids_over_rt:
             self.draw_ids_rt_count(self.quantms_ids_over_rt)
 
-        # 2.Mass Error
+        # 2.Delta Mass [ppm]
         if self.quantms_mass_error:
-            self.draw_mass_error_box(self.quantms_mass_error, "quantms")
-            pass
+            self.draw_delta_mass_da_ppm(self.quantms_mass_error, "quantms_ppm")
 
 
     # Function of add sub_section 
