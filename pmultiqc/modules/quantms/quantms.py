@@ -1728,11 +1728,10 @@ class QuantMSModule(BaseMultiqcModule):
 
     def draw_delta_mass(self):
 
-        # Computing relative frequency
         delta_mass = self.delta_mass
-        delta_mass_percent = dict()
-
-        delta_mass_percent["target"] = {k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()}
+        delta_mass_percent = {
+            "target": {k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()}
+        }
         
         if delta_mass["decoy"]:
 
@@ -1740,7 +1739,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             x_values = list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())
 
-            range_threshold = 5
+            range_threshold = 10
             if max(abs(x) for x in x_values) > range_threshold:
                 range_abs = range_threshold
             else:
@@ -1848,7 +1847,7 @@ class QuantMSModule(BaseMultiqcModule):
 
             x_values = list(delta_mass["target"].keys())
 
-            range_threshold = 5
+            range_threshold = 10
             if max(abs(x) for x in x_values) > range_threshold:
                 range_abs = range_threshold
             else:
@@ -1857,11 +1856,13 @@ class QuantMSModule(BaseMultiqcModule):
 
             if max(abs(x) for x in x_values) > range_abs:
 
-                delta_mass_range = dict()
-                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs}
+                delta_mass_range = {
+                    "target": {k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs}
+                }
 
-                delta_mass_percent_range = dict()
-                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs}
+                delta_mass_percent_range = {
+                    "target": {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs}
+                }
 
                 x_values_adj = list(delta_mass_range["target"].keys())
                 range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
@@ -4675,7 +4676,7 @@ class QuantMSModule(BaseMultiqcModule):
 
         x_values = list(delta_mass["count"].keys())
 
-        range_threshold = 5
+        range_threshold = 10
         if max(abs(x) for x in x_values) > range_threshold:
             range_abs = range_threshold
         else:
