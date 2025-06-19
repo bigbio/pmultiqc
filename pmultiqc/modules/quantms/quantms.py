@@ -4630,7 +4630,8 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
 
-    # MaxQuant: Delta Mass [Da]
+    # MaxQuant: Delta Mass [Da], Delta Mass [ppm]
+    # quantms: Delta Mass [ppm]
     def draw_delta_mass_da_ppm(self, delta_mass, delta_mass_type):
 
         # MaxQuant: Delta Mass [Da]
@@ -4729,6 +4730,7 @@ class QuantMSModule(BaseMultiqcModule):
             pconfig = {
                 "id": plot_id,
                 "title": plot_title,
+                "colors": {"count": "#b2df8a", "relative_frequency": "#b2df8a"},
                 "xlab": plot_xlab,
                 "data_labels": data_label,
                 "style": "lines+markers",
@@ -4739,7 +4741,7 @@ class QuantMSModule(BaseMultiqcModule):
                     {"count": delta_mass_range},
                     {"relative_frequency": delta_mass_percent_range},
                     {"count": delta_mass["count"]},
-                    {"frequency": delta_mass["frequency"]}
+                    {"relative_frequency": delta_mass["frequency"]}
                 ],
                 pconfig
             )
@@ -4768,6 +4770,7 @@ class QuantMSModule(BaseMultiqcModule):
             pconfig = {
                 "id": plot_id,
                 "title": plot_title,
+                "colors": {"count": "#b2df8a", "relative_frequency": "#b2df8a"},
                 "xlab": plot_xlab,
                 "data_labels": data_label,
                 "style": "lines+markers",
