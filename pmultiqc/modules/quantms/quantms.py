@@ -4275,53 +4275,6 @@ class QuantMSModule(BaseMultiqcModule):
                     """
             )
 
-        # calibrated
-        # if fig_type == "calibrated":
-        #     draw_config = {
-        #         "id": "calibrated_mass_error_box",
-        #         "cpswitch": False,
-        #         "cpswitch_c_active": False,
-        #         "title": "Calibrated Mass Error",
-        #         "tt_decimals": 2,
-        #         "xlab": "Mass Error [ppm]",
-        #         "xmax": 10,
-        #         "xmin": -10,
-        #     }
-        #     box_html = box.plot(mass_error_data, pconfig=draw_config)
-        #     self.add_sub_section(
-        #         sub_section=self.time_mass_sub_section,
-        #         plot=box_html,
-        #         order=6,
-        #         description="[Excludes Contaminants] Mass accuracy after calibration.",
-        #         helptext="""
-        #             Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison 
-        #             to the predicted monoisotopic mass of the identified peptide sequence in parts per million. 
-        #             """
-        #     )
-
-        # quantms
-        # if fig_type == "quantms":
-        #     draw_config = {
-        #         "id": "mass_error",
-        #         "cpswitch": False,
-        #         "cpswitch_c_active": False,
-        #         "title": "Mass Error",
-        #         "tt_decimals": 2,
-        #         "xlab": "Mass Error [ppm]",
-        #         "xmax": 10,
-        #         "xmin": -10,
-        #     }
-        #     box_html = box.plot(mass_error_data, pconfig=draw_config)
-        #     self.add_sub_section(
-        #         sub_section=self.time_mass_sub_section,
-        #         plot=box_html,
-        #         order=5,
-        #         description="Mass Error [ppm] calculated from mzTab. (range: -10 to 10)",
-        #         helptext="""
-        #             Mass Error [ppm] calculated from mzTab: ((𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧 − 𝑒𝑥𝑝𝑒𝑟𝑖𝑚𝑒𝑛𝑡𝑎𝑙 𝑚/𝑧) / (𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧)) × 10^6.
-        #             """
-        #     )
-
     # MaxQuant Fig 16
     def draw_evidence_peptide_id_count(self, peptide_id_count_data):
 
