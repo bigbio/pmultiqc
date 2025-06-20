@@ -169,6 +169,12 @@ def get_protegroups(file_path: str) -> Dict[str, dict]:
             logger.debug("No LFQ intensity columns found")
             lfq_intensity_distr = None
 
+        # Summary Table
+        summary_table_dict = pg_summary_table(mq_data, lfq_intensity_columns, intensity_columns)
+
+        # Number of Peptides identified Per Protein
+        num_pep_per_protein_dict = peptide_per_protein(mq_data)
+
         # PCA
         if len(intensity_columns) > 1:
             logger.debug("Calculating raw intensity PCA")
@@ -193,6 +199,8 @@ def get_protegroups(file_path: str) -> Dict[str, dict]:
             "pg_lfq_intensity_distri": lfq_intensity_distr,
             "raw_intensity_pca": raw_intensity_pca,
             "lfq_intensity_pca": lfq_intensity_pca,
+            "protein_summary": summary_table_dict,
+            "num_pep_per_protein_dict": num_pep_per_protein_dict,
         }
 
         logger.info("Completed processing proteinGroups data")
@@ -304,6 +312,65 @@ def pg_pca(pg_data: pd.DataFrame, cols_name: List[str]):
     return pca_dict
 
 
+# 1-4.proteinGroups.txt: Summary Table
+def pg_summary_table(pg_data, lfq_intensity, intensity):
+
+    if "Potential contaminant" in pg_data.columns:
+        pg_data = pg_data[pg_data["Potential contaminant"] != "+"].copy()
+
+    num_proteins_identified = len(pg_data)
+
+    intensitys = lfq_intensity + intensity
+    num_proteins_quantified = len(pg_data[pg_data[intensitys].gt(0).any(axis=1)])
+
+    result = {
+        "num_proteins_identified": num_proteins_identified,
+        "num_proteins_quantified": num_proteins_quantified,
+    }
+
+    return result
+
+
+# 1-5.proteinGroups.txt: Number of Peptides identified Per Protein
+def peptide_per_protein(pg_data):
+
+    if "Peptide counts (all)" not in pg_data.columns:
+        return None
+    
+    if "Potential contaminant" in pg_data.columns:
+        pg_data = pg_data[pg_data["Potential contaminant"] != "+"].copy()
+
+    count = pg_data["Peptide counts (all)"].apply(lambda x: int(x.split(";")[0]))
+    count = count[count > 0]
+
+    count_df = count.value_counts().sort_index().reset_index()
+    count_df.columns = ["peptide_count", 'frequency']
+
+    top_n = 49
+    if len(count_df) > top_n:
+        top_count_df = count_df.iloc[:top_n].copy()
+        rest = count_df.iloc[top_n:]
+        other_sum = rest["frequency"].sum()
+        threshold_value = count_df.iloc[top_n]["peptide_count"]
+        top_count_df.loc[len(top_count_df)] = [f"{threshold_value}+", other_sum]
+        final_count_df = top_count_df.copy()
+    else:
+        final_count_df = count_df.copy()
+
+    final_count_df["percentage"] = (final_count_df["frequency"] / final_count_df["frequency"].sum()) * 100
+
+    result = [
+        {
+            str(k): {"Frequency": v} for k, v in zip(final_count_df["peptide_count"], final_count_df["frequency"])
+        },
+        {
+            str(k): {"Percentage": v} for k, v in zip(final_count_df["peptide_count"], final_count_df["percentage"])
+        },
+    ]
+
+    return result
+
+
 # 2. summary.txt
 def get_summary(file_path: Union[Path, str]):
     """
@@ -352,6 +419,7 @@ def get_evidence(file_path):
 
     # Count peptides and MS/MS spectra
     total_entries = len(mq_data)
+
     unique_peptides = (
         mq_data["Modified sequence"].nunique() if "Modified sequence" in mq_data.columns else 0
     )
@@ -360,6 +428,9 @@ def get_evidence(file_path):
     logger.info(
         f"Processing evidence data with {total_entries} entries, {unique_peptides} unique peptides, and {msms_count} MS/MS spectra"
     )
+
+    # Summary table
+    summary_table_stat = evidence_summary_table(mq_data)
 
     if not all(column in mq_data.columns for column in ["Type"]):
         logger.error('Missing required columns (#Type) in "evidence.txt"!')
@@ -422,6 +493,9 @@ def get_evidence(file_path):
     logger.debug("Counting protein groups")
     protein_group_count = evidence_protein_count(evidence_df, evidence_df_tf)
 
+    # Delta Mass [Da]
+    maxquant_delta_mass_da = evidence_delta_mass_da(evidence_df)
+
     result = {
         "top_contaminants": top_cont_dict,
         "peptide_intensity": peptide_intensity_dict,
@@ -437,6 +511,8 @@ def get_evidence(file_path):
         "calibrated_mass_error": calibrated_mass_error,
         "peptide_id_count": peptide_id_count,
         "protein_group_count": protein_group_count,
+        "summary_stat": summary_table_stat,
+        "maxquant_delta_mass_da": maxquant_delta_mass_da,
     }
 
     logger.info("Completed processing evidence data")
@@ -827,13 +903,24 @@ def evidence_calibrated_mass_error(evidence_data):
     if "Potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
 
-    calibrated_mass_error = {}
-    for raw_file, group in evidence_data.groupby("Raw file"):
-        mass_error = list(group["Mass Error [ppm]"].map(lambda x: 0 if pd.isna(x) else x))
+    evidence_data.dropna(subset=["Mass Error [ppm]"], inplace=True)
 
-        calibrated_mass_error[raw_file] = [value for value in mass_error if value != 0]
+    count_bin = evidence_data["Mass Error [ppm]"].value_counts(sort=False, bins=1000)
+    count_bin_data = dict()
+    for index in count_bin.index:
+        count_bin_data[float(index.mid)] = int(count_bin[index])
 
-    return calibrated_mass_error
+    frequency_bin = evidence_data["Mass Error [ppm]"].value_counts(sort=False, bins=1000, normalize=True)
+    frequency_bin_data = dict()
+    for index in frequency_bin.index:
+        frequency_bin_data[float(index.mid)] = float(frequency_bin[index])
+
+    result_dict = {
+        "count": count_bin_data,
+        "frequency": frequency_bin_data,
+    }
+
+    return result_dict
 
 
 # 3-9.evidence.txt: Peptide ID count
@@ -1058,6 +1145,56 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
     return protein_group_count
 
 
+# 3-11.evidence.txt: Summary Table
+def evidence_summary_table(evid_df):
+
+    if "Potential contaminant" in evid_df.columns:
+        evid_df = evid_df[evid_df["Potential contaminant"] != "+"].copy()
+
+    unique_peptides = (
+        evid_df["Modified sequence"].nunique() if "Modified sequence" in evid_df.columns else None
+    )
+    msms_count = evid_df["MS/MS Count"].sum() if "MS/MS Count" in evid_df.columns else None
+
+    if unique_peptides is not None and msms_count is not None:
+        
+        return {
+            "summary_identified_msms_count": int(msms_count),
+            "summary_identified_peptides": int(unique_peptides),
+        }
+
+    return None
+
+
+# 3-12.evidence.txt: Delta Mass [Da]
+def evidence_delta_mass_da(evidence_data):
+
+    if any(column not in evidence_data.columns for column in ["Mass Error [Da]", "Raw file"]):
+        return None
+
+    if "Potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["Potential contaminant"] != "+"].copy()
+
+    evidence_data.dropna(subset=["Mass Error [Da]"], inplace=True)
+
+    count_bin = evidence_data["Mass Error [Da]"].value_counts(sort=False, bins=1000)
+    count_bin_data = dict()
+    for index in count_bin.index:
+        count_bin_data[float(index.mid)] = int(count_bin[index])
+
+    frequency_bin = evidence_data["Mass Error [Da]"].value_counts(sort=False, bins=1000, normalize=True)
+    frequency_bin_data = dict()
+    for index in frequency_bin.index:
+        frequency_bin_data[float(index.mid)] = float(frequency_bin[index])
+
+    delta_mass_da = {
+        "count": count_bin_data,
+        "frequency": frequency_bin_data,
+    }
+
+    return delta_mass_da
+
+
 # 4.msms.txt
 def get_msms(file_path: Union[Path, str], evidence_df: pd.DataFrame = None):
     """
@@ -1089,9 +1226,13 @@ def get_msms(file_path: Union[Path, str], evidence_df: pd.DataFrame = None):
     logger.debug("Calculating missed cleavages")
     missed_cleavages = msms_missed_cleavages(mq_data, evidence_df)
 
+    # MaxQuant: Search Engine Scores
+    search_engine_scores_dict = search_engine_scores(mq_data)
+
     result = {
         # 'mq_data': mq_data,
-        "missed_cleavages": missed_cleavages
+        "missed_cleavages": missed_cleavages,
+        "search_engine_scores": search_engine_scores_dict,
     }
 
     logger.info("Completed processing msms data")
@@ -1145,6 +1286,46 @@ def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
     return missed_cleavages_dict
 
 
+# 4-2.msms.txt: Search Engine Scores
+def search_engine_scores(msms_df):
+
+    if "Score" not in msms_df.columns:
+        return None
+
+    bins_start = 0
+    bins_end = 300
+    bins_step = 6
+
+    bins = list(range(bins_start, bins_end + 1, bins_step)) + [float("inf")]
+    labels = [f"{i} ~ {i+bins_step}" for i in range(bins_start, bins_end, bins_step)] + [f"{bins_end} ~ inf"]
+
+    plot_data = list()
+    data_labels = list()
+    for name, group in msms_df.groupby("Raw file"):
+
+        group["score_bin"] = pd.cut(group["Score"], bins=bins, labels=labels, right=False)
+        score_dist = group["score_bin"].value_counts().sort_index().reset_index()
+
+        plot_data.append(
+            {
+                k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"])
+            }
+        )
+        data_labels.append(
+            {
+                "name": name,
+                "ylab": "Counts"
+            }
+        )
+
+    result = {
+        "plot_data": plot_data,
+        "data_labels": data_labels,
+    }
+
+    return result
+
+
 # 5.msScans.txt
 def get_msms_scans(file_path: Union[Path, str]):
     """
@@ -1189,6 +1370,7 @@ def get_msms_scans(file_path: Union[Path, str]):
         "ion_injec_time_rt": ion_injec_time_rt,
         "top_n": top_n,
         "top_over_rt": top_over_rt,
+        "summary_msms_spectra": total_scans,
     }
 
     logger.info("Completed processing msmsScans data")
@@ -1445,5 +1627,3 @@ def mod_group_percentage(group):
     )
 
     return percentage_df
-
-
