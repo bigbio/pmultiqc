@@ -171,11 +171,11 @@ def add_group_modules(groups_dict, analysis_type):
     if analysis_type == "proteobench":
 
         config.report_section_order = {
-            "pmultiqc": {"order": 19},
-            "intensity": {"order": 18},
-            "std_intensity": {"order": 17},
-            "cv": {"order": 15},
-            "log_vs": {"order": 14},
+            "pmultiqc": {"order": 5},
+            "intensity": {"order": 4},
+            "std_intensity": {"order": 3},
+            "cv": {"order": 2},
+            "log_vs": {"order": 1},
         }
     
     else:
