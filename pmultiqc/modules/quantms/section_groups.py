@@ -63,66 +63,96 @@ def create_ordered_group_modules(grouped_plot_data: list[dict]):
         report.modules.append(group_module)
 
 
-def add_group_modules(groups_dict):
+def add_group_modules(groups_dict, analysis_type):
 
     section_group = list()
 
-    group_configs = [
-        {
-            "id": "experiment_setup",
-            "key": "experiment_sub_section",
-            "name": "Experiment Setup",
-            "description": ""
-        },
-        {
-            "id": "summary_and_heatmap",
-            "key": "summary_sub_section",
-            "name": "Summary and HeatMap",
-            "description": ""
-        },
-        {
-            "id": "identification_summary",
-            "key": "identification_sub_section",
-            "name": "Identification Summary",
-            "description": ""
-        },
-        {
-            "id": "search_engine_scores",
-            "key": "search_engine_sub_section",
-            "name": "Search Engine Scores",
-            "description": ""
-        },
-        {
-            "id": "contaminants",
-            "key": "contaminants_sub_section",
-            "name": "Contaminants",
-            "description": ""
-        },
-        {
-            "id": "quantification_analysis",
-            "key": "quantification_sub_section",
-            "name": "Quantification Analysis",
-            "description": ""
-        },
-        {
-            "id": "ms1_analysis",
-            "key": "ms1_sub_section",
-            "name": "MS1 Analysis",
-            "description": ""
-        },
-        {
-            "id": "ms2_and_spectral_stats",
-            "key": "ms2_sub_section",
-            "name": "MS2 and Spectral Stats",
-            "description": ""
-        },
-        {
-            "id": "time_and_mass_error_trends",
-            "key": "time_mass_sub_section",
-            "name": "Time and Mass Error Trends",
-            "description": ""
-        },
-    ]
+    if analysis_type == "proteobench":
+
+        group_configs = [
+            {
+                "id": "intensity",
+                "key": "log_mean_sub_section",
+                "name": "Intensity",
+                "description": ""
+            },
+            {
+                "id": "std_intensity",
+                "key": "log_std_sub_section",
+                "name": "Standard Deviations of Intensity",
+                "description": ""
+            },
+            {
+                "id": "cv",
+                "key": "cv_sub_section",
+                "name": "Coefficient of Variation",
+                "description": ""
+            },
+            {
+                "id": "log_vs",
+                "key": "log_vs_sub_section",
+                "name": "Log2 Fold Change",
+                "description": ""
+            },
+        ]
+    
+    else:
+        group_configs = [
+            {
+                "id": "experiment_setup",
+                "key": "experiment_sub_section",
+                "name": "Experiment Setup",
+                "description": ""
+            },
+            {
+                "id": "summary_and_heatmap",
+                "key": "summary_sub_section",
+                "name": "Summary and HeatMap",
+                "description": ""
+            },
+            {
+                "id": "identification_summary",
+                "key": "identification_sub_section",
+                "name": "Identification Summary",
+                "description": ""
+            },
+            {
+                "id": "search_engine_scores",
+                "key": "search_engine_sub_section",
+                "name": "Search Engine Scores",
+                "description": ""
+            },
+            {
+                "id": "contaminants",
+                "key": "contaminants_sub_section",
+                "name": "Contaminants",
+                "description": ""
+            },
+            {
+                "id": "quantification_analysis",
+                "key": "quantification_sub_section",
+                "name": "Quantification Analysis",
+                "description": ""
+            },
+            {
+                "id": "ms1_analysis",
+                "key": "ms1_sub_section",
+                "name": "MS1 Analysis",
+                "description": ""
+            },
+            {
+                "id": "ms2_and_spectral_stats",
+                "key": "ms2_sub_section",
+                "name": "MS2 and Spectral Stats",
+                "description": ""
+            },
+            {
+                "id": "time_and_mass_error_trends",
+                "key": "time_mass_sub_section",
+                "name": "Time and Mass Error Trends",
+                "description": ""
+            },
+        ]
 
     for group in group_configs:
         sections = groups_dict.get(group["key"])
@@ -138,24 +168,35 @@ def add_group_modules(groups_dict):
 
     create_ordered_group_modules(section_group)
 
-    config.report_section_order = {
-        "pmultiqc": {"order": 19},
-        "experiment_setup": {"order": 18},
-        "summary_and_heatmap": {"order": 17},
-        "identification_summary": {"order": 16},
-        "search_engine_scores": {"order": 15},
-        "contaminants": {"order": 14},
-        "quantification_analysis": {"order": 13},
-        "ms1_analysis": {"order": 12},
-        "ms2_and_spectral_stats": {"order": 11},
-        "time_and_mass_error_trends": {"order": 10},
-        "bigbio-quantms-summary": {"order": 9},
-        "nf-core-quantms-methods-description": {"order": 8},
-        "methods_description": {"order": 7},
-        "bigbio-quantms-methods-description": {"order": 6},
-        "software_versions": {"order": 5},
-        "multiqc_software_versions": {"order": 4},
-        "nf_core_quantms_software": {"order": 3},
-        "nf-core-quantms-summary": {"order": 2},
-        "workflow_summary": {"order": 1},
-    }
+    if analysis_type == "proteobench":
+
+        config.report_section_order = {
+            "pmultiqc": {"order": 19},
+            "intensity": {"order": 18},
+            "std_intensity": {"order": 17},
+            "cv": {"order": 15},
+            "log_vs": {"order": 14},
+        }
+    
+    else:
+        config.report_section_order = {
+            "pmultiqc": {"order": 19},
+            "experiment_setup": {"order": 18},
+            "summary_and_heatmap": {"order": 17},
+            "identification_summary": {"order": 16},
+            "search_engine_scores": {"order": 15},
+            "contaminants": {"order": 14},
+            "quantification_analysis": {"order": 13},
+            "ms1_analysis": {"order": 12},
+            "ms2_and_spectral_stats": {"order": 11},
+            "time_and_mass_error_trends": {"order": 10},
+            "bigbio-quantms-summary": {"order": 9},
+            "nf-core-quantms-methods-description": {"order": 8},
+            "methods_description": {"order": 7},
+            "bigbio-quantms-methods-description": {"order": 6},
+            "software_versions": {"order": 5},
+            "multiqc_software_versions": {"order": 4},
+            "nf_core_quantms_software": {"order": 3},
+            "nf-core-quantms-summary": {"order": 2},
+            "workflow_summary": {"order": 1},
+        }

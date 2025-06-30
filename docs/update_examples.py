@@ -7,6 +7,7 @@ import urllib
 from ftplib import FTP
 from pathlib import Path
 from urllib.parse import urlparse
+import urllib.request
 
 from tqdm import tqdm
 
@@ -97,8 +98,12 @@ def delete_old_examples(folder_path):
 
 
 def run_pmultiqc(download_path, report_path, plugin_type):
+
     if plugin_type == "maxquant":
         command = ["multiqc", "--parse_maxquant", download_path, "-o", report_path]
+
+    elif plugin_type == "proteobench":
+        command = ["multiqc", "--parse_proteobench", download_path, "-o", report_path]
 
     elif plugin_type == "mzid":
         command = ["multiqc", "--mzid_plugin", download_path, "-o", report_path]
