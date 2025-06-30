@@ -110,8 +110,9 @@ class QuantMSModule(BaseMultiqcModule):
                 pb_result_path.append(os.path.join(pb_result["root"], pb_result["fn"]))
 
             if len(pb_result_path) > 1:
-                raise ValueError("Please check your ProteoBench results.")
-            
+                raise ValueError(
+                    f"Multiple ProteoBench result files found ({len(pb_result_path)}): {', '.join(pb_result_path)}. Please ensure only one result file is present."
+                )
             pb_results = get_pb_data(pb_result_path[0])
 
             self.draw_proteobench(pb_results)
