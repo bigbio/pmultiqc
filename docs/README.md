@@ -45,7 +45,10 @@ pmultiqc supports the following data sources:
    - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**)
    - `diann_report.tsv`: DIA-NN main report
 
-### 4. [mzIdentML](https://www.psidev.info/mzidentml) files:
+### 4. **[ProteoBench](https://proteobench.readthedocs.io)** file:
+   - `result_performance.csv`: ProteoBench result file
+
+### 5. [mzIdentML](https://www.psidev.info/mzidentml) files:
    - `*.mzid`: Identification results
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
@@ -99,6 +102,12 @@ multiqc --parse_maxquant /path/to/maxquant/results -o ./report
 multiqc /path/to/diann/results -o ./report
 ```
 
+#### For ProteoBench files
+
+```bash
+multiqc --parse_proteobench /path/to/proteobench/files -o ./report
+```
+
 #### For mzIdentML files
 
 ```bash
@@ -120,6 +129,7 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--disable_table` | Disable protein/peptide table plots for large datasets | `False` |
 | `--ignored_idxml` | Ignore idXML files for faster processing | `False` |
 | `--parse_maxquant` | Generate reports based on MaxQuant results | `False` |
+| `--parse_proteobench` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
 
 ## 📊 QC Metrics and Visualizations
@@ -169,6 +179,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | quantms DIA | Data-independent acquisition | [quantms DIA Example](https://bigbio.github.io/pmultiqc/dia/multiqc_report.html) |
 | DIA-NN | Data-independent acquisition | [DIA-NN Example](https://bigbio.github.io/pmultiqc/DIANN/multiqc_report.html) |
 | MaxQuant | MaxQuant results | [MaxQuant Example](https://bigbio.github.io/pmultiqc/PXD003133/multiqc_report.html) |
+| ProteoBench | ProteoBench results | [ProteoBench Example](https://bigbio.github.io/pmultiqc/ProteoBench/multiqc_report.html) |
 | mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://bigbio.github.io/pmultiqc/PXD051187/multiqc_report.html) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://bigbio.github.io/pmultiqc/PXD054720/multiqc_report.html) |
 

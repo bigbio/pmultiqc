@@ -41,6 +41,14 @@
             "file_type": "maxquant"
         },
         {
+            "accession": "ProteoBench",
+            "urls": [
+                "https://proteobench.cubimed.rub.de/datasets/d01e87b997b84c985868204b1ed26749902fd7f9/d01e87b997b84c985868204b1ed26749902fd7f9_data.zip"
+            ],
+            "path": "docs/ProteoBench",
+            "file_type": "proteobench"
+        },
+        {
             "accession": "PXD054720",
             "urls": [
                 "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mgf",
