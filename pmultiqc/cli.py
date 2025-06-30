@@ -69,3 +69,6 @@ mzid_plugin = click.option("--mzid_plugin", "mzid_plugin", is_flag=True, help="E
 parse_maxquant = click.option(
     "--parse_maxquant", "parse_maxquant", is_flag=True, help="Parse MaxQuant results"
 )
+parse_proteobench = click.option(
+    "--parse_proteobench", "parse_proteobench", is_flag=True, help="Parse ProteoBench results"
+)

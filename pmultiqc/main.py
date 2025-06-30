@@ -87,4 +87,7 @@ def pmultiqc_plugin_execution_start():
     if "quantms/maxquant_result" not in config.sp:
         config.update_dict(config.sp, {"quantms/maxquant_result": {"fn": "*.txt", "num_lines": 0}})
 
+    if "quantms/proteobench_result" not in config.sp:
+        config.update_dict(config.sp, {"quantms/proteobench_result": {"fn": "result_performance.*", "num_lines": 0}})
+
     config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})

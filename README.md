@@ -45,9 +45,13 @@ pmultiqc supports the following data sources:
    - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**)
    - `diann_report.tsv`: DIA-NN main report
 
-4. **mzIdentML** files:
+4. **[ProteoBench](https://proteobench.readthedocs.io)** file:
+   - `result_performance.csv`: ProteoBench result file
+
+5. **mzIdentML** files:
    - `*.mzid`: Identification results
    - `*.mzML` or `*.mgf`: Corresponding spectra files
+
 
 ## Installation
 
@@ -99,11 +103,18 @@ multiqc --parse_maxquant /path/to/maxquant/results -o ./report
 multiqc /path/to/diann/results -o ./report
 ```
 
+#### For ProteoBench files
+
+```bash
+multiqc --parse_proteobench /path/to/proteobench/files -o ./report
+```
+
 #### For mzIdentML files
 
 ```bash
 multiqc --mzid_plugin /path/to/mzid/files -o ./report
 ```
+
 
 ### Command-line Options
 
@@ -120,6 +131,7 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--disable_table` | Disable protein/peptide table plots for large datasets | `False` |
 | `--ignored_idxml` | Ignore idXML files for faster processing | `False` |
 | `--parse_maxquant` | Generate reports based on MaxQuant results | `False` |
+| `--parse_proteobench` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
 
 ## QC Metrics and Visualizations

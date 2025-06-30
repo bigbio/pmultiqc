@@ -36,6 +36,7 @@ from ..common import ms_io
 from ..common.histogram import Histogram
 from ..common.calc_utils import qualUniform
 from .section_groups import add_group_modules
+from .proteobench import get_pb_data
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -99,6 +100,24 @@ class QuantMSModule(BaseMultiqcModule):
         # HeatMap color list
         color_map = LinearSegmentedColormap.from_list("red_green", ["#ff0000", "#00ff00"])
         self.heatmap_color_list = [[s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]]
+
+
+        # Parse ProteoBench results
+        if config.kwargs.get("parse_proteobench", False):
+
+            pb_result_path = []
+            for pb_result in self.find_log_files("quantms/proteobench_result", filecontents=False):
+                pb_result_path.append(os.path.join(pb_result["root"], pb_result["fn"]))
+
+            if len(pb_result_path) > 1:
+                raise ValueError(
+                    f"Multiple ProteoBench result files found ({len(pb_result_path)}): {', '.join(pb_result_path)}. Please ensure only one result file is present."
+                )
+            pb_results = get_pb_data(pb_result_path[0])
+
+            self.draw_proteobench(pb_results)
+
+            return None
 
 
         # section groups
@@ -449,9 +468,10 @@ class QuantMSModule(BaseMultiqcModule):
                 "ms2_sub_section": self.ms2_sub_section,
                 "time_mass_sub_section": self.time_mass_sub_section,
             }
-            add_group_modules(self.section_group_dict)
+            add_group_modules(self.section_group_dict, "")
 
             return None
+
 
         self.ms_with_psm = list()
         self.total_protein_identified = 0
@@ -692,7 +712,7 @@ class QuantMSModule(BaseMultiqcModule):
                 "ms2_sub_section": self.ms2_sub_section,
                 "time_mass_sub_section": self.time_mass_sub_section,
             }
-        add_group_modules(self.section_group_dict)
+        add_group_modules(self.section_group_dict, "")
         
         self.css = {
             "assets/css/quantms.css": os.path.join(
@@ -5030,6 +5050,130 @@ class QuantMSModule(BaseMultiqcModule):
                 "helptext": helptext,
             }
         )
+
+    # ProteoBench
+    def draw_proteobench(self, pb_dict):
+
+        # 1. Intensity
+        log_mean_sub_section = list()
+
+        self.add_sub_section(
+            sub_section=log_mean_sub_section,
+            plot=pb_dict["log_mean_html"]["linegraph_html"],
+            order=1,
+            description="""
+                Distribution of 'log_Intensity_mean' under Condition A and B.
+                """,
+            helptext="""
+                [result_performance.csv] This plot visualizes the distribution of mean intensity 
+                values after log2 transformation for both Condition A and Condition B.
+                """
+        )
+        self.add_sub_section(
+            sub_section=log_mean_sub_section,
+            plot=pb_dict["log_mean_html"]["bar_html"],
+            order=2,
+            description="""
+                Number of missing (NA) values in 'log_Intensity_mean' for Condition A and B.
+                """,
+            helptext="""
+                [result_performance.csv] This plot shows the number of missing (NA) values in the 
+                mean log2-transformed intensities for Condition A and Condition B.
+                """
+        )
+        self.add_sub_section(
+            sub_section=log_mean_sub_section,
+            plot=pb_dict["num_inten_per_file_html"],
+            order=3,
+            description="""
+                Number of detected (Non-NA) and missing (NA) values per sample file.
+                """,
+            helptext="""
+                [result_performance.csv] This plot shows the number of missing (NA) values in the 
+                mean log2-transformed intensities for Condition A and Condition B.
+                """
+        )
+
+
+        # 2. Standard Deviation of Intensity
+        log_std_sub_section = list()
+        self.add_sub_section(
+            sub_section=log_std_sub_section,
+            plot=pb_dict["log_std_html"]["box_html"],
+            order=1,
+            description="""
+                This plot shows the distribution of 'log_Intensity_std' values for Condition A and Condition B.
+                """,
+            helptext="""
+                [result_performance.csv] This plot shows the distribution of standard deviations 
+                calculated from log2-transformed intensity values for Condition A and Condition B.
+                """
+        )
+
+        # 3. CV
+        cv_sub_section = list()
+
+        self.add_sub_section(
+            sub_section=cv_sub_section,
+            plot=pb_dict["cv_html"]["linegraph_html"],
+            order=1,
+            description="""
+                This plot shows the distribution of coefficient of variation (CV) values for Condition A and Condition B.
+                """,
+            helptext="""
+                [result_performance.csv] This plot shows the distribution of coefficient of variation (CV) values 
+                for Condition A and Condition B.
+                """
+        )
+        self.add_sub_section(
+            sub_section=cv_sub_section,
+            plot=pb_dict["cv_html"]["bar_html"],
+            order=2,
+            description="""
+                This plot shows the number of missing values (NAs) in the coefficient of variation (CV) for condition A and B.
+                """,
+            helptext="""
+                [result_performance.csv] This plot shows the number of missing values (NAs) in the coefficient of 
+                variation (CV) for condition A and B.
+                """
+        )
+
+        # 4. log2_A_vs_B
+        log_vs_sub_section = list()
+
+        self.add_sub_section(
+            sub_section=log_vs_sub_section,
+            plot=pb_dict["log_vs_html"]["linegraph_html"],
+            order=1,
+            description="""
+                This plot shows the distribution of 'log2_A_vs_B' values for Condition A and Condition B.
+                """,
+            helptext="""
+                [result_performance.csv] Distribution of log₂ fold changes (log2_A_vs_B) between Condition A and B 
+                based on mean log2-transformed intensities.
+                """
+        )
+        self.add_sub_section(
+            sub_section=log_vs_sub_section,
+            plot=pb_dict["epsilon_html"]["linegraph_html"],
+            order=2,
+            description="""
+                Distribution of 'epsilon' values (difference between observed and expected log2 fold changes).
+                """,
+            helptext="""
+                [result_performance.csv] 'Epsilon' measures the deviation between observed and expected log2 fold changes, 
+                indicating agreement between data and expectations.
+                """
+        )
+
+        self.section_group_dict = {
+            "log_mean_sub_section": log_mean_sub_section,
+            "log_std_sub_section": log_std_sub_section,
+            "cv_sub_section": cv_sub_section,
+            "log_vs_sub_section": log_vs_sub_section,
+        }
+
+        add_group_modules(self.section_group_dict, "proteobench")
 
 
 def read_openms_design(desfile):
