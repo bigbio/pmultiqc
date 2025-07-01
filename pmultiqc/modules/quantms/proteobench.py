@@ -31,6 +31,9 @@ def get_pb_data(file_path):
 
     pb_df = read_file_by_extension(file_path)
 
+    # precursor ion charge
+    charge_html = draw_precursor_ion_charge(pb_df)
+
     # log_Intensity_mean
     log_mean_html = draw_coefficient_variation(pb_df, "log_intensity_mean")
 
@@ -50,6 +53,7 @@ def get_pb_data(file_path):
     epsilon_html = draw_coefficient_variation(pb_df, "epsilon")
 
     return {
+        "charge_html": charge_html,
         "log_mean_html": log_mean_html,
         "num_inten_per_file_html": num_inten_per_file_html,
         "log_std_html": log_std_html,
@@ -117,7 +121,7 @@ def draw_coefficient_variation(df, plot_type):
 
         line_plot_id = "log_vs_linegraph"
         line_plot_title = "Log2 Fold Change (A vs B)"
-        line_plot_xlab = "log2(log_Intensity_mean_A) - log2(log_Intensity_mean_B)"
+        line_plot_xlab = "log_Intensity_mean_A - log_Intensity_mean_B"
 
         show_lineplot_legend = False
 
@@ -308,4 +312,27 @@ def intensity_count_per_file(df):
         pconfig=draw_bar_config,
     )
 
+    return bar_html
+
+
+def draw_precursor_ion_charge(df):
+
+    df[["modified_sequence", "Z=charge"]] = df["precursor ion"].str.split("|", expand=True)
+    df["charge"] = df["Z=charge"].str.extract(r"Z=(\d+)")
+
+    charge_df = df["charge"].value_counts().reset_index().sort_values(by="charge")
+    charge_data = {"charge": dict(zip(charge_df["charge"], charge_df["count"]))}
+
+    draw_bar_config = {
+        "id": "charge",
+        "cpswitch": True,
+        "title": "Distribution of Precursor Charges",
+        "tt_decimals": 0,
+        "ylab": "Count",
+    }
+
+    bar_html = bargraph.plot(
+        charge_data,
+        pconfig=draw_bar_config,
+    )
     return bar_html
