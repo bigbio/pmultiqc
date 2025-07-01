@@ -319,7 +319,8 @@ def draw_precursor_ion_charge(df):
 
     df[["modified_sequence", "Z=charge"]] = df["precursor ion"].str.split("|", expand=True)
     df["charge"] = df["Z=charge"].str.extract(r"Z=(\d+)")
-
+    df["charge"] = pd.to_numeric(df["charge"], errors='coerce')
+    
     charge_df = df["charge"].value_counts().reset_index().sort_values(by="charge")
     charge_data = {"charge": dict(zip(charge_df["charge"], charge_df["count"]))}
 
