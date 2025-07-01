@@ -71,6 +71,12 @@ def add_group_modules(groups_dict, analysis_type):
 
         group_configs = [
             {
+                "id": "precursor_ion",
+                "key": "precursor_sub_section",
+                "name": "Precursor Ion",
+                "description": ""
+            },
+            {
                 "id": "intensity",
                 "key": "log_mean_sub_section",
                 "name": "Intensity",
@@ -171,7 +177,8 @@ def add_group_modules(groups_dict, analysis_type):
     if analysis_type == "proteobench":
 
         config.report_section_order = {
-            "pmultiqc": {"order": 5},
+            "pmultiqc": {"order": 6},
+            "precursor_ion": {"order": 5},
             "intensity": {"order": 4},
             "std_intensity": {"order": 3},
             "cv": {"order": 2},
@@ -190,13 +197,13 @@ def add_group_modules(groups_dict, analysis_type):
             "ms1_analysis": {"order": 12},
             "ms2_and_spectral_stats": {"order": 11},
             "time_and_mass_error_trends": {"order": 10},
-            "bigbio-quantms-summary": {"order": 9},
-            "nf-core-quantms-methods-description": {"order": 8},
-            "methods_description": {"order": 7},
-            "bigbio-quantms-methods-description": {"order": 6},
-            "software_versions": {"order": 5},
-            "multiqc_software_versions": {"order": 4},
-            "nf_core_quantms_software": {"order": 3},
-            "nf-core-quantms-summary": {"order": 2},
-            "workflow_summary": {"order": 1},
+            "software_versions": {"order": 9},
+            "multiqc_software_versions": {"order": 8},
+            "nf_core_quantms_software": {"order": 7},
+            "nf-core-quantms-summary": {"order": 6},
+            "workflow_summary": {"order": 5},
+            "bigbio-quantms-summary": {"order": 4},
+            "bigbio-quantms-methods-description": {"order": 3},
+            "nf-core-quantms-methods-description": {"order": 2},
+            "methods_description": {"order": 1},
         }
