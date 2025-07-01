@@ -5054,7 +5054,21 @@ class QuantMSModule(BaseMultiqcModule):
     # ProteoBench
     def draw_proteobench(self, pb_dict):
 
-        # 1. Intensity
+        # 1. precursor ion
+        precursor_sub_section = list()
+        self.add_sub_section(
+            sub_section=precursor_sub_section,
+            plot=pb_dict["charge_html"],
+            order=1,
+            description="""
+                This bar chart shows the distribution of precursor ion charges.
+                """,
+            helptext="""
+                [result_performance.csv] The precursor ion charge extracted from the 'precursor ion' column.
+                """
+        )
+
+        # 2. Intensity
         log_mean_sub_section = list()
 
         self.add_sub_section(
@@ -5095,7 +5109,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
 
-        # 2. Standard Deviation of Intensity
+        # 3. Standard Deviation of Intensity
         log_std_sub_section = list()
         self.add_sub_section(
             sub_section=log_std_sub_section,
@@ -5110,7 +5124,7 @@ class QuantMSModule(BaseMultiqcModule):
                 """
         )
 
-        # 3. CV
+        # 4. CV
         cv_sub_section = list()
 
         self.add_sub_section(
@@ -5138,7 +5152,7 @@ class QuantMSModule(BaseMultiqcModule):
                 """
         )
 
-        # 4. log2_A_vs_B
+        # 5. log2_A_vs_B
         log_vs_sub_section = list()
 
         self.add_sub_section(
@@ -5167,6 +5181,7 @@ class QuantMSModule(BaseMultiqcModule):
         )
 
         self.section_group_dict = {
+            "precursor_sub_section": precursor_sub_section,
             "log_mean_sub_section": log_mean_sub_section,
             "log_std_sub_section": log_std_sub_section,
             "cv_sub_section": cv_sub_section,
