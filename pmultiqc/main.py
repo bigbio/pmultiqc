@@ -4,19 +4,25 @@ MultiQC pmultiqc plugin functions
 """
 
 from __future__ import print_function
-from pkg_resources import get_distribution
+
 import logging
+import os
+from importlib import metadata
+from pathlib import Path
+
 from multiqc import config
 
-from pathlib import Path
-import os
-from pmultiqc.modules.common.file_utils import is_archive_file, extract_archive_file, get_clean_stem
+from pmultiqc.modules.common.file_utils import (
+    extract_archive_file,
+    get_clean_stem,
+    is_archive_file,
+)
 
 # Initialise the main MultiQC logger
 log = logging.getLogger("pmultiqc")
 
 # Save this plugin's version number (defined in setup.py) to the MultiQC config
-config.pmultiqc_version = get_distribution("pmultiqc").version
+config.pmultiqc_version = metadata.version("pmultiqc")
 
 
 # Add default config options for the things that are used in MultiQC_NGI
