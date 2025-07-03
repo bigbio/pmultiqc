@@ -1,9 +1,15 @@
-import pandas as pd
+import logging
 import os
+import pandas as pd
 import numpy as np
 
-from multiqc.plots import bargraph, linegraph, box
-import logging
+from multiqc.plots import (
+    bargraph,
+    linegraph,
+    box,
+    scatter
+)
+
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -31,39 +37,80 @@ def get_pb_data(file_path):
 
     pb_df = read_file_by_extension(file_path)
 
+    if any("abundance_" in col for col in pb_df.columns):
+        runs_col = "abundance_"
+    elif any("_Condition_" in col for col in pb_df.columns):
+        runs_col = "_Condition_"
+    else:
+        log.warning("'_Condition_' or 'abundance_' not found. Check result_performance.csv!")
+
     # precursor ion charge
     charge_html = draw_precursor_ion_charge(pb_df)
 
     # log_Intensity_mean
-    log_mean_html = draw_coefficient_variation(pb_df, "log_intensity_mean")
+    log_mean_html = draw_logmean_std_cv(
+        df=pb_df,
+        plot_type="log_intensity_mean"
+    )
+
+    # log_Intensity
+    log_intensity_html = draw_logmean_std_cv(
+        df=pb_df,
+        plot_type="log_intensity",
+        runs_col=runs_col
+    )
 
     # intensity_count_per_file
-    num_inten_per_file_html = intensity_count_per_file(pb_df)
+    num_inten_per_file_html = intensity_count_per_file(
+        df=pb_df,
+        runs_col=runs_col
+    )
 
     # log_intensity_std
-    log_std_html = draw_coefficient_variation(pb_df, "log_intensity_std")
+    log_std_html = draw_logmean_std_cv(
+        df=pb_df,
+        plot_type="log_intensity_std"
+    )
 
     # CV
-    cv_html = draw_coefficient_variation(pb_df, "cv")
+    cv_html = draw_logmean_std_cv(
+        df=pb_df,
+        plot_type="cv"
+    )
 
     # log2_A_vs_B
-    log_vs_html = draw_coefficient_variation(pb_df, "log2_A_vs_B")
+    log_vs_html = draw_logmean_std_cv(
+        df=pb_df,
+        plot_type="log2_A_vs_B"
+    )
 
     # epsilon
-    epsilon_html = draw_coefficient_variation(pb_df, "epsilon")
+    epsilon_html = draw_logmean_std_cv(
+        df=pb_df,
+        plot_type="epsilon"
+    )
+
+    # log2FC vs logIntensityMean
+    logfc_logmean_html = draw_logintensitymean_vs_logfc(pb_df)
 
     return {
         "charge_html": charge_html,
         "log_mean_html": log_mean_html,
+        "log_intensity_html": log_intensity_html,
         "num_inten_per_file_html": num_inten_per_file_html,
         "log_std_html": log_std_html,
         "cv_html": cv_html,
         "log_vs_html": log_vs_html,
         "epsilon_html": epsilon_html,
+        "logfc_logmean_html": logfc_logmean_html,
     }
 
 
-def draw_coefficient_variation(df, plot_type):
+def draw_logmean_std_cv(
+        df,
+        plot_type,
+        runs_col=None
+    ):
 
     enable_bar = False
     enable_line = False
@@ -76,22 +123,38 @@ def draw_coefficient_variation(df, plot_type):
         enable_bar = True
         enable_line = True
 
-        col_A = "log_Intensity_mean_A"
-        col_B = "log_Intensity_mean_B"
+        cols = ["log_Intensity_mean_A", "log_Intensity_mean_B"]
+
+        if not all(col in df.columns for col in cols):
+            log.warning(f"{' and '.join(cols)} not found. Check result_performance.csv!")
+
         bar_plot_id = "log_intensity_mean_na"
-        bar_plot_title = "Missing Values"
+        bar_plot_title = "Missing Values (for Conditions)"
         line_plot_id = "log_intensity_mean_linegraph"
-        line_plot_title = "Distribution of Intensity"
+        line_plot_title = "Distribution of Intensity (for Conditions)"
         line_plot_xlab = "log2(Intensity)"
 
-        show_lineplot_legend = True
+    elif plot_type == "log_intensity":
+
+        enable_bar = True
+        enable_line = True
+
+        df, cols = calculate_log_intensity(df, runs_col)
+
+        bar_plot_id = "log_intensity_na"
+        bar_plot_title = "Missing Values (for Runs)"
+        line_plot_id = "log_intensity_linegraph"
+        line_plot_title = "Distribution of Intensity (for Runs)"
+        line_plot_xlab = "log2(Intensity)"
 
     elif plot_type == "log_intensity_std":
 
         enable_box = True
 
-        col_A = "log_Intensity_std_A"
-        col_B = "log_Intensity_std_B"
+        cols = ["log_Intensity_std_A", "log_Intensity_std_B"]
+
+        if not all(col in df.columns for col in cols):
+            log.warning(f"{' and '.join(cols)} not found. Check result_performance.csv!")
 
         box_plot_id = "std_intensity_box"
         box_plot_title = "Standard Deviation of Intensity"
@@ -102,46 +165,49 @@ def draw_coefficient_variation(df, plot_type):
         enable_bar = True
         enable_line = True
 
-        col_A = "CV_A"
-        col_B = "CV_B"
+        cols = ["CV_A", "CV_B"]
+
+        if not all(col in df.columns for col in cols):
+            log.warning(f"{' and '.join(cols)} not found. Check result_performance.csv!")
+
         bar_plot_id = "cv_na"
         bar_plot_title = "Missing Values"
         line_plot_id = "cv_linegraph"
         line_plot_title = "Distribution of CV"
         line_plot_xlab = "Coefficient of Variation"
 
-        show_lineplot_legend = True
-
     elif plot_type == "log2_A_vs_B":
 
         enable_line = True
         only_one_col = True
 
-        col_A = "log2_A_vs_B"
+        cols = ["log2_A_vs_B"]
+
+        if not all(col in df.columns for col in cols):
+            log.warning(f"{cols[0]} not found. Check result_performance.csv!")
 
         line_plot_id = "log_vs_linegraph"
         line_plot_title = "Log2 Fold Change (A vs B)"
         line_plot_xlab = "log_Intensity_mean_A - log_Intensity_mean_B"
-
-        show_lineplot_legend = False
 
     elif plot_type == "epsilon":
 
         enable_line = True
         only_one_col = True
 
-        col_A = "epsilon"
+        cols = ["epsilon"]
+
+        if not all(col in df.columns for col in cols):
+            log.warning(f"{cols[0]} not found. Check result_performance.csv!")
 
         line_plot_id = "epsilon_linegraph"
         line_plot_title = "Distribution of Epsilon"
         line_plot_xlab = "log2 FC difference"
 
-        show_lineplot_legend = False
-
     # 1. Missing Values
     if enable_bar:
 
-        bar_data = statistics_na_values(df, col_A, col_B)
+        bar_data = statistics_na_values(df, cols)
 
         draw_bar_config = {
             "id": bar_plot_id,
@@ -162,10 +228,10 @@ def draw_coefficient_variation(df, plot_type):
     if enable_line:
 
         if only_one_col:
-            linegraph_data = statistics_one_line_values(df, col_A)
-        
+            linegraph_data = statistics_line_values(df, cols, "", only_one_col)
+
         else:
-            linegraph_data = statistics_line_values(df, col_A, col_B, plot_type)
+            linegraph_data = statistics_line_values(df, cols, plot_type, only_one_col)
 
         draw_line_config = {
             "id": line_plot_id,
@@ -176,7 +242,7 @@ def draw_coefficient_variation(df, plot_type):
             "tt_decimals": 0,
             "ylab": "Count",
             "xlab": line_plot_xlab,
-            "showlegend": show_lineplot_legend,
+            "showlegend": True,
         }
         linegraph_html = linegraph.plot(linegraph_data, pconfig=draw_line_config)
     else:
@@ -185,7 +251,7 @@ def draw_coefficient_variation(df, plot_type):
     # 3. BoxPlot
     if enable_box:
         
-        box_data = statistics_box_values(df, col_A, col_B)
+        box_data = statistics_box_values(df, cols)
 
         draw_box_config = {
             "id": box_plot_id,
@@ -209,22 +275,23 @@ def draw_coefficient_variation(df, plot_type):
     }
 
 
-def statistics_na_values(df, col1, col2):
+def statistics_na_values(df, cols):
 
     data_dict = {
-        col: {
-            "Non-NA": df[col].notna().sum(),
-            "NA": df[col].isna().sum()
+        specie + ": " + col: {
+            "Non-NA": group[col].notna().sum(),
+            "NA": group[col].isna().sum()
         }
-        for col in  [col1, col2]
+        for specie, group in df.groupby("species")
+        for col in cols
     }
 
     return data_dict
 
 
-def statistics_line_values(df, col1, col2, dict_key):
+def statistics_line_values(df, cols, dict_key, only_one_col):
 
-    data_union = pd.concat([df[col1], df[col2]]).dropna()
+    data_union = df[cols].stack().reset_index(drop=True)
     data_range_max = data_union.max()
     
     if dict_key == "cv":
@@ -232,61 +299,47 @@ def statistics_line_values(df, col1, col2, dict_key):
     else:
         data_range_min = data_union.min() - (data_union.min() * 0.05)
 
-    bin_step = 200
-    data_bins = np.arange(data_range_min, data_range_max + (data_range_max * 0.05), (data_range_max / bin_step))
-    bin_mid = (data_bins[: -1] + data_bins[1: ]) / 2
-
-    data_dict = dict()
-    for col in [col1, col2]:
-        
-        counts, _ = np.histogram(
-            df[col].dropna(),
-            bins=data_bins
-        )
-
-        cv_counts = pd.DataFrame({dict_key: bin_mid, "counts": counts})
-        data_dict[col] = dict(zip(cv_counts[dict_key], cv_counts["counts"]))
-
-    return data_dict
-
-
-def statistics_one_line_values(df, col):
-
-    data_list = df[col].dropna()
-    data_range_max = data_list.max()
-
-    data_range_min = data_list.min() - (data_list.min() * 0.05)
-
     bin_step = 1000
-
-    data_bins = np.arange(data_range_min, data_range_max + (data_range_max * 0.05), (data_range_max / bin_step))
+    data_bins = np.arange(
+        data_range_min,
+        data_range_max + (data_range_max * 0.05),
+        (data_range_max / bin_step)
+    )
     bin_mid = (data_bins[: -1] + data_bins[1: ]) / 2
 
     data_dict = dict()
-    counts, _ = np.histogram(
-        df[col].dropna(),
-        bins=data_bins
-    )
+    for specie, group in df.groupby("species"):
+        for col in cols:
+            
+            counts, _ = np.histogram(
+                group[col].dropna(),
+                bins=data_bins
+            )
 
-    cv_counts = pd.DataFrame({"value": bin_mid, "counts": counts})
-    data_dict[col] = dict(zip(cv_counts["value"], cv_counts["counts"]))
+            cv_counts = pd.DataFrame({"value": bin_mid, "counts": counts})
+
+            if only_one_col:
+                data_dict[specie] = dict(zip(cv_counts["value"], cv_counts["counts"]))
+            else:
+                data_dict[specie + ": " + col] = dict(zip(cv_counts["value"], cv_counts["counts"]))
 
     return data_dict
 
 
-def statistics_box_values(df, col1, col2):
+def statistics_box_values(df, cols):
 
-    boxplot_data = dict()
-
-    for col in [col1, col2]:
-        boxplot_data[col] = df[col].dropna().tolist()
+    boxplot_data = {
+        specie + ": " + col: group[col].dropna().tolist()
+        for specie, group in df.groupby("species")
+        for col in cols
+    }
 
     return boxplot_data
 
 
-def intensity_count_per_file(df):
+def intensity_count_per_file(df, runs_col):
 
-    cols = [col for col in df.columns if "_Condition_" in col]
+    cols = [col for col in df.columns if runs_col in col]
 
     non_na_dict = df[cols].notna().sum().to_dict()
     na_dict = df[cols].isna().sum().to_dict()
@@ -300,9 +353,9 @@ def intensity_count_per_file(df):
         }
 
     draw_bar_config = {
-        "id": "num_detected_features_per_file",
+        "id": "num_detected_features_per_run",
         "cpswitch": True,
-        "title": "Number of Detected Features per File",
+        "title": "Number of Detected Features per Run",
         "tt_decimals": 0,
         "ylab": "Count",
     }
@@ -319,11 +372,16 @@ def draw_precursor_ion_charge(df):
 
     df[["modified_sequence", "Z=charge"]] = df["precursor ion"].str.split("|", expand=True)
     df["charge"] = df["Z=charge"].str.extract(r"Z=(\d+)")
-    
-    charge_df = df["charge"].value_counts().reset_index().sort_values(by="charge")
-    charge_data = {"charge": dict(zip(charge_df["charge"], charge_df["count"]))}
 
-    draw_bar_config = {
+    charge_data = (
+        df.groupby("species")["charge"]
+        .value_counts()
+        .sort_index()
+        .unstack(fill_value=0)
+        .to_dict(orient="index")
+    )
+
+    draw_config = {
         "id": "charge",
         "cpswitch": True,
         "title": "Distribution of Precursor Charges",
@@ -333,6 +391,59 @@ def draw_precursor_ion_charge(df):
 
     bar_html = bargraph.plot(
         charge_data,
-        pconfig=draw_bar_config,
+        pconfig=draw_config,
     )
     return bar_html
+
+
+# log2FC vs logIntensityMean
+def draw_logintensitymean_vs_logfc(df):
+
+    df["log_Intensity_mean"] = df[["log_Intensity_mean_A", "log_Intensity_mean_B"]].mean(axis=1, skipna=False)
+    df_sub = df[["species", "log_Intensity_mean", "log2_A_vs_B"]].copy().dropna()
+    df_sub.rename(
+        columns={
+            "log_Intensity_mean": "y",
+            "log2_A_vs_B": "x"
+        },
+        inplace=True
+    )
+    df_sub["color"] = df_sub["species"].map({"ECOLI": "blue", "HUMAN": "green", "YEAST": "red"})
+
+    plot_data = {
+        specie: group[["x", "y", "color"]].to_dict(orient="records")
+        for specie, group in df_sub.groupby("species")
+    }
+    species_order = ["HUMAN", "YEAST", "ECOLI"]
+    plot_data = {
+        key: plot_data[key] for key in species_order if key in plot_data
+    }
+
+    draw_config = {
+        "id": "log2fc_vs_logintensitymean",
+        "title": "log2FC vs logIntensityMean",
+        "xlab": "log2FC(A:B)",
+        "ylab": "logIntensityMean",
+    }
+
+    scatter_html = scatter.plot(data=plot_data, pconfig=draw_config)
+
+    return scatter_html
+
+
+def calculate_log_intensity(df, runs_col):
+
+    cols = [col for col in df.columns if runs_col in col]
+    log_cols = [f"log2_{os.path.splitext(col)[0]}" for col in cols]
+
+    df_copy = df.copy()
+
+    for col, new_col in zip(cols, log_cols):
+        df_copy[new_col] = np.log2(df_copy[col])
+
+    need_cols = ["species"] + log_cols
+    plot_df = df_copy[need_cols].copy()
+    plot_df.columns = [col.removeprefix("log2_") for col in plot_df.columns]
+    cols = [col for col in plot_df.columns if runs_col in col]
+
+    return plot_df, cols
