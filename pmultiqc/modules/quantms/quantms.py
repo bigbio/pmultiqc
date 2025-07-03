@@ -5097,8 +5097,30 @@ class QuantMSModule(BaseMultiqcModule):
         )
         self.add_sub_section(
             sub_section=log_mean_sub_section,
-            plot=pb_dict["num_inten_per_file_html"],
+            plot=pb_dict["log_intensity_html"]["linegraph_html"],
             order=3,
+            description="""
+                Distribution of intensity for each run.
+                """,
+            helptext="""
+                [result_performance.csv] Distribution of intensity for each run.
+                """
+        )
+        self.add_sub_section(
+            sub_section=log_mean_sub_section,
+            plot=pb_dict["log_intensity_html"]["bar_html"],
+            order=4,
+            description="""
+                Number of missing (NA) values for each run.
+                """,
+            helptext="""
+                [result_performance.csv] Number of missing (NA) values for each run.
+                """
+        )
+        self.add_sub_section(
+            sub_section=log_mean_sub_section,
+            plot=pb_dict["num_inten_per_file_html"],
+            order=5,
             description="""
                 Number of detected (Non-NA) and missing (NA) values per sample file.
                 """,
@@ -5169,8 +5191,19 @@ class QuantMSModule(BaseMultiqcModule):
         )
         self.add_sub_section(
             sub_section=log_vs_sub_section,
-            plot=pb_dict["epsilon_html"]["linegraph_html"],
+            plot=pb_dict["logfc_logmean_html"],
             order=2,
+            description="""
+                Distribution of mean intensity across all runs and log2 fold change.
+                """,
+            helptext="""
+                [result_performance.csv] Distribution of mean intensity across all runs and log2 fold change (log2FC).
+                """
+        )
+        self.add_sub_section(
+            sub_section=log_vs_sub_section,
+            plot=pb_dict["epsilon_html"]["linegraph_html"],
+            order=3,
             description="""
                 Distribution of 'epsilon' values (difference between observed and expected log2 fold changes).
                 """,
