@@ -10,12 +10,12 @@ from pandas._typing import ReadCsvBuffer
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-from pmultiqc.modules.common.file_utils import get_filename
+from ..common.file_utils import get_filename
 from ..common.calc_utils import qualUniform
 from ...logging import get_logger, Timer
 
 # Initialize logger for this module
-logger = get_logger("pmultiqc.modules.quantms.maxquant")
+logger = get_logger("pmultiqc.modules.maxquant")
 
 
 def read(
