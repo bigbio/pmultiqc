@@ -14,7 +14,6 @@ from multiqc.plots import (
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-
 def read_file_by_extension(file_path):
 
     _, ext = os.path.splitext(file_path)
@@ -29,7 +28,6 @@ def read_file_by_extension(file_path):
         raise ValueError(f"Unsupported file extension: {ext}")
 
     return df
-
 
 def get_pb_data(file_path):
 
@@ -104,7 +102,6 @@ def get_pb_data(file_path):
         "epsilon_html": epsilon_html,
         "logfc_logmean_html": logfc_logmean_html,
     }
-
 
 def draw_logmean_std_cv(
         df,
@@ -274,7 +271,6 @@ def draw_logmean_std_cv(
         "box_html": box_html,
     }
 
-
 def statistics_na_values(df, cols):
 
     data_dict = {
@@ -287,7 +283,6 @@ def statistics_na_values(df, cols):
     }
 
     return data_dict
-
 
 def statistics_line_values(df, cols, dict_key, only_one_col):
 
@@ -325,7 +320,6 @@ def statistics_line_values(df, cols, dict_key, only_one_col):
 
     return data_dict
 
-
 def statistics_box_values(df, cols):
 
     boxplot_data = {
@@ -335,7 +329,6 @@ def statistics_box_values(df, cols):
     }
 
     return boxplot_data
-
 
 def intensity_count_per_file(df, runs_col):
 
@@ -367,7 +360,6 @@ def intensity_count_per_file(df, runs_col):
 
     return bar_html
 
-
 def draw_precursor_ion_charge(df):
 
     df[["modified_sequence", "Z=charge"]] = df["precursor ion"].str.split("|", expand=True)
@@ -394,7 +386,6 @@ def draw_precursor_ion_charge(df):
         pconfig=draw_config,
     )
     return bar_html
-
 
 # log2FC vs logIntensityMean
 def draw_logintensitymean_vs_logfc(df):
@@ -429,7 +420,6 @@ def draw_logintensitymean_vs_logfc(df):
     scatter_html = scatter.plot(data=plot_data, pconfig=draw_config)
 
     return scatter_html
-
 
 def calculate_log_intensity(df, runs_col):
 

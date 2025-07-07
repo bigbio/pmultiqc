@@ -1,6 +1,6 @@
+from multiqc.types import Anchor, SectionId, Section
 from multiqc.core.special_case_modules.custom_content import MultiqcModule, CcDict
 from multiqc import report, config
-from multiqc.types import Anchor, SectionId, Section
 from multiqc.plots.plot import Plot
 
 
@@ -207,3 +207,15 @@ def add_group_modules(groups_dict, analysis_type):
             "nf-core-quantms-methods-description": {"order": 2},
             "methods_description": {"order": 1},
         }
+
+# Function of add sub_section 
+def add_sub_section(sub_section, plot, order=0, description="", helptext=""):
+
+    sub_section.append(
+        {
+            "plot": plot,
+            "order": order,
+            "description": description,
+            "helptext": helptext,
+        }
+    )

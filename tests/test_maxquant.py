@@ -4,7 +4,7 @@ import gzip
 import pytest
 import pandas as pd
 import numpy as np
-from pmultiqc.modules.quantms.maxquant import get_parameters
+from pmultiqc.modules.maxquant.maxquant_utils import get_parameters
 
 
 class TestMaxquant:

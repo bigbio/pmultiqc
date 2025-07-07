@@ -36,7 +36,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = ">=3.10,<3.13"
 multiqc = "1.29"
 pandas = "<=2.0.3"
 pyteomics = "*"
@@ -53,7 +53,7 @@ Quantms = "https://quantms.org"
 LICENSE = "https://github.com/bigbio/pmultiqc/blob/main/LICENSE"
 
 [tool.poetry.plugins."multiqc.modules.v1"]
-quantms = "pmultiqc.modules.quantms:QuantMSModule"
+quantms = "pmultiqc.modules.core:PMultiQC"
 
 [tool.poetry.plugins."multiqc.cli_options.v1"]
 disable_plugin = "pmultiqc.cli:disable_plugin"
