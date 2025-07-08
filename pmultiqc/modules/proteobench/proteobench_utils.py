@@ -10,6 +10,8 @@ from multiqc.plots import (
     scatter
 )
 
+from ..common.common_plots import remove_subtitle
+
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -215,9 +217,11 @@ def draw_logmean_std_cv(
         }
 
         bar_html = bargraph.plot(
-            bar_data,
+            data=bar_data,
             pconfig=draw_bar_config,
         )
+        
+        bar_html = remove_subtitle(bar_html)
     else:
         bar_html = None
     
@@ -241,7 +245,14 @@ def draw_logmean_std_cv(
             "xlab": line_plot_xlab,
             "showlegend": True,
         }
-        linegraph_html = linegraph.plot(linegraph_data, pconfig=draw_line_config)
+
+        linegraph_html = linegraph.plot(
+            data=linegraph_data,
+            pconfig=draw_line_config
+        )
+
+        linegraph_html = remove_subtitle(linegraph_html)
+
     else:
         linegraph_html = None
 
@@ -259,9 +270,12 @@ def draw_logmean_std_cv(
         }
 
         box_html = box.plot(
-            box_data,
+            list_of_data_by_sample=box_data,
             pconfig=draw_box_config,
         )
+
+        box_html = remove_subtitle(box_html)
+
     else:
         box_html = None
 
@@ -354,9 +368,11 @@ def intensity_count_per_file(df, runs_col):
     }
 
     bar_html = bargraph.plot(
-        plot_data,
+        data=plot_data,
         pconfig=draw_bar_config,
     )
+
+    bar_html = remove_subtitle(bar_html)
 
     return bar_html
 
@@ -382,9 +398,12 @@ def draw_precursor_ion_charge(df):
     }
 
     bar_html = bargraph.plot(
-        charge_data,
+        data=charge_data,
         pconfig=draw_config,
     )
+
+    bar_html = remove_subtitle(bar_html)
+
     return bar_html
 
 # log2FC vs logIntensityMean
@@ -417,7 +436,12 @@ def draw_logintensitymean_vs_logfc(df):
         "ylab": "logIntensityMean",
     }
 
-    scatter_html = scatter.plot(data=plot_data, pconfig=draw_config)
+    scatter_html = scatter.plot(
+        data=plot_data,
+        pconfig=draw_config
+    )
+
+    scatter_html == remove_subtitle(scatter_html)
 
     return scatter_html
 
