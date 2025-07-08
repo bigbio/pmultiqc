@@ -23,6 +23,8 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
         pconfig=draw_config
     )
 
+    bar_html = remove_subtitle(bar_html)
+
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
@@ -51,6 +53,8 @@ def draw_potential_contaminants(
         data=contaminant_percent,
         pconfig=draw_config
     )
+
+    bar_html = remove_subtitle(bar_html)
 
     if is_maxquant:
         description_text = "Potential contaminants per group from proteinGroups.txt."
@@ -95,6 +99,8 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
         pconfig=draw_config,
     )
 
+    bar_html = remove_subtitle(bar_html)
+
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
@@ -129,6 +135,8 @@ def draw_charge_state(sub_section, charge_data, is_maxquant):
         pconfig=draw_config
     )
 
+    bar_html = remove_subtitle(bar_html)
+
     if is_maxquant:
         description_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
         help_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
@@ -162,6 +170,8 @@ def draw_modifications(sub_section, modified_data):
         cats=modified_data["cats"],
         pconfig=draw_config
     )
+
+    bar_html = remove_subtitle(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -211,6 +221,8 @@ def draw_oversampling(
             cats=oversampling_plot,
             pconfig=draw_config
         )
+
+    bar_html = remove_subtitle(bar_html)
     
     add_sub_section(
         sub_section=sub_section,
@@ -250,6 +262,8 @@ def draw_msms_missed_cleavages(
         cats=missed_cleavages_data["cats"],
         pconfig=draw_config,
     )
+
+    bar_html = remove_subtitle(bar_html)
 
     if is_maxquant:
         description_text = "[Excludes Contaminants] Missed Cleavages per raw file."
@@ -299,6 +313,8 @@ def draw_ids_rt_count(sub_section, rt_count_data, is_maxquant):
         data=rt_count_data,
         pconfig=draw_config
     )
+
+    linegraph_html = remove_subtitle(linegraph_html)
 
     if is_maxquant:
         description_text = "Distribution of retention time, derived from the evidence table."
@@ -526,6 +542,8 @@ def draw_heatmap(
 
         description_text = "This heatmap provides an overview of the performance of the quantms."
 
+    hm_html = remove_subtitle(hm_html)
+
     add_sub_section(
         sub_section=sub_sections,
         plot=hm_html,
@@ -561,3 +579,17 @@ def draw_heatmap(
             """
     )
 
+def remove_subtitle(plot_html):
+
+    for dataset in plot_html.datasets:
+
+        if "subtitle" in dataset.dconfig:
+            dataset.dconfig["subtitle"] = ""
+
+        title_text = ""
+        if dataset.layout and "title" in dataset.layout:
+            title_text = dataset.layout["title"].get("text", "")
+            if "<br><sup>" in title_text:
+                dataset.layout["title"]["text"] = title_text.split("<br><sup>")[0]
+
+    return plot_html

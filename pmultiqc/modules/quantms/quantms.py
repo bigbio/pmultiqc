@@ -11,7 +11,7 @@ from operator import itemgetter
 from multiqc import config
 
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
-from multiqc.plots import table, bargraph, linegraph, heatmap, box
+from multiqc.plots import table, bargraph, linegraph, box
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 from typing import Dict, List
@@ -690,6 +690,8 @@ class QuantMSModule:
             }
             ms1_tic_html = linegraph.plot(self.ms1_tic, ms1_tic_config)
 
+            ms1_tic_html = common_plots.remove_subtitle(ms1_tic_html)
+
             add_sub_section(
                 sub_section=self.sub_sections["ms1"],
                 plot=ms1_tic_html,
@@ -714,6 +716,7 @@ class QuantMSModule:
             )
 
         if self.ms1_bpc:
+
             ms1_bpc_config = {
                 "id": "ms1_bpc",
                 "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
@@ -722,7 +725,10 @@ class QuantMSModule:
                 "xlab": "Retention Time (min)",
                 "ymin": 0,
             }
+
             ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
+            ms1_bpc_html = common_plots.remove_subtitle(ms1_bpc_html)
+
             add_sub_section(
                 sub_section=self.sub_sections["ms1"],
                 plot=ms1_bpc_html,
@@ -741,6 +747,7 @@ class QuantMSModule:
             )
 
         if self.ms1_peaks:
+
             ms1_peaks_config = {
                 "id": "ms1_peaks",
                 "tt_label": "<b>{point.x} Peak Count:</b> {point.y}",
@@ -749,7 +756,9 @@ class QuantMSModule:
                 "xlab": "Retention Time (min)",
                 "ymin": 0,
             }
+
             ms1_peaks_html = linegraph.plot(self.ms1_peaks, ms1_peaks_config)
+            ms1_peaks_html = common_plots.remove_subtitle(ms1_peaks_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["ms1"],
@@ -1090,6 +1099,7 @@ class QuantMSModule:
             ["Frequency", "Percentage"],
             pconfig,
         )
+        bar_html = common_plots.remove_subtitle(bar_html)
 
         if config.kwargs.get("mzid_plugin", False):
             description_str = (
@@ -1197,7 +1207,9 @@ class QuantMSModule:
             cats = self.mgf_peak_distribution_plot.dict["cats"]
         else:
             cats = self.mzml_peak_distribution_plot.dict["cats"]
+
         bar_html = bargraph.plot(self.ms_info["peak_distribution"], cats, pconfig)
+        bar_html = common_plots.remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["ms2"],
@@ -1234,7 +1246,9 @@ class QuantMSModule:
             cats = self.mgf_charge_plot.dict["cats"]
         else:
             cats = self.mzml_charge_plot.dict["cats"]
+
         bar_html = bargraph.plot(self.ms_info["charge_distribution"], cats, pconfig)
+        bar_html = common_plots.remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["ms2"],
@@ -1264,7 +1278,9 @@ class QuantMSModule:
             cats = self.mgf_peaks_ms2_plot.dict["cats"]
         else:
             cats = self.mzml_peaks_ms2_plot.dict["cats"]
+
         bar_html = bargraph.plot(self.ms_info["peaks_per_ms2"], cats, pconfig)
+        bar_html = common_plots.remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["ms2"],
@@ -1592,6 +1608,8 @@ class QuantMSModule:
 
         if spec_e_bar_html != "":
 
+            spec_e_bar_html = common_plots.remove_subtitle(spec_e_bar_html)
+
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
                 plot=spec_e_bar_html,
@@ -1605,6 +1623,8 @@ class QuantMSModule:
 
         if xcorr_bar_html != "":
 
+            xcorr_bar_html = common_plots.remove_subtitle(xcorr_bar_html)
+
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
                 plot=xcorr_bar_html,
@@ -1617,6 +1637,8 @@ class QuantMSModule:
             )
 
         if hyper_bar_html != "":
+
+            hyper_bar_html = common_plots.remove_subtitle(hyper_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -1646,6 +1668,8 @@ class QuantMSModule:
             list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
         )
 
+        pep_bar_html = common_plots.remove_subtitle(pep_bar_html)
+
         add_sub_section(
             sub_section=self.sub_sections["search_engine"],
             plot=pep_bar_html,
@@ -1656,8 +1680,9 @@ class QuantMSModule:
 
         # Create identified number plot
         if len(self.search_engine["data_label"]["consensus_label"]) != 0:
+
             consensus_pconfig = {
-                "id": "consensus_summary",  # ID used for the table
+                "id": "consensus_summary",
                 "cpswitch": True,
                 "title": "Consensus Across Search Engines",
                 "stacking": "normal",
@@ -1665,11 +1690,14 @@ class QuantMSModule:
                 "tt_suffix": "",
                 "tt_decimals": 0,
             }
+
             consensus_bar_html = bargraph.plot(
                 self.search_engine["consensus_support"],
                 bar_cats,
                 consensus_pconfig,
             )
+            consensus_bar_html = common_plots.remove_subtitle(consensus_bar_html)
+
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
                 plot=consensus_bar_html,
@@ -3506,6 +3534,8 @@ class QuantMSModule:
             protein_count,
             pconfig=draw_config,
         )
+        bar_html = common_plots.remove_subtitle(bar_html)
+
         add_sub_section(
             sub_section=self.sub_sections["identification"],
             plot=bar_html,
@@ -3528,6 +3558,8 @@ class QuantMSModule:
             peptide_count,
             pconfig=draw_config,
         )
+        bar_html = common_plots.remove_subtitle(bar_html)
+
         add_sub_section(
             sub_section=self.sub_sections["identification"],
             plot=bar_html,
@@ -3630,6 +3662,8 @@ class QuantMSModule:
             "xlab": "log2(Intensity)",
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
+            box_html = common_plots.remove_subtitle(box_html)
+
             add_sub_section(
                 sub_section=self.sub_sections["quantification"],
                 plot=box_html,

@@ -8,6 +8,7 @@ from multiqc.plots import (
 from collections import OrderedDict
 
 from ..core.section_groups import add_sub_section
+from ..common.common_plots import remove_subtitle
 
 
 # MaxQuant parameters table
@@ -71,6 +72,8 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             pconfig=draw_config
         )
 
+        box_html = remove_subtitle(box_html)
+
         add_sub_section(
             sub_section=sub_section,
             plot=box_html,
@@ -104,6 +107,8 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             list_of_data_by_sample=distribution_box,
             pconfig=draw_config
         )
+
+        box_html = remove_subtitle(box_html)
 
         add_sub_section(
             sub_section=sub_section,
@@ -139,6 +144,8 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             list_of_data_by_sample=distribution_box,
             pconfig=draw_config
         )
+
+        box_html = remove_subtitle(box_html)
 
         add_sub_section(
             sub_section=sub_section,
@@ -182,7 +189,13 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
         "xlab": "PC #1",
         "ylab": "PC #2",
     }
-    scatter_html = scatter.plot(data=pca_data, pconfig=draw_config)
+
+    scatter_html = scatter.plot(
+        data=pca_data,
+        pconfig=draw_config
+    )
+
+    scatter_html = remove_subtitle(scatter_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -223,6 +236,8 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
         cats=peptide_id_count_data["cats"],
         pconfig=draw_config,
     )
+
+    bar_html = remove_subtitle(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -269,6 +284,8 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
         pconfig=draw_config,
     )
 
+    bar_html = remove_subtitle(bar_html)
+
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
@@ -307,7 +324,12 @@ def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(data=peak_rt_data, pconfig=draw_config)
+    linegraph_html = linegraph.plot(
+        data=peak_rt_data,
+        pconfig=draw_config
+    )
+
+    linegraph_html = remove_subtitle(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -339,6 +361,8 @@ def draw_mass_error_box(sub_section, mass_error_data):
         list_of_data_by_sample=mass_error_data,
         pconfig=draw_config
     )
+
+    box_html = remove_subtitle(box_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -459,6 +483,8 @@ def draw_maxquant_num_pep_pro(sub_section, num_pep_per_protein):
         cats=["Frequency", "Percentage"],
         pconfig=pconfig
     )
+
+    bar_html = remove_subtitle(bar_html)
     
     add_sub_section(
         sub_section=sub_section,
@@ -490,6 +516,8 @@ def draw_maxquant_scores(sub_section, maxquant_scores):
         pconfig=pconfig
     )
 
+    bar_html = remove_subtitle(bar_html)
+
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
@@ -517,6 +545,8 @@ def draw_msms_scans_top_n(sub_section, top_n_data):
         cats=top_n_data["cats"],
         pconfig=draw_config
     )
+
+    bar_html = remove_subtitle(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -549,6 +579,8 @@ def draw_msms_scans_top_over_rt(sub_section, top_over_rt_data):
         pconfig=draw_config
     )
 
+    linegraph_html = remove_subtitle(linegraph_html)
+
     add_sub_section(
         sub_section=sub_section,
         plot=linegraph_html,
@@ -580,6 +612,8 @@ def draw_msms_scans_ion_injec_time_rt(sub_section, ion_injec_time_rt_data):
         data=ion_injec_time_rt_data,
         pconfig=draw_config
     )
+
+    linegraph_html = remove_subtitle(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,
