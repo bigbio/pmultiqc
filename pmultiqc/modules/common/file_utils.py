@@ -104,3 +104,13 @@ def get_clean_stem(path):
         if name.endswith(ext):
             return name[: -len(ext)]
     return Path(path).stem
+
+
+def file_prefix(path):
+    try:
+        path = os.path.normpath(path)
+        if "\\" in path:
+            path = path.replace("\\", "/")
+        return Path(path).stem
+    except:
+        raise SystemExit(f"Illegal file path: {path}")
