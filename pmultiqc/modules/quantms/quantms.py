@@ -1809,7 +1809,6 @@ class QuantMSModule:
 
     def cal_heat_map_score(self):
         log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
-
         mztab_data = mztab.MzTab(self.out_mztab_path)
         psm = mztab_data.spectrum_match_table
         meta_data = dict(mztab_data.metadata)
@@ -2320,7 +2319,6 @@ class QuantMSModule:
                 "MS/MS counts per 3D-peak", plot_category="frequency", breaks=[1, 2, 3]
             )
 
-            # group.fillna(pd.NA, inplace=True)
             with pd.option_context("future.no_silent_downcasting", True):
                 group = group.fillna(pd.NA).infer_objects(copy=False)
 
