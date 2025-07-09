@@ -1,9 +1,9 @@
 multiqc==1.29
-pandas<=2.0.3
+pandas>=1.5
 pyteomics
 pyopenms
-sdrf-pipelines>=0.0.31
+sdrf-pipelines>=0.0.32
 lxml
-numpy==1.24.3
+numpy>=1.23
 pyarrow
-scikit-learn==1.5.0
+scikit-learn>=1.2
