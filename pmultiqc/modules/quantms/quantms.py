@@ -1809,12 +1809,16 @@ class QuantMSModule:
 
     def cal_heat_map_score(self):
         log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
+
         mztab_data = mztab.MzTab(self.out_mztab_path)
         psm = mztab_data.spectrum_match_table
         meta_data = dict(mztab_data.metadata)
         if self.pep_table_exists:
             pep_table = mztab_data.peptide_table
-            pep_table = pep_table.fillna(np.nan).copy()
+
+            with pd.option_context("future.no_silent_downcasting", True):
+                pep_table = pep_table.fillna(np.nan).infer_objects(copy=False).copy()
+
             pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
                 lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
                 axis=1,
@@ -1842,13 +1846,12 @@ class QuantMSModule:
 
             for name, group in pep_table.groupby("stand_spectra_ref"):
 
-                self.heatmap_con_score[name] = 1.0 - np.sum(
-                    np.sum(
-                        group[group["accession"].str.contains(config.kwargs["contaminant_affix"])][
-                            study_variables
-                        ]
-                    )
-                ) / np.sum(np.sum(group[study_variables]))
+                contaminant_sum = group[
+                    group["accession"].str.contains(
+                        config.kwargs["contaminant_affix"]
+                    )][study_variables].sum(axis=0).sum()
+                all_sum = group[study_variables].sum(axis=0).sum()
+                self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
 
                 if config.kwargs["remove_decoy"]:
                     pep_median = np.nanmedian(
@@ -2317,7 +2320,10 @@ class QuantMSModule:
                 "MS/MS counts per 3D-peak", plot_category="frequency", breaks=[1, 2, 3]
             )
 
-            group.fillna(pd.NA, inplace=True)
+            # group.fillna(pd.NA, inplace=True)
+            with pd.option_context("future.no_silent_downcasting", True):
+                group = group.fillna(pd.NA).infer_objects(copy=False)
+
             for i, j in group.groupby(["sequence", "charge", "modifications"]):
                 self.oversampling_plot.add_value(len(j["spectra_ref"].unique()))
 
@@ -3208,13 +3214,16 @@ class QuantMSModule:
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
             gdict["BestSearchScore"] = g["BestSearchScore"].min()
             ## TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
-            cond_grp = (
-                g.groupby(["Condition", "BioReplicate"])["Intensity"]
+            grouped = (
+                g.groupby(["Condition", "BioReplicate"], as_index=False)["Intensity"]
                 .mean()
-                .reset_index()
-                .groupby("Condition")
+            )
+            cond_grp = (
+                grouped
+                .groupby("Condition", group_keys=False)[["BioReplicate", "Intensity"]]
                 .apply(fill_dict)
             )
+
             cond_grp.index = [str(c) + "_distribution" for c in cond_grp.index]
             gdict.update(cond_grp.to_dict())
             mean = g.groupby(["Condition"])["Intensity"].mean()
@@ -3223,11 +3232,18 @@ class QuantMSModule:
             gdict.update(cond_grp_mean.to_dict())
             return pd.Series(gdict)
 
+        # msstats_data_pep_agg = msstats_data.groupby(
+        #     ["PeptideSequence", "ProteinName", "Modification"]
+        # ).apply(
+        #     get_inty_across_bio_reps_as_str
+        # )  # .unstack()
+
         msstats_data_pep_agg = msstats_data.groupby(
             ["PeptideSequence", "ProteinName", "Modification"]
-        ).apply(
+        )[["Intensity", "BestSearchScore", "Condition", "BioReplicate"]].apply(
             get_inty_across_bio_reps_as_str
-        )  # .unstack()
+        )
+
         del msstats_data
         ## TODO Can we guarantee that the score was always PEP? I don't think so!
         msstats_data_pep_agg.reset_index(inplace=True)

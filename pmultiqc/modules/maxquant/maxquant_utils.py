@@ -260,7 +260,7 @@ def pg_intensity_distr(mq_data, intensity_cols):
 
     # Take the logarithm and remove zero values
     def box_fun(raw_df):
-        log_df = raw_df.applymap(lambda x: 1 if (pd.isna(x) or x == 0) else x)
+        log_df = raw_df.apply(lambda col: col.map(lambda x: 1 if (pd.isna(x) or x == 0) else x))
         log_df = np.log2(log_df).reset_index(drop=True)
         log_df_dict = log_df.to_dict(orient="list")
         log_df_dict = {
