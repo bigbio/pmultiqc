@@ -39,6 +39,11 @@ from ..maxquant.maxquant_utils import (
     evidence_rt_count,
     evidence_calibrated_mass_error
 )
+from .quantms_plots import (
+    draw_dia_intensitys,
+    draw_dia_ms2s,
+    draw_dia_time_mass
+)
 
 
 # Initialise the main MultiQC logger
@@ -170,7 +175,6 @@ class QuantMSModule:
             self.cur.execute("drop table if exists PSM")
             self.con.commit()
 
-
             self.enable_exp = False
             self.enable_sdrf = False
             self.msstats_input_valid = False
@@ -180,6 +184,7 @@ class QuantMSModule:
                 self.enable_exp = True
 
             if not self.enable_exp:
+
                 for f in self.find_log_files("quantms/sdrf", filecontents=False):
                     self.sdrf = os.path.join(f["root"], f["fn"])
                     OpenMS().openms_convert(
@@ -687,6 +692,7 @@ class QuantMSModule:
                 "ylab": "Ion Count",
                 "xlab": "Retention Time (min)",
                 "ymin": 0,
+                "showlegend": True,
             }
             ms1_tic_html = linegraph.plot(self.ms1_tic, ms1_tic_config)
 
@@ -724,6 +730,7 @@ class QuantMSModule:
                 "ylab": "Ion Count",
                 "xlab": "Retention Time (min)",
                 "ymin": 0,
+                "showlegend": True,
             }
 
             ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
@@ -755,6 +762,7 @@ class QuantMSModule:
                 "ylab": "Peak Count",
                 "xlab": "Retention Time (min)",
                 "ymin": 0,
+                "showlegend": True,
             }
 
             ms1_peaks_html = linegraph.plot(self.ms1_peaks, ms1_peaks_config)
@@ -3082,6 +3090,14 @@ class QuantMSModule:
         log.info("Parsing {}...".format(self.diann_report_path))
         pattern = re.compile(r"\(.*?\)")
         report_data = pd.read_csv(self.diann_report_path, header=0, sep="\t")
+
+        # Draw: Standard Deviation of Intensity
+        if "Precursor.Normalised" in report_data.columns:
+            draw_dia_intensitys(self.sub_sections["quantification"], report_data)
+        
+        draw_dia_ms2s(self.sub_sections["ms2"], report_data)
+        draw_dia_time_mass(self.sub_sections["time_mass"], report_data)
+
         report_data["sequence"] = report_data.apply(
             lambda x: re.sub(pattern, "", x["Modified.Sequence"]), axis=1
         )
@@ -3229,12 +3245,6 @@ class QuantMSModule:
             cond_grp_mean.index = cond_grp_mean.index.map(str)
             gdict.update(cond_grp_mean.to_dict())
             return pd.Series(gdict)
-
-        # msstats_data_pep_agg = msstats_data.groupby(
-        #     ["PeptideSequence", "ProteinName", "Modification"]
-        # ).apply(
-        #     get_inty_across_bio_reps_as_str
-        # )  # .unstack()
 
         msstats_data_pep_agg = msstats_data.groupby(
             ["PeptideSequence", "ProteinName", "Modification"]
@@ -3706,7 +3716,7 @@ class QuantMSModule:
             common_plots.draw_ids_rt_count(
                 self.sub_sections["time_mass"],
                 self.quantms_ids_over_rt,
-                False
+                ""
             )
 
         # 2.Delta Mass [ppm]

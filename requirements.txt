@@ -1,4 +1,4 @@
-multiqc==1.29
+multiqc>=1.29
 pandas>=1.5
 pyteomics
 pyopenms

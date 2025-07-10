@@ -263,9 +263,9 @@ def draw_logmean_std_cv(
 
         draw_box_config = {
             "id": box_plot_id,
-            "cpswitch": True,
+            "cpswitch": False,
             "title": box_plot_title,
-            "tt_decimals": 0,
+            "tt_decimals": 5,
             "xlab": box_plot_xlab,
         }
 
@@ -434,6 +434,7 @@ def draw_logintensitymean_vs_logfc(df):
         "title": "log2FC vs logIntensityMean",
         "xlab": "log2FC(A:B)",
         "ylab": "logIntensityMean",
+        "showlegend": True
     }
 
     scatter_html = scatter.plot(
