@@ -37,7 +37,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-multiqc = "1.29"
+multiqc = ">=1.29"
 pandas = ">=1.5"
 pyteomics = "*"
 pyopenms = "*"

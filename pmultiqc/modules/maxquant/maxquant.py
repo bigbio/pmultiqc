@@ -319,7 +319,7 @@ class MaxQuantModule:
             common_plots.draw_ids_rt_count(
                 self.sub_sections["time_mass"],
                 self.mq_results["get_evidence_dicts"]["rt_counts"],
-                True
+                "maxquant"
             )
 
         if self.mq_results["get_evidence_dicts"]["peak_rt"]:

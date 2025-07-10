@@ -295,7 +295,7 @@ def draw_msms_missed_cleavages(
     )
 
 # IDs over RT
-def draw_ids_rt_count(sub_section, rt_count_data, is_maxquant):
+def draw_ids_rt_count(sub_section, rt_count_data, data_type):
 
     draw_config = {
         "id": "IDs_over_RT",
@@ -316,11 +316,16 @@ def draw_ids_rt_count(sub_section, rt_count_data, is_maxquant):
 
     linegraph_html = remove_subtitle(linegraph_html)
 
-    if is_maxquant:
+    if data_type == "maxquant":
         description_text = "Distribution of retention time, derived from the evidence table."
         help_text = """
             The uncalibrated retention time in minutes in the elution profile of the precursor ion, 
             and does not include potential contaminants.
+            """
+    elif data_type == "dia":
+        description_text = "Distribution of retention time, derived from the report.tsv."
+        help_text = """
+            [DIA-NN: report.tsv] Distribution of retention time (RT) for each run.
             """
     else:
         description_text = "Distribution of retention time, derived from the mzTab."
