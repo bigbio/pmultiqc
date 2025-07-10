@@ -175,10 +175,11 @@ class ProteoBenchModule:
             plot=self.pb_results["logfc_logmean_html"],
             order=2,
             description="""
-                Distribution of mean intensity across all runs and log2 fold change.
+                Distribution of mean intensity across all runs and log2 fold change. Legend: ECOLI (blue), HUMAN (green), YEAST (red).
                 """,
             helptext="""
-                [result_performance.csv] Distribution of mean intensity across all runs and log2 fold change (log2FC).
+                [result_performance.csv] Distribution of mean intensity across all runs and log2 fold change (log2FC). 
+                Legend: ECOLI (blue), HUMAN (green), YEAST (red).
                 """
         )
         add_sub_section(
