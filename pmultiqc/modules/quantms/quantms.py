@@ -2313,9 +2313,9 @@ class QuantMSModule:
             # Modifications
             mod_group_processed = mod_group_percentage(group[["sequence", "charge", "Modifications"]].drop_duplicates())
             mod_plot_dict[m] = dict(
-                zip(mod_group_processed["Modifications"], mod_group_processed["Percentage"])
+                zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
             )
-            modified_cats.extend(mod_group_processed["Modifications"])
+            modified_cats.extend(mod_group_processed["modifications"])
 
             # Identified MS2 Spectra Raw File:
             self.identified_msms_spectra[m] = {

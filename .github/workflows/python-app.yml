@@ -50,7 +50,7 @@ jobs:
         run: pip install .
       - name: Test LFQ dataset
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/LFQ_PXD007683.zip
+          curl -L -C - -O https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/LFQ_PXD007683.zip
           unzip -d ./lfq LFQ_PXD007683.zip
           multiqc ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
       - uses: actions/upload-artifact@v4
@@ -73,7 +73,7 @@ jobs:
         run: pip install .
       - name: Test TMT dataset
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip
+          curl -L -C - -O https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip
           unzip -d ./tmt TMT_PXD007683.zip
           multiqc ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
       - uses: actions/upload-artifact@v4
@@ -96,7 +96,7 @@ jobs:
         run: pip install .
       - name: Test DIA dataset
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia_81923.zip
+          curl -L -C - -O https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia_81923.zip
           unzip -d ./dia dia_81923.zip
           multiqc ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
       - uses: actions/upload-artifact@v4
@@ -119,7 +119,7 @@ jobs:
         run: pip install .
       - name: Test DIANN dataset
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip
+          curl -L -C - -O https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip
           unzip PXD063291.zip
           multiqc ./PXD063291 -o ./results_diann
       - uses: actions/upload-artifact@v4
@@ -143,8 +143,8 @@ jobs:
       - name: Test mzid & mzML file
         run: |
           mkdir -p ~/mzid_mzML
-          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzML
-          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzid.gz
+          curl -L -C - -o ~/mzid_mzML/33060_Control_vs_Infection_JMI.mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzML
+          curl -L -C - -o ~/mzid_mzML/33060_Control_vs_Infection_JMI.mzid.gz https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzid.gz
           gunzip ~/mzid_mzML/33060_Control_vs_Infection_JMI.mzid.gz
           multiqc --mzid_plugin ~/mzid_mzML -o ./results_mzid_mzML
       - uses: actions/upload-artifact@v4
@@ -168,10 +168,10 @@ jobs:
       - name: Test mzid & MGF file
         run: |
           mkdir -p ~/mzid_mgf
-          wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mgf
-          wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mgf
-          wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mzid.gz
-          wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mzid.gz
+          curl -L -C - -o ~/mzid_mgf/F001234.mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mgf
+          curl -L -C - -o ~/mzid_mgf/F001235.mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mgf
+          curl -L -C - -o ~/mzid_mgf/F001234.mzid.gz https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mzid.gz
+          curl -L -C - -o ~/mzid_mgf/F001235.mzid.gz https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mzid.gz
           gunzip ~/mzid_mgf/*mzid.gz
           multiqc --mzid_plugin ~/mzid_mgf -o ./results_mzid_mgf
       - uses: actions/upload-artifact@v4
@@ -194,7 +194,7 @@ jobs:
         run: pip install .
       - name: Test MaxQuant file
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip
+          curl -L -C - -O https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip
           unzip -d ./maxquant txt_20min.zip
           multiqc --parse_maxquant ./maxquant -o ./results_maxquant
       - uses: actions/upload-artifact@v4
@@ -217,7 +217,7 @@ jobs:
         run: pip install .
       - name: Test ProteoBench file
         run: |
-          wget -nv https://proteobench.cubimed.rub.de/datasets/d01e87b997b84c985868204b1ed26749902fd7f9/d01e87b997b84c985868204b1ed26749902fd7f9_data.zip
+          curl -L -C - -O https://proteobench.cubimed.rub.de/datasets/d01e87b997b84c985868204b1ed26749902fd7f9/d01e87b997b84c985868204b1ed26749902fd7f9_data.zip
           unzip -d ./proteobench d01e87b997b84c985868204b1ed26749902fd7f9_data.zip
           multiqc --parse_proteobench ./proteobench -o ./results_proteobench
       - uses: actions/upload-artifact@v4
