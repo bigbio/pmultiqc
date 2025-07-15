@@ -53,16 +53,26 @@ pmultiqc supports the following data sources:
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
 
-## Installation
+## Install from PyPI
 
 ```bash
-# Install from PyPI
+# To install the stable release from PyPI:
 pip install pmultiqc
+```
 
-# Or install from source
-git clone https://github.com/bigbio/pmultiqc
+## Install Locally from Source (Without PyPI)
+
+```bash
+# Fork the repository on GitHub
+
+# Clone the repository
+git clone https://github.com/your-username/pmultiqc.git
 cd pmultiqc
-pip install -e .
+
+# Install the package locally
+pip install .
+
+# Now you can run pmultiqc on your own dataset
 ```
 
 ## Usage
