@@ -2313,9 +2313,9 @@ class QuantMSModule:
             # Modifications
             mod_group_processed = mod_group_percentage(group[["sequence", "charge", "Modifications"]].drop_duplicates())
             mod_plot_dict[m] = dict(
-                zip(mod_group_processed["Modifications"], mod_group_processed["Percentage"])
+                zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
             )
-            modified_cats.extend(mod_group_processed["Modifications"])
+            modified_cats.extend(mod_group_processed["modifications"])
 
             # Identified MS2 Spectra Raw File:
             self.identified_msms_spectra[m] = {
@@ -2376,16 +2376,16 @@ class QuantMSModule:
 
         # IDs over RT
         quantms_rt_file_df = psm[["filename", "retention_time"]].copy()
-        quantms_rt_file_df["Retention time"] = quantms_rt_file_df["retention_time"] / 60
-        quantms_rt_file_df.rename(columns={"filename": "Raw file"}, inplace=True)
+        quantms_rt_file_df["retention time"] = quantms_rt_file_df["retention_time"] / 60
+        quantms_rt_file_df.rename(columns={"filename": "raw file"}, inplace=True)
         self.quantms_ids_over_rt = evidence_rt_count(quantms_rt_file_df)
 
         # Delta Mass [ppm]
         mass_error = psm[["filename", "calc_mass_to_charge", "exp_mass_to_charge"]].copy()
-        mass_error["Mass Error [ppm]"] = (
+        mass_error["mass error [ppm]"] = (
             (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"]) / mass_error["calc_mass_to_charge"]
         ) * 1e6
-        mass_error.rename(columns={"filename": "Raw file"}, inplace=True)
+        mass_error.rename(columns={"filename": "raw file"}, inplace=True)
         self.quantms_mass_error = evidence_calibrated_mass_error(mass_error)
 
         # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
@@ -3157,9 +3157,9 @@ class QuantMSModule:
             # Modifications
             mod_group_processed = mod_group_percentage(group.drop_duplicates())
             mod_plot_dict[run_file] = dict(
-                zip(mod_group_processed["Modifications"], mod_group_processed["Percentage"])
+                zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
             )
-            modified_cats.extend(mod_group_processed["Modifications"])
+            modified_cats.extend(mod_group_processed["modifications"])
 
             self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Ids"]))}
             self.cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
