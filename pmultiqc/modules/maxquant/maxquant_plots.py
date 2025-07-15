@@ -25,7 +25,10 @@ def draw_parameters(sub_section, parameter_table):
         "no_violin": True,
     }
 
-    headers = {"Parameter": {"title": "Parameter"}, "Value": {"title": "Value"}}
+    headers = {
+        "parameter": {"title": "Parameter"},
+        "value": {"title": "Value"}
+    }
 
     table_html = table.plot(
         data=parameter_table,
@@ -346,6 +349,17 @@ def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
 # Mass Error [ppm] boxplot
 def draw_mass_error_box(sub_section, mass_error_data):
 
+    max_abs_mass_error = max(
+        abs(x) for values in mass_error_data.values() for x in values
+    )
+
+    if max_abs_mass_error <= 10:
+        xmax_value = 10
+        xmin_value = -10
+    else:
+        xmax_value = None
+        xmin_value = None
+
     draw_config = {
         "id": "uncalibrated_mass_error_box",
         "cpswitch": False,
@@ -353,8 +367,8 @@ def draw_mass_error_box(sub_section, mass_error_data):
         "title": "Uncalibrated Mass Error",
         "tt_decimals": 2,
         "xlab": "Mass Error [ppm]",
-        "xmax": 10,
-        "xmin": -10,
+        "xmax": xmax_value,
+        "xmin": xmin_value,
     }
 
     box_html = box.plot(
