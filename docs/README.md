@@ -61,7 +61,7 @@ pmultiqc supports the following data sources:
 pip install pmultiqc
 ```
 
-### Install Locally from Source (Without PyPI)
+### Install from Source (Without PyPI)
 
 ```bash
 # Fork the repository on GitHub

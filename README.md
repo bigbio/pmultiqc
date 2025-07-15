@@ -52,15 +52,16 @@ pmultiqc supports the following data sources:
    - `*.mzid`: Identification results
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
+## Installation
 
-## Install from PyPI
+### Install from PyPI
 
 ```bash
 # To install the stable release from PyPI:
 pip install pmultiqc
 ```
 
-## Install Locally from Source (Without PyPI)
+### Install from Source (Without PyPI)
 
 ```bash
 # Fork the repository on GitHub
