@@ -54,14 +54,26 @@ pmultiqc supports the following data sources:
 
 ## 💾 Installation
 
-```bash
-# Install from PyPI
-pip install pmultiqc
+### Install from PyPI
 
-# Or install from source
-git clone https://github.com/bigbio/pmultiqc
+```bash
+# To install the stable release from PyPI:
+pip install pmultiqc
+```
+
+### Install from Source (Without PyPI)
+
+```bash
+# Fork the repository on GitHub
+
+# Clone the repository
+git clone https://github.com/your-username/pmultiqc.git
 cd pmultiqc
-pip install -e .
+
+# Install the package locally
+pip install .
+
+# Now you can run pmultiqc on your own dataset
 ```
 
 ## 🛠️ Usage
