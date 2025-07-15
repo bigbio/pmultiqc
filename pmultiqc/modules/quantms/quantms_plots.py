@@ -42,8 +42,8 @@ def draw_dia_time_mass(sub_section, df):
     df = df[["Run", "RT"]].copy()
     df.rename(
         columns={
-            "Run": "Raw file",
-            "RT": "Retention time"
+            "Run": "raw file",
+            "RT": "retention time"
         },
         inplace=True
     )

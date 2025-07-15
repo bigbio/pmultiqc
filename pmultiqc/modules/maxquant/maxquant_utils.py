@@ -1617,6 +1617,10 @@ def parameters_table(parameters_df):
 
 
 def mod_group_percentage(group):
+
+    if "Modifications" in group.columns:
+        group.rename(columns={"Modifications": "modifications"}, inplace=True)
+
     counts = group["modifications"].str.split(",").explode().value_counts()
     percentage_df = (counts / len(group["modifications"]) * 100).reset_index()
     percentage_df.columns = ["modifications", "percentage"]
