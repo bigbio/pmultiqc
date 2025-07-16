@@ -68,23 +68,23 @@ def add_ms_values(
     # "base_peak_intensity" --> "Base_Peak_Intensity",
     # "num_peaks": --> "MS_peaks"
 
-    # charge_state = int(info_df["Charge"]) if info_df["Charge"] is not None else None
-    # base_peak_intensity = (
-    #     float(info_df["Base_Peak_Intensity"])
-    #     if info_df["Base_Peak_Intensity"] is not None
-    #     else None
-    # )
-    # peak_per_ms2 = int(info_df["MS_peaks"]) if info_df["MS_peaks"] is not None else None
-
     charge_state = (
-        int(info_df["precursor_charge"]) if info_df["precursor_charge"] is not None else None
-    )
-    base_peak_intensity = (
-        float(info_df["base_peak_intensity"])
-        if info_df["base_peak_intensity"] is not None
+        int(info_df["precursor_charge"])
+        if pd.notna(info_df["precursor_charge"])
         else None
     )
-    peak_per_ms2 = int(info_df["num_peaks"]) if info_df["num_peaks"] is not None else None
+
+    base_peak_intensity = (
+        float(info_df["base_peak_intensity"])
+        if pd.notna(info_df["base_peak_intensity"])
+        else None
+    )
+
+    peak_per_ms2 = (
+        int(info_df["num_peaks"])
+        if pd.notna(info_df["num_peaks"])
+        else None
+    )
 
     if enable_dia:
         mzml_charge_plot.add_value(charge_state)
@@ -94,7 +94,6 @@ def add_ms_values(
 
     if ms_name in ms_with_psm:
         # only "scan" in info_df not "SpectrumID"
-        # if info_df["SpectrumID"] in identified_spectrum[ms_name]:
         if info_df["scan"] in identified_spectrum_scan_id:
             mzml_charge_plot.add_value(charge_state)
             mzml_peak_distribution_plot.add_value(base_peak_intensity)
