@@ -245,8 +245,16 @@ class QuantMSModule:
                 self.out_mztab_path = os.path.join(f["root"], f["fn"])
                 self.parse_out_mztab()
 
-            for f in self.find_log_files("quantms/diann_report", filecontents=False):
-                self.diann_report_path = os.path.join(f["root"], f["fn"])
+            # DIA-NN report file path
+            diann_report_path = None
+            for file_type in ["quantms/diann_report_tsv", "quantms/diann_report_parquet"]:
+                for f in self.find_log_files(file_type, filecontents=False):
+                    diann_report_path = os.path.join(f["root"], f["fn"])
+                if diann_report_path:
+                    break
+
+            if diann_report_path:
+                self.diann_report_path = diann_report_path
                 self.enable_dia = True
 
             mt = self.parse_mzml()
@@ -356,6 +364,7 @@ class QuantMSModule:
                 "ms2_sub_section": self.sub_sections["ms2"],
                 "time_mass_sub_section": self.sub_sections["time_mass"],
             }
+
         add_group_modules(self.section_group_dict, "")
         
         self.css = {
@@ -3047,7 +3056,6 @@ class QuantMSModule:
             proteins = set(group["accession_group"])
             peptides = group[["PeptideSequence", "Modifications"]].drop_duplicates()
 
-            # unique_peptides = group[group["pep_to_prot_unique"] == True][["PeptideSequence", "Modifications"]].drop_duplicates()
             unique_peptides = group[group["pep_to_prot_unique"]][
                 ["PeptideSequence", "Modifications"]
             ].drop_duplicates()
@@ -3087,9 +3095,14 @@ class QuantMSModule:
         return psm
 
     def parse_diann_report(self):
+
         log.info("Parsing {}...".format(self.diann_report_path))
-        pattern = re.compile(r"\(.*?\)")
-        report_data = pd.read_csv(self.diann_report_path, header=0, sep="\t")
+
+        # parse DIA-NN report data
+        if os.path.splitext(self.diann_report_path)[1] == ".tsv":
+            report_data = pd.read_csv(self.diann_report_path, header=0, sep="\t")
+        else:
+            report_data = pd.read_parquet(self.diann_report_path)
 
         # Draw: Standard Deviation of Intensity
         if "Precursor.Normalised" in report_data.columns:
@@ -3098,6 +3111,7 @@ class QuantMSModule:
         draw_dia_ms2s(self.sub_sections["ms2"], report_data)
         draw_dia_time_mass(self.sub_sections["time_mass"], report_data)
 
+        pattern = re.compile(r"\(.*?\)")
         report_data["sequence"] = report_data.apply(
             lambda x: re.sub(pattern, "", x["Modified.Sequence"]), axis=1
         )
@@ -3150,8 +3164,7 @@ class QuantMSModule:
         mod_plot_dict = dict()
         modified_cats = list()
 
-        for run_file, group in report_data.groupby("File.Name"):
-            run_file = file_prefix(run_file)
+        for run_file, group in report_data.groupby("Run"):
             self.ms_with_psm.append(run_file)
 
             # Modifications

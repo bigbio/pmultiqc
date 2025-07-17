@@ -29,13 +29,14 @@ def draw_dia_ms2s(sub_section, df):
 
     draw_dia_ms2_charge(sub_section, df)
 
-    msms_count_data = calculate_msms_count(df)
-    draw_oversampling(
-        sub_section,
-        msms_count_data["plot_data"],
-        msms_count_data["cats"],
-        False
-    )
+    if "MS2.Scan" in df.columns:
+        msms_count_data = calculate_msms_count(df)
+        draw_oversampling(
+            sub_section,
+            msms_count_data["plot_data"],
+            msms_count_data["cats"],
+            False
+        )
 
 def draw_dia_time_mass(sub_section, df):
 
