@@ -87,8 +87,11 @@ def pmultiqc_plugin_execution_start():
     if "quantms/msstats" not in config.sp:
         config.update_dict(config.sp, {"quantms/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}})
 
-    if "quantms/diann_report" not in config.sp:
-        config.update_dict(config.sp, {"quantms/diann_report": {"fn": "*report.tsv", "num_lines": 0}})
+    if "quantms/diann_report_tsv" not in config.sp:
+        config.update_dict(config.sp, {"quantms/diann_report_tsv": {"fn": "*report.tsv", "num_lines": 0}})
+
+    if "quantms/diann_report_parquet" not in config.sp:
+        config.update_dict(config.sp, {"quantms/diann_report_parquet": {"fn": "report.parquet", "num_lines": 0}})
 
     if "quantms/maxquant_result" not in config.sp:
         config.update_dict(config.sp, {"quantms/maxquant_result": {"fn": "*.txt", "num_lines": 0}})
