@@ -5,10 +5,6 @@ from ..common.file_utils import file_prefix
 # MaxQuant File Paths
 def maxquant_file_path(find_log_files):
 
-    maxquant_files = []
-    for maxquant_file in find_log_files("quantms/maxquant_result", filecontents=False):
-        maxquant_files.append(maxquant_file["fn"])
-
     required_files = [
         "parameters.txt",
         "summary.txt",
