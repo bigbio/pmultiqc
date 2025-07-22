@@ -60,43 +60,43 @@ def pmultiqc_plugin_execution_start():
     config.analysis_dir = analysis_dir_new
     
     # Module filename search patterns
-    if "quantms/exp_design" not in config.sp:
-        config.update_dict(config.sp, {"quantms/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0}})
+    if "pmultiqc/exp_design" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0}})
 
-    if "quantms/sdrf" not in config.sp:
-        config.update_dict(config.sp, {"quantms/sdrf": {"fn": "*.sdrf.tsv", "num_lines": 0}})
+    if "pmultiqc/sdrf" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/sdrf": {"fn": "*.sdrf.tsv", "num_lines": 0}})
 
-    if "quantms/mztab" not in config.sp:
-        config.update_dict(config.sp, {"quantms/mztab": {"fn": "*.mzTab", "num_lines": 0}})
+    if "pmultiqc/mztab" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0}})
 
-    if "quantms/mzML" not in config.sp:
-        config.update_dict(config.sp, {"quantms/mzML": {"fn": "*.mzML", "num_lines": 0}})
+    if "pmultiqc/mzML" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/mzML": {"fn": "*.mzML", "num_lines": 0}})
 
-    if "quantms/mgf" not in config.sp:
-        config.update_dict(config.sp, {"quantms/mgf": {"fn": "*.mgf", "num_lines": 0}})
+    if "pmultiqc/mgf" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/mgf": {"fn": "*.mgf", "num_lines": 0}})
 
-    if "quantms/mzid" not in config.sp:
-        config.update_dict(config.sp, {"quantms/mzid": {"fn": "*.mzid", "num_lines": 0}})
+    if "pmultiqc/mzid" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0}})
 
-    if "quantms/ms_info" not in config.sp:
-        config.update_dict(config.sp, {"quantms/ms_info": {"fn": "*_ms_info.parquet", "num_lines": 0}})
+    if "pmultiqc/ms_info" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/ms_info": {"fn": "*_ms_info.parquet", "num_lines": 0}})
 
-    if "quantms/idXML" not in config.sp:
-        config.update_dict(config.sp, {"quantms/idXML": {"fn": "*.idXML", "num_lines": 0}})
+    if "pmultiqc/idXML" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0}})
 
-    if "quantms/msstats" not in config.sp:
-        config.update_dict(config.sp, {"quantms/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}})
+    if "pmultiqc/msstats" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}})
 
-    if "quantms/diann_report_tsv" not in config.sp:
-        config.update_dict(config.sp, {"quantms/diann_report_tsv": {"fn": "*report.tsv", "num_lines": 0}})
+    if "pmultiqc/diann_report_tsv" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/diann_report_tsv": {"fn": "*report.tsv", "num_lines": 0}})
 
-    if "quantms/diann_report_parquet" not in config.sp:
-        config.update_dict(config.sp, {"quantms/diann_report_parquet": {"fn": "report.parquet", "num_lines": 0}})
+    if "pmultiqc/diann_report_parquet" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/diann_report_parquet": {"fn": "report.parquet", "num_lines": 0}})
 
-    if "quantms/maxquant_result" not in config.sp:
-        config.update_dict(config.sp, {"quantms/maxquant_result": {"fn": "*.txt", "num_lines": 0}})
+    if "pmultiqc/maxquant_result" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/maxquant_result": {"fn": "*.txt", "num_lines": 0}})
 
-    if "quantms/proteobench_result" not in config.sp:
-        config.update_dict(config.sp, {"quantms/proteobench_result": {"fn": "result_performance.*", "num_lines": 0}})
+    if "pmultiqc/proteobench_result" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/proteobench_result": {"fn": "result_performance.*", "num_lines": 0}})
 
     config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})

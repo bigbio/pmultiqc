@@ -16,7 +16,7 @@ def maxquant_file_path(find_log_files):
     ]
 
     maxquant_paths = {}
-    for maxquant_file in find_log_files("quantms/maxquant_result", filecontents=False):
+    for maxquant_file in find_log_files("pmultiqc/maxquant_result", filecontents=False):
         if maxquant_file["fn"] in required_files:
             f_path = os.path.join(maxquant_file["root"], maxquant_file["fn"])
             maxquant_paths[file_prefix(f_path)] = f_path
