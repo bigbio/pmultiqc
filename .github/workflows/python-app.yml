@@ -96,8 +96,8 @@ jobs:
         run: pip install .
       - name: Test DIA dataset
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia_81923.zip
-          unzip -d ./dia dia_81923.zip
+          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia.zip
+          unzip -d ./dia dia.zip
           multiqc ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
       - uses: actions/upload-artifact@v4
         if: always()

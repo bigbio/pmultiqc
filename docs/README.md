@@ -31,7 +31,7 @@ pmultiqc supports the following data sources:
    - `*ms_info.tsv`: MS quality control information
    - `*.idXML`: Identification results
    - `*.yml`: Pipeline parameters (optional)
-   - `diann_report.tsv`: [DIA-NN](https://github.com/vdemichev/DiaNN) main report (DIA analysis only)
+   - `diann_report.tsv` or `diann_report.parquet`: [DIA-NN](https://github.com/vdemichev/DiaNN) main report (DIA analysis only)
 
 ### 2. [MaxQuant](https://www.maxquant.org) result files:
    - `parameters.txt`: Analysis parameters
@@ -43,7 +43,7 @@ pmultiqc supports the following data sources:
 
 ### 3. **[DIA-NN](https://aptila.bio)** result files:
    - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**)
-   - `diann_report.tsv`: DIA-NN main report
+   - `report.tsv` or `report.parquet`: DIA-NN main report
 
 ### 4. **[ProteoBench](https://proteobench.readthedocs.io)** file:
    - `result_performance.csv`: ProteoBench result file

@@ -53,7 +53,7 @@ Quantms = "https://quantms.org"
 LICENSE = "https://github.com/bigbio/pmultiqc/blob/main/LICENSE"
 
 [tool.poetry.plugins."multiqc.modules.v1"]
-quantms = "pmultiqc.modules.core:PMultiQC"
+pmultiqc = "pmultiqc.modules.core:PMultiQC"
 
 [tool.poetry.plugins."multiqc.cli_options.v1"]
 disable_plugin = "pmultiqc.cli:disable_plugin"

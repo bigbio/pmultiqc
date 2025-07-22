@@ -101,7 +101,7 @@ class QuantMSModule:
         
 
         self.ms_paths = []
-        for mzml_current_file in self.find_log_files("quantms/mzML", filecontents=False):
+        for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
             self.ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
 
         self.ms_info_path = []
@@ -113,12 +113,12 @@ class QuantMSModule:
             self.ms_without_psm = dict()
 
             self.mgf_paths = []
-            for mgf_file in self.find_log_files("quantms/mgf", filecontents=False):
+            for mgf_file in self.find_log_files("pmultiqc/mgf", filecontents=False):
                 self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
             self.mgf_paths.sort()
 
             self.mzid_paths = []
-            for mzid_file in self.find_log_files("quantms/mzid", filecontents=False):
+            for mzid_file in self.find_log_files("pmultiqc/mzid", filecontents=False):
                 self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
             self.mzid_paths.sort()
 
@@ -179,13 +179,13 @@ class QuantMSModule:
             self.enable_sdrf = False
             self.msstats_input_valid = False
             # TODO what if multiple are found??
-            for f in self.find_log_files("quantms/exp_design", filecontents=False):
+            for f in self.find_log_files("pmultiqc/exp_design", filecontents=False):
                 self.exp_design = os.path.join(f["root"], f["fn"])
                 self.enable_exp = True
 
             if not self.enable_exp:
 
-                for f in self.find_log_files("quantms/sdrf", filecontents=False):
+                for f in self.find_log_files("pmultiqc/sdrf", filecontents=False):
                     self.sdrf = os.path.join(f["root"], f["fn"])
                     OpenMS().openms_convert(
                         self.sdrf,
@@ -231,7 +231,7 @@ class QuantMSModule:
             if self.enable_exp or self.enable_sdrf:
                 self.draw_exp_design()
 
-            for ms_info in self.find_log_files("quantms/ms_info", filecontents=False):
+            for ms_info in self.find_log_files("pmultiqc/ms_info", filecontents=False):
                 self.ms_info_path.append(os.path.join(ms_info["root"], ms_info["fn"]))
             self.ms_info_path.sort()
             
@@ -241,13 +241,9 @@ class QuantMSModule:
                     file_prefix(i).replace("_ms_info", ".mzML") for i in self.ms_info_path
                 ]
 
-            for f in self.find_log_files("quantms/mztab", filecontents=False):
-                self.out_mztab_path = os.path.join(f["root"], f["fn"])
-                self.parse_out_mztab()
-
             # DIA-NN report file path
             diann_report_path = None
-            for file_type in ["quantms/diann_report_tsv", "quantms/diann_report_parquet"]:
+            for file_type in ["pmultiqc/diann_report_tsv", "pmultiqc/diann_report_parquet"]:
                 for f in self.find_log_files(file_type, filecontents=False):
                     diann_report_path = os.path.join(f["root"], f["fn"])
                 if diann_report_path:
@@ -257,9 +253,14 @@ class QuantMSModule:
                 self.diann_report_path = diann_report_path
                 self.enable_dia = True
 
+            if not self.enable_dia:
+                for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
+                    self.out_mztab_path = os.path.join(f["root"], f["fn"])
+                    self.parse_out_mztab()
+
             mt = self.parse_mzml()
             self.idx_paths = []
-            for idx_file in self.find_log_files("quantms/idXML", filecontents=False):
+            for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
                 self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
 
             self.draw_ms_information()
@@ -310,7 +311,7 @@ class QuantMSModule:
             self.draw_quantms_msms_section()
             self.draw_quantms_time_section()
 
-            for msstats_input in self.find_log_files("quantms/msstats", filecontents=False):
+            for msstats_input in self.find_log_files("pmultiqc/msstats", filecontents=False):
                 self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
                 self.msstats_input_valid = True
                 self.parse_msstats_input()
