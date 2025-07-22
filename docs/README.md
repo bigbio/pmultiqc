@@ -43,7 +43,7 @@ pmultiqc supports the following data sources:
 
 ### 3. **[DIA-NN](https://aptila.bio)** result files:
    - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**)
-   - `report.tsv` or `report.parquet`:: DIA-NN main report
+   - `report.tsv` or `report.parquet`: DIA-NN main report
 
 ### 4. **[ProteoBench](https://proteobench.readthedocs.io)** file:
    - `result_performance.csv`: ProteoBench result file
