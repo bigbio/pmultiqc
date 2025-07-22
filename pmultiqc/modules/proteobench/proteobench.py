@@ -18,7 +18,7 @@ class ProteoBenchModule:
     def get_proteobench(self):
 
         pb_file_path = []
-        for pb_result in self.find_log_files("quantms/proteobench_result", filecontents=False):
+        for pb_result in self.find_log_files("pmultiqc/proteobench_result", filecontents=False):
             pb_file_path.append(os.path.join(pb_result["root"], pb_result["fn"]))
 
         if len(pb_file_path) != 1:
