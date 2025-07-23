@@ -3,7 +3,7 @@ name = "pmultiqc"
 description = "Python package for quality control of proteomics datasets, based on multiqc package"
 readme = "README.md"
 license = "MIT"
-version = "0.0.30"
+version = "0.0.31"
 authors = [
     "Yasset Perez-Riverol <ypriverol@gmail.com>",
     "Dai Chengxin <chengxin2024@126.com>",
@@ -36,7 +36,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.10"
 multiqc = ">=1.29"
 pandas = ">=1.5"
 pyteomics = "*"
