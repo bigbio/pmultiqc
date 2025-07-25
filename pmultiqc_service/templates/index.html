@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pmultiqc report generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 40px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        .upload-section:hover {
+            border-color: #007bff;
+        }
+        .upload-section.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .file-input {
+            display: none;
+        }
+        .upload-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .upload-btn:hover {
+            background-color: #0056b3;
+        }
+        .upload-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            display: none;
+        }
+        .progress {
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .download-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+        .supported-formats {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .supported-formats h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .format-list {
+            list-style: none;
+            padding: 0;
+        }
+        .format-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .format-list li:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PMultiQC Service</h1>
+        
+        <div class="upload-section" id="uploadSection">
+            <h3>Upload your data file</h3>
+            <p>Drag and drop a ZIP file here or click to browse</p>
+            <input type="file" id="fileInput" class="file-input" accept=".zip">
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                Choose File
+            </button>
+            <button class="upload-btn" id="uploadBtn" onclick="uploadFile()" disabled>
+                Generate Report
+            </button>
+            <button class="upload-btn" id="uploadLargeBtn" onclick="uploadLargeFile()" disabled style="background-color: #dc3545;">
+                Upload Large File (>500MB)
+            </button>
+            <button class="upload-btn" id="uploadAsyncBtn" onclick="uploadAsync()" disabled style="background-color: #fd7e14;">
+                Upload & Process Async (>1GB)
+            </button>
+        </div>
+        
+        <div class="file-info" id="fileInfo"></div>
+        
+        <div class="progress" id="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p id="progressText">Processing...</p>
+        </div>
+        
+        <div class="result" id="result"></div>
+        
+        <div class="supported-formats">
+            <h3>Supported Input Formats</h3>
+            <ul class="format-list">
+                <li><strong>MaxQuant:</strong> evidence.txt, msms.txt, peptides.txt, proteinGroups.txt</li>
+                <li><strong>DIANN:</strong> report.tsv, report.parquet</li>
+                <li><strong>quantms:</strong> ms_info.parquet, out.mzTab</li>
+                <li><strong>mzIdentML + mzML:</strong> .mzid and .mzML files</li>
+            </ul>
+            <p><em>All files should be packaged in a ZIP archive.</em></p>
+        </div>
+    </div>
+
+    <script>
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadLargeBtn = document.getElementById('uploadLargeBtn');
+        const uploadAsyncBtn = document.getElementById('uploadAsyncBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const progress = document.getElementById('progress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const result = document.getElementById('result');
+
+        // Drag and drop functionality
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (file) {
+                if (file.name.toLowerCase().endsWith('.zip')) {
+                    const fileSizeMB = file.size / 1024 / 1024;
+                    fileInfo.style.display = 'block';
+                    fileInfo.innerHTML = `
+                        <strong>Selected file:</strong> ${file.name}<br>
+                        <strong>Size:</strong> ${fileSizeMB.toFixed(2)} MB
+                    `;
+                    
+                    // Enable appropriate upload buttons based on file size
+                    uploadBtn.disabled = false;
+                    uploadLargeBtn.disabled = false;
+                    uploadAsyncBtn.disabled = false;
+                    
+                    // Show recommendations
+                    if (fileSizeMB > 1000) {
+                        fileInfo.innerHTML += '<br><strong>Recommendation:</strong> Use "Upload & Process Async" for files > 1GB';
+                    } else if (fileSizeMB > 500) {
+                        fileInfo.innerHTML += '<br><strong>Recommendation:</strong> Use "Upload Large File" for files > 500MB';
+                    }
+                } else {
+                    fileInfo.style.display = 'block';
+                    fileInfo.innerHTML = '<strong>Error:</strong> Please select a ZIP file.';
+                    uploadBtn.disabled = true;
+                    uploadLargeBtn.disabled = true;
+                    uploadAsyncBtn.disabled = true;
+                }
+            }
+        }
+
+        async function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Show progress
+            progress.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Uploading file...';
+            result.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // Simulate progress
+                const progressInterval = setInterval(() => {
+                    const currentWidth = parseInt(progressFill.style.width) || 0;
+                    if (currentWidth < 90) {
+                        progressFill.style.width = (currentWidth + 10) + '%';
+                    }
+                }, 500);
+
+                const response = await fetch('/generate-report', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Complete!';
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h4>Report Generated Successfully!</h4>
+                        <p><strong>Job ID:</strong> ${data.job_id}</p>
+                        <p><strong>Input Type:</strong> ${data.input_type}</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                        <a href="${data.download_url}" class="download-btn">Download Report</a>
+                    `;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <h4>Error</h4>
+                        <p>${data.error}</p>
+                    `;
+                }
+
+                result.style.display = 'block';
+
+            } catch (error) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Error occurred';
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h4>Error</h4>
+                    <p>Failed to upload file: ${error.message}</p>
+                `;
+                result.style.display = 'block';
+            }
+        }
+
+        async function uploadLargeFile() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Show progress
+            progress.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Uploading large file...';
+            result.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload-large', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Complete!';
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h4>Large File Report Generated Successfully!</h4>
+                        <p><strong>Job ID:</strong> ${data.job_id}</p>
+                        <p><strong>Input Type:</strong> ${data.input_type}</p>
+                        <p><strong>File Size:</strong> ${(data.file_size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                        <a href="${data.download_url}" class="download-btn">Download Report</a>
+                    `;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <h4>Error</h4>
+                        <p>${data.error}</p>
+                    `;
+                }
+
+                result.style.display = 'block';
+
+            } catch (error) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Error occurred';
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h4>Error</h4>
+                    <p>Failed to upload large file: ${error.message}</p>
+                `;
+                result.style.display = 'block';
+            }
+        }
+
+        async function uploadAsync() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Show progress
+            progress.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Uploading file for async processing...';
+            result.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload-async', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    progressFill.style.width = '50%';
+                    progressText.textContent = 'File uploaded. Processing in background...';
+                    
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h4>Async Processing Started!</h4>
+                        <p><strong>Job ID:</strong> ${data.job_id}</p>
+                        <p><strong>File Size:</strong> ${(data.file_size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                        <p>Processing will continue in the background. Check status below:</p>
+                        <button onclick="checkStatus('${data.job_id}')" class="upload-btn">Check Status</button>
+                    `;
+                    result.style.display = 'block';
+
+                    // Start polling for status
+                    pollStatus(data.job_id);
+                } else {
+                    progressFill.style.width = '100%';
+                    progressText.textContent = 'Error occurred';
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <h4>Error</h4>
+                        <p>${data.error}</p>
+                    `;
+                    result.style.display = 'block';
+                }
+
+            } catch (error) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Error occurred';
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h4>Error</h4>
+                    <p>Failed to start async processing: ${error.message}</p>
+                `;
+                result.style.display = 'block';
+            }
+        }
+
+        async function checkStatus(jobId) {
+            try {
+                const response = await fetch(`/job-status/${jobId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    progressFill.style.width = data.progress + '%';
+                    progressText.textContent = `Status: ${data.status} (${data.progress}%)`;
+                    
+                    if (data.status === 'completed') {
+                        result.innerHTML = `
+                            <h4>Processing Complete!</h4>
+                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <a href="/download-report/${jobId}" class="download-btn">Download Report</a>
+                        `;
+                    } else if (data.status === 'failed') {
+                        result.className = 'result error';
+                        result.innerHTML = `
+                            <h4>Processing Failed</h4>
+                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Error:</strong> ${data.error}</p>
+                        `;
+                    } else {
+                        result.innerHTML = `
+                            <h4>Processing in Progress</h4>
+                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Progress:</strong> ${data.progress}%</p>
+                            <button onclick="checkStatus('${jobId}')" class="upload-btn">Check Status</button>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+
+        function pollStatus(jobId) {
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/job-status/${jobId}`);
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        progressFill.style.width = data.progress + '%';
+                        progressText.textContent = `Status: ${data.status} (${data.progress}%)`;
+                        
+                        if (data.status === 'completed' || data.status === 'failed') {
+                            clearInterval(interval);
+                            checkStatus(jobId);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error polling status:', error);
+                }
+            }, 5000); // Poll every 5 seconds
+        }
+    </script>
+</body>
+</html> 

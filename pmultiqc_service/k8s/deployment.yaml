@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pmultiqc-service
+  namespace: pmultiqc
+  labels:
+    app: pmultiqc-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pmultiqc-service
+  template:
+    metadata:
+      labels:
+        app: pmultiqc-service
+    spec:
+      containers:
+      - name: pmultiqc-service
+        image: pmultiqc-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: FLASK_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: FLASK_ENV
+        - name: MAX_CONTENT_LENGTH
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: MAX_CONTENT_LENGTH
+        - name: UPLOAD_FOLDER
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: UPLOAD_FOLDER
+        - name: OUTPUT_FOLDER
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: OUTPUT_FOLDER
+        volumeMounts:
+        - name: uploads-storage
+          mountPath: /tmp/pmultiqc_uploads
+        - name: outputs-storage
+          mountPath: /tmp/pmultiqc_outputs
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+      volumes:
+      - name: uploads-storage
+        persistentVolumeClaim:
+          claimName: pmultiqc-uploads-pvc
+      - name: outputs-storage
+        persistentVolumeClaim:
+          claimName: pmultiqc-outputs-pvc
+      securityContext:
+        fsGroup: 1000 

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pmultiqc-config
+  namespace: pmultiqc
+data:
+  FLASK_ENV: "production"
+  MAX_CONTENT_LENGTH: "524288000"  # 500MB in bytes
+  UPLOAD_FOLDER: "/tmp/pmultiqc_uploads"
+  OUTPUT_FOLDER: "/tmp/pmultiqc_outputs" 

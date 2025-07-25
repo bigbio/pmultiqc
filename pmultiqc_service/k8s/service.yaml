@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pmultiqc-service
+  namespace: pmultiqc
+  labels:
+    app: pmultiqc-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  selector:
+    app: pmultiqc-service 
