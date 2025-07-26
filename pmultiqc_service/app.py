@@ -5,21 +5,17 @@ A Flask-based web service for generating PMultiQC reports from uploaded data fil
 """
 
 import os
-import tempfile
 import zipfile
 import shutil
 import uuid
 import logging
 import threading
-import time
-from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
-from flask import Flask, request, jsonify, send_file, abort, render_template
+from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import multiqc
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
