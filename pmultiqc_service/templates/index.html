@@ -133,6 +133,65 @@
         .format-list li:last-child {
             border-bottom: none;
         }
+        .captcha-section {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .captcha-section h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        .captcha-problem {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: white;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .captcha-input {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100px;
+            text-align: center;
+            margin: 0 10px;
+        }
+        .captcha-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .captcha-btn {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        .captcha-btn:hover {
+            background-color: #5a6268;
+        }
+        .captcha-status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .captcha-status.success {
+            color: #28a745;
+        }
+        .captcha-status.error {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -155,6 +214,16 @@
             <button class="upload-btn" id="uploadAsyncBtn" onclick="uploadAsync()" disabled style="background-color: #fd7e14;">
                 Upload & Process Async (>1GB)
             </button>
+        </div>
+        
+        <div class="captcha-section" id="captchaSection">
+            <h4>Security Verification</h4>
+            <p>Please solve this simple math problem to verify you're human:</p>
+            <div class="captcha-problem" id="captchaProblem"></div>
+            <input type="number" id="captchaInput" class="captcha-input" placeholder="Answer" min="0">
+            <button class="captcha-btn" onclick="verifyCaptcha()">Verify</button>
+            <button class="captcha-btn" onclick="generateCaptcha()" style="background-color: #17a2b8;">New Problem</button>
+            <div class="captcha-status" id="captchaStatus"></div>
         </div>
         
         <div class="file-info" id="fileInfo"></div>
@@ -191,6 +260,91 @@
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
         const result = document.getElementById('result');
+        
+        // CAPTCHA variables
+        const captchaSection = document.getElementById('captchaSection');
+        const captchaProblem = document.getElementById('captchaProblem');
+        const captchaInput = document.getElementById('captchaInput');
+        const captchaStatus = document.getElementById('captchaStatus');
+        let captchaAnswer = 0;
+        let captchaVerified = false;
+
+        // Initialize CAPTCHA on page load
+        generateCaptcha();
+
+        // CAPTCHA functions
+        function generateCaptcha() {
+            const num1 = Math.floor(Math.random() * 20) + 1;
+            const num2 = Math.floor(Math.random() * 20) + 1;
+            const operators = ['+', '-', '×'];
+            const operator = operators[Math.floor(Math.random() * operators.length)];
+            
+            let answer;
+            let problem;
+            
+            switch(operator) {
+                case '+':
+                    answer = num1 + num2;
+                    problem = `${num1} + ${num2}`;
+                    break;
+                case '-':
+                    answer = num1 - num2;
+                    problem = `${num1} - ${num2}`;
+                    break;
+                case '×':
+                    answer = num1 * num2;
+                    problem = `${num1} × ${num2}`;
+                    break;
+            }
+            
+            captchaAnswer = answer;
+            captchaProblem.textContent = `What is ${problem}?`;
+            captchaInput.value = '';
+            captchaStatus.textContent = '';
+            captchaStatus.className = 'captcha-status';
+            captchaVerified = false;
+            updateUploadButtons();
+        }
+
+        function verifyCaptcha() {
+            const userAnswer = parseInt(captchaInput.value);
+            
+            if (isNaN(userAnswer)) {
+                captchaStatus.textContent = 'Please enter a valid number';
+                captchaStatus.className = 'captcha-status error';
+                return;
+            }
+            
+            if (userAnswer === captchaAnswer) {
+                captchaStatus.textContent = '✓ Verification successful!';
+                captchaStatus.className = 'captcha-status success';
+                captchaVerified = true;
+                updateUploadButtons();
+            } else {
+                captchaStatus.textContent = '✗ Incorrect answer. Please try again.';
+                captchaStatus.className = 'captcha-status error';
+                captchaVerified = false;
+                updateUploadButtons();
+                // Generate new CAPTCHA after wrong answer
+                setTimeout(generateCaptcha, 2000);
+            }
+        }
+
+        function updateUploadButtons() {
+            const fileSelected = fileInput.files.length > 0;
+            const canUpload = fileSelected && captchaVerified;
+            
+            uploadBtn.disabled = !canUpload;
+            uploadLargeBtn.disabled = !canUpload;
+            uploadAsyncBtn.disabled = !canUpload;
+        }
+
+        // Allow Enter key to submit CAPTCHA
+        captchaInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyCaptcha();
+            }
+        });
 
         // Drag and drop functionality
         uploadSection.addEventListener('dragover', (e) => {
@@ -225,23 +379,19 @@
                         <strong>Size:</strong> ${fileSizeMB.toFixed(2)} MB
                     `;
                     
-                    // Enable appropriate upload buttons based on file size
-                    uploadBtn.disabled = false;
-                    uploadLargeBtn.disabled = false;
-                    uploadAsyncBtn.disabled = false;
-                    
                     // Show recommendations
                     if (fileSizeMB > 1000) {
                         fileInfo.innerHTML += '<br><strong>Recommendation:</strong> Use "Upload & Process Async" for files > 1GB';
                     } else if (fileSizeMB > 500) {
                         fileInfo.innerHTML += '<br><strong>Recommendation:</strong> Use "Upload Large File" for files > 500MB';
                     }
+                    
+                    // Update upload buttons (will be enabled only if CAPTCHA is verified)
+                    updateUploadButtons();
                 } else {
                     fileInfo.style.display = 'block';
                     fileInfo.innerHTML = '<strong>Error:</strong> Please select a ZIP file.';
-                    uploadBtn.disabled = true;
-                    uploadLargeBtn.disabled = true;
-                    uploadAsyncBtn.disabled = true;
+                    updateUploadButtons();
                 }
             }
         }
@@ -249,6 +399,12 @@
         async function uploadFile() {
             const file = fileInput.files[0];
             if (!file) return;
+            
+            // Verify CAPTCHA before upload
+            if (!captchaVerified) {
+                alert('Please complete the security verification first.');
+                return;
+            }
 
             // Show progress
             progress.style.display = 'block';
@@ -313,6 +469,12 @@
         async function uploadLargeFile() {
             const file = fileInput.files[0];
             if (!file) return;
+            
+            // Verify CAPTCHA before upload
+            if (!captchaVerified) {
+                alert('Please complete the security verification first.');
+                return;
+            }
 
             // Show progress
             progress.style.display = 'block';
@@ -369,6 +531,12 @@
         async function uploadAsync() {
             const file = fileInput.files[0];
             if (!file) return;
+            
+            // Verify CAPTCHA before upload
+            if (!captchaVerified) {
+                alert('Please complete the security verification first.');
+                return;
+            }
 
             // Show progress
             progress.style.display = 'block';
