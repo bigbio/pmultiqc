@@ -192,6 +192,64 @@
         .captcha-status.error {
             color: #dc3545;
         }
+        .job-id-query {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        .job-id-query:hover {
+            border-color: #007bff;
+        }
+        .jobid-input {
+            padding: 10px 30px;
+            font-size: 16px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            width: 350px;
+            text-align: center;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .jobid-input:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .jobidinput-btn {
+            background-color: #6c757d;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            margin-left: 10px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .jobidinput-btn:hover {
+            background-color: #5a6268;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        .result-query {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result-query.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result-query.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
@@ -236,13 +294,24 @@
         </div>
         
         <div class="result" id="result"></div>
+
+        <div class="job-id-query" id="jobIdQuery">
+            <h3>View Your Tasks</h3>
+            <p>Please enter the Job ID of your task to query:</p>
+            <input type="text" id="jobIdInput" class="jobid-input" placeholder="Job ID">
+            <button  class="jobidinput-btn" id="jobidinputBtn" onclick="queryJob()">Query</button>
+            <p><em>Note: Data is stored for 24 hours.</em></p>
+            <div id="jobStatus" style="margin-top: 1em;"></div>
+        </div>
+
+        <div class="result-query" id="resultQuery"></div>
         
         <div class="supported-formats">
             <h3>Supported Input Formats</h3>
             <ul class="format-list">
                 <li><strong>MaxQuant:</strong> evidence.txt, msms.txt, peptides.txt, proteinGroups.txt</li>
                 <li><strong>DIANN:</strong> report.tsv, report.parquet</li>
-                <li><strong>quantms:</strong> ms_info.parquet, out.mzTab</li>
+                <li><strong>quantms:</strong> ms_info.parquet, out.mzTab, multiqc_config.yml</li>
                 <li><strong>mzIdentML + mzML:</strong> .mzid and .mzML files</li>
             </ul>
             <p><em>All files should be packaged in a ZIP archive.</em></p>
@@ -260,6 +329,7 @@
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
         const result = document.getElementById('result');
+        const resultQuery = document.getElementById('resultQuery');
         
         // CAPTCHA variables
         const captchaSection = document.getElementById('captchaSection');
@@ -442,7 +512,9 @@
                         <p><strong>Job ID:</strong> ${data.job_id}</p>
                         <p><strong>Input Type:</strong> ${data.input_type}</p>
                         <p><strong>Status:</strong> ${data.status}</p>
+                        <p><strong>Finished at:</strong> ${data.finished_at}</p>
                         <a href="${data.download_url}" class="download-btn">Download Report</a>
+                        <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
                     `;
                 } else {
                     result.className = 'result error';
@@ -504,13 +576,16 @@
                         <p><strong>Input Type:</strong> ${data.input_type}</p>
                         <p><strong>File Size:</strong> ${(data.file_size / 1024 / 1024).toFixed(2)} MB</p>
                         <p><strong>Status:</strong> ${data.status}</p>
+                        <p><strong>Finished at:</strong> ${data.finished_at}</p>
                         <a href="${data.download_url}" class="download-btn">Download Report</a>
+                        <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
                     `;
                 } else {
                     result.className = 'result error';
                     result.innerHTML = `
                         <h4>Error</h4>
                         <p>${data.error}</p>
+                        <p><strong>Errored at:</strong> ${data.finished_at}</p>
                     `;
                 }
 
@@ -567,6 +642,7 @@
                         <p><strong>Status:</strong> ${data.status}</p>
                         <p>Processing will continue in the background. Check status below:</p>
                         <button onclick="checkStatus('${data.job_id}')" class="upload-btn">Check Status</button>
+                        <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
                     `;
                     result.style.display = 'block';
 
@@ -608,8 +684,11 @@
                         result.innerHTML = `
                             <h4>Processing Complete!</h4>
                             <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Input Type:</strong> ${data.input_type}</p>
                             <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Finished at:</strong> ${data.finished_at}</p>
                             <a href="/download-report/${jobId}" class="download-btn">Download Report</a>
+                            <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
                         `;
                     } else if (data.status === 'failed') {
                         result.className = 'result error';
@@ -625,7 +704,84 @@
                             <p><strong>Status:</strong> ${data.status}</p>
                             <p><strong>Progress:</strong> ${data.progress}%</p>
                             <button onclick="checkStatus('${jobId}')" class="upload-btn">Check Status</button>
+                            <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
                         `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+
+        async function queryJob() {
+
+            const jobId = document.getElementById('jobIdInput').value.trim();
+
+            if (!jobId) {
+                alert("Please enter a Job ID");
+                return;
+            }
+
+            // Verify CAPTCHA before upload
+            if (!captchaVerified) {
+                alert('Please complete the security verification first.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/job-status/${jobId}`);
+                const data = await response.json();
+
+                if (response.ok) {
+
+                    if (data.status === 'completed') {
+                        resultQuery.className = 'result-query success';
+                        resultQuery.innerHTML = `
+                            <h4>Processing Complete!</h4>
+                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Input Type:</strong> ${data.input_type}</p>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Finished at:</strong> ${data.finished_at}</p>
+                            <a href="/download-report/${jobId}" class="download-btn">Download Report</a>
+                        `;
+                        resultQuery.style.display = 'block';
+                    } else if (data.status === 'failed') {
+                        resultQuery.className = 'result-query error';
+                        resultQuery.innerHTML = `
+                            <h4>Processing Failed</h4>
+                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Error:</strong> ${data.error}</p>
+                            <p><strong>Errored at:</strong> ${data.finished_at}</p>
+                        `;
+                        resultQuery.style.display = 'block';
+                    } else {
+                        resultQuery.className = 'result-query success';
+                        resultQuery.innerHTML = `
+                            <h4>Processing in Progress</h4>
+                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Progress:</strong> ${data.progress}%</p>
+                        `;
+                        resultQuery.style.display = 'block';
+                    }
+                }
+                else{
+                    if (data.status === 'not_found') {
+                        resultQuery.className = 'result-query error';
+                        resultQuery.innerHTML = `
+                            <h4>Job Not Found</h4>
+                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p>The Job ID you entered was not found. Please check and try again.</p>
+                        `;
+                        resultQuery.style.display = 'block';
+                    } else {
+                        resultQuery.className = 'result-query error';
+                        resultQuery.innerHTML = `
+                            <h4>Error</h4>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Message:</strong> ${data.error || 'Something went wrong.'}</p>
+                        `;
+                        resultQuery.style.display = 'block';
                     }
                 }
             } catch (error) {
