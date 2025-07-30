@@ -231,7 +231,7 @@ def cleanup_expired_jobs():
 
     for job_id in to_delete_jobids:
         job_status_dict.pop(job_id, None)
-        logger.info(f"Job ID {job_id} have been detected at: {now}")
+        logger.info(f"Job ID {job_id} has been deleted at: {now}")
 
     threading.Timer(CLEANUP_JOB_SECONDS, cleanup_expired_jobs).start()
 
