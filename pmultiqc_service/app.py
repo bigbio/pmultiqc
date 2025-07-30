@@ -5,7 +5,6 @@ A Flask-based web service for generating PMultiQC reports from uploaded data fil
 """
 
 import os
-import tempfile
 import zipfile
 import shutil
 import uuid
