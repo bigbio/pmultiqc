@@ -248,7 +248,8 @@ def cleanup_job_files(job_id, now_time):
     except Exception as e:
         logger.error(f"Error cleaning files for job {job_id}: {e}")
 
-cleanup_expired_jobs()
+if __name__ == '__main__':
+    cleanup_expired_jobs()
 
 
 @app.route('/', methods=['GET'])
