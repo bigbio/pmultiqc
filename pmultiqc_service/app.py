@@ -5,21 +5,18 @@ A Flask-based web service for generating PMultiQC reports from uploaded data fil
 """
 
 import os
-import tempfile
 import zipfile
 import shutil
 import uuid
 import logging
 import threading
-import time
-from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
-from flask import Flask, request, jsonify, send_file, abort, render_template
+from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import multiqc
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,9 +40,32 @@ job_status_dict = {}
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'zip'}
 
+# Files with completion time exceeding 24 hours will be cleaned up.
+EXPIRATION_SECONDS = 24 * 3600
+CLEANUP_JOB_SECONDS = 3600
+
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def current_time():
+    now = int(time.time())
+    dt = datetime.fromtimestamp(now)
+    return now, dt.strftime("%Y-%m-%d %H:%M:%S")
+
+# List all files in the extracted directory
+def scan_files(upload_path):
+    files = []
+    file_paths = {}
+
+    for root, _, filenames in os.walk(upload_path):
+        for filename in filenames:
+            full_path = os.path.join(root, filename)
+            name_lower = filename.lower()
+            files.append(name_lower)
+            file_paths[name_lower] = full_path
+
+    return files, file_paths
 
 def detect_input_type(upload_path: str) -> str:
     """
@@ -55,39 +75,35 @@ def detect_input_type(upload_path: str) -> str:
         str: One of 'maxquant', 'diann', 'quantms', 'mzidentml', or 'unknown'
     """
     try:
-        # List all files in the extracted directory
-        files = []
-        for root, dirs, filenames in os.walk(upload_path):
-            for filename in filenames:
-                files.append(filename.lower())
-        
+        files, file_paths = scan_files(upload_path)
+
+        # Check for quantms files
+        quantms_files = ["_ms_info.parquet", ".mzTab"]
+        if "multiqc_config.yml" in files and any(any(substr in f for substr in quantms_files) for f in files):
+            return "quantms", file_paths["multiqc_config.yml"]
+
         # Check for MaxQuant files
         maxquant_files = ['evidence.txt', 'msms.txt', 'peptides.txt', 'proteinGroups.txt']
         if any(f in files for f in maxquant_files):
-            return 'maxquant'
+            return "maxquant", None
         
         # Check for DIANN files
         diann_files = ['report.tsv', 'report.parquet']
         if any(f in files for f in diann_files) or any('diann_report' in f for f in files):
-            return 'diann'
-        
-        # Check for quantms files
-        quantms_files = ['ms_info.parquet', 'out.mzTab']
-        if any(f in files for f in quantms_files) or any('ms_info.parquet' in f for f in files):
-            return 'quantms'
+            return "diann", None
         
         # Check for mzIdentML + mzML files
         mzid_files = ['.mzid', '.mzml']
         if any(any(f.endswith(ext) for ext in mzid_files) for f in files):
-            return 'mzidentml'
+            return "mzidentml", None
         
-        return 'unknown'
+        return "unknown", None
     
     except Exception as e:
         logger.error(f"Error detecting input type: {e}")
-        return 'unknown'
+        return "unknown", None
 
-def run_pmultiqc(input_path: str, output_path: str, input_type: str) -> Dict[str, Any]:
+def run_pmultiqc(input_path: str, output_path: str, input_type: str, pmultiqc_config: str) -> Dict[str, Any]:
     """
     Run PMultiQC on the input data and generate a report.
     
@@ -111,11 +127,10 @@ def run_pmultiqc(input_path: str, output_path: str, input_type: str) -> Dict[str
         # Add type-specific arguments
         if input_type == 'maxquant':
             args.extend(['--parse_maxquant'])
+        elif input_type == "quantms":
+            args.extend(["--config", pmultiqc_config])
         elif input_type == 'diann':
             # DIANN files are handled automatically by pmultiqc
-            pass
-        elif input_type == 'quantms':
-            # quantms files are handled automatically by pmultiqc
             pass
         elif input_type == 'mzidentml':
             args.extend(['--mzid_plugin'])
@@ -125,7 +140,6 @@ def run_pmultiqc(input_path: str, output_path: str, input_type: str) -> Dict[str
         
         # Run multiqc as a subprocess
         import subprocess
-        import sys
         
         try:
             # Run the multiqc command
@@ -198,6 +212,46 @@ def create_zip_report(output_path: str, zip_path: str) -> bool:
         logger.error(f"Error creating zip report: {e}")
         return False
 
+# Scheduled cleanup of the tmp folder
+def cleanup_expired_jobs():
+
+    now = current_time()[0]
+    to_delete_jobids = []
+
+    for job_id, info in job_status_dict.items():
+
+        finished_at_seconds = info.get('finished_at_seconds')
+
+        if finished_at_seconds is None:
+            continue
+
+        if now - finished_at_seconds > EXPIRATION_SECONDS:
+            cleanup_job_files(job_id, now)
+            to_delete_jobids.append(job_id)
+
+    for job_id in to_delete_jobids:
+        job_status_dict.pop(job_id, None)
+        logger.info(f"Job ID {job_id} has been deleted at: {now}")
+
+    threading.Timer(CLEANUP_JOB_SECONDS, cleanup_expired_jobs).start()
+
+def cleanup_job_files(job_id, now_time):
+    try:
+        upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
+        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], job_id)
+
+        for directory in [upload_dir, output_dir]:
+            if os.path.exists(directory):
+                shutil.rmtree(directory)
+                logger.info(f"Removed directory {directory} for job {job_id} at {now_time}")
+
+    except Exception as e:
+        logger.error(f"Error cleaning files for job {job_id}: {e}")
+
+if __name__ == '__main__':
+    cleanup_expired_jobs()
+
+
 @app.route('/', methods=['GET'])
 def index():
     """Main page with upload interface."""
@@ -211,6 +265,7 @@ def health_check():
         'timestamp': datetime.now().isoformat(),
         'service': 'pmultiqc-service'
     })
+
 
 @app.route('/generate-report', methods=['POST'])
 def generate_report():
@@ -257,7 +312,7 @@ def generate_report():
             zip_ref.extractall(extract_path)
         
         # Detect input type
-        input_type = detect_input_type(extract_path)
+        input_type, quantms_config = detect_input_type(extract_path)
         logger.info(f"Detected input type: {input_type}")
         
         if input_type == 'unknown':
@@ -266,7 +321,7 @@ def generate_report():
             }), 400
         
         # Run PMultiQC
-        result = run_pmultiqc(extract_path, output_dir, input_type)
+        result = run_pmultiqc(extract_path, output_dir, input_type, quantms_config)
         
         if not result['success']:
             return jsonify({
@@ -282,12 +337,22 @@ def generate_report():
             }), 500
         
         logger.info(f"Successfully completed job {job_id}")
+
+        job_status_dict[job_id] = {
+            'job_id': job_id,
+            'status': 'completed',
+            'input_type': input_type,
+            'finished_at_seconds': current_time()[0],
+            'finished_at': current_time()[1]
+        }
+
         return jsonify({
             'job_id': job_id,
             'status': 'completed',
             'input_type': input_type,
             'download_url': f'/download-report/{job_id}',
-            'message': 'Report generated successfully'
+            'message': 'Report generated successfully',
+            'finished_at': current_time()[1]
         })
         
     except Exception as e:
@@ -352,7 +417,7 @@ def upload_large_file():
             zip_ref.extractall(extract_path)
         
         # Detect input type
-        input_type = detect_input_type(extract_path)
+        input_type, quantms_config = detect_input_type(extract_path)
         logger.info(f"Detected input type: {input_type}")
         
         if input_type == 'unknown':
@@ -361,7 +426,7 @@ def upload_large_file():
             }), 400
         
         # Run PMultiQC
-        result = run_pmultiqc(extract_path, output_dir, input_type)
+        result = run_pmultiqc(extract_path, output_dir, input_type, quantms_config)
         
         if not result['success']:
             return jsonify({
@@ -377,30 +442,48 @@ def upload_large_file():
             }), 500
         
         logger.info(f"Successfully completed large file job {job_id}")
+        job_status_dict[job_id] = {
+            'job_id': job_id,
+            'status': 'completed',
+            'input_type': input_type,
+            'finished_at_seconds': current_time()[0],
+            'finished_at': current_time()[1]
+        }
+
         return jsonify({
             'job_id': job_id,
             'status': 'completed',
             'input_type': input_type,
             'download_url': f'/download-report/{job_id}',
             'message': 'Report generated successfully',
-            'file_size': file_size
-        })
+            'file_size': file_size,
+            'finished_at': current_time()[1]
+        }
+)
         
     except Exception as e:
         logger.error(f"Error in upload_large_file: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-def process_job_async(job_id: str, extract_path: str, output_dir: str, input_type: str):
+def process_job_async(job_id: str, extract_path: str, output_dir: str, input_type: str, quantms_config: str):
     """Process a job asynchronously in a separate thread."""
     try:
-        job_status_dict[job_id] = {'status': 'processing', 'progress': 0}
+        job_status_dict[job_id] = {
+            'status': 'processing',
+            'progress': 0,
+        }
         
         # Run PMultiQC
         logger.info(f"Starting async processing for job {job_id}")
-        result = run_pmultiqc(extract_path, output_dir, input_type)
+        result = run_pmultiqc(extract_path, output_dir, input_type, quantms_config)
         
         if not result['success']:
-            job_status_dict[job_id] = {'status': 'failed', 'error': result['message']}
+            job_status_dict[job_id] = {
+                'status': 'failed',
+                'error': result['message'],
+                'finished_at_seconds': current_time()[0],
+                'finished_at': current_time()[1]
+            }
             return
         
         job_status_dict[job_id] = {'status': 'creating_report', 'progress': 75}
@@ -408,15 +491,31 @@ def process_job_async(job_id: str, extract_path: str, output_dir: str, input_typ
         # Create zip report
         zip_report_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
         if not create_zip_report(output_dir, zip_report_path):
-            job_status_dict[job_id] = {'status': 'failed', 'error': 'Failed to create zip report'}
+            job_status_dict[job_id] = {
+                'status': 'failed',
+                'error': 'Failed to create zip report',
+                'finished_at_seconds': current_time()[0],
+                'finished_at': current_time()[1],
+            }
             return
         
-        job_status_dict[job_id] = {'status': 'completed', 'progress': 100}
+        job_status_dict[job_id] = {
+            'status': 'completed',
+            'progress': 100,
+            'input_type': input_type,
+            'finished_at_seconds': current_time()[0],
+            'finished_at': current_time()[1]
+        }
         logger.info(f"Successfully completed async job {job_id}")
         
     except Exception as e:
         logger.error(f"Error in async processing for job {job_id}: {e}")
-        job_status_dict[job_id] = {'status': 'failed', 'error': str(e)}
+        job_status_dict[job_id] = {
+            'status': 'failed',
+            'error': str(e),
+            'finished_at_seconds': current_time()[0],
+            'finished_at': current_time()[1]
+        }
 
 @app.route('/upload-async', methods=['POST'])
 def upload_async():
@@ -479,11 +578,16 @@ def upload_async():
             zip_ref.extractall(extract_path)
         
         # Detect input type
-        input_type = detect_input_type(extract_path)
+        input_type, quantms_config = detect_input_type(extract_path)
         logger.info(f"Detected input type: {input_type}")
         
         if input_type == 'unknown':
-            job_status_dict[job_id] = {'status': 'failed', 'error': 'Could not detect input type'}
+            job_status_dict[job_id] = {
+                'status': 'failed',
+                'error': 'Could not detect input type',
+                'finished_at_seconds': current_time()[0],
+                'finished_at': current_time()[1]
+            }
             return jsonify({
                 'error': 'Could not detect input type. Please ensure your ZIP file contains valid data files.'
             }), 400
@@ -492,7 +596,7 @@ def upload_async():
         job_status_dict[job_id] = {'status': 'queued', 'progress': 50}
         thread = threading.Thread(
             target=process_job_async,
-            args=(job_id, extract_path, output_dir, input_type)
+            args=(job_id, extract_path, output_dir, input_type, quantms_config)
         )
         thread.daemon = True
         thread.start()
@@ -586,7 +690,7 @@ def job_status(job_id):
     except Exception as e:
         logger.error(f"Error in job_status: {e}")
         return jsonify({'error': 'Internal server error'}), 500
-
+    
 @app.route('/cleanup/<job_id>', methods=['DELETE'])
 def cleanup_job(job_id):
     """

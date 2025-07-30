@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     libcurl4-openssl-dev \
     libssl-dev \
     libffi-dev \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install wheel
@@ -39,4 +40,4 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 
 # Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "3600", "--max-requests", "1000", "--max-requests-jitter", "100", "--keep-alive", "5", "app:app"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "3600", "--max-requests", "1000", "--max-requests-jitter", "100", "--keep-alive", "5", "app:app"]
