@@ -23,6 +23,41 @@
             text-align: center;
             margin-bottom: 30px;
         }
+        
+        /* Wizard Steps */
+        .wizard-step {
+            display: none;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background-color: #f8f9fa;
+        }
+        .wizard-step.active {
+            display: block;
+            border-color: #007bff;
+            background-color: #f0f8ff;
+        }
+        .wizard-step h3 {
+            margin-top: 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        .step-number {
+            background-color: #007bff;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        
+        /* File Upload Section */
         .upload-section {
             border: 2px dashed #ccc;
             padding: 40px;
@@ -58,6 +93,18 @@
             background-color: #6c757d;
             cursor: not-allowed;
         }
+        .upload-btn.large {
+            background-color: #dc3545;
+        }
+        .upload-btn.large:hover {
+            background-color: #c82333;
+        }
+        .upload-btn.async {
+            background-color: #fd7e14;
+        }
+        .upload-btn.async:hover {
+            background-color: #e8690b;
+        }
         .file-info {
             margin-top: 20px;
             padding: 15px;
@@ -65,8 +112,10 @@
             border-radius: 5px;
             display: none;
         }
+        
+        /* Progress Bar */
         .progress {
-            margin-top: 20px;
+            margin: 20px 0;
             display: none;
         }
         .progress-bar {
@@ -82,6 +131,8 @@
             width: 0%;
             transition: width 0.3s;
         }
+        
+        /* Results */
         .result {
             margin-top: 20px;
             padding: 15px;
@@ -112,27 +163,27 @@
         .download-btn:hover {
             background-color: #218838;
         }
-        .supported-formats {
-            margin-top: 30px;
-            padding: 20px;
-            background-color: #f8f9fa;
+        
+        /* Return to Home Button */
+        .return-home-btn {
+            background-color: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border: none;
             border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 10px;
+            margin-left: 10px;
+            font-size: 16px;
+            font-weight: 500;
         }
-        .supported-formats h3 {
-            margin-top: 0;
-            color: #333;
+        .return-home-btn:hover {
+            background-color: #5a6268;
         }
-        .format-list {
-            list-style: none;
-            padding: 0;
-        }
-        .format-list li {
-            padding: 5px 0;
-            border-bottom: 1px solid #dee2e6;
-        }
-        .format-list li:last-child {
-            border-bottom: none;
-        }
+        
+        /* CAPTCHA Section */
         .captcha-section {
             margin: 20px 0;
             padding: 20px;
@@ -192,6 +243,45 @@
         .captcha-status.error {
             color: #dc3545;
         }
+        
+        /* Alternative Options */
+        .alternative-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .option-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background-color: #f8f9fa;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .option-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+        }
+        .option-header {
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+            background-color: #ffffff;
+            border-radius: 8px 8px 0 0;
+        }
+        .option-header h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        .option-header p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .option-content {
+            padding: 20px;
+        }
+        
+        /* Job ID Query */
         .job-id-query {
             border: 2px dashed #ccc;
             padding: 20px;
@@ -204,13 +294,15 @@
             border-color: #007bff;
         }
         .jobid-input {
-            padding: 10px 30px;
+            padding: 10px 15px;
             font-size: 16px;
             border: 1px solid #ced4da;
             border-radius: 6px;
-            width: 350px;
+            width: calc(100% - 30px);
             text-align: center;
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 15px;
+            box-sizing: border-box;
         }
         .jobid-input:focus {
             outline: none;
@@ -226,9 +318,10 @@
             cursor: pointer;
             font-size: 16px;
             font-weight: 500;
-            margin-left: 10px;
+            width: calc(100% - 30px);
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
         }
         .jobidinput-btn:hover {
             background-color: #5a6268;
@@ -250,97 +343,622 @@
             border: 1px solid #f5c6cb;
             color: #721c24;
         }
+        
+        /* Processing Options */
+        .processing-options {
+            text-align: center;
+        }
+        .processing-options h4 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .option-description {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .processing-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .processing-section h5 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        /* PRIDE Input */
+        .pride-input-section {
+            margin-bottom: 15px;
+        }
+        .pride-input {
+            width: calc(100% - 30px);
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            box-sizing: border-box;
+        }
+        .pride-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .upload-btn.pride {
+            background-color: #6f42c1;
+            width: calc(100% - 30px);
+            box-sizing: border-box;
+        }
+        .upload-btn.pride:hover {
+            background-color: #5a32a3;
+        }
+        
+        /* Job ID Display */
+        .job-id-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .job-id-text {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .copy-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.3s;
+        }
+        .copy-btn:hover {
+            background-color: #5a6268;
+        }
+        .copy-btn:active {
+            background-color: #495057;
+        }
+        .copy-success {
+            background-color: #28a745 !important;
+        }
+        
+
+        
+        /* Documentation and Tooltips */
+        .documentation-section {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+        }
+        .documentation-section h5 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+        .documentation-section h5::before {
+            content: "ℹ️";
+            margin-right: 8px;
+            font-size: 16px;
+        }
+        .documentation-section p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #424242;
+            line-height: 1.4;
+        }
+        .documentation-section ul {
+            margin: 5px 0;
+            padding-left: 20px;
+            font-size: 13px;
+            color: #424242;
+        }
+        .documentation-section li {
+            margin: 3px 0;
+        }
+        
+        /* Tooltip styles */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip-icon {
+            cursor: help;
+            color: #007bff;
+            font-size: 16px;
+            margin-left: 5px;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            width: 300px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            line-height: 1.4;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Security explanation */
+        .security-explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #fff3cd;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+        .security-explanation h5 {
+            margin: 0 0 10px 0;
+            color: #856404;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+        .security-explanation h5::before {
+            content: "🔒";
+            margin-right: 8px;
+            font-size: 16px;
+        }
+        .security-explanation p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #856404;
+            line-height: 1.4;
+        }
+        
+        /* Elegant Help System */
+        .help-toggle {
+            background: none;
+            border: none;
+            color: #007bff;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .help-toggle:hover {
+            background-color: #f8f9fa;
+            color: #0056b3;
+        }
+        .help-toggle::before {
+            content: "❓";
+            font-size: 12px;
+        }
+        .help-toggle.expanded::before {
+            content: "❌";
+        }
+        
+        .help-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+        .help-content.expanded {
+            max-height: 500px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .help-content h6 {
+            margin: 0 0 8px 0;
+            color: #495057;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .help-content p {
+            margin: 4px 0;
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+        .help-content ul {
+            margin: 4px 0;
+            padding-left: 15px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .help-content li {
+            margin: 2px 0;
+        }
+        
+        /* Inline help icons */
+        .inline-help {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #6c757d;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+        .inline-help::before {
+            content: "💡";
+            font-size: 10px;
+        }
+        
+        /* Compact info badges */
+        .info-badge {
+            display: inline-block;
+            background-color: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            margin: 2px;
+        }
+        
+        /* Responsive design for mobile */
+        @media (max-width: 768px) {
+            .alternative-options {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            .option-card {
+                margin-bottom: 15px;
+            }
+            .pride-input-section {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .pride-input {
+                width: 100%;
+            }
+            .tooltip-text {
+                width: 250px;
+                margin-left: -125px;
+            }
+            .help-content.expanded {
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>PMultiQC Service</h1>
+        <h1>pmultiqc report generator</h1>
         
-        <div class="upload-section" id="uploadSection">
-            <h3>Upload your data file</h3>
-            <p>Drag and drop a ZIP file here or click to browse</p>
-            <input type="file" id="fileInput" class="file-input" accept=".zip">
-            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                Choose File
-            </button>
-            <button class="upload-btn" id="uploadBtn" onclick="uploadFile()" disabled>
-                Generate Report
-            </button>
-            <button class="upload-btn" id="uploadLargeBtn" onclick="uploadLargeFile()" disabled style="background-color: #dc3545;">
-                Upload Large File (>500MB)
-            </button>
-            <button class="upload-btn" id="uploadAsyncBtn" onclick="uploadAsync()" disabled style="background-color: #fd7e14;">
-                Upload & Process Async (>1GB)
-            </button>
-        </div>
-        
-        <div class="captcha-section" id="captchaSection">
-            <h4>Security Verification</h4>
-            <p>Please solve this simple math problem to verify you're human:</p>
-            <div class="captcha-problem" id="captchaProblem"></div>
-            <input type="number" id="captchaInput" class="captcha-input" placeholder="Answer" min="0">
-            <button class="captcha-btn" onclick="verifyCaptcha()">Verify</button>
-            <button class="captcha-btn" onclick="generateCaptcha()" style="background-color: #17a2b8;">New Problem</button>
-            <div class="captcha-status" id="captchaStatus"></div>
-        </div>
-        
-        <div class="file-info" id="fileInfo"></div>
-        
-        <div class="progress" id="progress">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
+        <!-- Step 1: Choose Method -->
+        <div class="wizard-step active" id="step1">
+            <h3>
+                <span class="step-number">1</span>
+                Choose Your Method
+            </h3>
+            
+            <!-- File Upload Option -->
+            <div class="upload-section" id="uploadSection">
+                <h4>📁 Upload Local Files</h4>
+                <p>Drag and drop a ZIP file here or click to browse</p>
+                <input type="file" id="fileInput" class="file-input" accept=".zip">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Choose File
+                </button>
+                <div class="file-info" id="fileInfo"></div>
+                
+                <!-- Elegant help for file upload -->
+                <button class="help-toggle" onclick="toggleHelp('fileHelp')">Need help with file formats?</button>
+                <div class="help-content" id="fileHelp">
+                    <h6>📁 Supported File Formats</h6>
+                    <p><strong>Upload a ZIP file containing your proteomics data:</strong></p>
+                    <ul>
+                        <li><strong>MaxQuant:</strong> evidence.txt, msms.txt, peptides.txt, proteinGroups.txt</li>
+                        <li><strong>DIANN:</strong> report.tsv, report.parquet</li>
+                        <li><strong>quantms:</strong> ms_info.parquet, out.mzTab, multiqc_config.yml</li>
+                        <li><strong>mzIdentML + mzML:</strong> .mzid and .mzML files</li>
+                    </ul>
+                    <p><em>All files should be packaged in a ZIP archive. Maximum file size: 2GB.</em></p>
+                </div>
             </div>
-            <p id="progressText">Processing...</p>
+            
+            <!-- Alternative Options -->
+            <div class="alternative-options">
+                <div class="option-card" id="prideCard">
+                    <div class="option-header">
+                        <h3>🌐 Process from PRIDE</h3>
+                        <p>Process dataset from PRIDE database</p>
+                    </div>
+                    <div class="option-content" id="prideContent">
+                        <div class="pride-input-section">
+                            <input type="text" id="prideAccession" class="pride-input" placeholder="Enter PRIDE accession (e.g., PXD039077)">
+                        </div>
+                        <button class="upload-btn pride" id="processPrideBtn" onclick="processPride()">
+                            Process from PRIDE
+                        </button>
+                        <div class="option-description">
+                            Download and process search engine output files directly from PRIDE database.
+                        </div>
+                        
+                        <!-- Elegant help for PRIDE processing -->
+                        <button class="help-toggle" onclick="toggleHelp('prideHelp')">How does PRIDE processing work?</button>
+                        <div class="help-content" id="prideHelp">
+                            <h6>🌐 PRIDE Processing Workflow</h6>
+                            <p><strong>Enter a PRIDE accession number (e.g., PXD039077):</strong></p>
+                            <ul>
+                                <li>Automatically downloads search engine output files from PRIDE</li>
+                                <li>Filters for relevant files (evidence, peptides, protein groups)</li>
+                                <li>Detects the input type automatically</li>
+                                <li>Processes files using PMultiQC</li>
+                            </ul>
+                            <p><strong>✅ Working Examples:</strong></p>
+                            <ul>
+                                <li><strong>PXD003133:</strong> MaxQuant dataset (evidence.txt, proteinGroups.txt)</li>
+                                <li><strong>PXD056717:</strong> DIANN dataset (report.tsv)</li>
+                            </ul>
+                            <p><em>Only publicly available datasets can be processed.</em></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="option-card" id="queryCard">
+                    <div class="option-header">
+                        <h3>📋 View Your Tasks</h3>
+                        <p>Check the status of your previous jobs</p>
+                    </div>
+                    <div class="option-content" id="queryContent">
+                        <input type="text" id="jobIdInput" class="jobid-input" placeholder="Job ID">
+                        <button class="jobidinput-btn" id="jobidinputBtn" onclick="queryJob()">Query</button>
+                        <p><em>Note: Data is stored for 24 hours.</em></p>
+                        <div id="jobStatus" style="margin-top: 1em;"></div>
+                        
+                        <!-- Elegant help for job query -->
+                        <button class="help-toggle" onclick="toggleHelp('jobHelp')">How to check job status?</button>
+                        <div class="help-content" id="jobHelp">
+                            <h6>📋 Job Status Tracking</h6>
+                            <p><strong>Enter your Job ID to check processing status:</strong></p>
+                            <ul>
+                                <li>Job IDs are provided after starting a task</li>
+                                <li>Check progress and download results when complete</li>
+                                <li>Jobs are automatically cleaned up after 24 hours</li>
+                                <li>Keep your Job ID safe to retrieve results</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         
-        <div class="result" id="result"></div>
-
-        <div class="job-id-query" id="jobIdQuery">
-            <h3>View Your Tasks</h3>
-            <p>Please enter the Job ID of your task to query:</p>
-            <input type="text" id="jobIdInput" class="jobid-input" placeholder="Job ID">
-            <button  class="jobidinput-btn" id="jobidinputBtn" onclick="queryJob()">Query</button>
-            <p><em>Note: Data is stored for 24 hours.</em></p>
-            <div id="jobStatus" style="margin-top: 1em;"></div>
+        <!-- Step 2: Security Verification (for file uploads) -->
+        <div class="wizard-step" id="step2">
+            <h3>
+                <span class="step-number">2</span>
+                Security Verification
+            </h3>
+            <div class="captcha-section" id="captchaSection">
+                <h4>Please solve this simple math problem to verify you're human:</h4>
+                <div class="captcha-problem" id="captchaProblem"></div>
+                <input type="number" id="captchaInput" class="captcha-input" placeholder="Answer" min="0">
+                <button class="captcha-btn" onclick="verifyCaptcha()">Verify</button>
+                <button class="captcha-btn" onclick="generateCaptcha()" style="background-color: #17a2b8;">New Problem</button>
+                <div class="captcha-status" id="captchaStatus"></div>
+                
+                <!-- Elegant security explanation -->
+                <button class="help-toggle" onclick="toggleHelp('securityHelp')">Why do we need verification?</button>
+                <div class="help-content" id="securityHelp">
+                    <h6>🔒 Security Verification</h6>
+                    <p><strong>This verification helps protect our service from automated abuse:</strong></p>
+                    <ul>
+                        <li>Prevents automated bots from overwhelming our servers</li>
+                        <li>Ensures fair access for all users</li>
+                        <li>Protects against spam and malicious uploads</li>
+                        <li>Simple math problem that humans can solve easily</li>
+                    </ul>
+                </div>
+            </div>
         </div>
-
-        <div class="result-query" id="resultQuery"></div>
         
-        <div class="supported-formats">
-            <h3>Supported Input Formats</h3>
-            <ul class="format-list">
-                <li><strong>MaxQuant:</strong> evidence.txt, msms.txt, peptides.txt, proteinGroups.txt</li>
-                <li><strong>DIANN:</strong> report.tsv, report.parquet</li>
-                <li><strong>quantms:</strong> ms_info.parquet, out.mzTab, multiqc_config.yml</li>
-                <li><strong>mzIdentML + mzML:</strong> .mzid and .mzML files</li>
-            </ul>
-            <p><em>All files should be packaged in a ZIP archive.</em></p>
+        <!-- Step 3: Processing Method (for file uploads) -->
+        <div class="wizard-step" id="step3">
+            <h3>
+                <span class="step-number">3</span>
+                Choose Processing Method
+            </h3>
+            <div class="processing-options" id="processingOptions">
+                <h4>Select how you want to process your data:</h4>
+                
+                <div class="processing-section">
+                    <h5>📁 Upload Local Files</h5>
+                    <button class="upload-btn large" id="uploadLargeBtn" onclick="uploadLargeFile()">
+                        Upload Large File (>500MB)
+                    </button>
+                    <div class="option-description">
+                        Recommended for files between 500MB and 1GB. Processes immediately.
+                    </div>
+                    
+                    <button class="upload-btn async" id="uploadAsyncBtn" onclick="uploadAsync()">
+                        Upload & Process Async (>1GB)
+                    </button>
+                    <div class="option-description">
+                        Recommended for files larger than 1GB. Background processing with status updates.
+                    </div>
+                    
+                    <!-- Elegant help for processing methods -->
+                    <button class="help-toggle" onclick="toggleHelp('processingHelp')">Which method should I choose?</button>
+                    <div class="help-content" id="processingHelp">
+                        <h6>⚙️ Processing Methods Explained</h6>
+                        <p><strong>Choose based on your file size:</strong></p>
+                        <ul>
+                            <li><strong>Large File (>500MB):</strong> Immediate processing, best for files under 1GB</li>
+                            <li><strong>Async Processing (>1GB):</strong> Background processing with progress tracking</li>
+                            <li>Both methods support the same file formats</li>
+                            <li>Results are available for 24 hours after completion</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
+        
+        <!-- Step 4: Progress -->
+        <div class="wizard-step" id="step4">
+            <h3>
+                <span class="step-number">4</span>
+                Processing
+            </h3>
+            <div class="progress" id="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p id="progressText">Processing...</p>
+            </div>
+        </div>
+        
+        <!-- Step 5: Results -->
+        <div class="wizard-step" id="step5">
+            <h3>
+                <span class="step-number">5</span>
+                Results
+            </h3>
+            <div class="progress" id="progressStep5" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFillStep5"></div>
+                </div>
+                <p id="progressTextStep5">Processing...</p>
+            </div>
+            <div class="result" id="result"></div>
+            <div class="result-query" id="resultQuery"></div>
+        </div>
+        
+
     </div>
 
     <script>
-        const uploadSection = document.getElementById('uploadSection');
+        // URL detection system for different deployment environments
+        let mode = 'dev';
+        let baseApiURL = '';
+        
+        // Detect deployment mode based on current URL
+        if (location.href.match(/wwwdev\.ebi\.ac\.uk\/pride/)) {
+            mode = 'prodev';
+        } else if (location.href.match(/www\.ebi\.ac\.uk\/pride/)) {
+            mode = 'prod';
+        } else {
+            mode = 'dev';
+        }
+        
+        // Set base API URL based on mode
+        if (mode === 'prod' || mode === 'prodev') {
+            // In production, use the current path as base
+            const currentPath = window.location.pathname;
+            // Remove the trailing slash and filename if present
+            baseApiURL = currentPath.replace(/\/[^\/]*$/, '');
+            if (!baseApiURL.endsWith('/')) {
+                baseApiURL += '/';
+            }
+        } else {
+            // In development, use root
+            baseApiURL = '/';
+        }
+        
+        console.log('Deployment mode:', mode);
+        console.log('Base API URL:', baseApiURL);
+        
+        // Helper function to build API URLs
+        function buildApiUrl(endpoint) {
+            return baseApiURL + endpoint.replace(/^\//, '');
+        }
+
+        // Wizard state
+        let currentStep = 1;
+        let selectedMethod = null; // 'file', 'pride', 'query'
+        let fileSelected = false;
+        let captchaVerified = false;
+        
+        // CAPTCHA variables
+        let captchaAnswer = 0;
+        
+        // DOM elements
         const fileInput = document.getElementById('fileInput');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const uploadLargeBtn = document.getElementById('uploadLargeBtn');
-        const uploadAsyncBtn = document.getElementById('uploadAsyncBtn');
         const fileInfo = document.getElementById('fileInfo');
         const progress = document.getElementById('progress');
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
         const result = document.getElementById('result');
         const resultQuery = document.getElementById('resultQuery');
-        
-        // CAPTCHA variables
-        const captchaSection = document.getElementById('captchaSection');
+        const uploadLargeBtn = document.getElementById('uploadLargeBtn');
+        const uploadAsyncBtn = document.getElementById('uploadAsyncBtn');
+        const prideAccession = document.getElementById('prideAccession');
+        const processPrideBtn = document.getElementById('processPrideBtn');
         const captchaProblem = document.getElementById('captchaProblem');
         const captchaInput = document.getElementById('captchaInput');
         const captchaStatus = document.getElementById('captchaStatus');
-        let captchaAnswer = 0;
-        let captchaVerified = false;
 
         // Initialize CAPTCHA on page load
         generateCaptcha();
+
+        // Wizard navigation functions
+        function showStep(stepNumber) {
+            // Hide all steps
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`step${i}`).classList.remove('active');
+            }
+            // Show current step
+            document.getElementById(`step${stepNumber}`).classList.add('active');
+            currentStep = stepNumber;
+        }
+
+        function nextStep() {
+            showStep(currentStep + 1);
+        }
+
+        function goToStep(stepNumber) {
+            showStep(stepNumber);
+        }
+
+        // Method selection functions
+        function selectFile() {
+            selectedMethod = 'file';
+            fileSelected = true;
+            nextStep();
+        }
+
+        function selectPride() {
+            selectedMethod = 'pride';
+            // Don't jump to progress step - stay on current step to allow accession input
+        }
+
+
 
         // CAPTCHA functions
         function generateCaptcha() {
@@ -373,7 +991,6 @@
             captchaStatus.textContent = '';
             captchaStatus.className = 'captcha-status';
             captchaVerified = false;
-            updateUploadButtons();
         }
 
         function verifyCaptcha() {
@@ -389,24 +1006,14 @@
                 captchaStatus.textContent = '✓ Verification successful!';
                 captchaStatus.className = 'captcha-status success';
                 captchaVerified = true;
-                updateUploadButtons();
+                nextStep();
             } else {
                 captchaStatus.textContent = '✗ Incorrect answer. Please try again.';
                 captchaStatus.className = 'captcha-status error';
                 captchaVerified = false;
-                updateUploadButtons();
                 // Generate new CAPTCHA after wrong answer
                 setTimeout(generateCaptcha, 2000);
             }
-        }
-
-        function updateUploadButtons() {
-            const fileSelected = fileInput.files.length > 0;
-            const canUpload = fileSelected && captchaVerified;
-            
-            uploadBtn.disabled = !canUpload;
-            uploadLargeBtn.disabled = !canUpload;
-            uploadAsyncBtn.disabled = !canUpload;
         }
 
         // Allow Enter key to submit CAPTCHA
@@ -416,6 +1023,9 @@
             }
         });
 
+        // File handling
+        const uploadSection = document.getElementById('uploadSection');
+        
         // Drag and drop functionality
         uploadSection.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -447,97 +1057,19 @@
                     fileInfo.innerHTML = `
                         <strong>Selected file:</strong> ${file.name}<br>
                         <strong>Size:</strong> ${fileSizeMB.toFixed(2)} MB
+                        <br><br>
+                        <button class="upload-btn" onclick="selectFile()">Continue with this file</button>
                     `;
-                    
-                    // Show recommendations
-                    if (fileSizeMB > 1000) {
-                        fileInfo.innerHTML += '<br><strong>Recommendation:</strong> Use "Upload & Process Async" for files > 1GB';
-                    } else if (fileSizeMB > 500) {
-                        fileInfo.innerHTML += '<br><strong>Recommendation:</strong> Use "Upload Large File" for files > 500MB';
-                    }
-                    
-                    // Update upload buttons (will be enabled only if CAPTCHA is verified)
-                    updateUploadButtons();
+                    fileSelected = true;
                 } else {
                     fileInfo.style.display = 'block';
                     fileInfo.innerHTML = '<strong>Error:</strong> Please select a ZIP file.';
-                    updateUploadButtons();
+                    fileSelected = false;
                 }
             }
         }
 
-        async function uploadFile() {
-            const file = fileInput.files[0];
-            if (!file) return;
-            
-            // Verify CAPTCHA before upload
-            if (!captchaVerified) {
-                alert('Please complete the security verification first.');
-                return;
-            }
-
-            // Show progress
-            progress.style.display = 'block';
-            progressFill.style.width = '0%';
-            progressText.textContent = 'Uploading file...';
-            result.style.display = 'none';
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                // Simulate progress
-                const progressInterval = setInterval(() => {
-                    const currentWidth = parseInt(progressFill.style.width) || 0;
-                    if (currentWidth < 90) {
-                        progressFill.style.width = (currentWidth + 10) + '%';
-                    }
-                }, 500);
-
-                const response = await fetch('/generate-report', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                clearInterval(progressInterval);
-                progressFill.style.width = '100%';
-                progressText.textContent = 'Complete!';
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    result.className = 'result success';
-                    result.innerHTML = `
-                        <h4>Report Generated Successfully!</h4>
-                        <p><strong>Job ID:</strong> ${data.job_id}</p>
-                        <p><strong>Input Type:</strong> ${data.input_type}</p>
-                        <p><strong>Status:</strong> ${data.status}</p>
-                        <p><strong>Finished at:</strong> ${data.finished_at}</p>
-                        <a href="${data.download_url}" class="download-btn">Download Report</a>
-                        <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
-                    `;
-                } else {
-                    result.className = 'result error';
-                    result.innerHTML = `
-                        <h4>Error</h4>
-                        <p>${data.error}</p>
-                    `;
-                }
-
-                result.style.display = 'block';
-
-            } catch (error) {
-                progressFill.style.width = '100%';
-                progressText.textContent = 'Error occurred';
-                result.className = 'result error';
-                result.innerHTML = `
-                    <h4>Error</h4>
-                    <p>Failed to upload file: ${error.message}</p>
-                `;
-                result.style.display = 'block';
-            }
-        }
-
+        // Processing functions
         async function uploadLargeFile() {
             const file = fileInput.files[0];
             if (!file) return;
@@ -549,6 +1081,7 @@
             }
 
             // Show progress
+            showStep(4);
             progress.style.display = 'block';
             progressFill.style.width = '0%';
             progressText.textContent = 'Uploading large file...';
@@ -558,40 +1091,71 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('/upload-large', {
-                    method: 'POST',
-                    body: formData
+                // Use XMLHttpRequest for progress tracking
+                const xhr = new XMLHttpRequest();
+                
+                // Track upload progress
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressFill.style.width = percentComplete + '%';
+                        progressText.textContent = `Uploading: ${percentComplete.toFixed(1)}%`;
+                    }
                 });
-
-                progressFill.style.width = '100%';
-                progressText.textContent = 'Complete!';
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    result.className = 'result success';
-                    result.innerHTML = `
-                        <h4>Large File Report Generated Successfully!</h4>
-                        <p><strong>Job ID:</strong> ${data.job_id}</p>
-                        <p><strong>Input Type:</strong> ${data.input_type}</p>
-                        <p><strong>File Size:</strong> ${(data.file_size / 1024 / 1024).toFixed(2)} MB</p>
-                        <p><strong>Status:</strong> ${data.status}</p>
-                        <p><strong>Finished at:</strong> ${data.finished_at}</p>
-                        <a href="${data.download_url}" class="download-btn">Download Report</a>
-                        <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
-                    `;
-                } else {
+                
+                // Handle upload completion
+                xhr.addEventListener('load', function() {
+                    progressFill.style.width = '100%';
+                    progressText.textContent = 'Processing...';
+                    
+                    if (xhr.status === 200) {
+                        const data = JSON.parse(xhr.responseText);
+                        showStep(5);
+                        result.className = 'result success';
+                        result.innerHTML = `
+                            <h4>Large File Report Generated Successfully!</h4>
+                            <p><strong>Job ID:</strong></p>
+                            ${createJobIdElement(data.job_id)}
+                            <p><strong>Input Type:</strong> ${data.input_type}</p>
+                            <p><strong>File Size:</strong> ${(data.file_size / 1024 / 1024).toFixed(2)} MB</p>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Finished at:</strong> ${data.finished_at}</p>
+                            <a href="${buildApiUrl('download-report/' + data.job_id)}" class="download-btn">Download Report</a>
+                            <button class="return-home-btn" onclick="returnToHome()">Return to Home</button>
+                            <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
+                        `;
+                    } else {
+                        const data = JSON.parse(xhr.responseText);
+                        showStep(5);
+                        result.className = 'result error';
+                        result.innerHTML = `
+                            <h4>Error</h4>
+                            <p>${data.error}</p>
+                            <p><strong>Errored at:</strong> ${data.finished_at}</p>
+                        `;
+                    }
+                    result.style.display = 'block';
+                });
+                
+                // Handle upload errors
+                xhr.addEventListener('error', function() {
+                    showStep(5);
+                    progressFill.style.width = '100%';
+                    progressText.textContent = 'Error occurred';
                     result.className = 'result error';
                     result.innerHTML = `
                         <h4>Error</h4>
-                        <p>${data.error}</p>
-                        <p><strong>Errored at:</strong> ${data.finished_at}</p>
+                        <p>Failed to upload large file. Please check your connection and try again.</p>
                     `;
-                }
-
-                result.style.display = 'block';
+                    result.style.display = 'block';
+                });
+                
+                // Open and send the request
+                xhr.open('POST', buildApiUrl('upload-large'));
+                xhr.send(formData);
 
             } catch (error) {
+                showStep(5);
                 progressFill.style.width = '100%';
                 progressText.textContent = 'Error occurred';
                 result.className = 'result error';
@@ -614,6 +1178,7 @@
             }
 
             // Show progress
+            showStep(4);
             progress.style.display = 'block';
             progressFill.style.width = '0%';
             progressText.textContent = 'Uploading file for async processing...';
@@ -623,43 +1188,75 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('/upload-async', {
-                    method: 'POST',
-                    body: formData
+                // Use XMLHttpRequest for progress tracking
+                const xhr = new XMLHttpRequest();
+                
+                // Track upload progress
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressFill.style.width = percentComplete + '%';
+                        progressText.textContent = `Uploading: ${percentComplete.toFixed(1)}%`;
+                    }
                 });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    progressFill.style.width = '50%';
-                    progressText.textContent = 'File uploaded. Processing in background...';
+                
+                // Handle upload completion
+                xhr.addEventListener('load', function() {
+                    progressFill.style.width = '100%';
+                    progressText.textContent = 'Processing in background...';
                     
-                    result.className = 'result success';
-                    result.innerHTML = `
-                        <h4>Async Processing Started!</h4>
-                        <p><strong>Job ID:</strong> ${data.job_id}</p>
-                        <p><strong>File Size:</strong> ${(data.file_size / 1024 / 1024).toFixed(2)} MB</p>
-                        <p><strong>Status:</strong> ${data.status}</p>
-                        <p>Processing will continue in the background. Check status below:</p>
-                        <button onclick="checkStatus('${data.job_id}')" class="upload-btn">Check Status</button>
-                        <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
-                    `;
-                    result.style.display = 'block';
+                    if (xhr.status === 200) {
+                        const data = JSON.parse(xhr.responseText);
+                        showStep(5);
+                        result.className = 'result success';
+                        result.innerHTML = `
+                            <h4>Async Processing Started!</h4>
+                            <p><strong>Job ID:</strong></p>
+                            ${createJobIdElement(data.job_id)}
+                            <p><strong>File Size:</strong> ${(data.file_size / 1024 / 1024).toFixed(2)} MB</p>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p>Processing will continue in the background. Check status below:</p>
+                            <button onclick="checkStatus('${data.job_id}')" class="upload-btn">Check Status</button>
+                            <button class="return-home-btn" onclick="returnToHome()">Return to Home</button>
+                            <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
+                        `;
+                        result.style.display = 'block';
 
-                    // Start polling for status
-                    pollStatus(data.job_id);
-                } else {
+                        // Start polling for status
+                        pollStatus(data.job_id);
+                    } else {
+                        const data = JSON.parse(xhr.responseText);
+                        showStep(5);
+                        progressFill.style.width = '100%';
+                        progressText.textContent = 'Error occurred';
+                        result.className = 'result error';
+                        result.innerHTML = `
+                            <h4>Error</h4>
+                            <p>${data.error}</p>
+                        `;
+                        result.style.display = 'block';
+                    }
+                });
+                
+                // Handle upload errors
+                xhr.addEventListener('error', function() {
+                    showStep(5);
                     progressFill.style.width = '100%';
                     progressText.textContent = 'Error occurred';
                     result.className = 'result error';
                     result.innerHTML = `
                         <h4>Error</h4>
-                        <p>${data.error}</p>
+                        <p>Failed to start async processing. Please check your connection and try again.</p>
                     `;
                     result.style.display = 'block';
-                }
+                });
+                
+                // Open and send the request
+                xhr.open('POST', buildApiUrl('upload-async'));
+                xhr.send(formData);
 
             } catch (error) {
+                showStep(5);
                 progressFill.style.width = '100%';
                 progressText.textContent = 'Error occurred';
                 result.className = 'result error';
@@ -673,34 +1270,74 @@
 
         async function checkStatus(jobId) {
             try {
-                const response = await fetch(`/job-status/${jobId}`);
+                const response = await fetch(buildApiUrl(`job-status/${jobId}`));
                 const data = await response.json();
                 
                 if (response.ok) {
                     progressFill.style.width = data.progress + '%';
                     progressText.textContent = `Status: ${data.status} (${data.progress}%)`;
                     
-                    if (data.status === 'completed') {
-                        result.innerHTML = `
-                            <h4>Processing Complete!</h4>
-                            <p><strong>Job ID:</strong> ${jobId}</p>
-                            <p><strong>Input Type:</strong> ${data.input_type}</p>
-                            <p><strong>Status:</strong> ${data.status}</p>
-                            <p><strong>Finished at:</strong> ${data.finished_at}</p>
-                            <a href="/download-report/${jobId}" class="download-btn">Download Report</a>
-                            <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
-                        `;
+                                            if (data.status === 'completed') {
+                            let resultHtml = `
+                                <h4>Processing Complete!</h4>
+                                <p><strong>Job ID:</strong></p>
+                                ${createJobIdElement(jobId)}
+                                <p><strong>Input Type:</strong> ${data.input_type}</p>
+                                ${data.accession ? `<p><strong>PRIDE Accession:</strong> ${data.accession}</p>` : ''}
+                                ${data.files_processed ? `<p><strong>Files Processed:</strong> ${data.files_processed}/${data.total_files}</p>` : ''}
+                                ${data.files_downloaded ? `<p><strong>Files Downloaded:</strong> ${data.files_downloaded}</p>` : ''}
+                                <p><strong>Status:</strong> ${data.status}</p>
+                                <p><strong>Finished at:</strong> ${data.finished_at}</p>
+                            `;
+                            
+                            // Add console output if available
+                            if (data.console_output && data.console_output.length > 0) {
+                                resultHtml += `
+                                    <details style="margin: 15px 0;">
+                                        <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📋 View Console Output</summary>
+                                        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                                            ${data.console_output.map(line => `<div>${line}</div>`).join('')}
+                                        </div>
+                                    </details>
+                                `;
+                            }
+                            
+                            // Add individual file results if available
+                            if (data.results && data.results.length > 0) {
+                                resultHtml += `
+                                    <details style="margin: 15px 0;">
+                                        <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📁 Individual File Results</summary>
+                                        <div style="margin-top: 10px;">
+                                            ${data.results.map(result => `
+                                                <div style="background: #e9ecef; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                                                    <strong>${result.file_name}</strong> (${result.input_type})
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </details>
+                                `;
+                            }
+                            
+                            resultHtml += `
+                                <a href="${buildApiUrl('download-report/' + jobId)}" class="download-btn">Download Report</a>
+                                <button class="return-home-btn" onclick="returnToHome()">Return to Home</button>
+                                <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
+                            `;
+                            
+                            result.innerHTML = resultHtml;
                     } else if (data.status === 'failed') {
                         result.className = 'result error';
                         result.innerHTML = `
                             <h4>Processing Failed</h4>
-                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Job ID:</strong></p>
+                            ${createJobIdElement(jobId)}
                             <p><strong>Error:</strong> ${data.error}</p>
                         `;
                     } else {
                         result.innerHTML = `
                             <h4>Processing in Progress</h4>
-                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Job ID:</strong></p>
+                            ${createJobIdElement(jobId)}
                             <p><strong>Status:</strong> ${data.status}</p>
                             <p><strong>Progress:</strong> ${data.progress}%</p>
                             <button onclick="checkStatus('${jobId}')" class="upload-btn">Check Status</button>
@@ -714,7 +1351,6 @@
         }
 
         async function queryJob() {
-
             const jobId = document.getElementById('jobIdInput').value.trim();
 
             if (!jobId) {
@@ -722,34 +1358,71 @@
                 return;
             }
 
-            // Verify CAPTCHA before upload
-            if (!captchaVerified) {
-                alert('Please complete the security verification first.');
-                return;
-            }
+            // Move to results step
+            showStep(5);
+            resultQuery.style.display = 'none';
+            result.style.display = 'none';
 
             try {
-                const response = await fetch(`/job-status/${jobId}`);
+                const response = await fetch(buildApiUrl(`job-status/${jobId}`));
                 const data = await response.json();
 
                 if (response.ok) {
-
                     if (data.status === 'completed') {
-                        resultQuery.className = 'result-query success';
-                        resultQuery.innerHTML = `
+                        let resultHtml = `
                             <h4>Processing Complete!</h4>
-                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Job ID:</strong></p>
+                            ${createJobIdElement(jobId)}
                             <p><strong>Input Type:</strong> ${data.input_type}</p>
+                            ${data.accession ? `<p><strong>PRIDE Accession:</strong> ${data.accession}</p>` : ''}
+                            ${data.files_processed ? `<p><strong>Files Processed:</strong> ${data.files_processed}/${data.total_files}</p>` : ''}
+                            ${data.files_downloaded ? `<p><strong>Files Downloaded:</strong> ${data.files_downloaded}</p>` : ''}
                             <p><strong>Status:</strong> ${data.status}</p>
                             <p><strong>Finished at:</strong> ${data.finished_at}</p>
-                            <a href="/download-report/${jobId}" class="download-btn">Download Report</a>
                         `;
+                        
+                        // Add console output if available
+                        if (data.console_output && data.console_output.length > 0) {
+                            resultHtml += `
+                                <details style="margin: 15px 0;">
+                                    <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📋 View Console Output</summary>
+                                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                                        ${data.console_output.map(line => `<div>${line}</div>`).join('')}
+                                    </div>
+                                </details>
+                            `;
+                        }
+                        
+                        // Add individual file results if available
+                        if (data.results && data.results.length > 0) {
+                            resultHtml += `
+                                <details style="margin: 15px 0;">
+                                    <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📁 Individual File Results</summary>
+                                    <div style="margin-top: 10px;">
+                                        ${data.results.map(result => `
+                                            <div style="background: #e9ecef; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                                                <strong>${result.file_name}</strong> (${result.input_type})
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </details>
+                            `;
+                        }
+                        
+                        resultHtml += `
+                            <a href="${buildApiUrl('download-report/' + jobId)}" class="download-btn">Download Report</a>
+                            <button class="return-home-btn" onclick="returnToHome()">Return to Home</button>
+                        `;
+                        
+                        resultQuery.className = 'result-query success';
+                        resultQuery.innerHTML = resultHtml;
                         resultQuery.style.display = 'block';
                     } else if (data.status === 'failed') {
                         resultQuery.className = 'result-query error';
                         resultQuery.innerHTML = `
                             <h4>Processing Failed</h4>
-                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Job ID:</strong></p>
+                            ${createJobIdElement(jobId)}
                             <p><strong>Error:</strong> ${data.error}</p>
                             <p><strong>Errored at:</strong> ${data.finished_at}</p>
                         `;
@@ -758,19 +1431,20 @@
                         resultQuery.className = 'result-query success';
                         resultQuery.innerHTML = `
                             <h4>Processing in Progress</h4>
-                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Job ID:</strong></p>
+                            ${createJobIdElement(jobId)}
                             <p><strong>Status:</strong> ${data.status}</p>
                             <p><strong>Progress:</strong> ${data.progress}%</p>
                         `;
                         resultQuery.style.display = 'block';
                     }
-                }
-                else{
+                } else {
                     if (data.status === 'not_found') {
                         resultQuery.className = 'result-query error';
                         resultQuery.innerHTML = `
                             <h4>Job Not Found</h4>
-                            <p><strong>Job ID:</strong> ${jobId}</p>
+                            <p><strong>Job ID:</strong></p>
+                            ${createJobIdElement(jobId)}
                             <p>The Job ID you entered was not found. Please check and try again.</p>
                         `;
                         resultQuery.style.display = 'block';
@@ -786,13 +1460,19 @@
                 }
             } catch (error) {
                 console.error('Error checking status:', error);
+                resultQuery.className = 'result-query error';
+                resultQuery.innerHTML = `
+                    <h4>Error</h4>
+                    <p>Failed to check job status: ${error.message}</p>
+                `;
+                resultQuery.style.display = 'block';
             }
         }
 
         function pollStatus(jobId) {
             const interval = setInterval(async () => {
                 try {
-                    const response = await fetch(`/job-status/${jobId}`);
+                    const response = await fetch(buildApiUrl(`job-status/${jobId}`));
                     const data = await response.json();
                     
                     if (response.ok) {
@@ -809,6 +1489,310 @@
                 }
             }, 5000); // Poll every 5 seconds
         }
+
+        function pollPrideStatus(jobId) {
+            // Get step 5 progress elements
+            const progressStep5 = document.getElementById('progressStep5');
+            const progressFillStep5 = document.getElementById('progressFillStep5');
+            const progressTextStep5 = document.getElementById('progressTextStep5');
+            
+            // Ensure progress bar is visible in step 5
+            progressStep5.style.display = 'block';
+            
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(buildApiUrl(`job-status/${jobId}`));
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        // Enhanced progress tracking for PRIDE processing
+                        let progressPercent = data.progress || 0;
+                        let statusText = data.status || 'processing';
+                        
+                        // Map status to more descriptive text
+                        switch (statusText) {
+                            case 'fetching_files':
+                                statusText = 'Fetching files from PRIDE...';
+                                progressPercent = Math.max(progressPercent, 25);
+                                break;
+                            case 'filtering_files':
+                                statusText = 'Filtering search engine files...';
+                                progressPercent = Math.max(progressPercent, 30);
+                                break;
+                            case 'downloading_files':
+                                statusText = 'Downloading files from PRIDE...';
+                                progressPercent = Math.max(progressPercent, 40);
+                                break;
+                            case 'extracting_files':
+                                statusText = 'Extracting downloaded files...';
+                                progressPercent = Math.max(progressPercent, 70);
+                                break;
+                            case 'detecting_type':
+                                statusText = 'Detecting input type...';
+                                progressPercent = Math.max(progressPercent, 75);
+                                break;
+                            case 'processing':
+                                statusText = 'Running PMultiQC analysis...';
+                                progressPercent = Math.max(progressPercent, 80);
+                                break;
+                            case 'creating_report':
+                                statusText = 'Creating final report...';
+                                progressPercent = Math.max(progressPercent, 90);
+                                break;
+                            case 'completed':
+                                statusText = 'Processing completed!';
+                                progressPercent = 100;
+                                break;
+                            case 'failed':
+                                statusText = 'Processing failed';
+                                progressPercent = 100;
+                                break;
+                        }
+                        
+                        // Update progress bar in step 5
+                        progressFillStep5.style.width = progressPercent + '%';
+                        progressTextStep5.textContent = `${statusText} (${progressPercent}%)`;
+                        
+                        // Keep progress bar visible
+                        progressStep5.style.display = 'block';
+                        
+                        if (data.status === 'completed' || data.status === 'failed') {
+                            clearInterval(interval);
+                            // Hide progress bar when done
+                            progressStep5.style.display = 'none';
+                            checkStatus(jobId);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error polling PRIDE status:', error);
+                }
+            }, 3000); // Poll every 3 seconds for more responsive updates
+        }
+
+        async function processPride() {
+            const accession = prideAccession.value.trim();
+            
+            if (!accession) {
+                alert('Please enter a PRIDE accession number');
+                return;
+            }
+            
+            // Validate accession format
+            if (!accession.toUpperCase().startsWith('PXD')) {
+                alert('Invalid PRIDE accession format. Should start with PXD');
+                return;
+            }
+
+            // Show progress
+            showStep(4);
+            progress.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Starting PRIDE processing...';
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch(buildApiUrl('process-pride'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        accession: accession.toUpperCase()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    progressFill.style.width = '25%';
+                    progressText.textContent = 'PRIDE processing started. Fetching files...';
+                    
+                    // Keep progress bar visible and start polling
+                    pollPrideStatus(data.job_id);
+                    
+                    // Show initial result but keep progress visible
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h4>PRIDE Processing Started!</h4>
+                        <p><strong>Accession:</strong> ${data.accession}</p>
+                        <p><strong>Job ID:</strong></p>
+                        ${createJobIdElement(data.job_id)}
+                        <p><strong>Status:</strong> ${data.status}</p>
+                        <p>Processing will continue in the background. Progress will be shown below:</p>
+                        <button onclick="checkStatus('${data.job_id}')" class="upload-btn">Check Status</button>
+                        <button class="return-home-btn" onclick="returnToHome()">Return to Home</button>
+                        <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
+                    `;
+                    result.style.display = 'block';
+                    
+                    // Move to step 5 after showing initial result
+                    showStep(5);
+                } else {
+                    showStep(5);
+                    progressFill.style.width = '100%';
+                    progressText.textContent = 'Error occurred';
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <h4>Error</h4>
+                        <p>${data.error}</p>
+                    `;
+                    result.style.display = 'block';
+                }
+
+            } catch (error) {
+                showStep(5);
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Error occurred';
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h4>Error</h4>
+                    <p>Failed to start PRIDE processing: ${error.message}</p>
+                `;
+                result.style.display = 'block';
+            }
+        }
+
+        function copyJobId(jobId) {
+            navigator.clipboard.writeText(jobId).then(() => {
+                // Find the copy button and show success state
+                const copyBtn = event.target;
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Copied!';
+                copyBtn.classList.add('copy-success');
+                
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.classList.remove('copy-success');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy Job ID to clipboard');
+            });
+        }
+
+        function createJobIdElement(jobId) {
+            return `
+                <div class="job-id-container">
+                    <span class="job-id-text">${jobId}</span>
+                    <button class="copy-btn" onclick="copyJobId('${jobId}')">Copy</button>
+                </div>
+            `;
+        }
+
+        function returnToHome() {
+            // Reset all form states
+            fileSelected = false;
+            captchaVerified = false;
+            currentStep = 1;
+            selectedMethod = null;
+            
+            // Clear file input
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            
+            // Clear file info
+            if (fileInfo) {
+                fileInfo.style.display = 'none';
+                fileInfo.innerHTML = '';
+            }
+            
+            // Clear PRIDE input
+            if (prideAccession) {
+                prideAccession.value = '';
+            }
+            
+            // Clear job ID input
+            const jobIdInput = document.getElementById('jobIdInput');
+            if (jobIdInput) {
+                jobIdInput.value = '';
+            }
+            
+            // Clear results
+            if (result) {
+                result.style.display = 'none';
+                result.innerHTML = '';
+            }
+            
+            if (resultQuery) {
+                resultQuery.style.display = 'none';
+                resultQuery.innerHTML = '';
+            }
+            
+            // Clear progress
+            if (progress) {
+                progress.style.display = 'none';
+            }
+            
+            // Clear CAPTCHA
+            if (captchaInput) {
+                captchaInput.value = '';
+            }
+            if (captchaStatus) {
+                captchaStatus.textContent = '';
+                captchaStatus.className = 'captcha-status';
+            }
+            
+            // Generate new CAPTCHA
+            generateCaptcha();
+            
+            // Return to step 1
+            showStep(1);
+        }
+
+        // Help system functions
+        function toggleHelp(helpId) {
+            const helpContent = document.getElementById(helpId);
+            const helpToggle = helpContent.previousElementSibling;
+            
+            if (helpContent.classList.contains('expanded')) {
+                helpContent.classList.remove('expanded');
+                helpToggle.classList.remove('expanded');
+            } else {
+                // Close all other help sections first
+                const allHelpContents = document.querySelectorAll('.help-content');
+                const allHelpToggles = document.querySelectorAll('.help-toggle');
+                
+                allHelpContents.forEach(content => content.classList.remove('expanded'));
+                allHelpToggles.forEach(toggle => toggle.classList.remove('expanded'));
+                
+                // Open the clicked one
+                helpContent.classList.add('expanded');
+                helpToggle.classList.add('expanded');
+            }
+        }
     </script>
+    <!-- Footer with project links -->
+    <footer style="margin-top: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; text-align: center; border-top: 2px solid #e9ecef;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 30px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">🔗</span>
+                <a href="https://pmultiqc.quantms.org/" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 500;">
+                    Project Documentation
+                </a>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">📚</span>
+                <a href="https://github.com/bigbio/pmultiqc" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 500;">
+                    GitHub Repository
+                </a>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">📊</span>
+                <a href="https://pmultiqc.quantms.org/#-example-reports" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 500;">
+                    Example Reports
+                </a>
+            </div>
+        </div>
+        <div style="margin-top: 15px; color: #6c757d; font-size: 14px;">
+            <p style="margin: 5px 0;">
+                <strong>pmultiqc</strong> - A MultiQC plugin for proteomics quality control
+            </p>
+            <p style="margin: 5px 0; font-size: 12px;">
+                Part of the <a href="https://github.com/bigbio" target="_blank" style="color: #007bff;">BigBio</a> ecosystem
+            </p>
+        </div>
+    </footer>
 </body>
 </html> 

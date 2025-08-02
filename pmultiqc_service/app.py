@@ -10,17 +10,54 @@ import shutil
 import uuid
 import logging
 import threading
+import sys
+import requests
+import json
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+from urllib.parse import urlparse
 
 from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import time
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configure logging for Kubernetes
+def setup_logging():
+    """Configure logging for Kubernetes environment."""
+    # Get log level from environment or default to INFO
+    log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+    
+    # Create a formatter that includes timestamp, level, and module
+    formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # Create console handler that writes to stdout
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(getattr(logging, log_level))
+    console_handler.setFormatter(formatter)
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, log_level))
+    
+    # Remove existing handlers to avoid duplicates
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Add our console handler
+    root_logger.addHandler(console_handler)
+    
+    # Create application logger
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging configured with level: {log_level}")
+    
+    return logger
+
+# Initialize logging
+logger = setup_logging()
 
 app = Flask(__name__, template_folder='templates')
 CORS(app)
@@ -52,6 +89,138 @@ def current_time():
     now = int(time.time())
     dt = datetime.fromtimestamp(now)
     return now, dt.strftime("%Y-%m-%d %H:%M:%S")
+
+def get_pride_files(accession: str) -> List[Dict]:
+    """
+    Fetch files from PRIDE API for a given accession.
+    
+    Args:
+        accession: PRIDE accession (e.g., PXD039077)
+    
+    Returns:
+        List of file dictionaries from PRIDE API
+    """
+    try:
+        url = f"https://www.ebi.ac.uk/pride/ws/archive/v3/projects/{accession}/files"
+        params = {"page": 0, "pageSize": 100}  # Get up to 100 files
+        
+        logger.info(f"Fetching files from PRIDE for accession: {accession}")
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        
+        files = response.json()
+        logger.info(f"Retrieved {len(files)} files from PRIDE for {accession}")
+        return files
+        
+    except requests.RequestException as e:
+        logger.error(f"Error fetching PRIDE files for {accession}: {e}")
+        raise Exception(f"Failed to fetch files from PRIDE: {e}")
+
+def filter_search_files(files: List[Dict]) -> List[Dict]:
+    """
+    Filter files to only include search engine output files.
+    
+    Args:
+        files: List of file dictionaries from PRIDE API
+    
+    Returns:
+        List of search engine output files
+    """
+    search_files = []
+    
+    for file_info in files:
+        # Check if it's a search engine output file
+        if (file_info.get('fileCategory', {}).get('value') == 'SEARCH' or
+            'report' in file_info.get('fileName', '').lower() or
+            'evidence' in file_info.get('fileName', '').lower() or
+            'peptides' in file_info.get('fileName', '').lower() or
+            'proteingroups' in file_info.get('fileName', '').lower() or
+            'msms' in file_info.get('fileName', '').lower()):
+            
+            search_files.append(file_info)
+    
+    logger.info(f"Found {len(search_files)} search engine output files")
+    return search_files
+
+def download_pride_file(file_info: Dict, download_dir: str) -> str:
+    """
+    Download a file from PRIDE.
+    
+    Args:
+        file_info: File information from PRIDE API
+        download_dir: Directory to save the file
+    
+    Returns:
+        Path to the downloaded file
+    """
+    try:
+        # Get FTP URL (preferred over Aspera for reliability)
+        ftp_url = None
+        for location in file_info.get('publicFileLocations', []):
+            if location.get('accession') == 'PRIDE:0000469':  # FTP Protocol
+                ftp_url = location.get('value')
+                break
+        
+        if not ftp_url:
+            raise Exception(f"No FTP URL found for file {file_info.get('fileName')}")
+        
+        # Convert FTP URL to HTTP URL for easier download
+        http_url = ftp_url.replace('ftp://', 'https://')
+        
+        filename = file_info.get('fileName')
+        file_path = os.path.join(download_dir, filename)
+        
+        logger.info(f"Downloading {filename} from {http_url}")
+        
+        # Download file with progress tracking
+        response = requests.get(http_url, stream=True, timeout=300)
+        response.raise_for_status()
+        
+        with open(file_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        
+        logger.info(f"Successfully downloaded {filename} ({os.path.getsize(file_path)} bytes)")
+        return file_path
+        
+    except Exception as e:
+        logger.error(f"Error downloading file {file_info.get('fileName')}: {e}")
+        raise Exception(f"Failed to download {file_info.get('fileName')}: {e}")
+
+def detect_pride_input_type(files: List[Dict]) -> str:
+    """
+    Detect input type based on PRIDE files.
+    
+    Args:
+        files: List of file dictionaries from PRIDE API
+    
+    Returns:
+        Input type string
+    """
+    file_names = [f.get('fileName', '').lower() for f in files]
+    
+    # Check for MaxQuant files
+    maxquant_files = ['evidence.txt', 'msms.txt', 'peptides.txt', 'proteingroups.txt']
+    if any(any(mq_file in fname for mq_file in maxquant_files) for fname in file_names):
+        return "maxquant"
+    
+    # Check for DIANN files
+    diann_files = ['report.tsv', 'report.parquet']
+    if any(any(diann_file in fname for diann_file in diann_files) for fname in file_names):
+        return "diann"
+    
+    # Check for quantms files
+    quantms_files = ['ms_info.parquet', '.mztab']
+    if any(any(qt_file in fname for qt_file in quantms_files) for fname in file_names):
+        return "quantms"
+    
+    # Check for mzIdentML files
+    mzid_files = ['.mzid', '.mzml']
+    if any(any(mzid_file in fname for mzid_file in mzid_files) for fname in file_names):
+        return "mzidentml"
+    
+    return "unknown"
 
 # List all files in the extracted directory
 def scan_files(upload_path):
@@ -138,25 +307,78 @@ def run_pmultiqc(input_path: str, output_path: str, input_type: str, pmultiqc_co
         # Run MultiQC with PMultiQC plugin
         logger.info(f"Running PMultiQC with args: {args}")
         
-        # Run multiqc as a subprocess
+        # Run multiqc as a subprocess with real-time output
         import subprocess
         
         try:
-            # Run the multiqc command
-            result = subprocess.run(args, capture_output=True, text=True, check=True)
-            logger.info(f"MultiQC stdout: {result.stdout}")
-            if result.stderr:
-                logger.warning(f"MultiQC stderr: {result.stderr}")
-            return {'success': True, 'message': 'Report generated successfully'}
+            # Run the multiqc command with real-time output
+            process = subprocess.Popen(
+                args, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True, 
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # Stream output in real-time
+            output_lines = []
+            error_lines = []
+            
+            while True:
+                output = process.stdout.readline()
+                error = process.stderr.readline()
+                
+                if output:
+                    output_lines.append(output.strip())
+                    logger.info(f"MultiQC: {output.strip()}")
+                
+                if error:
+                    error_lines.append(error.strip())
+                    logger.warning(f"MultiQC: {error.strip()}")
+                
+                # Check if process has finished
+                if process.poll() is not None:
+                    break
+            
+            # Get any remaining output
+            remaining_output, remaining_error = process.communicate()
+            if remaining_output:
+                output_lines.extend(remaining_output.strip().split('\n'))
+                logger.info(f"MultiQC remaining output: {remaining_output.strip()}")
+            if remaining_error:
+                error_lines.extend(remaining_error.strip().split('\n'))
+                logger.warning(f"MultiQC remaining error: {remaining_error.strip()}")
+            
+            if process.returncode == 0:
+                return {
+                    'success': True, 
+                    'message': 'Report generated successfully',
+                    'output': output_lines,
+                    'errors': error_lines
+                }
+            else:
+                return {
+                    'success': False, 
+                    'message': f'MultiQC failed with return code {process.returncode}',
+                    'output': output_lines,
+                    'errors': error_lines
+                }
+                
         except subprocess.CalledProcessError as e:
             logger.error(f"MultiQC failed with return code {e.returncode}")
             logger.error(f"MultiQC stdout: {e.stdout}")
             logger.error(f"MultiQC stderr: {e.stderr}")
-            return {'success': False, 'message': f'MultiQC failed: {e.stderr}'}
+            return {
+                'success': False, 
+                'message': f'MultiQC failed: {e.stderr}',
+                'output': e.stdout.split('\n') if e.stdout else [],
+                'errors': e.stderr.split('\n') if e.stderr else []
+            }
             
     except Exception as e:
         logger.error(f"Error running PMultiQC: {e}")
-        return {'success': False, 'message': str(e)}
+        return {'success': False, 'message': str(e), 'output': [], 'errors': []}
 
 def create_zip_report(output_path: str, zip_path: str) -> bool:
     """
@@ -458,8 +680,7 @@ def upload_large_file():
             'message': 'Report generated successfully',
             'file_size': file_size,
             'finished_at': current_time()[1]
-        }
-)
+        })
         
     except Exception as e:
         logger.error(f"Error in upload_large_file: {e}")
@@ -727,6 +948,221 @@ def cleanup_job(job_id):
         
     except Exception as e:
         logger.error(f"Error in cleanup_job: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+def process_pride_job_async(job_id: str, accession: str, output_dir: str):
+    """Process a PRIDE job asynchronously in a separate thread."""
+    try:
+        job_status_dict[job_id] = {
+            'status': 'fetching_files',
+            'progress': 10,
+        }
+        
+        # Fetch files from PRIDE
+        logger.info(f"Starting PRIDE processing for job {job_id}, accession {accession}")
+        files = get_pride_files(accession)
+        
+        job_status_dict[job_id] = {'status': 'filtering_files', 'progress': 20}
+        
+        # Filter search engine output files
+        search_files = filter_search_files(files)
+        
+        if not search_files:
+            job_status_dict[job_id] = {
+                'status': 'failed',
+                'error': 'No search engine output files found in PRIDE submission',
+                'finished_at_seconds': current_time()[0],
+                'finished_at': current_time()[1]
+            }
+            return
+        
+        job_status_dict[job_id] = {'status': 'downloading_files', 'progress': 30}
+        
+        # Create download directory
+        download_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id, 'pride_downloads')
+        os.makedirs(download_dir, exist_ok=True)
+        
+        # Download files
+        downloaded_files = []
+        total_files = len(search_files)
+        
+        for i, file_info in enumerate(search_files):
+            try:
+                file_path = download_pride_file(file_info, download_dir)
+                downloaded_files.append(file_path)
+                progress = 30 + int((i + 1) / total_files * 40)  # 30-70% for downloads
+                job_status_dict[job_id] = {'status': 'downloading_files', 'progress': progress}
+            except Exception as e:
+                logger.warning(f"Failed to download {file_info.get('fileName')}: {e}")
+                # Continue with other files
+        
+        if not downloaded_files:
+            job_status_dict[job_id] = {
+                'status': 'failed',
+                'error': 'Failed to download any files from PRIDE',
+                'finished_at_seconds': current_time()[0],
+                'finished_at': current_time()[1]
+            }
+            return
+        
+        job_status_dict[job_id] = {'status': 'extracting_files', 'progress': 70}
+        
+        # Process each downloaded file separately
+        all_results = []
+        total_processed = 0
+        
+        for i, zip_file in enumerate(downloaded_files):
+            if zip_file.lower().endswith('.zip'):
+                try:
+                    logger.info(f"Processing {zip_file}")
+                    
+                    # Create separate directory for this file
+                    file_name = os.path.splitext(os.path.basename(zip_file))[0]
+                    file_extract_dir = os.path.join(download_dir, f'extracted_{file_name}')
+                    file_output_dir = os.path.join(output_dir, f'report_{file_name}')
+                    
+                    os.makedirs(file_extract_dir, exist_ok=True)
+                    os.makedirs(file_output_dir, exist_ok=True)
+                    
+                    # Extract this ZIP file
+                    logger.info(f"Extracting {zip_file}")
+                    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+                        zip_ref.extractall(file_extract_dir)
+                    
+                    # Detect input type for this file
+                    input_type, quantms_config = detect_input_type(file_extract_dir)
+                    logger.info(f"Detected input type for {file_name}: {input_type}")
+                    
+                    if input_type == 'unknown':
+                        logger.warning(f"Could not detect input type for {file_name}")
+                        continue
+                    
+                    # Run PMultiQC on this file
+                    result = run_pmultiqc(file_extract_dir, file_output_dir, input_type, quantms_config)
+                    
+                    if result['success']:
+                        # Create zip report for this file
+                        zip_report_path = os.path.join(file_output_dir, f'pmultiqc_report_{file_name}.zip')
+                        if create_zip_report(file_output_dir, zip_report_path):
+                            all_results.append({
+                                'file_name': file_name,
+                                'input_type': input_type,
+                                'report_path': zip_report_path,
+                                'output': result.get('output', []),
+                                'errors': result.get('errors', [])
+                            })
+                            total_processed += 1
+                            logger.info(f"Successfully processed {file_name}")
+                        else:
+                            logger.error(f"Failed to create zip report for {file_name}")
+                    else:
+                        logger.error(f"Failed to process {file_name}: {result['message']}")
+                        
+                except Exception as e:
+                    logger.error(f"Error processing {zip_file}: {e}")
+        
+        if not all_results:
+            job_status_dict[job_id] = {
+                'status': 'failed',
+                'error': 'Failed to process any files from PRIDE',
+                'finished_at_seconds': current_time()[0],
+                'finished_at': current_time()[1]
+            }
+            return
+        
+        # Create combined zip report with all results
+        combined_zip_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
+        if create_zip_report(output_dir, combined_zip_path):
+            # Combine all console outputs
+            all_output = []
+            all_errors = []
+            for result in all_results:
+                all_output.extend(result.get('output', []))
+                all_errors.extend(result.get('errors', []))
+            
+            job_status_dict[job_id] = {
+                'status': 'completed',
+                'progress': 100,
+                'input_type': 'multiple',
+                'accession': accession,
+                'files_processed': total_processed,
+                'total_files': len(downloaded_files),
+                'results': all_results,
+                'console_output': all_output,
+                'console_errors': all_errors,
+                'finished_at_seconds': current_time()[0],
+                'finished_at': current_time()[1]
+            }
+            logger.info(f"Successfully completed PRIDE job {job_id} with {total_processed} files processed")
+        else:
+            job_status_dict[job_id] = {
+                'status': 'failed',
+                'error': 'Failed to create combined zip report',
+                'finished_at_seconds': current_time()[0],
+                'finished_at': current_time()[1]
+            }
+        
+    except Exception as e:
+        logger.error(f"Error in PRIDE processing for job {job_id}: {e}")
+        job_status_dict[job_id] = {
+            'status': 'failed',
+            'error': str(e),
+            'finished_at_seconds': current_time()[0],
+            'finished_at': current_time()[1]
+        }
+
+@app.route('/process-pride', methods=['POST'])
+def process_pride():
+    """
+    Process data from PRIDE using an accession number.
+    
+    Expected JSON data:
+    - accession: PRIDE accession (e.g., PXD039077)
+    
+    Returns:
+    - JSON response with job ID and status
+    """
+    try:
+        data = request.get_json()
+        if not data or 'accession' not in data:
+            return jsonify({'error': 'Accession number is required'}), 400
+        
+        accession = data['accession'].strip().upper()
+        
+        # Validate accession format (basic check)
+        if not accession.startswith('PXD'):
+            return jsonify({'error': 'Invalid PRIDE accession format. Should start with PXD'}), 400
+        
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+        
+        # Create job directories
+        upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
+        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], job_id)
+        os.makedirs(upload_dir, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        logger.info(f"Starting PRIDE processing for accession {accession}, job {job_id}")
+        
+        # Start async processing
+        job_status_dict[job_id] = {'status': 'queued', 'progress': 0}
+        thread = threading.Thread(
+            target=process_pride_job_async,
+            args=(job_id, accession, output_dir)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'job_id': job_id,
+            'accession': accession,
+            'status': 'queued',
+            'message': 'PRIDE processing started successfully',
+            'status_url': f'/job-status/{job_id}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in process_pride: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':

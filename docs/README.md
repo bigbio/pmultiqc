@@ -18,6 +18,24 @@
 - 📈 Provides comprehensive QC metrics for MS data
 - 🔬 Supports different quantification methods (LFQ, TMT, DIA)
 - 🧩 Integrates seamlessly with the MultiQC framework
+- 🌐 Web service for easy access and PRIDE integration
+
+## 🌐 Public Services
+
+You can use pmultiqc through our public web services:
+
+| Service | URL | Status | Description |
+|---------|-----|--------|-------------|
+| **EBI PRIDE Service** | [https://www.ebi.ac.uk/pride/services/pmultiqc/](https://www.ebi.ac.uk/pride/services/pmultiqc/) | ![Status](https://img.shields.io/website?url=https://www.ebi.ac.uk/pride/services/pmultiqc/&style=flat-square) | Official EBI service with PRIDE integration |
+
+### 🎯 Service Features
+
+- **📁 File Upload**: Upload ZIP files with your proteomics data
+- **🌐 PRIDE Integration**: Process datasets directly from PRIDE database
+- **📋 Job Tracking**: Monitor processing status and download results
+- **🔒 Security**: CAPTCHA verification for large file uploads
+- **⚡ Multiple Processing**: Handle multiple search engine files from PRIDE
+- **📊 Real-time Output**: View console output during processing
 
 ## 📋 Supported Data Sources
 
