@@ -627,8 +627,7 @@ def upload_large_file():
             'message': 'Report generated successfully',
             'file_size': file_size,
             'finished_at': current_time()[1]
-        }
-)
+        })
         
     except Exception as e:
         logger.error(f"Error in upload_large_file: {e}")
