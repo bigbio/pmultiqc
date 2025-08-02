@@ -307,25 +307,78 @@ def run_pmultiqc(input_path: str, output_path: str, input_type: str, pmultiqc_co
         # Run MultiQC with PMultiQC plugin
         logger.info(f"Running PMultiQC with args: {args}")
         
-        # Run multiqc as a subprocess
+        # Run multiqc as a subprocess with real-time output
         import subprocess
         
         try:
-            # Run the multiqc command
-            result = subprocess.run(args, capture_output=True, text=True, check=True)
-            logger.info(f"MultiQC stdout: {result.stdout}")
-            if result.stderr:
-                logger.warning(f"MultiQC stderr: {result.stderr}")
-            return {'success': True, 'message': 'Report generated successfully'}
+            # Run the multiqc command with real-time output
+            process = subprocess.Popen(
+                args, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True, 
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # Stream output in real-time
+            output_lines = []
+            error_lines = []
+            
+            while True:
+                output = process.stdout.readline()
+                error = process.stderr.readline()
+                
+                if output:
+                    output_lines.append(output.strip())
+                    logger.info(f"MultiQC: {output.strip()}")
+                
+                if error:
+                    error_lines.append(error.strip())
+                    logger.warning(f"MultiQC: {error.strip()}")
+                
+                # Check if process has finished
+                if process.poll() is not None:
+                    break
+            
+            # Get any remaining output
+            remaining_output, remaining_error = process.communicate()
+            if remaining_output:
+                output_lines.extend(remaining_output.strip().split('\n'))
+                logger.info(f"MultiQC remaining output: {remaining_output.strip()}")
+            if remaining_error:
+                error_lines.extend(remaining_error.strip().split('\n'))
+                logger.warning(f"MultiQC remaining error: {remaining_error.strip()}")
+            
+            if process.returncode == 0:
+                return {
+                    'success': True, 
+                    'message': 'Report generated successfully',
+                    'output': output_lines,
+                    'errors': error_lines
+                }
+            else:
+                return {
+                    'success': False, 
+                    'message': f'MultiQC failed with return code {process.returncode}',
+                    'output': output_lines,
+                    'errors': error_lines
+                }
+                
         except subprocess.CalledProcessError as e:
             logger.error(f"MultiQC failed with return code {e.returncode}")
             logger.error(f"MultiQC stdout: {e.stdout}")
             logger.error(f"MultiQC stderr: {e.stderr}")
-            return {'success': False, 'message': f'MultiQC failed: {e.stderr}'}
+            return {
+                'success': False, 
+                'message': f'MultiQC failed: {e.stderr}',
+                'output': e.stdout.split('\n') if e.stdout else [],
+                'errors': e.stderr.split('\n') if e.stderr else []
+            }
             
     except Exception as e:
         logger.error(f"Error running PMultiQC: {e}")
-        return {'success': False, 'message': str(e)}
+        return {'success': False, 'message': str(e), 'output': [], 'errors': []}
 
 def create_zip_report(output_path: str, zip_path: str) -> bool:
     """
@@ -952,58 +1005,102 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
             }
             return
         
-        job_status_dict[job_id] = {'status': 'detecting_type', 'progress': 75}
+        job_status_dict[job_id] = {'status': 'extracting_files', 'progress': 70}
         
-        # Detect input type
-        input_type = detect_pride_input_type(search_files)
-        logger.info(f"Detected PRIDE input type: {input_type}")
+        # Process each downloaded file separately
+        all_results = []
+        total_processed = 0
         
-        if input_type == 'unknown':
+        for i, zip_file in enumerate(downloaded_files):
+            if zip_file.lower().endswith('.zip'):
+                try:
+                    logger.info(f"Processing {zip_file}")
+                    
+                    # Create separate directory for this file
+                    file_name = os.path.splitext(os.path.basename(zip_file))[0]
+                    file_extract_dir = os.path.join(download_dir, f'extracted_{file_name}')
+                    file_output_dir = os.path.join(output_dir, f'report_{file_name}')
+                    
+                    os.makedirs(file_extract_dir, exist_ok=True)
+                    os.makedirs(file_output_dir, exist_ok=True)
+                    
+                    # Extract this ZIP file
+                    logger.info(f"Extracting {zip_file}")
+                    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+                        zip_ref.extractall(file_extract_dir)
+                    
+                    # Detect input type for this file
+                    input_type, quantms_config = detect_input_type(file_extract_dir)
+                    logger.info(f"Detected input type for {file_name}: {input_type}")
+                    
+                    if input_type == 'unknown':
+                        logger.warning(f"Could not detect input type for {file_name}")
+                        continue
+                    
+                    # Run PMultiQC on this file
+                    result = run_pmultiqc(file_extract_dir, file_output_dir, input_type, quantms_config)
+                    
+                    if result['success']:
+                        # Create zip report for this file
+                        zip_report_path = os.path.join(file_output_dir, f'pmultiqc_report_{file_name}.zip')
+                        if create_zip_report(file_output_dir, zip_report_path):
+                            all_results.append({
+                                'file_name': file_name,
+                                'input_type': input_type,
+                                'report_path': zip_report_path,
+                                'output': result.get('output', []),
+                                'errors': result.get('errors', [])
+                            })
+                            total_processed += 1
+                            logger.info(f"Successfully processed {file_name}")
+                        else:
+                            logger.error(f"Failed to create zip report for {file_name}")
+                    else:
+                        logger.error(f"Failed to process {file_name}: {result['message']}")
+                        
+                except Exception as e:
+                    logger.error(f"Error processing {zip_file}: {e}")
+        
+        if not all_results:
             job_status_dict[job_id] = {
                 'status': 'failed',
-                'error': 'Could not detect input type from PRIDE files',
+                'error': 'Failed to process any files from PRIDE',
                 'finished_at_seconds': current_time()[0],
                 'finished_at': current_time()[1]
             }
             return
         
-        job_status_dict[job_id] = {'status': 'processing', 'progress': 80}
-        
-        # Run PMultiQC
-        result = run_pmultiqc(download_dir, output_dir, input_type, None)
-        
-        if not result['success']:
+        # Create combined zip report with all results
+        combined_zip_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
+        if create_zip_report(output_dir, combined_zip_path):
+            # Combine all console outputs
+            all_output = []
+            all_errors = []
+            for result in all_results:
+                all_output.extend(result.get('output', []))
+                all_errors.extend(result.get('errors', []))
+            
             job_status_dict[job_id] = {
-                'status': 'failed',
-                'error': result['message'],
+                'status': 'completed',
+                'progress': 100,
+                'input_type': 'multiple',
+                'accession': accession,
+                'files_processed': total_processed,
+                'total_files': len(downloaded_files),
+                'results': all_results,
+                'console_output': all_output,
+                'console_errors': all_errors,
                 'finished_at_seconds': current_time()[0],
                 'finished_at': current_time()[1]
             }
-            return
-        
-        job_status_dict[job_id] = {'status': 'creating_report', 'progress': 90}
-        
-        # Create zip report
-        zip_report_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
-        if not create_zip_report(output_dir, zip_report_path):
+            logger.info(f"Successfully completed PRIDE job {job_id} with {total_processed} files processed")
+        else:
             job_status_dict[job_id] = {
                 'status': 'failed',
-                'error': 'Failed to create zip report',
+                'error': 'Failed to create combined zip report',
                 'finished_at_seconds': current_time()[0],
                 'finished_at': current_time()[1]
             }
-            return
-        
-        job_status_dict[job_id] = {
-            'status': 'completed',
-            'progress': 100,
-            'input_type': input_type,
-            'accession': accession,
-            'files_downloaded': len(downloaded_files),
-            'finished_at_seconds': current_time()[0],
-            'finished_at': current_time()[1]
-        }
-        logger.info(f"Successfully completed PRIDE job {job_id}")
         
     except Exception as e:
         logger.error(f"Error in PRIDE processing for job {job_id}: {e}")

@@ -722,6 +722,11 @@
                                 <li>Detects the input type automatically</li>
                                 <li>Processes files using PMultiQC</li>
                             </ul>
+                            <p><strong>✅ Working Examples:</strong></p>
+                            <ul>
+                                <li><strong>PXD003133:</strong> MaxQuant dataset (evidence.txt, proteinGroups.txt)</li>
+                                <li><strong>PXD056717:</strong> DIANN dataset (report.tsv)</li>
+                            </ul>
                             <p><em>Only publicly available datasets can be processed.</em></p>
                         </div>
                     </div>
@@ -1272,20 +1277,54 @@
                     progressFill.style.width = data.progress + '%';
                     progressText.textContent = `Status: ${data.status} (${data.progress}%)`;
                     
-                    if (data.status === 'completed') {
-                        result.innerHTML = `
-                            <h4>Processing Complete!</h4>
-                            <p><strong>Job ID:</strong></p>
-                            ${createJobIdElement(jobId)}
-                            <p><strong>Input Type:</strong> ${data.input_type}</p>
-                            ${data.accession ? `<p><strong>PRIDE Accession:</strong> ${data.accession}</p>` : ''}
-                            ${data.files_downloaded ? `<p><strong>Files Downloaded:</strong> ${data.files_downloaded}</p>` : ''}
-                            <p><strong>Status:</strong> ${data.status}</p>
-                            <p><strong>Finished at:</strong> ${data.finished_at}</p>
-                            <a href="${buildApiUrl('download-report/' + jobId)}" class="download-btn">Download Report</a>
-                            <button class="return-home-btn" onclick="returnToHome()">Return to Home</button>
-                            <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
-                        `;
+                                            if (data.status === 'completed') {
+                            let resultHtml = `
+                                <h4>Processing Complete!</h4>
+                                <p><strong>Job ID:</strong></p>
+                                ${createJobIdElement(jobId)}
+                                <p><strong>Input Type:</strong> ${data.input_type}</p>
+                                ${data.accession ? `<p><strong>PRIDE Accession:</strong> ${data.accession}</p>` : ''}
+                                ${data.files_processed ? `<p><strong>Files Processed:</strong> ${data.files_processed}/${data.total_files}</p>` : ''}
+                                ${data.files_downloaded ? `<p><strong>Files Downloaded:</strong> ${data.files_downloaded}</p>` : ''}
+                                <p><strong>Status:</strong> ${data.status}</p>
+                                <p><strong>Finished at:</strong> ${data.finished_at}</p>
+                            `;
+                            
+                            // Add console output if available
+                            if (data.console_output && data.console_output.length > 0) {
+                                resultHtml += `
+                                    <details style="margin: 15px 0;">
+                                        <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📋 View Console Output</summary>
+                                        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                                            ${data.console_output.map(line => `<div>${line}</div>`).join('')}
+                                        </div>
+                                    </details>
+                                `;
+                            }
+                            
+                            // Add individual file results if available
+                            if (data.results && data.results.length > 0) {
+                                resultHtml += `
+                                    <details style="margin: 15px 0;">
+                                        <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📁 Individual File Results</summary>
+                                        <div style="margin-top: 10px;">
+                                            ${data.results.map(result => `
+                                                <div style="background: #e9ecef; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                                                    <strong>${result.file_name}</strong> (${result.input_type})
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </details>
+                                `;
+                            }
+                            
+                            resultHtml += `
+                                <a href="${buildApiUrl('download-report/' + jobId)}" class="download-btn">Download Report</a>
+                                <button class="return-home-btn" onclick="returnToHome()">Return to Home</button>
+                                <p><em>Please keep your task's Job ID to check your results within 24 hours.</em></p>
+                            `;
+                            
+                            result.innerHTML = resultHtml;
                     } else if (data.status === 'failed') {
                         result.className = 'result error';
                         result.innerHTML = `
@@ -1330,19 +1369,53 @@
 
                 if (response.ok) {
                     if (data.status === 'completed') {
-                        resultQuery.className = 'result-query success';
-                        resultQuery.innerHTML = `
+                        let resultHtml = `
                             <h4>Processing Complete!</h4>
                             <p><strong>Job ID:</strong></p>
                             ${createJobIdElement(jobId)}
                             <p><strong>Input Type:</strong> ${data.input_type}</p>
                             ${data.accession ? `<p><strong>PRIDE Accession:</strong> ${data.accession}</p>` : ''}
+                            ${data.files_processed ? `<p><strong>Files Processed:</strong> ${data.files_processed}/${data.total_files}</p>` : ''}
                             ${data.files_downloaded ? `<p><strong>Files Downloaded:</strong> ${data.files_downloaded}</p>` : ''}
                             <p><strong>Status:</strong> ${data.status}</p>
                             <p><strong>Finished at:</strong> ${data.finished_at}</p>
+                        `;
+                        
+                        // Add console output if available
+                        if (data.console_output && data.console_output.length > 0) {
+                            resultHtml += `
+                                <details style="margin: 15px 0;">
+                                    <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📋 View Console Output</summary>
+                                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                                        ${data.console_output.map(line => `<div>${line}</div>`).join('')}
+                                    </div>
+                                </details>
+                            `;
+                        }
+                        
+                        // Add individual file results if available
+                        if (data.results && data.results.length > 0) {
+                            resultHtml += `
+                                <details style="margin: 15px 0;">
+                                    <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📁 Individual File Results</summary>
+                                    <div style="margin-top: 10px;">
+                                        ${data.results.map(result => `
+                                            <div style="background: #e9ecef; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                                                <strong>${result.file_name}</strong> (${result.input_type})
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </details>
+                            `;
+                        }
+                        
+                        resultHtml += `
                             <a href="${buildApiUrl('download-report/' + jobId)}" class="download-btn">Download Report</a>
                             <button class="return-home-btn" onclick="returnToHome()">Return to Home</button>
                         `;
+                        
+                        resultQuery.className = 'result-query success';
+                        resultQuery.innerHTML = resultHtml;
                         resultQuery.style.display = 'block';
                     } else if (data.status === 'failed') {
                         resultQuery.className = 'result-query error';
@@ -1449,6 +1522,10 @@
                             case 'downloading_files':
                                 statusText = 'Downloading files from PRIDE...';
                                 progressPercent = Math.max(progressPercent, 40);
+                                break;
+                            case 'extracting_files':
+                                statusText = 'Extracting downloaded files...';
+                                progressPercent = Math.max(progressPercent, 70);
                                 break;
                             case 'detecting_type':
                                 statusText = 'Detecting input type...';
