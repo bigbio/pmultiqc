@@ -217,7 +217,7 @@ jobs:
         run: pip install .
       - name: Test ProteoBench file
         run: |
-          wget -nv https://proteobench.cubimed.rub.de/datasets/d01e87b997b84c985868204b1ed26749902fd7f9/d01e87b997b84c985868204b1ed26749902fd7f9_data.zip
+          wget -nv --no-check-certificate https://proteobench.cubimed.rub.de/datasets/d01e87b997b84c985868204b1ed26749902fd7f9/d01e87b997b84c985868204b1ed26749902fd7f9_data.zip
           unzip -d ./proteobench d01e87b997b84c985868204b1ed26749902fd7f9_data.zip
           multiqc --parse_proteobench ./proteobench -o ./results_proteobench
       - uses: actions/upload-artifact@v4
