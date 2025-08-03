@@ -67,7 +67,27 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
 
             reporthook.pbar = None
 
-            urllib.request.urlretrieve(url, local_filepath, reporthook)
+            # Try with default SSL context first
+            try:
+                urllib.request.urlretrieve(url, local_filepath, reporthook)
+            except urllib.error.URLError as ssl_err:
+                if "CERTIFICATE_VERIFY_FAILED" in str(ssl_err) or "certificate verify failed" in str(ssl_err):
+                    print(f"⚠️ SSL certificate verification failed, trying with SSL context that bypasses verification...")
+                    # Create SSL context that bypasses certificate verification
+                    import ssl
+                    ssl_context = ssl.create_default_context()
+                    ssl_context.check_hostname = False
+                    ssl_context.verify_mode = ssl.CERT_NONE
+                    
+                    # Create opener with custom SSL context
+                    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_context))
+                    urllib.request.install_opener(opener)
+                    
+                    # Retry with SSL context that bypasses verification
+                    urllib.request.urlretrieve(url, local_filepath, reporthook)
+                else:
+                    raise ssl_err
+
             if reporthook.pbar:
                 reporthook.pbar.close()
 
