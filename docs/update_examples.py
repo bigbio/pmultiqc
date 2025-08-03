@@ -71,23 +71,37 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
             try:
                 urllib.request.urlretrieve(url, local_filepath, reporthook)
             except urllib.error.URLError as ssl_err:
-                if "CERTIFICATE_VERIFY_FAILED" in str(ssl_err) or "certificate verify failed" in str(ssl_err):
-                    print(f"⚠️ SSL certificate verification failed, trying with SSL context that bypasses verification...")
-                    # Create SSL context that bypasses certificate verification
-                    import ssl
-                    ssl_context = ssl.create_default_context()
-                    ssl_context.check_hostname = False
-                    ssl_context.verify_mode = ssl.CERT_NONE
+                import ssl
+                # Check if this is specifically an SSL certificate error
+                if isinstance(ssl_err.reason, ssl.SSLError) and "CERTIFICATE_VERIFY_FAILED" in str(ssl_err.reason):
+                    print("⚠️ SSL certificate verification failed, trying with SSL context that bypasses verification...")
+                    print("🔓 WARNING: This bypasses SSL certificate verification and reduces security!")
                     
-                    # Create opener with custom SSL context
-                    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_context))
-                    urllib.request.install_opener(opener)
+                    # Store original opener to restore later
+                    original_opener = urllib.request._opener
                     
-                    # Retry with SSL context that bypasses verification
-                    urllib.request.urlretrieve(url, local_filepath, reporthook)
+                    try:
+                        # Create SSL context that bypasses certificate verification
+                        ssl_context = ssl.create_default_context()
+                        ssl_context.check_hostname = False
+                        ssl_context.verify_mode = ssl.CERT_NONE
+                        
+                        # Create opener with custom SSL context
+                        opener = urllib.request.build_opener(
+                            urllib.request.HTTPSHandler(context=ssl_context)
+                        )
+                        urllib.request.install_opener(opener)
+                        
+                        # Retry with SSL context that bypasses verification
+                        urllib.request.urlretrieve(url, local_filepath, reporthook)
+                    finally:
+                        # Restore original opener to limit scope of changes
+                        if original_opener:
+                            urllib.request.install_opener(original_opener)
+                        else:
+                            urllib.request.install_opener(urllib.request.build_opener())
                 else:
                     raise ssl_err
-
             if reporthook.pbar:
                 reporthook.pbar.close()
 
