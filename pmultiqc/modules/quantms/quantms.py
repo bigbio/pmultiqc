@@ -3166,6 +3166,7 @@ class QuantMSModule:
         modified_cats = list()
 
         for run_file, group in report_data.groupby("Run"):
+            run_file = str(run_file)
             self.ms_with_psm.append(run_file)
 
             # Modifications
