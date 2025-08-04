@@ -23,7 +23,9 @@ def draw_dia_intensitys(sub_section, report_df):
     df_sub["log_intensity"] = np.log2(df_sub["Precursor.Normalised"])
     
     draw_dia_intensity_dis(sub_section, df_sub)
-    draw_dia_intensity_std(sub_section, df_sub)
+
+    if can_groupby_for_std(report_df, "Run"):
+        draw_dia_intensity_std(sub_section, df_sub)
 
 def draw_dia_ms2s(sub_section, df):
 
@@ -61,7 +63,7 @@ def draw_dia_time_mass(sub_section, df):
 def draw_dia_intensity_dis(sub_section, df):
 
     box_data = {
-        run: group["log_intensity"].dropna().tolist()
+        str(run): group["log_intensity"].dropna().tolist()
         for run, group in df.groupby("Run")
     }
 
@@ -105,6 +107,8 @@ def draw_dia_ms2_charge(sub_section, df):
         .to_dict(orient="index")
     )
 
+    bar_data = {str(k): v for k, v in bar_data.items()}
+
     draw_config = {
         "id": "charge_state_of_per_file",
         "cpswitch": True,
@@ -131,6 +135,17 @@ def draw_dia_ms2_charge(sub_section, df):
     )
 
 # DIA: Standard Deviation of Intensity
+def can_groupby_for_std(df, col):
+    unique_vals = df[col].drop_duplicates()
+    
+    regex = re.compile(r"^(.*?)([A-Za-z]*)(\d+)$")
+    unmatched = [val for val in unique_vals if not regex.match(str(val))]
+    
+    if len(unmatched) > 0:
+        return False
+    else:
+        return True
+
 def draw_dia_intensity_std(sub_section, df):
 
     box_data = calculate_dia_intensity_std(df)
@@ -165,7 +180,7 @@ def draw_dia_intensity_std(sub_section, df):
 
 def extract_condition_and_replicate(run_name):
 
-    match = re.search(r"(.*?)([A-Za-z]*)(\d+)$", run_name)
+    match = re.search(r"^(.*?)([A-Za-z]*)(\d+)$", run_name)
 
     if match:
         condition_base = match.group(1) + match.group(2)
@@ -216,7 +231,7 @@ def calculate_msms_count(df):
 
     result_dict = dict()
     for run_name, group in merged_df.groupby("Run"):
-        result_dict[run_name] = dict(zip(group["msms_count_str"], group["msms_count_run"]))
+        result_dict[str(run_name)] = dict(zip(group["msms_count_str"], group["msms_count_run"]))
 
     return {
          "plot_data": result_dict,

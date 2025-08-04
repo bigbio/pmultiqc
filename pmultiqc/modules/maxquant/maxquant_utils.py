@@ -18,6 +18,15 @@ from ...logging import get_logger, Timer
 logger = get_logger("pmultiqc.modules.maxquant")
 
 
+def find_needed_cols(file, needed_cols):
+
+    cols = pd.read_csv(file, sep='\t', nrows=0).columns
+    needed_cols_lower = [c.lower() for c in needed_cols]
+
+    use_cols = [col for col in cols if col.lower() in needed_cols_lower]
+
+    return use_cols
+
 def read(
     file: Path | ReadCsvBuffer[bytes] | ReadCsvBuffer[str] | str,
     file_type: str = None,
@@ -34,9 +43,30 @@ def read(
     Returns:
         Processed pandas DataFrame
     """
+
+    needed_cols_map = {
+        "msms": [
+            "sequence", "proteins", "evidence id", "missed cleavages", "raw file", "score"
+        ],
+        "msmsScans": [
+            "retention time", "raw file", "ion injection time", "scan event number"
+        ]
+    }
+
     file_name = get_filename(file)
     with Timer(logger, f"Reading file {os.path.basename(file_name)}"):
-        mq_data = pd.read_csv(file, sep="\t", low_memory=False)
+
+        if file_type in needed_cols_map:
+            
+            use_cols = find_needed_cols(file, needed_cols_map[file_type])
+
+            if use_cols:
+                mq_data = pd.read_csv(file, sep="\t", usecols=use_cols)
+            else:
+                raise ValueError(f"Please check your {file_type}.txt file!")
+        else:
+            mq_data = pd.read_csv(file, sep="\t", low_memory=False)
+
         logger.info(f"Loaded {len(mq_data)} rows from {os.path.basename(file_name)}")
 
     # columns to lower
@@ -804,7 +834,7 @@ def evidence_rt_count(evidence_data):
 
     rt_count_dict = {}
     for raw_file, group in evidence_data.groupby("raw file"):
-        rt_count_dict[raw_file] = hist_compute(group["retention time"], rt_range)
+        rt_count_dict[str(raw_file)] = hist_compute(group["retention time"], rt_range)
 
     return rt_count_dict
 
@@ -1210,7 +1240,7 @@ def get_msms(file_path: Union[Path, str], evidence_df: pd.DataFrame = None):
     Returns:
         Dictionary containing metrics extracted from the msms file
     """
-    mq_data = read(file_path)
+    mq_data = read(file=file_path, file_type="msms")
 
     # Count MS/MS spectra and peptides
     total_entries = len(mq_data)
@@ -1340,7 +1370,7 @@ def get_msms_scans(file_path: Union[Path, str]):
     Returns:
         Dictionary containing metrics extracted from the msmsScans file
     """
-    mq_data = read(file_path)
+    mq_data = read(file=file_path, file_type="msmsScans")
 
     # Count MS scans and get retention time range
     total_scans = len(mq_data)
