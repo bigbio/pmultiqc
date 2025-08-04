@@ -1,6 +1,6 @@
 # recipe/meta.yaml
 {% set name = "pmultiqc" %}
-{% set version = "0.0.30" %}
+{% set version = "0.0.32" %}
 
 package:
   name: {{ name }}
@@ -18,11 +18,11 @@ build:
 
 requirements:
   host:
-    - python >=3.10,<3.13
+    - python >=3.10
     - pip
     - poetry-core
   run:
-    - python >=3.10,<3.13
+    - python >=3.10
     - pytest
     - lxml
     - multiqc >=1.29
