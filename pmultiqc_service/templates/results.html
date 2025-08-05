@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMultiQC - Results</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .job-info {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .job-info h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .job-info p {
+            margin: 8px 0;
+            color: #666;
+        }
+
+        .job-id {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .status {
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+
+        .status.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.queued, .status.processing, .status.fetching_files, .status.filtering_files, .status.downloading_files, .status.running_pmultiqc {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            margin: 8px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #6c757d, #5a6268);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #721c24;
+        }
+
+        .home-link {
+            margin-top: 30px;
+        }
+
+        .home-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .home-link a:hover {
+            background: #f8f9fa;
+            transform: translateY(-1px);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Modal styles */
+        .report-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .report-modal-content {
+            background-color: #fefefe;
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 10px;
+            width: 90%;
+            height: 90%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .report-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            border-radius: 10px 10px 0 0;
+            background: #f8f9fa;
+        }
+
+        .report-modal-title {
+            margin: 0;
+            color: #333;
+            font-size: 1.2em;
+        }
+
+        .report-modal-close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .report-modal-close:hover {
+            color: #000;
+        }
+
+        .report-modal-body {
+            height: calc(100% - 60px);
+            padding: 0;
+            position: relative;
+        }
+
+        .report-modal-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .report-modal-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+        }
+
+        .report-modal-loading::after {
+            content: '';
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">PMultiQC</div>
+            <div class="subtitle">Proteomics MultiQC Analysis Results</div>
+        </div>
+
+        <div class="job-info">
+            <h3>Job Information</h3>
+            <p><strong>Job ID:</strong> <span class="job-id">{{ job_id }}</span></p>
+            <p><strong>Status:</strong> <span class="status {{ job_data.status }}">{{ job_data.status }}</span></p>
+            {% if job_data.accession %}
+            <p><strong>PRIDE Accession:</strong> {{ job_data.accession }}</p>
+            {% endif %}
+            {% if job_data.started_at %}
+            <p><strong>Started at:</strong> {{ job_data.started_at }}</p>
+            {% endif %}
+            {% if job_data.finished_at %}
+            <p><strong>Finished at:</strong> {{ job_data.finished_at }}</p>
+            {% endif %}
+        </div>
+
+        {% if job_data.status == 'completed' %}
+        <div class="details">
+            <h3>✅ Analysis Complete!</h3>
+            {% if job_data.input_type %}
+            <p><strong>Input Type:</strong> {{ job_data.input_type }}</p>
+            {% endif %}
+            {% if job_data.files_processed %}
+            <p><strong>Files Processed:</strong> {{ job_data.files_processed }}/{{ job_data.total_files }}</p>
+            {% endif %}
+            {% if job_data.files_downloaded %}
+            <p><strong>Files Downloaded:</strong> {{ job_data.files_downloaded }}</p>
+            {% endif %}
+            
+            <div style="margin: 20px 0;">
+                <a href="/download-report/{{ job_id }}" class="btn btn-primary">📥 Download Report</a>
+                {% if job_data.html_report_urls %}
+                <div style="margin: 15px 0;">
+                    <h4>📊 View Reports Online</h4>
+                    {% if job_data.html_report_urls|length == 1 %}
+                        {% for name, url in job_data.html_report_urls.items() %}
+                        <a href="{{ url }}" class="btn btn-success" target="_blank">🌐 View Report Online</a>
+                        <button class="btn btn-success" onclick="showPrideReport('{{ url }}')" style="margin-left: 10px;">📊 Show Report</button>
+                        {% endfor %}
+                    {% else %}
+                        <div style="margin: 10px 0;">
+                            <label for="reportSelector" style="font-weight: bold; display: block; margin-bottom: 5px;">Select Report:</label>
+                            <select id="reportSelector" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 10px;">
+                                {% for name, url in job_data.html_report_urls.items() %}
+                                <option value="{{ url }}">{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-success" onclick="viewSelectedReport()" style="margin-right: 10px;">🌐 View Report Online</button>
+                            <button class="btn btn-success" onclick="showSelectedReport()">📊 Show Report</button>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Console Output Section -->
+            {% if job_data.console_output and job_data.console_output|length > 0 %}
+            <div class="details">
+                <h3>📋 Console Output</h3>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef;">
+                    {% for line in job_data.console_output %}
+                    <div style="margin: 2px 0; white-space: pre-wrap;">{{ line }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Individual File Results Section -->
+            {% if job_data.results and job_data.results|length > 0 %}
+            <div class="details">
+                <h3>📁 Individual File Results</h3>
+                <div style="margin-top: 10px;">
+                    {% for result in job_data.results %}
+                    <div style="background: #e9ecef; padding: 12px; margin: 8px 0; border-radius: 8px; border-left: 4px solid #007bff;">
+                        <strong>{{ result.file_name }}</strong> 
+                        <span style="color: #666;">({{ result.input_type }})</span>
+                        {% if result.report_path %}
+                        <div style="margin-top: 5px;">
+                            <a href="/download-report/{{ job_id }}/{{ result.file_name }}" class="btn btn-secondary" style="font-size: 0.8em; padding: 5px 10px;">📥 Download {{ result.file_name }} Report</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Console Errors Section (if any) -->
+            {% if job_data.console_errors and job_data.console_errors|length > 0 %}
+            <div class="details">
+                <h3>⚠️ Console Errors</h3>
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; border: 1px solid #ffeaa7;">
+                    {% for line in job_data.console_errors %}
+                    <div style="margin: 2px 0; white-space: pre-wrap; color: #856404;">{{ line }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% elif job_data.status == 'failed' %}
+        <div class="error-message">
+            <h3>❌ Analysis Failed</h3>
+            {% if job_data.error %}
+            <p><strong>Error:</strong> {{ job_data.error }}</p>
+            {% endif %}
+            
+            <!-- Show console errors even for failed jobs -->
+            {% if job_data.console_errors and job_data.console_errors|length > 0 %}
+            <div style="margin-top: 15px;">
+                <h4>📋 Console Output</h4>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; border: 1px solid #e9ecef;">
+                    {% for line in job_data.console_errors %}
+                    <div style="margin: 2px 0; white-space: pre-wrap;">{{ line }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="details">
+            <h3>⏳ Analysis in Progress</h3>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill" style="width: {{ job_data.progress }}%"></div>
+            </div>
+            <p id="progressText">Processing... ({{ job_data.progress }}%)</p>
+            <div id="loadingIndicator" style="text-align: center; margin: 20px 0;">
+                <span class="loading"></span> Monitoring progress...
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="home-link">
+            <a href="/">← Return to Home</a>
+        </div>
+    </div>
+
+    <!-- pmultiqc Information Footer -->
+    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); margin-top: 40px; padding: 30px; border-top: 3px solid #007bff; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; border-radius: 0 0 15px 15px;">
+        <div style="text-align: center;">
+            <h3 style="color: #333; margin-bottom: 20px; font-size: 1.5em;">About PMultiQC</h3>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 25px; font-size: 1.1em;">
+                <strong>pmultiqc</strong> is a MultiQC plugin for comprehensive quality control reporting of proteomics data. 
+                It generates interactive HTML reports with visualizations and metrics to help you assess the quality of 
+                your mass spectrometry-based proteomics experiments.
+            </p>
+            
+            <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                <a href="https://pmultiqc.quantms.org" target="_blank" style="
+                    display: inline-block; 
+                    padding: 12px 25px; 
+                    background: linear-gradient(45deg, #007bff, #0056b3); 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    font-weight: bold; 
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(0,123,255,0.3)'" 
+                   onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+                    🌐 Project Website
+                </a>
+                
+                <a href="https://github.com/bigbio/pmultiqc" target="_blank" style="
+                    display: inline-block; 
+                    padding: 12px 25px; 
+                    background: linear-gradient(45deg, #28a745, #20c997); 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    font-weight: bold; 
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(40,167,69,0.3)'" 
+                   onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+                    📂 GitHub Repository
+                </a>
+                
+                <a href="https://pmultiqc.quantms.org/#-example-reports" target="_blank" style="
+                    display: inline-block; 
+                    padding: 12px 25px; 
+                    background: linear-gradient(45deg, #6f42c1, #5a32a3); 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    font-weight: bold; 
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(111,66,193,0.3)'" 
+                   onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+                    📊 Example Reports
+                </a>
+            </div>
+            
+            <div style="border-top: 1px solid #dee2e6; padding-top: 20px;">
+                <p style="color: #6c757d; font-size: 0.9em; margin: 0;">
+                    Powered by <strong>PMultiQC</strong> - A comprehensive proteomics quality control framework
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="reportModal" class="report-modal">
+        <div class="report-modal-content">
+            <div class="report-modal-header">
+                <h3 class="report-modal-title">PRIDE Report</h3>
+                <button class="report-modal-close" onclick="closeReportModal()">&times;</button>
+            </div>
+            <div class="report-modal-body">
+                <div id="reportLoading" class="report-modal-loading">Loading report...</div>
+                <iframe id="reportIframe" class="report-modal-iframe" style="display: none;" onload="hideLoading()"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        {% if job_data.status not in ['completed', 'failed'] %}
+        // Auto-refresh for ongoing jobs
+        setTimeout(() => {
+            location.reload();
+        }, 5000);
+        {% endif %}
+
+        function viewSelectedReport() {
+            const selector = document.getElementById('reportSelector');
+            const url = selector.value;
+            window.open(url, '_blank');
+        }
+
+        function showPrideReport(url) {
+            const modal = document.getElementById('reportModal');
+            const iframe = document.getElementById('reportIframe');
+            const loading = document.getElementById('reportLoading');
+            
+            // Show modal and loading
+            modal.style.display = 'block';
+            loading.style.display = 'block';
+            iframe.style.display = 'none';
+            
+            // Set iframe source
+            iframe.src = url;
+        }
+
+        function showSelectedReport() {
+            const selector = document.getElementById('reportSelector');
+            const url = selector.value;
+            showPrideReport(url);
+        }
+
+        function closeReportModal() {
+            const modal = document.getElementById('reportModal');
+            const iframe = document.getElementById('reportIframe');
+            
+            modal.style.display = 'none';
+            iframe.src = '';
+        }
+
+        function hideLoading() {
+            const loading = document.getElementById('reportLoading');
+            const iframe = document.getElementById('reportIframe');
+            
+            loading.style.display = 'none';
+            iframe.style.display = 'block';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('reportModal');
+            if (event.target === modal) {
+                closeReportModal();
+            }
+        }
+    </script>
+</body>
+</html> 

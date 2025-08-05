@@ -15,7 +15,6 @@ import requests
 import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from urllib.parse import urlparse
 
 from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
@@ -66,10 +65,12 @@ CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2GB max file size
 app.config['UPLOAD_FOLDER'] = '/tmp/pmultiqc_uploads'
 app.config['OUTPUT_FOLDER'] = '/tmp/pmultiqc_outputs'
+app.config['HTML_REPORTS_FOLDER'] = '/tmp/pmultiqc_html_reports'
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+os.makedirs(app.config['HTML_REPORTS_FOLDER'], exist_ok=True)
 
 # Job status tracking
 job_status_dict = {}
@@ -434,6 +435,160 @@ def create_zip_report(output_path: str, zip_path: str) -> bool:
         logger.error(f"Error creating zip report: {e}")
         return False
 
+def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession: str = None) -> Optional[Dict[str, str]]:
+    """
+    Copy HTML reports to public directory for online viewing.
+    
+    Args:
+        output_path: Path to the MultiQC output directory
+        job_id: Job ID for the report
+        accession: PRIDE accession number (optional, for PRIDE datasets)
+    
+    Returns:
+        dict: Dictionary mapping report names to their URLs, or None if failed
+    """
+    try:
+        logger.info(f"Starting copy_html_report_for_online_viewing: output_path={output_path}, job_id={job_id}, accession={accession}")
+        
+        # Log the contents of the output directory first
+        logger.info(f"Contents of output directory {output_path}:")
+        if os.path.exists(output_path):
+            for root, dirs, files in os.walk(output_path):
+                level = root.replace(output_path, '').count(os.sep)
+                indent = ' ' * 2 * level
+                logger.info(f"{indent}{os.path.basename(root)}/")
+                subindent = ' ' * 2 * (level + 1)
+                for file in files:
+                    logger.info(f"{subindent}{file}")
+        else:
+            logger.error(f"Output directory does not exist: {output_path}")
+            return None
+        
+        # Look for all HTML report files
+        html_reports = []
+        for root, dirs, files in os.walk(output_path):
+            for file in files:
+                if file == 'multiqc_report.html':
+                    html_report_path = os.path.join(root, file)
+                    # Get the relative path from output_path to determine report name
+                    rel_path = os.path.relpath(root, output_path)
+                    # Use "." as root if the report is directly in output_path
+                    if rel_path == '.':
+                        rel_path = 'root'
+                    html_reports.append((rel_path, html_report_path))
+                    logger.info(f"Found HTML report: {html_report_path} (relative path: {rel_path})")
+        
+        if not html_reports:
+            logger.warning(f"No HTML reports found in {output_path}")
+            logger.info("Searching for any .html files in the output directory...")
+            for root, dirs, files in os.walk(output_path):
+                for file in files:
+                    if file.endswith('.html'):
+                        logger.info(f"Found HTML file: {os.path.join(root, file)}")
+            return None
+        
+        # Create a unique hash for the report URL
+        import hashlib
+        hash_input = f"{job_id}_{accession}" if accession else job_id
+        report_hash = hashlib.md5(hash_input.encode()).hexdigest()[:12]
+        logger.info(f"Generated report hash: {report_hash} (from input: {hash_input})")
+        
+        # Create public directory for this report
+        public_dir = os.path.join(app.config['HTML_REPORTS_FOLDER'], report_hash)
+        os.makedirs(public_dir, exist_ok=True)
+        logger.info(f"Created public directory: {public_dir}")
+        
+        # Create a job file for cleanup tracking
+        job_file_path = os.path.join(public_dir, '.job_id')
+        with open(job_file_path, 'w') as f:
+            f.write(job_id)
+        
+        # Copy all files from output directory to public directory
+        files_copied = 0
+        for root, dirs, files in os.walk(output_path):
+            for file in files:
+                src_path = os.path.join(root, file)
+                rel_path = os.path.relpath(src_path, output_path)
+                dst_path = os.path.join(public_dir, rel_path)
+                
+                # Ensure destination directory exists
+                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                
+                # Copy file
+                shutil.copy2(src_path, dst_path)
+                files_copied += 1
+                logger.info(f"Copied {src_path} to {dst_path}")
+        
+        logger.info(f"Total files copied: {files_copied}")
+        
+        # Create URLs for each HTML report
+        html_urls = {}
+        for report_name, html_report_path in html_reports:
+            # Find the relative path to the HTML report for the URL
+            html_rel_path = os.path.relpath(html_report_path, output_path)
+            html_url = f'/reports/{report_hash}/{html_rel_path}'
+            html_urls[report_name] = html_url
+            logger.info(f"HTML report for '{report_name}' available at: {html_url}")
+        
+        logger.info(f"Generated HTML URLs: {html_urls}")
+        return html_urls
+        
+    except Exception as e:
+        logger.error(f"Error copying HTML reports for PRIDE: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return None
+
+def save_job_data_to_disk(job_id: str, job_data: dict, output_dir: str):
+    """
+    Save job data to disk for future retrieval when job is removed from memory.
+    
+    Args:
+        job_id: The job ID
+        job_data: The complete job data dictionary
+        output_dir: The output directory for this job
+    """
+    try:
+        # Save console output
+        console_output = job_data.get('console_output', [])
+        if console_output:
+            console_output_file = os.path.join(output_dir, 'console_output.txt')
+            with open(console_output_file, 'w', encoding='utf-8') as f:
+                for line in console_output:
+                    f.write(line + '\n')
+            logger.info(f"Saved {len(console_output)} console output lines for job {job_id}")
+        
+        # Save console errors
+        console_errors = job_data.get('console_errors', [])
+        if console_errors:
+            console_errors_file = os.path.join(output_dir, 'console_errors.txt')
+            with open(console_errors_file, 'w', encoding='utf-8') as f:
+                for line in console_errors:
+                    f.write(line + '\n')
+            logger.info(f"Saved {len(console_errors)} console error lines for job {job_id}")
+        
+        # Save job info
+        job_info = {
+            'job_id': job_id,
+            'status': job_data.get('status'),
+            'input_type': job_data.get('input_type'),
+            'accession': job_data.get('accession'),
+            'results': job_data.get('results', []),
+            'finished_at': job_data.get('finished_at'),
+            'files_processed': job_data.get('files_processed'),
+            'total_files': job_data.get('total_files'),
+            'files_downloaded': job_data.get('files_downloaded'),
+            'html_report_urls': job_data.get('html_report_urls')
+        }
+        
+        job_info_file = os.path.join(output_dir, 'job_info.json')
+        with open(job_info_file, 'w', encoding='utf-8') as f:
+            json.dump(job_info, f, indent=2)
+        logger.info(f"Saved job info for job {job_id} to {job_info_file}")
+        
+    except Exception as e:
+        logger.error(f"Error saving job data to disk for job {job_id}: {e}")
+
 # Scheduled cleanup of the tmp folder
 def cleanup_expired_jobs():
 
@@ -452,8 +607,11 @@ def cleanup_expired_jobs():
             to_delete_jobids.append(job_id)
 
     for job_id in to_delete_jobids:
-        job_status_dict.pop(job_id, None)
-        logger.info(f"Job ID {job_id} has been deleted at: {now}")
+        job_data = job_status_dict.pop(job_id, None)
+        if job_data:
+            logger.info(f"Job ID {job_id} has been deleted from job_status_dict at: {now} (was {job_data.get('status', 'unknown')})")
+        else:
+            logger.warning(f"Job ID {job_id} was already missing from job_status_dict at: {now}")
 
     threading.Timer(CLEANUP_JOB_SECONDS, cleanup_expired_jobs).start()
 
@@ -466,6 +624,19 @@ def cleanup_job_files(job_id, now_time):
             if os.path.exists(directory):
                 shutil.rmtree(directory)
                 logger.info(f"Removed directory {directory} for job {job_id} at {now_time}")
+        
+        # Clean up HTML reports for PRIDE datasets
+        if os.path.exists(app.config['HTML_REPORTS_FOLDER']):
+            for report_dir in os.listdir(app.config['HTML_REPORTS_FOLDER']):
+                report_path = os.path.join(app.config['HTML_REPORTS_FOLDER'], report_dir)
+                if os.path.isdir(report_path):
+                    job_file_path = os.path.join(report_path, '.job_id')
+                    if os.path.exists(job_file_path):
+                        with open(job_file_path, 'r') as f:
+                            stored_job_id = f.read().strip()
+                            if stored_job_id == job_id:
+                                shutil.rmtree(report_path)
+                                logger.info(f"Removed HTML report directory {report_path} for job {job_id} at {now_time}")
 
     except Exception as e:
         logger.error(f"Error cleaning files for job {job_id}: {e}")
@@ -560,22 +731,43 @@ def generate_report():
         
         logger.info(f"Successfully completed job {job_id}")
 
-        job_status_dict[job_id] = {
+        # Copy HTML report to public directory for online viewing
+        try:
+            html_urls = copy_html_report_for_online_viewing(output_dir, job_id)
+            logger.info(f"Generated html_urls for sync job {job_id}: {html_urls}")
+        except Exception as e:
+            logger.error(f"Failed to copy HTML reports for sync job {job_id}: {e}")
+            html_urls = None
+
+        job_update = {
             'job_id': job_id,
             'status': 'completed',
             'input_type': input_type,
             'finished_at_seconds': current_time()[0],
             'finished_at': current_time()[1]
         }
+        
+        if html_urls:
+            job_update['html_report_urls'] = html_urls
 
-        return jsonify({
+        job_status_dict[job_id] = job_update
+
+        # Save job data to disk for future retrieval
+        save_job_data_to_disk(job_id, job_update, output_dir)
+
+        response_data = {
             'job_id': job_id,
             'status': 'completed',
             'input_type': input_type,
             'download_url': f'/download-report/{job_id}',
             'message': 'Report generated successfully',
             'finished_at': current_time()[1]
-        })
+        }
+        
+        if html_urls:
+            response_data['html_report_urls'] = html_urls
+
+        return jsonify(response_data)
         
     except Exception as e:
         logger.error(f"Error in generate_report: {e}")
@@ -664,15 +856,32 @@ def upload_large_file():
             }), 500
         
         logger.info(f"Successfully completed large file job {job_id}")
-        job_status_dict[job_id] = {
+        
+        # Copy HTML report to public directory for online viewing
+        try:
+            html_urls = copy_html_report_for_online_viewing(output_dir, job_id)
+            logger.info(f"Generated html_urls for large file job {job_id}: {html_urls}")
+        except Exception as e:
+            logger.error(f"Failed to copy HTML reports for large file job {job_id}: {e}")
+            html_urls = None
+
+        job_update = {
             'job_id': job_id,
             'status': 'completed',
             'input_type': input_type,
             'finished_at_seconds': current_time()[0],
             'finished_at': current_time()[1]
         }
+        
+        if html_urls:
+            job_update['html_report_urls'] = html_urls
 
-        return jsonify({
+        job_status_dict[job_id] = job_update
+
+        # Save job data to disk for future retrieval
+        save_job_data_to_disk(job_id, job_update, output_dir)
+
+        response_data = {
             'job_id': job_id,
             'status': 'completed',
             'input_type': input_type,
@@ -680,63 +889,310 @@ def upload_large_file():
             'message': 'Report generated successfully',
             'file_size': file_size,
             'finished_at': current_time()[1]
-        })
+        }
+        
+        if html_urls:
+            response_data['html_report_urls'] = html_urls
+
+        return jsonify(response_data)
         
     except Exception as e:
         logger.error(f"Error in upload_large_file: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: str, pmultiqc_config: str, job_id: str) -> Dict[str, Any]:
+    """
+    Run PMultiQC with real-time progress updates stored in job_status_dict.
+    """
+    try:
+        # Set up MultiQC arguments based on input type
+        args = [
+            'multiqc',
+            input_path,
+            '-o', output_path,
+            '--force'
+        ]
+        
+        # Add type-specific arguments
+        if input_type == 'maxquant':
+            args.extend(['--parse_maxquant'])
+        elif input_type == "quantms":
+            args.extend(["--config", pmultiqc_config])
+        elif input_type == 'diann':
+            # DIANN files are handled automatically by pmultiqc
+            pass
+        elif input_type == 'mzidentml':
+            args.extend(['--mzid_plugin'])
+        
+        # Run MultiQC with PMultiQC plugin
+        logger.info(f"Running PMultiQC with args: {args}")
+        
+        # Initialize console output in job status
+        job_status_dict[job_id]['console_output'] = []
+        job_status_dict[job_id]['console_errors'] = []
+        
+        # Run multiqc as a subprocess with real-time output
+        import subprocess
+        
+        try:
+            # Run the multiqc command with real-time output
+            process = subprocess.Popen(
+                args, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True, 
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # Stream output in real-time
+            output_lines = []
+            error_lines = []
+            
+            while True:
+                output = process.stdout.readline()
+                error = process.stderr.readline()
+                
+                if output:
+                    output_line = output.strip()
+                    output_lines.append(output_line)
+                    job_status_dict[job_id]['console_output'].append(output_line)
+                    logger.info(f"MultiQC: {output_line}")
+                
+                if error:
+                    error_line = error.strip()
+                    error_lines.append(error_line)
+                    job_status_dict[job_id]['console_errors'].append(error_line)
+                    logger.warning(f"MultiQC: {error_line}")
+                
+                # Check if process has finished
+                if process.poll() is not None:
+                    break
+            
+            # Get any remaining output
+            remaining_output, remaining_error = process.communicate()
+            if remaining_output:
+                for line in remaining_output.strip().split('\n'):
+                    if line.strip():
+                        output_lines.append(line.strip())
+                        job_status_dict[job_id]['console_output'].append(line.strip())
+                        logger.info(f"MultiQC remaining output: {line.strip()}")
+            if remaining_error:
+                for line in remaining_error.strip().split('\n'):
+                    if line.strip():
+                        error_lines.append(line.strip())
+                        job_status_dict[job_id]['console_errors'].append(line.strip())
+                        logger.warning(f"MultiQC remaining error: {line.strip()}")
+            
+            if process.returncode == 0:
+                return {
+                    'success': True, 
+                    'message': 'Report generated successfully',
+                    'output': output_lines,
+                    'errors': error_lines
+                }
+            else:
+                return {
+                    'success': False, 
+                    'message': f'MultiQC failed with return code {process.returncode}',
+                    'output': output_lines,
+                    'errors': error_lines
+                }
+                
+        except subprocess.CalledProcessError as e:
+            logger.error(f"MultiQC failed with return code {e.returncode}")
+            logger.error(f"MultiQC stdout: {e.stdout}")
+            logger.error(f"MultiQC stderr: {e.stderr}")
+            return {
+                'success': False, 
+                'message': f'MultiQC failed: {e.stderr}',
+                'output': e.stdout.split('\n') if e.stdout else [],
+                'errors': e.stderr.split('\n') if e.stderr else []
+            }
+            
+    except Exception as e:
+        logger.error(f"Error running PMultiQC: {e}")
+        return {'success': False, 'message': str(e), 'output': [], 'errors': []}
+
 def process_job_async(job_id: str, extract_path: str, output_dir: str, input_type: str, quantms_config: str):
     """Process a job asynchronously in a separate thread."""
     try:
         job_status_dict[job_id] = {
-            'status': 'processing',
+            'status': 'running_pmultiqc',
             'progress': 0,
+            'console_output': [],
+            'console_errors': [],
+            'processing_stage': 'Starting pmultiqc analysis...'
         }
         
-        # Run PMultiQC
+        # Run PMultiQC with real-time progress
         logger.info(f"Starting async processing for job {job_id}")
-        result = run_pmultiqc(extract_path, output_dir, input_type, quantms_config)
+        result = run_pmultiqc_with_progress(extract_path, output_dir, input_type, quantms_config, job_id)
         
         if not result['success']:
-            job_status_dict[job_id] = {
+            job_status_dict[job_id].update({
                 'status': 'failed',
                 'error': result['message'],
                 'finished_at_seconds': current_time()[0],
                 'finished_at': current_time()[1]
-            }
+            })
             return
         
-        job_status_dict[job_id] = {'status': 'creating_report', 'progress': 75}
+        job_status_dict[job_id].update({
+            'status': 'creating_report', 
+            'progress': 75,
+            'processing_stage': 'Creating zip report...'
+        })
         
         # Create zip report
         zip_report_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
         if not create_zip_report(output_dir, zip_report_path):
-            job_status_dict[job_id] = {
+            job_status_dict[job_id].update({
                 'status': 'failed',
                 'error': 'Failed to create zip report',
                 'finished_at_seconds': current_time()[0],
                 'finished_at': current_time()[1],
-            }
+            })
             return
         
-        job_status_dict[job_id] = {
+        # Copy HTML report to public directory for online viewing
+        try:
+            html_urls = copy_html_report_for_online_viewing(output_dir, job_id)
+            logger.info(f"Generated html_urls for job {job_id}: {html_urls}")
+        except Exception as e:
+            logger.error(f"Failed to copy HTML reports for job {job_id}: {e}")
+            html_urls = None
+        
+        job_update = {
             'status': 'completed',
             'progress': 100,
             'input_type': input_type,
+            'processing_stage': 'Analysis completed successfully!',
             'finished_at_seconds': current_time()[0],
             'finished_at': current_time()[1]
         }
+        
+        # Only add html_report_urls if we successfully generated them
+        if html_urls:
+            job_update['html_report_urls'] = html_urls
+        
+        job_status_dict[job_id].update(job_update)
+        
+        # Save job data to disk for future retrieval
+        save_job_data_to_disk(job_id, job_status_dict[job_id], output_dir)
+        
         logger.info(f"Successfully completed async job {job_id}")
         
     except Exception as e:
         logger.error(f"Error in async processing for job {job_id}: {e}")
-        job_status_dict[job_id] = {
+        job_status_dict[job_id].update({
             'status': 'failed',
             'error': str(e),
             'finished_at_seconds': current_time()[0],
             'finished_at': current_time()[1]
+        })
+
+@app.route('/debug-upload', methods=['POST'])
+def debug_upload():
+    """Debug endpoint to check what's being received."""
+    logger.info("Debug upload endpoint called")
+    logger.info(f"Request files: {list(request.files.keys())}")
+    logger.info(f"Request form: {list(request.form.keys())}")
+    logger.info(f"Content type: {request.content_type}")
+    return jsonify({
+        'files': list(request.files.keys()),
+        'form': list(request.form.keys()),
+        'content_type': request.content_type
+    })
+
+@app.route('/debug-reports', methods=['GET'])
+def debug_reports():
+    """Debug endpoint to check HTML reports directory."""
+    try:
+        reports_dir = app.config['HTML_REPORTS_FOLDER']
+        debug_info = {
+            'reports_directory': reports_dir,
+            'directory_exists': os.path.exists(reports_dir),
+            'contents': {}
         }
+        
+        if os.path.exists(reports_dir):
+            for item in os.listdir(reports_dir):
+                item_path = os.path.join(reports_dir, item)
+                if os.path.isdir(item_path):
+                    debug_info['contents'][item] = {}
+                    for root, dirs, files in os.walk(item_path):
+                        rel_path = os.path.relpath(root, item_path)
+                        if rel_path == '.':
+                            rel_path = 'root'
+                        debug_info['contents'][item][rel_path] = {
+                            'directories': dirs,
+                            'files': files
+                        }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        logger.error(f"Error in debug_reports: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/debug-job/<job_id>', methods=['GET'])
+def debug_job(job_id):
+    """Debug endpoint to check job status and data."""
+    try:
+        # Check current time and show all available jobs
+        now = current_time()
+        debug_info = {
+            'current_time': now[1],
+            'current_timestamp': now[0],
+            'total_jobs_in_memory': len(job_status_dict),
+            'all_job_ids': list(job_status_dict.keys()),
+            'requested_job_id': job_id,
+            'job_found_in_memory': job_id in job_status_dict
+        }
+        
+        if job_id in job_status_dict:
+            job_data = job_status_dict[job_id]
+            
+            # Calculate how long ago the job finished
+            finished_at = job_data.get('finished_at_seconds')
+            if finished_at:
+                age_seconds = now[0] - finished_at
+                debug_info['job_age_seconds'] = age_seconds
+                debug_info['job_age_human'] = f"{age_seconds // 3600}h {(age_seconds % 3600) // 60}m {age_seconds % 60}s"
+            
+            # Also check if output directory exists
+            output_dir = os.path.join(app.config['OUTPUT_FOLDER'], job_id)
+            debug_info.update({
+                'job_data': job_data,
+                'output_directory': output_dir,
+                'output_exists': os.path.exists(output_dir),
+                'output_contents': []
+            })
+            
+            if os.path.exists(output_dir):
+                for root, dirs, files in os.walk(output_dir):
+                    for file in files:
+                        debug_info['output_contents'].append(os.path.join(root, file))
+            
+            return jsonify(debug_info)
+        else:
+            # Check if files exist even though job is not in memory
+            output_dir = os.path.join(app.config['OUTPUT_FOLDER'], job_id)
+            zip_report_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
+            
+            debug_info.update({
+                'output_directory': output_dir,
+                'output_exists': os.path.exists(output_dir),
+                'zip_report_exists': os.path.exists(zip_report_path),
+                'fallback_would_trigger': os.path.exists(zip_report_path)
+            })
+            
+            return jsonify(debug_info)
+            
+    except Exception as e:
+        logger.error(f"Error in debug_job: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/upload-async', methods=['POST'])
 def upload_async():
@@ -744,17 +1200,22 @@ def upload_async():
     Upload and process files asynchronously for very large files.
     
     Expected form data:
-    - file: ZIP file containing the data to analyze
+    - files: ZIP file containing the data to analyze
     
     Returns:
     - JSON response with job ID and status
     """
     try:
+        # Debug: Log all form data and files
+        logger.debug(f"Request files: {list(request.files.keys())}")
+        logger.debug(f"Request form: {list(request.form.keys())}")
+        
         # Check if file was uploaded
-        if 'file' not in request.files:
+        if 'files' not in request.files:
+            logger.error(f"No 'files' field found. Available fields: {list(request.files.keys())}")
             return jsonify({'error': 'No file provided'}), 400
         
-        file = request.files['file']
+        file = request.files['files']
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
@@ -869,6 +1330,252 @@ def download_report(job_id):
         logger.error(f"Error in download_report: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/reports/<report_hash>/info', methods=['GET'])
+def get_report_info(report_hash):
+    """
+    Get basic information about a report without loading large data files.
+    """
+    try:
+        logger.info(f"Report info request: hash={report_hash}")
+        
+        # Validate report_hash format
+        if not report_hash or len(report_hash) != 12 or not all(c in '0123456789abcdef' for c in report_hash):
+            return jsonify({'error': 'Invalid report hash'}), 400
+        
+        report_dir = os.path.join(app.config['HTML_REPORTS_FOLDER'], report_hash)
+        
+        if not os.path.exists(report_dir):
+            return jsonify({'error': 'Report not found'}), 404
+        
+        # Get basic info about the report
+        info = {
+            'report_hash': report_hash,
+            'report_directory': report_dir,
+            'subdirectories': [],
+            'total_files': 0,
+            'total_size_bytes': 0,
+            'large_files': []
+        }
+        
+        for root, dirs, files in os.walk(report_dir):
+            rel_path = os.path.relpath(root, report_dir)
+            if rel_path != '.':
+                info['subdirectories'].append(rel_path)
+            
+            for file in files:
+                if file == '.job_id':
+                    continue
+                    
+                file_path = os.path.join(root, file)
+                file_size = os.path.getsize(file_path)
+                info['total_files'] += 1
+                info['total_size_bytes'] += file_size
+                
+                # Track large files (>1MB)
+                if file_size > 1024 * 1024:
+                    rel_file_path = os.path.relpath(file_path, report_dir)
+                    info['large_files'].append({
+                        'path': rel_file_path,
+                        'size_bytes': file_size,
+                        'size_human': f"{file_size / (1024*1024):.1f} MB"
+                    })
+        
+        # Add human readable total size
+        if info['total_size_bytes'] > 1024 * 1024:
+            info['total_size_human'] = f"{info['total_size_bytes'] / (1024*1024):.1f} MB"
+        else:
+            info['total_size_human'] = f"{info['total_size_bytes'] / 1024:.1f} KB"
+        
+        return jsonify(info)
+        
+    except Exception as e:
+        logger.error(f"Error getting report info: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/reports/<report_hash>/test', methods=['GET'])
+def test_report_access(report_hash):
+    """
+    Simple test page to verify report directory access without loading large files.
+    """
+    try:
+        # Validate report_hash format
+        if not report_hash or len(report_hash) != 12 or not all(c in '0123456789abcdef' for c in report_hash):
+            return "Invalid report hash", 400
+        
+        report_dir = os.path.join(app.config['HTML_REPORTS_FOLDER'], report_hash)
+        
+        if not os.path.exists(report_dir):
+            return "Report not found", 404
+        
+        # Generate a simple test HTML page
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Report Test - {report_hash}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .info {{ background: #e7f3ff; padding: 10px; border-radius: 5px; margin: 10px 0; }}
+                .file-list {{ background: #f5f5f5; padding: 10px; border-radius: 5px; max-height: 300px; overflow-y: auto; }}
+            </style>
+        </head>
+        <body>
+            <h1>Report Test Page</h1>
+            <div class="info">
+                <strong>Report Hash:</strong> {report_hash}<br>
+                <strong>Directory:</strong> {report_dir}<br>
+                <strong>Status:</strong> Directory exists and is accessible
+            </div>
+            
+            <h2>Available Files:</h2>
+            <div class="file-list">
+        """
+        
+        # List files in the report directory
+        for root, dirs, files in os.walk(report_dir):
+            rel_path = os.path.relpath(root, report_dir)
+            if rel_path != '.':
+                html_content += f"<strong>{rel_path}/</strong><br>"
+            
+            for file in files:
+                if file == '.job_id':
+                    continue
+                file_path = os.path.join(root, file)
+                file_size = os.path.getsize(file_path)
+                rel_file_path = os.path.relpath(file_path, report_dir)
+                
+                if file == 'multiqc_report.html':
+                    html_content += f'&nbsp;&nbsp;<a href="/reports/{report_hash}/{rel_file_path}" target="_blank"><strong>{file}</strong></a> ({file_size} bytes)<br>'
+                else:
+                    html_content += f"&nbsp;&nbsp;{file} ({file_size} bytes)<br>"
+        
+        html_content += """
+            </div>
+            <div class="info">
+                <strong>Note:</strong> This is a test page to verify report access. 
+                Click on the multiqc_report.html links above to view the actual reports.
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html_content, 200, {'Content-Type': 'text/html'}
+        
+    except Exception as e:
+        logger.error(f"Error in test_report_access: {e}")
+        return f"Error: {str(e)}", 500
+
+@app.route('/reports/<report_hash>/<path:filename>', methods=['GET'])
+def serve_html_report(report_hash, filename):
+    """
+    Serve HTML reports for online viewing.
+    
+    Args:
+        report_hash: Hash identifier for the report
+        filename: Filename to serve (e.g., multiqc_report.html)
+    
+    Returns:
+        HTML file or other assets from the MultiQC report
+    """
+    try:
+        start_time = time.time()
+        logger.info(f"HTML report request: hash={report_hash}, filename={filename}")
+        
+        # Validate report_hash format (12 character hex)
+        if not report_hash or len(report_hash) != 12 or not all(c in '0123456789abcdef' for c in report_hash):
+            logger.error(f"Invalid report hash format: {report_hash}")
+            return jsonify({'error': 'Invalid report hash'}), 400
+        
+        # Construct file path
+        file_path = os.path.join(app.config['HTML_REPORTS_FOLDER'], report_hash, filename)
+        logger.info(f"Looking for file at: {file_path}")
+        
+        # List contents of the report directory for debugging
+        report_dir = os.path.join(app.config['HTML_REPORTS_FOLDER'], report_hash)
+        if os.path.exists(report_dir):
+            logger.info(f"Report directory exists. Contents:")
+            for root, dirs, files in os.walk(report_dir):
+                level = root.replace(report_dir, '').count(os.sep)
+                indent = ' ' * 2 * level
+                logger.info(f"{indent}{os.path.basename(root)}/")
+                subindent = ' ' * 2 * (level + 1)
+                for file in files:
+                    logger.info(f"{subindent}{file}")
+        else:
+            logger.error(f"Report directory does not exist: {report_dir}")
+            return jsonify({'error': 'Report directory not found'}), 404
+        
+        # Security check: ensure the file is within the HTML reports directory
+        real_path = os.path.realpath(file_path)
+        html_reports_real = os.path.realpath(app.config['HTML_REPORTS_FOLDER'])
+        
+        if not real_path.startswith(html_reports_real):
+            logger.error(f"Security violation: {real_path} not within {html_reports_real}")
+            return jsonify({'error': 'Access denied'}), 403
+        
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return jsonify({'error': f'File not found: {filename}'}), 404
+        
+        # Determine MIME type based on file extension
+        mime_type = 'text/html'  # Default for HTML files
+        if filename.endswith('.css'):
+            mime_type = 'text/css'
+        elif filename.endswith('.js'):
+            mime_type = 'application/javascript'
+        elif filename.endswith('.png'):
+            mime_type = 'image/png'
+        elif filename.endswith('.jpg') or filename.endswith('.jpeg'):
+            mime_type = 'image/jpeg'
+        elif filename.endswith('.svg'):
+            mime_type = 'image/svg+xml'
+        elif filename.endswith('.ico'):
+            mime_type = 'image/x-icon'
+        elif filename.endswith('.json'):
+            mime_type = 'application/json'
+        elif filename.endswith('.txt'):
+            mime_type = 'text/plain'
+        elif filename.endswith('.parquet'):
+            mime_type = 'application/octet-stream'
+        elif filename.endswith('.log'):
+            mime_type = 'text/plain'
+        
+        # Get file size for logging
+        file_size = os.path.getsize(file_path)
+        logger.info(f"Serving file: {file_path} ({file_size} bytes) with MIME type: {mime_type}")
+        
+        # Log timing for large files
+        if file_size > 1024 * 1024:  # Files larger than 1MB
+            logger.warning(f"Large file being served: {filename} ({file_size / (1024*1024):.1f} MB)")
+        
+        # Add cache headers for static assets
+        if filename.endswith(('.css', '.js', '.png', '.jpg', '.jpeg', '.svg', '.ico')):
+            response = send_file(file_path, mimetype=mime_type, 
+                               max_age=3600,  # Cache for 1 hour
+                               as_attachment=False)
+        else:
+            response = send_file(file_path, mimetype=mime_type, as_attachment=False)
+        
+        # Log completion time
+        elapsed = time.time() - start_time
+        logger.info(f"File served in {elapsed:.2f}s: {filename}")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error serving HTML report: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/pride/<report_hash>/<path:filename>', methods=['GET'])
+def serve_pride_html_report_redirect(report_hash, filename):
+    """
+    Backward compatibility: redirect old PRIDE URLs to new reports URLs.
+    """
+    from flask import redirect
+    new_url = f'/reports/{report_hash}/{filename}'
+    logger.info(f"Redirecting PRIDE URL /pride/{report_hash}/{filename} to {new_url}")
+    return redirect(new_url, code=301)
+
 @app.route('/job-status/<job_id>', methods=['GET'])
 def job_status(job_id):
     """
@@ -888,20 +1595,112 @@ def job_status(job_id):
             return jsonify({'error': 'Invalid job ID'}), 400
         
         # Check if job exists in tracking dictionary
+        logger.info(f"Checking job {job_id}. job_status_dict contains {len(job_status_dict)} jobs: {list(job_status_dict.keys())}")
         if job_id in job_status_dict:
-            return jsonify(job_status_dict[job_id])
+            job_data = job_status_dict[job_id]
+            logger.info(f"Job {job_id} found in job_status_dict with status: {job_data.get('status')} and keys: {list(job_data.keys())}")
+            return jsonify(job_data)
+        else:
+            logger.warning(f"Job {job_id} NOT found in job_status_dict")
         
         # Check if job is completed (for backward compatibility)
         output_dir = os.path.join(app.config['OUTPUT_FOLDER'], job_id)
         zip_report_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
         
         if os.path.exists(zip_report_path):
-            return jsonify({
+            logger.info(f"Job {job_id} not in job_status_dict but zip file exists")
+            
+            # Try to find HTML reports for this job
+            html_reports_found = {}
+            reports_dir = app.config['HTML_REPORTS_FOLDER']
+            
+            # Check all report directories for this job
+            if os.path.exists(reports_dir):
+                for report_hash in os.listdir(reports_dir):
+                    report_path = os.path.join(reports_dir, report_hash)
+                    job_file_path = os.path.join(report_path, '.job_id')
+                    
+                    if os.path.exists(job_file_path):
+                        try:
+                            with open(job_file_path, 'r') as f:
+                                stored_job_id = f.read().strip()
+                                
+                            if stored_job_id == job_id:
+                                # Found reports for this job - scan for HTML files
+                                for root, dirs, files in os.walk(report_path):
+                                    for file in files:
+                                        if file == 'multiqc_report.html':
+                                            rel_path = os.path.relpath(root, report_path)
+                                            if rel_path == '.':
+                                                rel_path = 'root'
+                                            html_rel_path = os.path.relpath(os.path.join(root, file), report_path)
+                                            html_url = f'/reports/{report_hash}/{html_rel_path}'
+                                            html_reports_found[rel_path] = html_url
+                                            logger.info(f"Found HTML report for job {job_id}: {html_url}")
+                                break
+                        except Exception as e:
+                            logger.error(f"Error reading job file {job_file_path}: {e}")
+            
+            # Try to recover additional job data from output directory
+            console_output = []
+            console_errors = []
+            results = []
+            input_type = None
+            accession = None
+            
+            # Look for console output files
+            console_output_file = os.path.join(output_dir, 'console_output.txt')
+            console_errors_file = os.path.join(output_dir, 'console_errors.txt')
+            job_info_file = os.path.join(output_dir, 'job_info.json')
+            
+            if os.path.exists(console_output_file):
+                try:
+                    with open(console_output_file, 'r', encoding='utf-8') as f:
+                        console_output = [line.strip() for line in f.readlines() if line.strip()]
+                    logger.info(f"Recovered {len(console_output)} console output lines for job {job_id}")
+                except Exception as e:
+                    logger.error(f"Error reading console output file: {e}")
+            
+            if os.path.exists(console_errors_file):
+                try:
+                    with open(console_errors_file, 'r', encoding='utf-8') as f:
+                        console_errors = [line.strip() for line in f.readlines() if line.strip()]
+                    logger.info(f"Recovered {len(console_errors)} console error lines for job {job_id}")
+                except Exception as e:
+                    logger.error(f"Error reading console errors file: {e}")
+            
+            if os.path.exists(job_info_file):
+                try:
+                    with open(job_info_file, 'r', encoding='utf-8') as f:
+                        job_info = json.load(f)
+                        input_type = job_info.get('input_type')
+                        accession = job_info.get('accession')
+                        results = job_info.get('results', [])
+                    logger.info(f"Recovered job info for job {job_id}: input_type={input_type}, accession={accession}, results={len(results)}")
+                except Exception as e:
+                    logger.error(f"Error reading job info file: {e}")
+            
+            # Fallback response with recovered data
+            response = {
                 'job_id': job_id,
                 'status': 'completed',
                 'progress': 100,
-                'download_url': f'/download-report/{job_id}'
-            })
+                'download_url': f'/download-report/{job_id}',
+                'console_output': console_output,
+                'console_errors': console_errors,
+                'results': results
+            }
+            
+            if input_type:
+                response['input_type'] = input_type
+            if accession:
+                response['accession'] = accession
+            
+            if html_reports_found:
+                response['html_report_urls'] = html_reports_found
+                logger.info(f"Added HTML reports to fallback response: {html_reports_found}")
+            
+            return jsonify(response)
         else:
             return jsonify({
                 'job_id': job_id,
@@ -1073,6 +1872,14 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         # Create combined zip report with all results
         combined_zip_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
         if create_zip_report(output_dir, combined_zip_path):
+            # Copy HTML report to public directory for PRIDE datasets
+            try:
+                html_urls = copy_html_report_for_online_viewing(output_dir, job_id, accession)
+                logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
+            except Exception as e:
+                logger.error(f"Failed to copy HTML reports for PRIDE job {job_id}: {e}")
+                html_urls = None
+            
             # Combine all console outputs
             all_output = []
             all_errors = []
@@ -1080,7 +1887,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                 all_output.extend(result.get('output', []))
                 all_errors.extend(result.get('errors', []))
             
-            job_status_dict[job_id] = {
+            job_update = {
                 'status': 'completed',
                 'progress': 100,
                 'input_type': 'multiple',
@@ -1093,7 +1900,36 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                 'finished_at_seconds': current_time()[0],
                 'finished_at': current_time()[1]
             }
-            logger.info(f"Successfully completed PRIDE job {job_id} with {total_processed} files processed")
+            
+            # Only add html_report_urls if we successfully generated them
+            if html_urls:
+                job_update['html_report_urls'] = html_urls
+            
+            # Store job data with extra verification
+            job_status_dict[job_id] = job_update
+            
+            # Save job data to disk for future retrieval
+            save_job_data_to_disk(job_id, job_update, output_dir)
+            
+            # Verify the job was actually stored
+            if job_id in job_status_dict:
+                stored_data = job_status_dict[job_id]
+                logger.info(f"Successfully completed PRIDE job {job_id} with {total_processed} files processed")
+                logger.info(f"PRIDE job {job_id} stored in job_status_dict with keys: {list(job_update.keys())}")
+                logger.info(f"Verification: job is in dict with status: {stored_data.get('status')} and html_report_urls: {bool(stored_data.get('html_report_urls'))}")
+                logger.info(f"job_status_dict now contains {len(job_status_dict)} jobs: {list(job_status_dict.keys())}")
+                
+                # Force a small delay to ensure any race conditions are avoided
+                import time
+                time.sleep(0.1)
+                
+                # Double-check after delay
+                if job_id in job_status_dict:
+                    logger.info(f"Double-check: PRIDE job {job_id} still in job_status_dict after delay")
+                else:
+                    logger.error(f"ERROR: PRIDE job {job_id} disappeared from job_status_dict after delay!")
+            else:
+                logger.error(f"ERROR: Failed to store PRIDE job {job_id} in job_status_dict!")
         else:
             job_status_dict[job_id] = {
                 'status': 'failed',
@@ -1113,39 +1949,44 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
 
 @app.route('/process-pride', methods=['POST'])
 def process_pride():
-    """
-    Process data from PRIDE using an accession number.
-    
-    Expected JSON data:
-    - accession: PRIDE accession (e.g., PXD039077)
-    
-    Returns:
-    - JSON response with job ID and status
-    """
+    """Process PRIDE dataset asynchronously."""
     try:
         data = request.get_json()
         if not data or 'accession' not in data:
-            return jsonify({'error': 'Accession number is required'}), 400
+            return jsonify({'error': 'Missing accession parameter'}), 400
         
         accession = data['accession'].strip().upper()
         
-        # Validate accession format (basic check)
+        # Validate accession format
         if not accession.startswith('PXD'):
             return jsonify({'error': 'Invalid PRIDE accession format. Should start with PXD'}), 400
         
         # Generate unique job ID
         job_id = str(uuid.uuid4())
         
-        # Create job directories
-        upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
+        # Create output directory
         output_dir = os.path.join(app.config['OUTPUT_FOLDER'], job_id)
-        os.makedirs(upload_dir, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
         
-        logger.info(f"Starting PRIDE processing for accession {accession}, job {job_id}")
+        # Initialize job status
+        job_status_dict[job_id] = {
+            'status': 'queued',
+            'accession': accession,
+            'progress': 0,
+            'started_at': current_time()[1],
+            'finished_at': None,
+            'error': None,
+            'input_type': None,
+            'files_processed': 0,
+            'total_files': 0,
+            'files_downloaded': 0,
+            'console_output': [],
+            'console_errors': [],
+            'results': [],
+            'html_report_urls': None
+        }
         
         # Start async processing
-        job_status_dict[job_id] = {'status': 'queued', 'progress': 0}
         thread = threading.Thread(
             target=process_pride_job_async,
             args=(job_id, accession, output_dir)
@@ -1153,17 +1994,106 @@ def process_pride():
         thread.daemon = True
         thread.start()
         
+        logger.info(f"Started PRIDE processing for accession {accession} with job ID {job_id}")
+        
         return jsonify({
             'job_id': job_id,
             'accession': accession,
             'status': 'queued',
             'message': 'PRIDE processing started successfully',
             'status_url': f'/job-status/{job_id}'
-        })
+        }), 200
         
     except Exception as e:
-        logger.error(f"Error in process_pride: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"Error starting PRIDE processing: {e}")
+        return jsonify({'error': f'Failed to start PRIDE processing: {str(e)}'}), 500
+
+@app.route('/submit', methods=['GET'])
+def submit_pride():
+    """Direct submission page for PRIDE datasets via URL parameter."""
+    accession = request.args.get('accession', '').strip().upper()
+    
+    if not accession:
+        # No accession provided, show the main page
+        return render_template('index.html')
+    
+    # Validate accession format
+    if not accession.startswith('PXD'):
+        return render_template('index.html', error=f'Invalid PRIDE accession format: {accession}. Should start with PXD.')
+    
+    # Render the submission page with the accession pre-filled
+    return render_template('submit.html', accession=accession)
+
+@app.route('/api/submit-pride', methods=['POST'])
+def api_submit_pride():
+    """API endpoint for direct PRIDE submission."""
+    try:
+        data = request.get_json()
+        if not data or 'accession' not in data:
+            return jsonify({'error': 'Missing accession parameter'}), 400
+        
+        accession = data['accession'].strip().upper()
+        
+        # Validate accession format
+        if not accession.startswith('PXD'):
+            return jsonify({'error': 'Invalid PRIDE accession format. Should start with PXD'}), 400
+        
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+        
+        # Create output directory
+        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], job_id)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Initialize job status
+        job_status_dict[job_id] = {
+            'status': 'queued',
+            'accession': accession,
+            'progress': 0,
+            'started_at': current_time()[1],
+            'finished_at': None,
+            'error': None,
+            'input_type': None,
+            'files_processed': 0,
+            'total_files': 0,
+            'files_downloaded': 0,
+            'console_output': [],
+            'console_errors': [],
+            'results': [],
+            'html_report_urls': None
+        }
+        
+        # Start async processing
+        thread = threading.Thread(
+            target=process_pride_job_async,
+            args=(job_id, accession, output_dir)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        logger.info(f"Started PRIDE processing for accession {accession} with job ID {job_id}")
+        
+        return jsonify({
+            'job_id': job_id,
+            'accession': accession,
+            'status': 'queued',
+            'message': 'PRIDE processing started successfully',
+            'status_url': f'/job-status/{job_id}',
+            'redirect_url': f'/results/{job_id}'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error starting PRIDE processing: {e}")
+        return jsonify({'error': f'Failed to start PRIDE processing: {str(e)}'}), 500
+
+@app.route('/results/<job_id>', methods=['GET'])
+def view_results(job_id):
+    """View results page for a specific job."""
+    if job_id not in job_status_dict:
+        return render_template('index.html', error=f'Job {job_id} not found.')
+    
+    job_data = job_status_dict[job_id]
+    return render_template('results.html', job_id=job_id, job_data=job_data)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 
