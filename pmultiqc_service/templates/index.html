@@ -769,7 +769,14 @@
             }
 
             showProgress();
-            document.getElementById('progressText').textContent = 'Starting PRIDE processing...';
+            
+            // Update upload section for PRIDE processing
+            document.getElementById('progressText').innerHTML = `
+                <div>Starting PRIDE dataset processing...</div>
+                <div style="font-size: 0.8em; margin-top: 5px; color: #666;">
+                    Fetching files from PRIDE database
+                </div>
+            `;
             document.getElementById('progressFill').style.width = '0%';
 
             fetch('/process-pride', {
@@ -783,7 +790,16 @@
             .then(data => {
                 if (data.job_id) {
                     currentJobId = data.job_id;
-                    document.getElementById('progressText').textContent = 'Processing PRIDE dataset...';
+                    
+                    // Update upload section to show PRIDE processing started
+                    document.getElementById('progressText').innerHTML = `
+                        <div>✅ PRIDE processing initiated</div>
+                        <div style="font-size: 0.8em; margin-top: 5px; color: #28a745;">
+                            Job ID: ${data.job_id}
+                        </div>
+                    `;
+                    document.getElementById('progressFill').style.width = '25%';
+                    
                     pollPrideStatus(data.job_id);
                 } else {
                     showError(data.error || 'PRIDE processing failed');
@@ -932,6 +948,14 @@
 
         // Poll status for PRIDE processing
         function pollPrideStatus(jobId) {
+            let lastConsoleOutputLength = 0;
+            let lastConsoleErrorsLength = 0;
+            
+            // Show processing sections for PRIDE processing
+            document.getElementById('processingProgressSection').style.display = 'block';
+            document.getElementById('consoleOutputSection').style.display = 'block';
+            document.getElementById('progressTitle').textContent = '⚙️ Running PMultiQC Analysis...';
+            
             const interval = setInterval(() => {
                 if (!processingInProgress) {
                     clearInterval(interval);
@@ -941,14 +965,50 @@
                 fetch(`/job-status/${jobId}`)
                 .then(response => response.json())
                 .then(data => {
+                    console.log('PRIDE processing status:', data);
+                    
+                    // Update processing progress
                     if (data.progress !== undefined) {
+                        const processingProgressFill = document.getElementById('processingProgressFill');
+                        const processingProgressText = document.getElementById('processingProgressText');
+                        
+                        if (processingProgressFill && processingProgressText) {
+                            processingProgressFill.style.width = data.progress + '%';
+                            
+                            let statusText = `Processing... ${data.progress}%`;
+                            if (data.processing_stage) {
+                                statusText = `${data.processing_stage} (${data.progress}%)`;
+                            }
+                            processingProgressText.textContent = statusText;
+                        }
+                        
+                        // Also update the main progress bar for PRIDE
                         document.getElementById('progressFill').style.width = data.progress + '%';
-                        document.getElementById('progressText').textContent = `Processing... ${data.progress}%`;
+                        document.getElementById('progressText').textContent = `Processing PRIDE dataset... ${data.progress}%`;
                     }
+                    
+                    // Update console output in real-time
+                    updateConsoleOutput(data.console_output || [], data.console_errors || [], lastConsoleOutputLength, lastConsoleErrorsLength);
+                    
+                    // Update last lengths
+                    lastConsoleOutputLength = (data.console_output || []).length;
+                    lastConsoleErrorsLength = (data.console_errors || []).length;
                     
                     if (data.status === 'completed' || data.status === 'failed') {
                         clearInterval(interval);
                         processingInProgress = false;
+                        
+                        console.log('PRIDE job completed, final data:', data);
+                        console.log('PRIDE html_report_urls:', data.html_report_urls);
+                        console.log('PRIDE console_output length:', data.console_output ? data.console_output.length : 'undefined/null');
+                        
+                        // Update title for completion
+                        if (data.status === 'completed') {
+                            document.getElementById('progressTitle').textContent = '✅ Analysis Complete!';
+                        } else {
+                            document.getElementById('progressTitle').textContent = '❌ Analysis Failed';
+                        }
+                        
                         displayResults(data, jobId);
                     }
                 })
@@ -957,7 +1017,7 @@
                     processingInProgress = false;
                     showError('Failed to check status: ' + error.message);
                 });
-            }, 2000);
+            }, 1000);
         }
 
         // Display results
