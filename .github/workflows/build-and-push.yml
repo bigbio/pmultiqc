@@ -55,12 +55,19 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Generate simple image tags
+      id: simple_tags
+      run: |
+        tags="${{ steps.meta.outputs.tags }}"
+        simple_tags=$(echo "$tags" | sed 's/:/:simple-/g')
+        echo "tags=$simple_tags" >> $GITHUB_OUTPUT
+
     - name: Build and push Docker image (simple)
       uses: docker/build-push-action@v5
       with:
         context: ./pmultiqc_service
         file: ./pmultiqc_service/Dockerfile.simple
         push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:simple
+        tags: ${{ steps.simple_tags.outputs.tags }}
         cache-from: type=gha
         cache-to: type=gha,mode=max 
