@@ -1,7 +1,8 @@
 flask>=2.3.0
 flask-cors>=4.0.0
 werkzeug>=2.3.0
-pmultiqc==0.0.31
+requests>=2.31.0
+pmultiqc==0.0.32
 multiqc
 pandas
 pyteomics

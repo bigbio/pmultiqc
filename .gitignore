@@ -135,3 +135,4 @@ dmypy.json
 /quantms.db
 /results_mq/
 .qodo
+pmultiqc_service/local*

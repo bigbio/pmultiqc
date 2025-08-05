@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMultiQC - PRIDE Dataset Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .accession-display {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .accession-code {
+            color: #007bff;
+            font-size: 1.4em;
+        }
+
+        .description {
+            color: #666;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 123, 255, 0.3);
+        }
+
+        .submit-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress-container {
+            display: none;
+            margin: 30px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .result-container {
+            display: none;
+            margin: 30px 0;
+            text-align: left;
+        }
+
+        .result-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .result-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+            transform: translateY(-1px);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #721c24;
+        }
+
+        .home-link {
+            margin-top: 30px;
+        }
+
+        .home-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .home-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">PMultiQC</div>
+        <div class="subtitle">Proteomics MultiQC Analysis</div>
+
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        <div class="home-link">
+            <a href="/">← Return to Home</a>
+        </div>
+        {% else %}
+        <div class="accession-display">
+            <div>PRIDE Dataset:</div>
+            <div class="accession-code">{{ accession }}</div>
+        </div>
+
+        <div class="description">
+            This will analyze the PRIDE dataset using PMultiQC to generate quality control reports for proteomics data.
+            The analysis will process search engine output files and create comprehensive quality metrics.
+        </div>
+
+        <button id="submitBtn" class="submit-btn" onclick="submitPrideDataset()">
+            Start Analysis
+        </button>
+
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <div id="progressText" class="progress-text">Starting analysis...</div>
+        </div>
+
+        <div id="resultContainer" class="result-container"></div>
+
+        <div class="home-link">
+            <a href="/">← Return to Home</a>
+        </div>
+        {% endif %}
+
+        <!-- pmultiqc Information Footer -->
+        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); margin-top: 40px; padding: 30px; border-top: 3px solid #007bff; border-radius: 0 0 15px 15px; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto;">
+            <div style="text-align: center;">
+            <h3 style="color: #333; margin-bottom: 20px; font-size: 1.5em;">About PMultiQC</h3>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 25px; font-size: 1.1em;">
+                <strong>pmultiqc</strong> is a MultiQC plugin for comprehensive quality control reporting of proteomics data. 
+                It generates interactive HTML reports with visualizations and metrics to help you assess the quality of 
+                your mass spectrometry-based proteomics experiments.
+            </p>
+            
+            <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                <a href="https://pmultiqc.quantms.org" target="_blank" style="
+                    display: inline-block; 
+                    padding: 12px 25px; 
+                    background: linear-gradient(45deg, #007bff, #0056b3); 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    font-weight: bold; 
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(0,123,255,0.3)'" 
+                   onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+                    🌐 Project Website
+                </a>
+                
+                <a href="https://github.com/bigbio/pmultiqc" target="_blank" style="
+                    display: inline-block; 
+                    padding: 12px 25px; 
+                    background: linear-gradient(45deg, #28a745, #20c997); 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    font-weight: bold; 
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(40,167,69,0.3)'" 
+                   onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+                    📂 GitHub Repository
+                </a>
+                
+                <a href="https://pmultiqc.quantms.org/#-example-reports" target="_blank" style="
+                    display: inline-block; 
+                    padding: 12px 25px; 
+                    background: linear-gradient(45deg, #6f42c1, #5a32a3); 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    font-weight: bold; 
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(111,66,193,0.3)'" 
+                   onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+                    📊 Example Reports
+                </a>
+            </div>
+            
+            <div style="border-top: 1px solid #dee2e6; padding-top: 20px;">
+                <p style="color: #6c757d; font-size: 0.9em; margin: 0;">
+                    Powered by <strong>PMultiQC</strong> - A comprehensive proteomics quality control framework
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentJobId = null;
+        let progressInterval = null;
+
+        async function submitPrideDataset() {
+            const submitBtn = document.getElementById('submitBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const resultContainer = document.getElementById('resultContainer');
+
+            // Disable button and show progress
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span>Starting...';
+            progressContainer.style.display = 'block';
+            resultContainer.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/submit-pride', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        accession: '{{ accession }}'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentJobId = data.job_id;
+                    submitBtn.innerHTML = 'Analysis Started!';
+                    
+                    // Start polling for progress
+                    startProgressPolling();
+                } else {
+                    showError(data.error || 'Failed to start analysis');
+                    resetButton();
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+                resetButton();
+            }
+        }
+
+        function startProgressPolling() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+
+            progressInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/job-status/${currentJobId}`);
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        updateProgress(data);
+                        
+                        if (data.status === 'completed' || data.status === 'failed') {
+                            clearInterval(progressInterval);
+                            showResults(data);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error polling status:', error);
+                }
+            }, 3000);
+        }
+
+        function updateProgress(data) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            let progressPercent = data.progress || 0;
+            let statusText = data.status || 'processing';
+            
+            // Map status to more descriptive text
+            switch (statusText) {
+                case 'fetching_files':
+                    statusText = 'Fetching files from PRIDE...';
+                    progressPercent = Math.max(progressPercent, 25);
+                    break;
+                case 'filtering_files':
+                    statusText = 'Filtering search engine files...';
+                    progressPercent = Math.max(progressPercent, 30);
+                    break;
+                case 'downloading_files':
+                    statusText = 'Downloading files from PRIDE...';
+                    progressPercent = Math.max(progressPercent, 40);
+                    break;
+                case 'extracting_files':
+                    statusText = 'Extracting downloaded files...';
+                    progressPercent = Math.max(progressPercent, 70);
+                    break;
+                case 'detecting_type':
+                    statusText = 'Detecting input type...';
+                    progressPercent = Math.max(progressPercent, 75);
+                    break;
+                case 'processing':
+                    statusText = 'Running PMultiQC analysis...';
+                    progressPercent = Math.max(progressPercent, 80);
+                    break;
+                case 'creating_report':
+                    statusText = 'Creating final report...';
+                    progressPercent = Math.max(progressPercent, 90);
+                    break;
+                case 'completed':
+                    statusText = 'Analysis completed!';
+                    progressPercent = 100;
+                    break;
+                case 'failed':
+                    statusText = 'Analysis failed';
+                    progressPercent = 100;
+                    break;
+            }
+            
+            progressFill.style.width = progressPercent + '%';
+            progressText.textContent = `${statusText} (${progressPercent}%)`;
+        }
+
+        function showResults(data) {
+            const resultContainer = document.getElementById('resultContainer');
+            const progressContainer = document.getElementById('progressContainer');
+            
+            progressContainer.style.display = 'none';
+            resultContainer.style.display = 'block';
+
+            if (data.status === 'completed') {
+                console.log('Submit results data:', data);
+                let resultHtml = `
+                    <div class="result-success">
+                        <h3>✅ Analysis Complete!</h3>
+                        <p><strong>Job ID:</strong> ${currentJobId}</p>
+                        <p><strong>PRIDE Accession:</strong> {{ accession }}</p>
+                        <p><strong>Input Type:</strong> ${data.input_type || 'Unknown'}</p>
+                        ${data.files_processed ? `<p><strong>Files Processed:</strong> ${data.files_processed}/${data.total_files}</p>` : ''}
+                        ${data.files_downloaded ? `<p><strong>Files Downloaded:</strong> ${data.files_downloaded}</p>` : ''}
+                        <p><strong>Finished at:</strong> ${data.finished_at}</p>
+                `;
+
+                // Add console output if available
+                console.log('Console output check (submit):', data.console_output ? data.console_output.length : 'undefined/null');
+                if (data.console_output && data.console_output.length > 0) {
+                    resultHtml += `
+                        <details open style="margin: 15px 0;">
+                            <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📋 View Console Output (${data.console_output.length} lines)</summary>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px; font-family: 'Courier New', monospace; font-size: 13px; max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef;">
+                                ${data.console_output.map(line => `<div style="margin: 2px 0; color: #2e8b57;">${line}</div>`).join('')}
+                            </div>
+                        </details>
+                    `;
+                } else {
+                    console.log('No console output available for completed PRIDE job');
+                }
+
+                // Add individual file results if available
+                console.log('Individual file results check (submit):', data.results ? data.results.length : 'undefined/null');
+                if (data.results && data.results.length > 0) {
+                    resultHtml += `
+                        <details open style="margin: 15px 0;">
+                            <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📁 Individual File Results (${data.results.length} files)</summary>
+                            <div style="margin-top: 10px;">
+                                ${data.results.map(result => `
+                                    <div style="background: #e9ecef; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 4px solid #007bff;">
+                                        <strong>${result.file_name || 'Unknown file'}</strong> 
+                                        <span style="color: #666;">(${result.input_type || 'Unknown type'})</span>
+                                        ${result.status ? `<div style="margin-top: 5px; font-size: 0.9em;">Status: ${result.status}</div>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </details>
+                    `;
+                } else {
+                    console.log('No individual file results available for completed PRIDE job');
+                }
+                        
+                resultHtml += `
+                        <div style="margin: 20px 0;">
+                            <a href="/download-report/${currentJobId}" class="btn btn-primary">📥 Download Report</a>
+                            ${data.html_report_urls ? `
+                                <div style="margin: 15px 0;">
+                                    <h4>📊 View Reports Online</h4>
+                                    ${Object.keys(data.html_report_urls).length === 1 ? 
+                                        `<a href="${data.html_report_urls[Object.keys(data.html_report_urls)[0]]}" class="btn btn-success" target="_blank">🌐 View Report Online</a>` :
+                                        `<div style="margin: 10px 0;">
+                                            <select id="reportSelector" style="padding: 8px; margin-right: 10px;">
+                                                ${Object.entries(data.html_report_urls).map(([name, url], index) => 
+                                                    `<option value="${url}" ${index === 0 ? 'selected' : ''}>${name}</option>`
+                                                ).join('')}
+                                            </select>
+                                            <button class="btn btn-success" onclick="viewSelectedReport()">🌐 View Report Online</button>
+                                        </div>`
+                                    }
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                resultContainer.innerHTML = resultHtml;
+            } else if (data.status === 'failed') {
+                resultContainer.innerHTML = `
+                    <div class="result-error">
+                        <h3>❌ Analysis Failed</h3>
+                        <p><strong>Job ID:</strong> ${currentJobId}</p>
+                        <p><strong>Error:</strong> ${data.error}</p>
+                        <p><strong>Failed at:</strong> ${data.finished_at}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function showError(message) {
+            const resultContainer = document.getElementById('resultContainer');
+            resultContainer.style.display = 'block';
+            resultContainer.innerHTML = `
+                <div class="result-error">
+                    <h3>❌ Error</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function resetButton() {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Start Analysis';
+        }
+
+        function viewSelectedReport() {
+            const selector = document.getElementById('reportSelector');
+            const url = selector.value;
+            window.open(url, '_blank');
+        }
+    </script>
+</body>
+</html> 
