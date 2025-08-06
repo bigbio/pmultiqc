@@ -13,13 +13,23 @@ import threading
 import sys
 import requests
 import json
+import time
+import subprocess
+import hashlib
+import traceback
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, render_template, redirect
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import time
+
+# Try to import yaml, but make it optional
+try:
+    import yaml
+    YAML_AVAILABLE = True
+except ImportError:
+    YAML_AVAILABLE = False
 
 # Configure logging for Kubernetes
 def setup_logging():
@@ -58,14 +68,98 @@ def setup_logging():
 # Initialize logging
 logger = setup_logging()
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__, template_folder='templates', static_folder='templates')
 CORS(app)
 
+# Configuration with environment variable and YAML support
+def load_yaml_config(config_path: str = None) -> Dict[str, Any]:
+    """Load configuration from YAML file if available."""
+    if not YAML_AVAILABLE:
+        logger.warning("PyYAML not available, skipping YAML config file")
+        return {}
+    
+    # Try to find config file
+    config_paths = [
+        config_path,  # Explicitly provided path
+        os.environ.get('CONFIG_FILE'),  # From environment variable
+        'config.yaml',  # Current directory
+        'config.yml',   # Alternative extension
+        '/etc/pmultiqc/config.yaml',  # System-wide config
+        os.path.join(os.path.dirname(__file__), 'config.yaml')  # Next to app.py
+    ]
+    
+    for path in config_paths:
+        if path and os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    config = yaml.safe_load(f)
+                logger.info(f"Loaded configuration from: {path}")
+                return config
+            except Exception as e:
+                logger.error(f"Error loading config from {path}: {e}")
+    
+    logger.info("No YAML config file found, using environment variables and defaults")
+    return {}
+
+def get_config_value(env_var: str, yaml_key: str, default_value: str, yaml_config: Dict[str, Any]) -> str:
+    """Get configuration value from environment variable, YAML config, or use default."""
+    # Priority: Environment variable > YAML config > default
+    env_value = os.environ.get(env_var)
+    if env_value is not None:
+        logger.debug(f"Using environment variable {env_var}: {env_value}")
+        return env_value
+    
+    yaml_value = yaml_config.get(yaml_key)
+    if yaml_value is not None:
+        logger.debug(f"Using YAML config {yaml_key}: {yaml_value}")
+        return str(yaml_value)
+    
+    logger.debug(f"Using default value for {yaml_key}: {default_value}")
+    return default_value
+
+def get_config_int(env_var: str, yaml_key: str, default_value: int, yaml_config: Dict[str, Any]) -> int:
+    """Get integer configuration value from environment variable, YAML config, or use default."""
+    # Priority: Environment variable > YAML config > default
+    env_value = os.environ.get(env_var)
+    if env_value is not None:
+        try:
+            value = int(env_value)
+            logger.debug(f"Using environment variable {env_var}: {value}")
+            return value
+        except ValueError:
+            logger.warning(f"Invalid integer value for {env_var}: {env_value}, trying YAML config")
+    
+    yaml_value = yaml_config.get(yaml_key)
+    if yaml_value is not None:
+        try:
+            value = int(yaml_value)
+            logger.debug(f"Using YAML config {yaml_key}: {value}")
+            return value
+        except ValueError:
+            logger.warning(f"Invalid integer value for {yaml_key} in YAML: {yaml_value}, using default")
+    
+    logger.debug(f"Using default value for {yaml_key}: {default_value}")
+    return default_value
+
+# Load YAML configuration
+yaml_config = load_yaml_config()
+
 # Configuration
-app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2GB max file size
-app.config['UPLOAD_FOLDER'] = '/tmp/pmultiqc_uploads'
-app.config['OUTPUT_FOLDER'] = '/tmp/pmultiqc_outputs'
-app.config['HTML_REPORTS_FOLDER'] = '/tmp/pmultiqc_html_reports'
+app.config['MAX_CONTENT_LENGTH'] = get_config_int('MAX_CONTENT_LENGTH', 'max_content_length', 2 * 1024 * 1024 * 1024, yaml_config)  # 2GB max file size
+app.config['UPLOAD_FOLDER'] = get_config_value('UPLOAD_FOLDER', 'upload_folder', '/tmp/pmultiqc_uploads', yaml_config)
+app.config['OUTPUT_FOLDER'] = get_config_value('OUTPUT_FOLDER', 'output_folder', '/tmp/pmultiqc_outputs', yaml_config)
+app.config['HTML_REPORTS_FOLDER'] = get_config_value('HTML_REPORTS_FOLDER', 'html_reports_folder', '/tmp/pmultiqc_html_reports', yaml_config)
+app.config['BASE_URL'] = get_config_value('BASE_URL', 'base_url', 'http://localhost:5000', yaml_config)
+
+# Log configuration values
+logger.info(f"Configuration loaded:")
+logger.info(f"  MAX_CONTENT_LENGTH: {app.config['MAX_CONTENT_LENGTH']} bytes ({app.config['MAX_CONTENT_LENGTH'] / (1024*1024*1024):.1f} GB)")
+logger.info(f"  UPLOAD_FOLDER: {app.config['UPLOAD_FOLDER']}")
+logger.info(f"  OUTPUT_FOLDER: {app.config['OUTPUT_FOLDER']}")
+logger.info(f"  HTML_REPORTS_FOLDER: {app.config['HTML_REPORTS_FOLDER']}")
+logger.info(f"  BASE_URL: {app.config['BASE_URL']}")
+if yaml_config:
+    logger.info(f"  YAML config keys: {list(yaml_config.keys())}")
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -309,8 +403,6 @@ def run_pmultiqc(input_path: str, output_path: str, input_type: str, pmultiqc_co
         logger.info(f"Running PMultiQC with args: {args}")
         
         # Run multiqc as a subprocess with real-time output
-        import subprocess
-        
         try:
             # Run the multiqc command with real-time output
             process = subprocess.Popen(
@@ -488,7 +580,6 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
             return None
         
         # Create a unique hash for the report URL
-        import hashlib
         hash_input = f"{job_id}_{accession}" if accession else job_id
         report_hash = hashlib.md5(hash_input.encode()).hexdigest()[:12]
         logger.info(f"Generated report hash: {report_hash} (from input: {hash_input})")
@@ -526,7 +617,9 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
         for report_name, html_report_path in html_reports:
             # Find the relative path to the HTML report for the URL
             html_rel_path = os.path.relpath(html_report_path, output_path)
-            html_url = f'/reports/{report_hash}/{html_rel_path}'
+            # Use base URL to generate absolute URLs
+            base_url = app.config['BASE_URL'].rstrip('/')
+            html_url = f'{base_url}/reports/{report_hash}/{html_rel_path}'
             html_urls[report_name] = html_url
             logger.info(f"HTML report for '{report_name}' available at: {html_url}")
         
@@ -535,7 +628,6 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
         
     except Exception as e:
         logger.error(f"Error copying HTML reports for PRIDE: {e}")
-        import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         return None
 
@@ -755,11 +847,12 @@ def generate_report():
         # Save job data to disk for future retrieval
         save_job_data_to_disk(job_id, job_update, output_dir)
 
+        base_url = app.config['BASE_URL'].rstrip('/')
         response_data = {
             'job_id': job_id,
             'status': 'completed',
             'input_type': input_type,
-            'download_url': f'/download-report/{job_id}',
+            'download_url': f'{base_url}/download-report/{job_id}',
             'message': 'Report generated successfully',
             'finished_at': current_time()[1]
         }
@@ -881,11 +974,12 @@ def upload_large_file():
         # Save job data to disk for future retrieval
         save_job_data_to_disk(job_id, job_update, output_dir)
 
+        base_url = app.config['BASE_URL'].rstrip('/')
         response_data = {
             'job_id': job_id,
             'status': 'completed',
             'input_type': input_type,
-            'download_url': f'/download-report/{job_id}',
+            'download_url': f'{base_url}/download-report/{job_id}',
             'message': 'Report generated successfully',
             'file_size': file_size,
             'finished_at': current_time()[1]
@@ -932,8 +1026,6 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         job_status_dict[job_id]['console_errors'] = []
         
         # Run multiqc as a subprocess with real-time output
-        import subprocess
-        
         try:
             # Run the multiqc command with real-time output
             process = subprocess.Popen(
@@ -1571,7 +1663,6 @@ def serve_pride_html_report_redirect(report_hash, filename):
     """
     Backward compatibility: redirect old PRIDE URLs to new reports URLs.
     """
-    from flask import redirect
     new_url = f'/reports/{report_hash}/{filename}'
     logger.info(f"Redirecting PRIDE URL /pride/{report_hash}/{filename} to {new_url}")
     return redirect(new_url, code=301)
@@ -1634,7 +1725,9 @@ def job_status(job_id):
                                             if rel_path == '.':
                                                 rel_path = 'root'
                                             html_rel_path = os.path.relpath(os.path.join(root, file), report_path)
-                                            html_url = f'/reports/{report_hash}/{html_rel_path}'
+                                            # Use base URL to generate absolute URLs
+                                            base_url = app.config['BASE_URL'].rstrip('/')
+                                            html_url = f'{base_url}/reports/{report_hash}/{html_rel_path}'
                                             html_reports_found[rel_path] = html_url
                                             logger.info(f"Found HTML report for job {job_id}: {html_url}")
                                 break
@@ -1681,11 +1774,12 @@ def job_status(job_id):
                     logger.error(f"Error reading job info file: {e}")
             
             # Fallback response with recovered data
+            base_url = app.config['BASE_URL'].rstrip('/')
             response = {
                 'job_id': job_id,
                 'status': 'completed',
                 'progress': 100,
-                'download_url': f'/download-report/{job_id}',
+                'download_url': f'{base_url}/download-report/{job_id}',
                 'console_output': console_output,
                 'console_errors': console_errors,
                 'results': results
