@@ -196,7 +196,8 @@ class QuantMSModule:
                         config.kwargs["condition"],
                     )
                     # experimental_design.tsv is the default output name
-                    self.exp_design = os.path.join(f["root"], f["experimental_design.tsv"])
+                    # experimental_design.tsv will be in the folder where pmultiqc is executed.
+                    self.exp_design = "experimental_design.tsv"
                     self.enable_sdrf = True
 
             self.psm_table = dict()
@@ -852,7 +853,7 @@ class QuantMSModule:
         # Create table data
         rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
-        if self.enable_exp:
+        if self.enable_exp or self.enable_sdrf:
                 
             if self.is_multi_conditions:
                 for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
