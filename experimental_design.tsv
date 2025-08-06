@@ -1,0 +1,17 @@
+Fraction_Group	Fraction	Spectra_Filepath	Label	Sample
+1	1	20221028_FL_Lu_SV_Set12_A1.raw	1	1
+2	1	20221028_FL_Lu_SV_Set12_A2.raw	1	1
+3	1	20221028_FL_Lu_SV_Set12_A3.raw	1	1
+4	1	20221028_FL_Lu_SV_Set12_A4.raw	1	1
+5	1	20221028_FL_Lu_SV_Set12_A5.raw	1	1
+6	1	20221028_FL_Lu_SV_Set12_A6.raw	1	1
+7	1	20221028_FL_Lu_SV_Set12_B1.raw	1	2
+8	1	20221028_FL_Lu_SV_Set12_B2.raw	1	2
+9	1	20221028_FL_Lu_SV_Set12_B3.raw	1	2
+10	1	20221028_FL_Lu_SV_Set12_B4.raw	1	2
+11	1	20221028_FL_Lu_SV_Set12_B5.raw	1	2
+12	1	20221028_FL_Lu_SV_Set12_B6.raw	1	2
+
+Sample	MSstats_Condition	MSstats_BioReplicate
+1	1	1
+2	2	2
