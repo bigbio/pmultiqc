@@ -69,16 +69,6 @@
                         {% for name, url in job_data.html_report_urls.items() %}
                         <a href="{{ url }}" class="btn btn-success" target="_blank">📊 View Report Online</a>
                         {% endfor %}
-                    {% else %}
-                        <div style="margin: 10px 0;">
-                            <label for="reportSelector" style="font-weight: bold; display: block; margin-bottom: 5px;">Select Report:</label>
-                            <select id="reportSelector" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 10px;">
-                                {% for name, url in job_data.html_report_urls.items() %}
-                                <option value="{{ url }}">{{ name }}</option>
-                                {% endfor %}
-                            </select>
-                            <button class="btn btn-success" onclick="viewSelectedReport()">🌐 View Report Online</button>
-                        </div>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -105,11 +95,14 @@
                     <div style="background: #e9ecef; padding: 12px; margin: 8px 0; border-radius: 8px; border-left: 4px solid #007bff;">
                         <strong>{{ result.file_name }}</strong> 
                         <span style="color: #666;">({{ result.input_type }})</span>
-                        {% if result.report_path %}
-                        <div style="margin-top: 5px;">
-                            <a href="{{ config.BASE_URL.rstrip('/') }}/download-report/{{ job_id }}/{{ result.file_name }}" class="btn btn-secondary" style="font-size: 0.8em; padding: 5px 10px;">📥 Download {{ result.file_name }} Report</a>
+                        <div style="margin-top: 8px;">
+                            {% set report_key = 'report_' + result.file_name %}
+                            {% if job_data.html_report_urls and report_key in job_data.html_report_urls %}
+                            <a href="{{ job_data.html_report_urls[report_key] }}" class="btn btn-success" target="_blank" style="font-size: 0.9em; padding: 6px 12px;">📊 View Report Online</a>
+                            {% else %}
+                            <span style="color: #666; font-size: 0.9em;">✅ Processed successfully</span>
+                            {% endif %}
                         </div>
-                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -224,11 +217,7 @@
         }, 5000);
         {% endif %}
 
-        function viewSelectedReport() {
-            const selector = document.getElementById('reportSelector');
-            const url = selector.value;
-            window.open(url, '_blank');
-        }
+
     </script>
 </body>
 </html> 

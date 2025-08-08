@@ -30,7 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html
 import uvicorn
 
-import sqlite3
+import redis
 from pathlib import Path
 
 # Configuration
@@ -50,8 +50,12 @@ templates = Jinja2Templates(directory="templates")
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'zip'}
 
-# Database configuration - use the same directory as uploads for consistency
-DATABASE_PATH = os.path.join(UPLOAD_FOLDER, 'jobs.db')
+# Redis configuration
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+REDIS_USERNAME = os.environ.get('REDIS_USERNAME', None)
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', None)
+REDIS_DB = int(os.environ.get('REDIS_DB', '0'))
+REDIS_KEY_PREFIX = 'pmultiqc:job:'
 
 # Configure logging
 def setup_logging():
@@ -83,197 +87,194 @@ def setup_logging():
 # Initialize logging
 logger = setup_logging()
 
-def init_database():
-    """Initialize the SQLite database for job storage."""
+def init_redis():
+    """Initialize Redis connection for job storage."""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
+        # Create Redis connection with authentication if provided
+        if REDIS_PASSWORD:
+            if REDIS_USERNAME:
+                # Username + password authentication
+                redis_client = redis.from_url(
+                    REDIS_URL, 
+                    db=REDIS_DB, 
+                    decode_responses=True,
+                    username=REDIS_USERNAME,
+                    password=REDIS_PASSWORD
+                )
+                logger.info(f"Redis connected with username/password authentication to {REDIS_URL}")
+            else:
+                # Password-only authentication
+                redis_client = redis.from_url(
+                    REDIS_URL, 
+                    db=REDIS_DB, 
+                    decode_responses=True,
+                    password=REDIS_PASSWORD
+                )
+                logger.info(f"Redis connected with password authentication to {REDIS_URL}")
+        else:
+            # No authentication
+            redis_client = redis.from_url(REDIS_URL, db=REDIS_DB, decode_responses=True)
+            logger.info(f"Redis connected without authentication to {REDIS_URL}")
         
-        # Create jobs table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS jobs (
-                job_id TEXT PRIMARY KEY,
-                status TEXT NOT NULL,
-                progress INTEGER DEFAULT 0,
-                input_type TEXT,
-                accession TEXT,
-                started_at TEXT,
-                finished_at TEXT,
-                error TEXT,
-                files_processed INTEGER,
-                total_files INTEGER,
-                files_downloaded INTEGER,
-                processing_stage TEXT,
-                console_output TEXT,
-                console_errors TEXT,
-                html_report_urls TEXT,
-                download_url TEXT,
-                download_details TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+        # Test connection
+        redis_client.ping()
+        logger.info(f"Redis connection test successful")
         
-        # Create index for faster lookups
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_job_status ON jobs(status)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_job_created ON jobs(created_at)')
-        
-        conn.commit()
-        conn.close()
-        logger.info(f"Database initialized at {DATABASE_PATH}")
+        return redis_client
         
     except Exception as e:
-        logger.error(f"Error initializing database: {e}")
+        logger.error(f"Error connecting to Redis: {e}")
         raise
 
+def get_redis_client():
+    """Get Redis client instance."""
+    if REDIS_PASSWORD:
+        if REDIS_USERNAME:
+            # Username + password authentication
+            return redis.from_url(
+                REDIS_URL, 
+                db=REDIS_DB, 
+                decode_responses=True,
+                username=REDIS_USERNAME,
+                password=REDIS_PASSWORD
+            )
+        else:
+            # Password-only authentication
+            return redis.from_url(
+                REDIS_URL, 
+                db=REDIS_DB, 
+                decode_responses=True,
+                password=REDIS_PASSWORD
+            )
+    else:
+        # No authentication
+        return redis.from_url(REDIS_URL, db=REDIS_DB, decode_responses=True)
+
 def save_job_to_db(job_id: str, job_data: dict):
-    """Save or update job data in the database."""
+    """Save or update job data in Redis."""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
+        redis_client = get_redis_client()
         
-        # Convert lists to JSON strings for storage
-        console_output = json.dumps(job_data.get('console_output', []))
-        console_errors = json.dumps(job_data.get('console_errors', []))
-        html_report_urls = json.dumps(job_data.get('html_report_urls', {}))
-        download_details = json.dumps(job_data.get('download_details', {}))
+        # Add timestamp if not present
+        if 'updated_at' not in job_data:
+            job_data['updated_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        cursor.execute('''
-            INSERT OR REPLACE INTO jobs (
-                job_id, status, progress, input_type, accession, started_at, finished_at,
-                error, files_processed, total_files, files_downloaded, processing_stage,
-                console_output, console_errors, html_report_urls, download_url, download_details, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ''', (
-            job_id,
-            job_data.get('status', 'unknown'),
-            job_data.get('progress', 0),
-            job_data.get('input_type'),
-            job_data.get('accession'),
-            job_data.get('started_at'),
-            job_data.get('finished_at'),
-            job_data.get('error'),
-            job_data.get('files_processed'),
-            job_data.get('total_files'),
-            job_data.get('files_downloaded'),
-            job_data.get('processing_stage'),
-            console_output,
-            console_errors,
-            html_report_urls,
-            job_data.get('download_url'),
-            download_details
-        ))
+        # Convert job data to JSON string
+        job_data_json = json.dumps(job_data)
         
-        conn.commit()
-        conn.close()
-        logger.info(f"Job {job_id} saved to database")
+        # Store in Redis with key prefix
+        key = f"{REDIS_KEY_PREFIX}{job_id}"
+        redis_client.set(key, job_data_json)
+        
+        # Set expiration (24 hours)
+        redis_client.expire(key, 24 * 3600)
+        
+        logger.info(f"Job {job_id} saved to Redis")
         
     except Exception as e:
-        logger.error(f"Error saving job {job_id} to database: {e}")
+        logger.error(f"Error saving job {job_id} to Redis: {e}")
 
 def get_job_from_db(job_id: str) -> Optional[dict]:
-    """Retrieve job data from the database."""
+    """Retrieve job data from Redis."""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
+        redis_client = get_redis_client()
         
-        cursor.execute('SELECT * FROM jobs WHERE job_id = ?', (job_id,))
-        row = cursor.fetchone()
-        conn.close()
+        # Get job data from Redis
+        key = f"{REDIS_KEY_PREFIX}{job_id}"
+        job_data_json = redis_client.get(key)
         
-        if row:
-            # Convert JSON strings back to lists/dicts
-            job_data = {
-                'job_id': row[0],
-                'status': row[1],
-                'progress': row[2],
-                'input_type': row[3],
-                'accession': row[4],
-                'started_at': row[5],
-                'finished_at': row[6],
-                'error': row[7],
-                'files_processed': row[8],
-                'total_files': row[9],
-                'files_downloaded': row[10],
-                'processing_stage': row[11],
-                'console_output': json.loads(row[12]) if row[12] else [],
-                'console_errors': json.loads(row[13]) if row[13] else [],
-                'html_report_urls': json.loads(row[14]) if row[14] else {},
-                'download_url': row[15],
-                'download_details': json.loads(row[16]) if row[16] else {},
-                'created_at': row[17],
-                'updated_at': row[18]
-            }
-            logger.info(f"Retrieved job {job_id} from database")
+        if job_data_json:
+            # Parse JSON data
+            job_data = json.loads(job_data_json)
+            logger.info(f"Retrieved job {job_id} from Redis")
             return job_data
         else:
-            logger.info(f"Job {job_id} not found in database")
+            logger.info(f"Job {job_id} not found in Redis")
             return None
             
     except Exception as e:
-        logger.error(f"Error retrieving job {job_id} from database: {e}")
+        logger.error(f"Error retrieving job {job_id} from Redis: {e}")
         return None
 
 def update_job_progress(job_id: str, status: str, progress: int = None, **kwargs):
-    """Update job progress and status in the database."""
+    """Update job progress and status in Redis."""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
+        redis_client = get_redis_client()
         
-        # Build update query dynamically
-        update_fields = ['status = ?', 'updated_at = CURRENT_TIMESTAMP']
-        params = [status]
+        # Get existing job data
+        key = f"{REDIS_KEY_PREFIX}{job_id}"
+        existing_data_json = redis_client.get(key)
+        
+        if existing_data_json:
+            job_data = json.loads(existing_data_json)
+        else:
+            job_data = {}
+        
+        # Update fields
+        job_data['status'] = status
+        job_data['updated_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         if progress is not None:
-            update_fields.append('progress = ?')
-            params.append(progress)
+            job_data['progress'] = progress
         
-        for key, value in kwargs.items():
-            if key in ['input_type', 'accession', 'started_at', 'finished_at', 'error', 
-                      'files_processed', 'total_files', 'download_url', 'processing_stage', 'files_downloaded']:
-                update_fields.append(f'{key} = ?')
-                params.append(value)
-            elif key in ['console_output', 'console_errors', 'html_report_urls', 'download_details']:
-                update_fields.append(f'{key} = ?')
-                params.append(json.dumps(value))
+        # Update additional fields
+        for key_name, value in kwargs.items():
+            job_data[key_name] = value
         
-        params.append(job_id)
+        # Save updated data back to Redis
+        job_data_json = json.dumps(job_data)
+        redis_client.set(key, job_data_json)
         
-        query = f'UPDATE jobs SET {", ".join(update_fields)} WHERE job_id = ?'
-        cursor.execute(query, params)
+        # Set expiration (24 hours)
+        redis_client.expire(key, 24 * 3600)
         
-        conn.commit()
-        conn.close()
-        logger.info(f"Updated job {job_id} in database: status={status}, progress={progress}")
+        logger.info(f"Updated job {job_id} in Redis: status={status}, progress={progress}")
         
     except Exception as e:
-        logger.error(f"Error updating job {job_id} in database: {e}")
+        logger.error(f"Error updating job {job_id} in Redis: {e}")
 
 def cleanup_old_jobs(days_to_keep: int = 30):
-    """Clean up old completed/failed jobs from the database."""
+    """Clean up old completed/failed jobs from Redis."""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
+        redis_client = get_redis_client()
         
-        # Delete jobs older than specified days
-        cursor.execute('''
-            DELETE FROM jobs 
-            WHERE status IN ('completed', 'failed') 
-            AND updated_at < datetime('now', '-{} days')
-        '''.format(days_to_keep))
+        # Get all job keys
+        pattern = f"{REDIS_KEY_PREFIX}*"
+        job_keys = redis_client.keys(pattern)
         
-        deleted_count = cursor.rowcount
-        conn.commit()
-        conn.close()
+        deleted_count = 0
+        cutoff_time = datetime.now().timestamp() - (days_to_keep * 24 * 3600)
+        
+        for key in job_keys:
+            try:
+                job_data_json = redis_client.get(key)
+                if job_data_json:
+                    job_data = json.loads(job_data_json)
+                    
+                    # Check if job is old and completed/failed
+                    if (job_data.get('status') in ['completed', 'failed'] and 
+                        'updated_at' in job_data):
+                        try:
+                            job_time = datetime.strptime(job_data['updated_at'], "%Y-%m-%d %H:%M:%S").timestamp()
+                            if job_time < cutoff_time:
+                                redis_client.delete(key)
+                                deleted_count += 1
+                        except ValueError:
+                            # If timestamp parsing fails, skip
+                            continue
+                            
+            except Exception as e:
+                logger.warning(f"Error processing job key {key}: {e}")
+                continue
         
         if deleted_count > 0:
-            logger.info(f"Cleaned up {deleted_count} old jobs from database")
+            logger.info(f"Cleaned up {deleted_count} old jobs from Redis")
             
     except Exception as e:
         logger.error(f"Error cleaning up old jobs: {e}")
 
-# Initialize database on startup
-init_database()
+# Initialize Redis on startup
+init_redis()
 
 # Clean up old jobs on startup
 cleanup_old_jobs(days_to_keep=30)
