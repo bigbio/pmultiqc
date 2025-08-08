@@ -303,7 +303,10 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    # Mount static files from a dedicated 'static' directory
+    STATIC_FOLDER = os.environ.get('STATIC_FOLDER', 'static')
+    os.makedirs(STATIC_FOLDER, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=STATIC_FOLDER), name="static")
     allow_methods=["*"],
     allow_headers=["*"],
 )
