@@ -12,10 +12,12 @@
             BASE_URL: '{{ config.BASE_URL.rstrip("/") }}',
             API_BASE: '{{ config.BASE_URL.rstrip("/") }}'
         };
-        
-        // Function to get full URL for API endpoints
+    
+        // Normalize and build API URL safely
         function getApiUrl(endpoint) {
-            return `${window.APP_CONFIG.API_BASE}${endpoint}`;
+            const base = String(window.APP_CONFIG.API_BASE || '').replace(/\/+$/, '');
+            const path = String(endpoint || '').replace(/^\/+/, '');
+            return `${base}/${path}`;
         }
         
         // Function to get full URL for static assets
