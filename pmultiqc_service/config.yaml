@@ -1,0 +1,39 @@
+# PMultiQC Service Configuration File
+# This file can be used to configure the PMultiQC service
+# Environment variables take precedence over this file
+
+# Maximum file upload size in bytes (default: 2GB)
+max_content_length: 2147483648
+
+# Directory paths for file storage
+upload_folder: /tmp/pmultiqc_uploads
+output_folder: /tmp/pmultiqc_outputs
+html_reports_folder: /tmp/pmultiqc_html_reports
+
+# Base URL for the service (used for generating absolute URLs)
+# For local development: http://localhost:5000
+# For production: https://www.ebi.ac.uk/pride/services/pmultiqc
+base_url: http://localhost:5000
+
+# Optional: Additional configuration options
+# These can be extended as needed
+
+# Logging configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+# Cleanup settings
+cleanup:
+  expiration_seconds: 86400  # 24 hours
+  cleanup_job_seconds: 3600  # 1 hour
+
+# File processing settings
+processing:
+  allowed_extensions: ["zip"]
+  chunk_size: 8192  # 8KB chunks for streaming uploads
+
+# PRIDE API settings
+pride:
+  timeout: 30  # seconds
+  max_files: 100 

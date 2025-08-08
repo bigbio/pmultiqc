@@ -43,6 +43,11 @@ spec:
             configMapKeyRef:
               name: pmultiqc-config
               key: OUTPUT_FOLDER
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: LOG_LEVEL
         volumeMounts:
         - name: uploads-storage
           mountPath: /tmp/pmultiqc_uploads

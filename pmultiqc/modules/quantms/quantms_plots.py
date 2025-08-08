@@ -1,5 +1,5 @@
 import logging
-from multiqc.plots import bargraph, box
+from multiqc.plots import bargraph, box, table
 
 from ..common.common_plots import (
     draw_ids_rt_count,
@@ -8,10 +8,11 @@ from ..common.common_plots import (
 from ..core.section_groups import add_sub_section
 from ..maxquant.maxquant_utils import evidence_rt_count
 from ..common.common_plots import draw_oversampling
+from . import quantms_utils
 
 import re
-import pandas as pd
 import numpy as np
+import itertools
 
 
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +33,7 @@ def draw_dia_ms2s(sub_section, df):
     draw_dia_ms2_charge(sub_section, df)
 
     if "MS2.Scan" in df.columns:
-        msms_count_data = calculate_msms_count(df)
+        msms_count_data = quantms_utils.calculate_msms_count(df)
         draw_oversampling(
             sub_section,
             msms_count_data["plot_data"],
@@ -148,7 +149,7 @@ def can_groupby_for_std(df, col):
 
 def draw_dia_intensity_std(sub_section, df):
 
-    box_data = calculate_dia_intensity_std(df)
+    box_data = quantms_utils.calculate_dia_intensity_std(df)
 
     draw_box_config = {
         "id": "dia_std_intensity_box",
@@ -177,63 +178,98 @@ def draw_dia_intensity_std(sub_section, df):
             """
     )
 
+# DIA-NN Quantification Table
+def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
 
-def extract_condition_and_replicate(run_name):
-
-    match = re.search(r"^(.*?)([A-Za-z]*)(\d+)$", run_name)
-
-    if match:
-        condition_base = match.group(1) + match.group(2)
-        
-        if condition_base.endswith("_"):
-            condition_base = condition_base[: -1]
-
-        replicate = int(match.group(3))
-
-        return condition_base, replicate
-    else:
-        log.warning("Failed to identify condition groups in DIA report.tsv!")
-
-def calculate_dia_intensity_std(df):
-
-    df_sub = df.copy()
-    df_sub[["run_condition", "run_replicate"]] = df_sub["Run"].apply(
-        lambda x: pd.Series(extract_condition_and_replicate(x))
+    # Peptides Quantification Table
+    peptides_table, peptides_headers = quantms_utils.create_peptides_table(
+        diann_report,
+        sample_df,
+        file_df
     )
+    draw_peptides_table(sub_section, peptides_table, peptides_headers)
 
-    grouped_std = (
-        df_sub
-        .groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
-        .std()
-        .reset_index(name="log_intensity_std")
+    # Protein Quantification Table
+    protein_table, protein_headers = quantms_utils.create_protein_table(
+        diann_report,
+        sample_df,
+        file_df
     )
+    draw_protein_table(sub_section, protein_table, protein_headers)
 
-    plot_data = {
-        condition: group["log_intensity_std"].dropna().tolist()
-        for condition, group in grouped_std.groupby("run_condition")
+# Draw: Peptides Quantification Table (DIA-NN)
+def draw_peptides_table(sub_section, table_data, headers):
+
+    draw_config = {
+        "id": "peptides_quantification_table",
+        "title": "Peptides Quantification Table",
+        "save_file": False,
+        "sort_rows": False,
+        "only_defined_headers": True,
+        "col1_header": "PeptideID",
+        "no_violin": True,
     }
 
-    return plot_data
+    # only use the first 50 lines for the table
+    display_rows = 50
+    table_html = table.plot(
+        dict(itertools.islice(table_data.items(), display_rows)),
+        headers=headers,
+        pconfig=draw_config,
+    )
 
-def calculate_msms_count(df):
-    count_df = df.groupby(
-        [
-            "Run",
-            "Stripped.Sequence",
-            "Precursor.Charge"
-        ]
-    )["MS2.Scan"].nunique().reset_index(name="msms_count")
+    add_sub_section(
+        sub_section=sub_section,
+        plot=table_html,
+        order=1,
+        description="""
+            This plot shows the quantification information of peptides in the final result (DIA-NN report).
+            """,
+        helptext="""
+            The quantification information of peptides is obtained from the DIA-NN output file. 
+            The table shows the quantitative level and distribution of peptides in different study variables, 
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            the average intensity for all the fractions, runs and peptiforms.
 
-    run_counts = count_df.groupby("Run")["msms_count"].value_counts().reset_index(name="msms_count_run")
+            * BestSearchScore: It is equal to min(1 - Q.Value) for DIA-NN datasets.
+            * Average Intensity: Average intensity of each peptide sequence across all conditions (0 or NA ignored).
+            * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`).
+            """
+    )
 
-    run_counts["msms_count_str"] = run_counts["msms_count"].apply(lambda x: ">=3" if x >= 3 else str(x))
-    merged_df = run_counts.groupby(["Run", "msms_count_str"])["msms_count_run"].sum().reset_index()
+# Draw: Protein Quantification Table (DIA-NN)
+def draw_protein_table(sub_sections, table_data, headers):
 
-    result_dict = dict()
-    for run_name, group in merged_df.groupby("Run"):
-        result_dict[str(run_name)] = dict(zip(group["msms_count_str"], group["msms_count_run"]))
+    draw_config = {
+            "id": "protein_quant_result",
+            "title": "Protein Quantification Table",
+            "save_file": False,
+            "sort_rows": False,
+            "only_defined_headers": True,
+            "col1_header": "ProteinID",
+            "no_violin": True,
+        }
+    
+    display_rows = 50
+    table_html = table.plot(
+        dict(itertools.islice(table_data.items(), display_rows)),
+        headers=headers,
+        pconfig=draw_config
+    )
 
-    return {
-         "plot_data": result_dict,
-         "cats": list(merged_df["msms_count_str"].unique())
-    }
+    add_sub_section(
+        sub_section=sub_sections,
+        plot=table_html,
+        order=2,
+        description="""
+            This plot shows the quantification information of proteins in the final result (DIA-NN report).
+            """,
+        helptext="""
+            The quantification information of proteins is obtained from the DIA-NN output file.
+            The table shows the quantitative level and distribution of proteins in different study variables and run.
+
+            * Peptides_Number: The number of peptides for each protein.
+            * Average Intensity: Average intensity of each protein across all conditions (0 or NA ignored).
+            * Protein intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of peptides.
+            """
+    )

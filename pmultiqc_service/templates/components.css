@@ -1,0 +1,248 @@
+/* PMultiQC Service Component Styles */
+
+/* Job Info Styles */
+.job-info {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 25px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.job-info h3 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.job-info p {
+    margin: 8px 0;
+    color: #666;
+}
+
+.job-id {
+    font-family: monospace;
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+/* Status Styles */
+.status {
+    font-weight: bold;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.9em;
+}
+
+.status.completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status.failed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status.queued, .status.processing, .status.fetching_files, .status.filtering_files, .status.downloading_files, .status.running_pmultiqc {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* Accession Display Styles */
+.accession-display {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #495057;
+}
+
+.accession-code {
+    color: #007bff;
+    font-size: 1.4em;
+}
+
+.description {
+    color: #666;
+    margin: 20px 0;
+    line-height: 1.6;
+}
+
+/* Result Container Styles */
+.result-container {
+    display: none;
+    margin: 30px 0;
+    text-align: left;
+}
+
+.result-success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 10px 0;
+}
+
+.result-error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 10px 0;
+}
+
+/* Home Link Styles */
+.home-link {
+    margin-top: 30px;
+}
+
+.home-link a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.home-link a:hover {
+    background: #f8f9fa;
+    transform: translateY(-1px);
+}
+
+/* Details Section */
+.details {
+    margin: 20px 0;
+    text-align: left;
+}
+
+.details h3 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+/* Console Output Scrollbar Styling */
+#consoleOutput::-webkit-scrollbar {
+    width: 8px;
+}
+
+#consoleOutput::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#consoleOutput::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+#consoleOutput::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Footer Styles */
+.pmultiqc-footer {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    margin-top: 40px;
+    padding: 30px;
+    border-top: 3px solid #007bff;
+    border-radius: 0 0 15px 15px;
+    width: 100%;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.pmultiqc-footer h3 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+.pmultiqc-footer p {
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    font-size: 1.1em;
+}
+
+.pmultiqc-footer .footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.pmultiqc-footer .footer-link {
+    display: inline-block;
+    padding: 12px 25px;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.pmultiqc-footer .footer-link.website {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+}
+
+.pmultiqc-footer .footer-link.github {
+    background: linear-gradient(45deg, #28a745, #20c997);
+}
+
+.pmultiqc-footer .footer-link.examples {
+    background: linear-gradient(45deg, #6f42c1, #5a32a3);
+}
+
+.pmultiqc-footer .footer-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.pmultiqc-footer .footer-divider {
+    border-top: 1px solid #dee2e6;
+    padding-top: 20px;
+}
+
+.pmultiqc-footer .footer-divider p {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+        margin: 10px;
+    }
+    
+    .logo {
+        font-size: 2em;
+    }
+    
+    .upload-btn, .process-btn, .check-btn, .submit-btn {
+        padding: 12px 25px;
+        font-size: 1em;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.9em;
+    }
+    
+    .pmultiqc-footer {
+        max-width: 100%;
+        margin: 10px;
+    }
+} 
