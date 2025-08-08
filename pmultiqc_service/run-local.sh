@@ -52,7 +52,6 @@ docker run --rm \
     -v $(pwd)/local_outputs:/tmp/pmultiqc_outputs \
     -v $(pwd)/local_html_reports:/tmp/pmultiqc_html_reports \
     -e LOG_LEVEL=DEBUG \
-    -e FLASK_ENV=development \
     -e BASE_URL=http://localhost:5000 \
     pmultiqc-service:latest
 
