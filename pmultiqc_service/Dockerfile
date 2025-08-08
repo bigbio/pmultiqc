@@ -37,7 +37,6 @@ EXPOSE 5000
 
 # Set environment variables
 ENV FLASK_APP=app.py
-ENV FLASK_ENV=production
 
 # Run the application
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "2"]
