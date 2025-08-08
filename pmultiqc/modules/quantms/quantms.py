@@ -42,7 +42,8 @@ from ..maxquant.maxquant_utils import (
 from .quantms_plots import (
     draw_dia_intensitys,
     draw_dia_ms2s,
-    draw_dia_time_mass
+    draw_dia_time_mass,
+    draw_diann_quant_table
 )
 
 
@@ -227,6 +228,8 @@ class QuantMSModule:
             self.ms1_peaks = dict()
             self.ms1_general_stats = dict()
             self.is_multi_conditions = False
+            self.sample_df = pd.DataFrame()
+            self.file_df = pd.DataFrame()
 
             # draw the experimental design
             if self.enable_exp or self.enable_sdrf:
@@ -263,6 +266,11 @@ class QuantMSModule:
             self.idx_paths = []
             for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
                 self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
+
+            for msstats_input in self.find_log_files("pmultiqc/msstats", filecontents=False):
+                self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
+                self.msstats_input_valid = True
+                self.parse_msstats_input()
 
             self.draw_ms_information()
             if self.enable_dia:
@@ -311,11 +319,6 @@ class QuantMSModule:
             self.draw_quantms_quantification()
             self.draw_quantms_msms_section()
             self.draw_quantms_time_section()
-
-            for msstats_input in self.find_log_files("pmultiqc/msstats", filecontents=False):
-                self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
-                self.msstats_input_valid = True
-                self.parse_msstats_input()
 
             if config.kwargs["quantification_method"] == "spectral_counting":
                 # Add a report section with psm table plot from mzTab for spectral counting
@@ -3112,6 +3115,15 @@ class QuantMSModule:
         
         draw_dia_ms2s(self.sub_sections["ms2"], report_data)
         draw_dia_time_mass(self.sub_sections["time_mass"], report_data)
+
+        # Draw: Quantification Table (DIA-NN, without msstats data)
+        if not self.msstats_input_valid:
+            draw_diann_quant_table(
+                self.sub_sections["quantification"],
+                report_data,
+                self.sample_df,
+                self.file_df
+            )
 
         pattern = re.compile(r"\(.*?\)")
         report_data["sequence"] = report_data.apply(
