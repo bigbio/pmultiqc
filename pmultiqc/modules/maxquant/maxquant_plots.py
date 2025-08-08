@@ -149,7 +149,7 @@ def draw_protein_table(sub_section, table_data):
         plot=table_html,
         order=1,
         description="""
-            This plot shows the quantification information of peptides in the final result (evidence.txt).
+            This plot shows the quantification information of proteins in the final result (evidence.txt).
             """,
         helptext="""
             The quantification information of peptides is obtained from the evidence.txt. 
