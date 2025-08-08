@@ -4,8 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PMultiQC - Proteomics MultiQC Analysis</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='components.css') }}">
+    <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/style.css">
+    <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/components.css">
+    <script>
+        // Global configuration - can be overridden by environment
+        window.APP_CONFIG = {
+            BASE_URL: '{{ config.BASE_URL.rstrip("/") }}',
+            API_BASE: '{{ config.BASE_URL.rstrip("/") }}'
+        };
+        
+        // Function to get full URL for API endpoints
+        function getApiUrl(endpoint) {
+            return `${window.APP_CONFIG.API_BASE}${endpoint}`;
+        }
+        
+        // Function to get full URL for static assets
+        function getAssetUrl(asset) {
+            return `${window.APP_CONFIG.BASE_URL}/static/${asset}`;
+        }
+        
+        // Define hideLoading function early to avoid reference errors
+        function hideLoading() {
+            const loading = document.getElementById('reportLoading');
+            const iframe = document.getElementById('reportIframe');
+            if (loading && iframe) {
+                loading.style.display = 'none';
+                iframe.style.display = 'block';
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -18,7 +45,6 @@
             <p>Select how you want to analyze your proteomics data</p>
             <button class="upload-btn" onclick="showStep('upload')">📁 Upload Files</button>
             <button class="upload-btn" onclick="showStep('pride')">🔍 PRIDE Dataset</button>
-            <button class="upload-btn" onclick="showStep('status')">📊 Check Job Status</button>
         </div>
 
         <!-- Step 2: File Upload -->
@@ -40,17 +66,7 @@
             <button class="return-home-btn" onclick="returnToHome()">← Back to Home</button>
         </div>
 
-        <!-- Step 4: Job Status -->
-        <div id="step2-status" class="step">
-            <h3>📊 Check Job Status</h3>
-            <p>Enter a job ID to check the status of a previous analysis</p>
-            <input type="text" id="jobId" class="status-input" placeholder="Enter Job ID">
-            <button class="check-btn" onclick="checkStatus()">Check Status</button>
-            <button class="check-btn" onclick="debugJobStatus()" style="background: #ffc107; color: #000;">Debug Status</button>
-            <button class="return-home-btn" onclick="returnToHome()">← Back to Home</button>
-        </div>
-
-        <!-- Step 5: Progress -->
+        <!-- Step 4: Progress -->
         <div id="step5" class="step">
             <h3 id="progressTitle">⏳ Processing...</h3>
             
@@ -161,20 +177,6 @@
         </div>
     </div>
 
-    <!-- Report Modal -->
-    <div id="reportModal" class="report-modal">
-        <div class="report-modal-content">
-            <div class="report-modal-header">
-                <h3 class="report-modal-title">PRIDE Report</h3>
-                <button class="report-modal-close" onclick="closeReportModal()">&times;</button>
-            </div>
-            <div class="report-modal-body">
-                <div id="reportLoading" class="report-modal-loading">Loading report...</div>
-                <iframe id="reportIframe" class="report-modal-iframe" style="display: none;" onload="hideLoading()"></iframe>
-            </div>
-        </div>
-    </div>
-
     <script>
         let currentJobId = null;
         let processingInProgress = false;
@@ -190,8 +192,6 @@
                 document.getElementById('step2-upload').classList.add('active');
             } else if (step === 'pride') {
                 document.getElementById('step2-pride').classList.add('active');
-            } else if (step === 'status') {
-                document.getElementById('step2-status').classList.add('active');
             }
         }
 
@@ -225,7 +225,6 @@
             // Reset form fields
             document.getElementById('fileInput').value = '';
             document.getElementById('prideAccession').value = '';
-            document.getElementById('jobId').value = '';
             document.getElementById('fileList').innerHTML = '';
         }
 
@@ -422,14 +421,12 @@
             });
             
             // Start the upload
-            xhr.open('POST', '/upload-async');
+            xhr.open('POST', getApiUrl('/upload-async'));
             xhr.send(formData);
         }
 
         // PRIDE dataset processing
         function processPrideDataset() {
-            if (processingInProgress) return;
-            
             const accession = document.getElementById('prideAccession').value.trim().toUpperCase();
             
             if (!accession) {
@@ -442,91 +439,8 @@
                 return;
             }
 
-            showProgress();
-            
-            // Update upload section for PRIDE processing
-            document.getElementById('progressText').innerHTML = `
-                <div>Starting PRIDE dataset processing...</div>
-                <div style="font-size: 0.8em; margin-top: 5px; color: #666;">
-                    Fetching files from PRIDE database
-                </div>
-            `;
-            document.getElementById('progressFill').style.width = '0%';
-
-            fetch('/process-pride', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ accession: accession })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.job_id) {
-                    currentJobId = data.job_id;
-                    
-                    // Update upload section to show PRIDE processing started
-                    document.getElementById('progressText').innerHTML = `
-                        <div>✅ PRIDE processing initiated</div>
-                        <div style="font-size: 0.8em; margin-top: 5px; color: #28a745;">
-                            Job ID: ${data.job_id}
-                        </div>
-                    `;
-                    document.getElementById('progressFill').style.width = '25%';
-                    
-                    pollPrideStatus(data.job_id);
-                } else {
-                    showError(data.error || 'PRIDE processing failed');
-                }
-            })
-            .catch(error => {
-                showError('PRIDE processing failed: ' + error.message);
-            });
-        }
-
-        // Job status checking
-        function checkStatus() {
-            if (processingInProgress) return;
-            
-            const jobId = document.getElementById('jobId').value.trim();
-            
-            if (!jobId) {
-                showError('Please enter a job ID');
-                return;
-            }
-
-            showProgress();
-            document.getElementById('progressText').textContent = 'Checking job status...';
-
-            fetch(`/job-status/${jobId}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log('checkStatus received data:', data);
-                console.log('checkStatus - console_output:', data.console_output);
-                console.log('checkStatus - html_report_urls:', data.html_report_urls);
-                
-                if (data.error) {
-                    showError(data.error);
-                } else {
-                    currentJobId = jobId;
-                    
-                    // Show processing sections if job is still running
-                    if (data.status !== 'completed' && data.status !== 'failed') {
-                        document.getElementById('processingProgressSection').style.display = 'block';
-                        document.getElementById('consoleOutputSection').style.display = 'block';
-                        document.getElementById('progressTitle').textContent = '⚙️ Running PMultiQC Analysis...';
-                        
-                        // Start polling for updates
-                        pollStatus(jobId);
-                    } else {
-                        // Job is already completed, show results directly
-                        displayResults(data, jobId);
-                    }
-                }
-            })
-            .catch(error => {
-                showError('Failed to check status: ' + error.message);
-            });
+            // Redirect to submit page with the accession
+            window.location.href = `${window.APP_CONFIG.BASE_URL}/submit?accession=${accession}`;
         }
 
         // Poll status for file uploads
@@ -540,10 +454,12 @@
                     return;
                 }
                 
-                fetch(`/job-status/${jobId}`)
+                fetch(getApiUrl(`/job-status/${jobId}`))
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Processing status:', data);
+                    console.log('Polling response for job', jobId, ':', data);
+                    console.log('Job status:', data.status);
+                    console.log('Processing in progress:', processingInProgress);
                     
                     // Update processing progress
                     if (data.progress !== undefined) {
@@ -572,6 +488,10 @@
                         clearInterval(interval);
                         processingInProgress = false;
                         
+                        console.log('Job completed or failed. Status:', data.status);
+                        console.log('Calling displayResults with jobId:', jobId);
+                        console.log('About to call displayResults function...');
+                        
                         // Update title for completion
                         if (data.status === 'completed') {
                             document.getElementById('progressTitle').textContent = '✅ Analysis Complete!';
@@ -579,13 +499,20 @@
                             document.getElementById('progressTitle').textContent = '❌ Analysis Failed';
                         }
                         
+                        console.log('Calling displayResults now...');
                         displayResults(data, jobId);
+                        console.log('displayResults called successfully');
                     }
                 })
                 .catch(error => {
+                    console.error('Error polling job status:', error);
+                    // Don't immediately show error and return to home for temporary network issues
+                    // Only clear interval and stop polling, but don't call showError
                     clearInterval(interval);
                     processingInProgress = false;
-                    showError('Failed to check status: ' + error.message);
+                    
+                    // Log the error but don't redirect to home
+                    console.log('Polling failed, but job might still be running. Error:', error.message);
                 });
             }, 1000);
         }
@@ -636,229 +563,47 @@
             }
         }
 
-        // Poll status for PRIDE processing
-        function pollPrideStatus(jobId) {
-            let lastConsoleOutputLength = 0;
-            let lastConsoleErrorsLength = 0;
-            
-            // Show processing sections for PRIDE processing
-            document.getElementById('processingProgressSection').style.display = 'block';
-            document.getElementById('consoleOutputSection').style.display = 'block';
-            document.getElementById('progressTitle').textContent = '⚙️ Running PMultiQC Analysis...';
-            
-            const interval = setInterval(() => {
-                if (!processingInProgress) {
-                    clearInterval(interval);
-                    return;
-                }
-                
-                fetch(`/job-status/${jobId}`)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('PRIDE processing status:', data);
-                    
-                    // Update processing progress
-                    if (data.progress !== undefined) {
-                        const processingProgressFill = document.getElementById('processingProgressFill');
-                        const processingProgressText = document.getElementById('processingProgressText');
-                        
-                        if (processingProgressFill && processingProgressText) {
-                            processingProgressFill.style.width = data.progress + '%';
-                            
-                            let statusText = `Processing... ${data.progress}%`;
-                            if (data.processing_stage) {
-                                statusText = `${data.processing_stage} (${data.progress}%)`;
-                            }
-                            processingProgressText.textContent = statusText;
-                        }
-                        
-                        // Also update the main progress bar for PRIDE
-                        document.getElementById('progressFill').style.width = data.progress + '%';
-                        document.getElementById('progressText').textContent = `Processing PRIDE dataset... ${data.progress}%`;
-                    }
-                    
-                    // Update console output in real-time
-                    updateConsoleOutput(data.console_output || [], data.console_errors || [], lastConsoleOutputLength, lastConsoleErrorsLength);
-                    
-                    // Update last lengths
-                    lastConsoleOutputLength = (data.console_output || []).length;
-                    lastConsoleErrorsLength = (data.console_errors || []).length;
-                    
-                    if (data.status === 'completed' || data.status === 'failed') {
-                        clearInterval(interval);
-                        processingInProgress = false;
-                        
-                        console.log('PRIDE job completed, final data:', data);
-                        console.log('PRIDE html_report_urls:', data.html_report_urls);
-                        console.log('PRIDE console_output length:', data.console_output ? data.console_output.length : 'undefined/null');
-                        
-                        // Update title for completion
-                        if (data.status === 'completed') {
-                            document.getElementById('progressTitle').textContent = '✅ Analysis Complete!';
-                        } else {
-                            document.getElementById('progressTitle').textContent = '❌ Analysis Failed';
-                        }
-                        
-                        displayResults(data, jobId);
-                    }
-                })
-                .catch(error => {
-                    clearInterval(interval);
-                    processingInProgress = false;
-                    showError('Failed to check status: ' + error.message);
-                });
-            }, 1000);
-        }
+
 
         // Display results
         function displayResults(data, jobId) {
+            console.log('=== DISPLAY RESULTS FUNCTION CALLED ===');
             console.log('displayResults called with data:', data);
             console.log('displayResults - console_output:', data.console_output);
             console.log('displayResults - console_errors:', data.console_errors);
             console.log('displayResults - html_report_urls:', data.html_report_urls);
             console.log('displayResults - results:', data.results);
-            const resultDiv = document.getElementById('result');
+            console.log('Job ID for redirect:', jobId);
+            console.log('Base URL:', window.APP_CONFIG.BASE_URL);
             
-            if (data.status === 'completed') {
-                let resultHtml = `
-                    <h4>✅ Processing Complete!</h4>
-                    <p><strong>Job ID:</strong></p>
-                    ${createJobIdElement(jobId)}
-                    <p><strong>Input Type:</strong> ${data.input_type || 'Unknown'}</p>
-                    ${data.accession ? `<p><strong>PRIDE Accession:</strong> ${data.accession}</p>` : ''}
-                    ${data.files_processed ? `<p><strong>Files Processed:</strong> ${data.files_processed}/${data.total_files}</p>` : ''}
-                    ${data.files_downloaded ? `<p><strong>Files Downloaded:</strong> ${data.files_downloaded}</p>` : ''}
-                    <p><strong>Status:</strong> ${data.status}</p>
-                    <p><strong>Finished at:</strong> ${data.finished_at}</p>
-                `;
-
-                // Add console output if available
-                console.log('Console output check:', data.console_output ? data.console_output.length : 'undefined/null');
-                if (data.console_output && data.console_output.length > 0) {
-                    resultHtml += `
-                        <details open style="margin: 15px 0;">
-                            <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📋 View Console Output (${data.console_output.length} lines)</summary>
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px; font-family: 'Courier New', monospace; font-size: 13px; max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef;">
-                                ${data.console_output.map(line => `<div style="margin: 2px 0; color: #2e8b57;">${line}</div>`).join('')}
-                            </div>
-                        </details>
-                    `;
-                } else {
-                    console.log('No console output available for completed job');
-                }
-
-                // Add individual file results if available
-                console.log('Individual file results check:', data.results ? data.results.length : 'undefined/null');
-                if (data.results && data.results.length > 0) {
-                    resultHtml += `
-                        <details open style="margin: 15px 0;">
-                            <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📁 Individual File Results (${data.results.length} files)</summary>
-                            <div style="margin-top: 10px;">
-                                ${data.results.map(result => `
-                                    <div style="background: #e9ecef; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 4px solid #007bff;">
-                                        <strong>${result.file_name || 'Unknown file'}</strong> 
-                                        <span style="color: #666;">(${result.input_type || 'Unknown type'})</span>
-                                        ${result.status ? `<div style="margin-top: 5px; font-size: 0.9em;">Status: ${result.status}</div>` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </details>
-                    `;
-                } else {
-                    console.log('No individual file results available for completed job');
-                }
+            const redirectUrl = `${window.APP_CONFIG.BASE_URL}/results/${jobId}?t=${Date.now()}`;
+            console.log('Redirecting to:', redirectUrl);
+            console.log('Current location:', window.location.href);
+            
+            // Redirect to the results page instead of showing results inline
+            try {
+                console.log('Attempting redirect with window.location.replace...');
+                window.location.replace(redirectUrl);
+                console.log('Redirect command executed');
                 
-
-
-                // Add download button
-                resultHtml += `<a href="/download-report/${jobId}" class="download-btn">📥 Download Report</a>`;
-
-                // Add HTML report URLs if available
-                console.log('Checking html_report_urls:', data.html_report_urls);
-                console.log('html_report_urls type:', typeof data.html_report_urls);
-                console.log('html_report_urls keys:', data.html_report_urls ? Object.keys(data.html_report_urls) : 'N/A');
-                if (data.html_report_urls && Object.keys(data.html_report_urls).length > 0) {
-                    resultHtml += `
-                        <div style="margin: 15px 0;">
-                            <h5>📊 View Reports Online</h5>
-                            ${Object.keys(data.html_report_urls).length === 1 ? 
-                                `<a href="${data.html_report_urls[Object.keys(data.html_report_urls)[0]]}" class="download-btn online-report" target="_blank">🌐 View Report Online</a>` :
-                                `<div style="margin-bottom: 10px;">
-                                    <label for="reportSelector" style="font-weight: bold; display: block; margin-bottom: 5px;">Select Report:</label>
-                                    <select id="reportSelector" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 10px;">
-                                        ${Object.entries(data.html_report_urls).map(([name, url], index) => 
-                                            `<option value="${url}" ${index === 0 ? 'selected' : ''}>${name}</option>`
-                                        ).join('')}
-                                    </select>
-                                    <button class="download-btn online-report" onclick="viewSelectedReport()">🌐 View Report Online</button>
-                                </div>`
-                            }
-                        </div>
-                    `;
-                }
-
-                resultHtml += `<button class="return-home-btn" onclick="returnToHome()">← Return to Home</button>`;
-                resultDiv.className = 'result success';
-                resultDiv.innerHTML = resultHtml;
-            } else {
-                resultDiv.className = 'result error';
-                resultDiv.innerHTML = `
-                    <h4>❌ Processing Failed</h4>
-                    <p><strong>Job ID:</strong></p>
-                    ${createJobIdElement(jobId)}
-                    <p><strong>Error:</strong> ${data.error || 'Unknown error'}</p>
-                    <p><strong>Failed at:</strong> ${data.finished_at || 'Unknown'}</p>
-                    <button class="return-home-btn" onclick="returnToHome()">← Return to Home</button>
-                `;
+                // Add a timeout as backup in case the redirect doesn't work
+                setTimeout(() => {
+                    console.log('Backup redirect attempt...');
+                    if (window.location.href !== redirectUrl) {
+                        console.log('Redirect failed, trying window.location.assign...');
+                        window.location.assign(redirectUrl);
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error during redirect:', error);
+                // Fallback: try using window.location.href
+                console.log('Trying fallback redirect with window.location.href...');
+                window.location.href = redirectUrl;
             }
-            
-            resultDiv.style.display = 'block';
         }
 
         // Helper functions
-        function createJobIdElement(jobId) {
-            return `<div style="background: #e9ecef; padding: 8px; border-radius: 4px; font-family: monospace; margin: 10px 0; word-break: break-all;">${jobId}</div>`;
-        }
-
-        function debugJobStatus() {
-            const jobId = document.getElementById('jobId').value.trim();
-            
-            if (!jobId) {
-                showError('Please enter a job ID');
-                return;
-            }
-
-            fetch(`/job-status/${jobId}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log('=== DEBUG JOB STATUS ===');
-                console.log('Full response:', data);
-                console.log('Status:', data.status);
-                console.log('Console output length:', data.console_output ? data.console_output.length : 'undefined');
-                console.log('Console errors length:', data.console_errors ? data.console_errors.length : 'undefined');
-                console.log('HTML report URLs:', data.html_report_urls);
-                console.log('Results:', data.results);
-                console.log('Input type:', data.input_type);
-                console.log('Accession:', data.accession);
-                console.log('=== END DEBUG ===');
-                
-                // Show debug info in result area
-                const resultDiv = document.getElementById('result');
-                resultDiv.className = 'result success';
-                resultDiv.innerHTML = `
-                    <h4>🔍 Debug Information</h4>
-                    <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 12px;">
-${JSON.stringify(data, null, 2)}
-                    </pre>
-                    <button class="return-home-btn" onclick="returnToHome()">← Return to Home</button>
-                `;
-                resultDiv.style.display = 'block';
-            })
-            .catch(error => {
-                showError('Debug failed: ' + error.message);
-            });
-        }
-
         function showError(message) {
             processingInProgress = false;
             currentUploadXhr = null;
@@ -875,54 +620,6 @@ ${JSON.stringify(data, null, 2)}
             
             // Update title
             document.getElementById('progressTitle').textContent = '❌ Error Occurred';
-        }
-
-        // Report modal functions
-        function showPrideReport(url) {
-            const modal = document.getElementById('reportModal');
-            const iframe = document.getElementById('reportIframe');
-            const loading = document.getElementById('reportLoading');
-            
-            modal.style.display = 'block';
-            loading.style.display = 'block';
-            iframe.style.display = 'none';
-            iframe.src = url;
-        }
-
-        function showSelectedReport() {
-            const selector = document.getElementById('reportSelector');
-            const url = selector.value;
-            showPrideReport(url);
-        }
-
-        function viewSelectedReport() {
-            const selector = document.getElementById('reportSelector');
-            const url = selector.value;
-            window.open(url, '_blank');
-        }
-
-        function closeReportModal() {
-            const modal = document.getElementById('reportModal');
-            const iframe = document.getElementById('reportIframe');
-            
-            modal.style.display = 'none';
-            iframe.src = '';
-        }
-
-        function hideLoading() {
-            const loading = document.getElementById('reportLoading');
-            const iframe = document.getElementById('reportIframe');
-            
-            loading.style.display = 'none';
-            iframe.style.display = 'block';
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('reportModal');
-            if (event.target === modal) {
-                closeReportModal();
-            }
         }
     </script>
 </body>

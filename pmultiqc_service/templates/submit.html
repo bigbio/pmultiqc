@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PMultiQC - PRIDE Dataset Analysis</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='components.css') }}">
+    <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/style.css">
+    <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/components.css">
 </head>
 <body>
     <div class="container">
@@ -17,7 +17,7 @@
             {{ error }}
         </div>
         <div class="home-link">
-            <a href="/">← Return to Home</a>
+            <a href="{{ config.BASE_URL.rstrip('/') }}/">← Return to Home</a>
         </div>
         {% else %}
         <div class="accession-display">
@@ -30,21 +30,60 @@
             The analysis will process search engine output files and create comprehensive quality metrics.
         </div>
 
+        <!-- Progress Section (initially hidden) -->
+        <div id="progressSection" style="display: none; margin: 30px 0;">
+            <h3 id="progressTitle">⏳ Processing PRIDE Dataset...</h3>
+            
+            <!-- Progress Bar -->
+            <div class="progress-container" style="margin: 20px 0;">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill" style="width: 0%; background: linear-gradient(45deg, #007bff, #0056b3);"></div>
+                </div>
+                <div id="progressText" class="progress-text">Initializing...</div>
+            </div>
+            
+            <!-- Status Details -->
+            <div id="statusDetails" style="
+                background: #f8f9fa; 
+                border: 1px solid #e9ecef; 
+                border-radius: 8px; 
+                padding: 15px; 
+                margin: 15px 0;
+                font-size: 14px;
+            ">
+                <div id="currentStage" style="font-weight: bold; color: #007bff; margin-bottom: 10px;">
+                    🚀 Starting analysis...
+                </div>
+                <div id="stageDetails" style="color: #666; font-size: 13px;">
+                    Preparing to fetch files from PRIDE database...
+                </div>
+            </div>
+            
+            <!-- Console Output Section -->
+            <div id="consoleOutputSection" style="display: none; margin-top: 20px;">
+                <h4 style="color: #495057; margin-bottom: 10px;">📋 Console Output</h4>
+                <div id="consoleOutput" style="
+                    background: #f8f9fa; 
+                    border: 1px solid #e9ecef; 
+                    border-radius: 8px; 
+                    padding: 15px; 
+                    font-family: 'Courier New', monospace; 
+                    font-size: 12px; 
+                    max-height: 300px; 
+                    overflow-y: auto; 
+                    white-space: pre-wrap; 
+                    color: #333;
+                    line-height: 1.4;
+                "></div>
+            </div>
+        </div>
+
         <button id="submitBtn" class="submit-btn" onclick="submitPrideDataset()">
             Start Analysis
         </button>
 
-        <div id="progressContainer" class="progress-container">
-            <div class="progress-bar">
-                <div id="progressFill" class="progress-fill"></div>
-            </div>
-            <div id="progressText" class="progress-text">Starting analysis...</div>
-        </div>
-
-        <div id="resultContainer" class="result-container"></div>
-
         <div class="home-link">
-            <a href="/">← Return to Home</a>
+            <a href="{{ config.BASE_URL.rstrip('/') }}/">← Return to Home</a>
         </div>
         {% endif %}
 
@@ -111,22 +150,48 @@
     </div>
 
     <script>
+        // Global configuration - can be overridden by environment
+        window.APP_CONFIG = {
+            BASE_URL: '{{ config.BASE_URL.rstrip("/") }}',
+            API_BASE: '{{ config.BASE_URL.rstrip("/") }}'
+        };
+        
+        // Function to get full URL for API endpoints
+        function getApiUrl(endpoint) {
+            console.log('getApiUrl', endpoint);
+            return `${window.APP_CONFIG.API_BASE}${endpoint}`;
+        }
+        
+        // Function to get full URL for static assets
+        function getAssetUrl(asset) {
+            return `${window.APP_CONFIG.BASE_URL}/static/${asset}`;
+        }
+        
         let currentJobId = null;
         let progressInterval = null;
 
+        // Stage descriptions for better user experience
+        const stageDescriptions = {
+            'queued': '🚀 Starting analysis...',
+            'fetching_files': '🔍 Fetching files from PRIDE database...',
+            'filtering_files': '🔍 Filtering search engine output files...',
+            'downloading_files': '📥 Downloading files from PRIDE...',
+            'extracting_files': '📦 Extracting and processing files...',
+            'processing': '⚙️ Running PMultiQC analysis...',
+            'completed': '✅ Analysis completed successfully!',
+            'failed': '❌ Analysis failed'
+        };
+
         async function submitPrideDataset() {
             const submitBtn = document.getElementById('submitBtn');
-            const progressContainer = document.getElementById('progressContainer');
-            const resultContainer = document.getElementById('resultContainer');
+            const progressSection = document.getElementById('progressSection');
 
-            // Disable button and show progress
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loading"></span>Starting...';
-            progressContainer.style.display = 'block';
-            resultContainer.style.display = 'none';
+            // Hide button and show progress
+            submitBtn.style.display = 'none';
+            progressSection.style.display = 'block';
 
             try {
-                const response = await fetch('/api/submit-pride', {
+                const response = await fetch(getApiUrl('/submit-pride'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -140,7 +205,7 @@
 
                 if (response.ok) {
                     currentJobId = data.job_id;
-                    submitBtn.innerHTML = 'Analysis Started!';
+                    console.log('PRIDE job started with ID:', currentJobId);
                     
                     // Start polling for progress
                     startProgressPolling();
@@ -161,10 +226,12 @@
 
             progressInterval = setInterval(async () => {
                 try {
-                    const response = await fetch(`/job-status/${currentJobId}`);
+                    const response = await fetch(getApiUrl(`/job-status/${currentJobId}`));
                     const data = await response.json();
 
                     if (response.ok) {
+                        console.log('Job status:', data.status, 'Progress:', data.progress);
+                        
                         updateProgress(data);
                         
                         if (data.status === 'completed' || data.status === 'failed') {
@@ -175,165 +242,138 @@
                 } catch (error) {
                     console.error('Error polling status:', error);
                 }
-            }, 3000);
+            }, 2000); // Poll every 2 seconds
         }
 
         function updateProgress(data) {
             const progressFill = document.getElementById('progressFill');
             const progressText = document.getElementById('progressText');
-            
-            let progressPercent = data.progress || 0;
-            let statusText = data.status || 'processing';
-            
-            // Map status to more descriptive text
-            switch (statusText) {
-                case 'fetching_files':
-                    statusText = 'Fetching files from PRIDE...';
-                    progressPercent = Math.max(progressPercent, 25);
-                    break;
-                case 'filtering_files':
-                    statusText = 'Filtering search engine files...';
-                    progressPercent = Math.max(progressPercent, 30);
-                    break;
-                case 'downloading_files':
-                    statusText = 'Downloading files from PRIDE...';
-                    progressPercent = Math.max(progressPercent, 40);
-                    break;
-                case 'extracting_files':
-                    statusText = 'Extracting downloaded files...';
-                    progressPercent = Math.max(progressPercent, 70);
-                    break;
-                case 'detecting_type':
-                    statusText = 'Detecting input type...';
-                    progressPercent = Math.max(progressPercent, 75);
-                    break;
-                case 'processing':
-                    statusText = 'Running PMultiQC analysis...';
-                    progressPercent = Math.max(progressPercent, 80);
-                    break;
-                case 'creating_report':
-                    statusText = 'Creating final report...';
-                    progressPercent = Math.max(progressPercent, 90);
-                    break;
-                case 'completed':
-                    statusText = 'Analysis completed!';
-                    progressPercent = 100;
-                    break;
-                case 'failed':
-                    statusText = 'Analysis failed';
-                    progressPercent = 100;
-                    break;
+            const currentStage = document.getElementById('currentStage');
+            const stageDetails = document.getElementById('stageDetails');
+            const consoleOutput = document.getElementById('consoleOutput');
+            const consoleOutputSection = document.getElementById('consoleOutputSection');
+
+            // Update progress bar
+            if (data.progress !== undefined) {
+                progressFill.style.width = data.progress + '%';
+                progressText.textContent = `Progress: ${data.progress}%`;
             }
+
+            // Update stage information
+            const stageDesc = stageDescriptions[data.status] || data.status;
+            currentStage.textContent = stageDesc;
+
+            // Update stage details
+            let details = '';
+            if (data.status === 'downloading_files' && data.files_downloaded !== undefined) {
+                details = `Downloaded ${data.files_downloaded} files...`;
+            } else if (data.status === 'processing' && data.files_processed !== undefined) {
+                details = `Processed ${data.files_processed} of ${data.total_files} files...`;
+            } else if (data.processing_stage) {
+                details = data.processing_stage;
+            } else {
+                details = 'Processing...';
+            }
+            stageDetails.textContent = details;
+
+            // Update console output
+            if (data.console_output && data.console_output.length > 0) {
+                consoleOutputSection.style.display = 'block';
+                updateConsoleOutput(data.console_output, data.console_errors || []);
+            }
+
+            // Update title based on status
+            const progressTitle = document.getElementById('progressTitle');
+            if (data.status === 'completed') {
+                progressTitle.textContent = '✅ Analysis Complete!';
+                progressTitle.style.color = '#28a745';
+            } else if (data.status === 'failed') {
+                progressTitle.textContent = '❌ Analysis Failed';
+                progressTitle.style.color = '#dc3545';
+            }
+        }
+
+        function updateConsoleOutput(consoleOutput, consoleErrors) {
+            const consoleDiv = document.getElementById('consoleOutput');
+            if (!consoleDiv) return;
             
-            progressFill.style.width = progressPercent + '%';
-            progressText.textContent = `${statusText} (${progressPercent}%)`;
+            // Clear existing content and add all output
+            consoleDiv.innerHTML = '';
+            
+            // Add output lines
+            consoleOutput.forEach(line => {
+                if (line.trim()) {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.style.margin = '2px 0';
+                    lineDiv.style.color = '#2e8b57'; // Green for output
+                    lineDiv.textContent = '> ' + line;
+                    consoleDiv.appendChild(lineDiv);
+                }
+            });
+            
+            // Add error lines
+            consoleErrors.forEach(line => {
+                if (line.trim()) {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.style.margin = '2px 0';
+                    lineDiv.style.color = '#dc3545'; // Red for errors
+                    lineDiv.style.fontWeight = 'bold';
+                    lineDiv.textContent = '! ' + line;
+                    consoleDiv.appendChild(lineDiv);
+                }
+            });
+            
+            // Auto-scroll to bottom
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
         function showResults(data) {
-            const resultContainer = document.getElementById('resultContainer');
-            const progressContainer = document.getElementById('progressContainer');
+            console.log('Submit results data:', data);
+            console.log('Current job ID:', currentJobId);
+            console.log('Redirecting to:', `${window.APP_CONFIG.BASE_URL}/results/${currentJobId}`);
             
-            progressContainer.style.display = 'none';
-            resultContainer.style.display = 'block';
-
-            if (data.status === 'completed') {
-                console.log('Submit results data:', data);
-                let resultHtml = `
-                    <div class="result-success">
-                        <h3>✅ Analysis Complete!</h3>
-                        <p><strong>Job ID:</strong> ${currentJobId}</p>
-                        <p><strong>PRIDE Accession:</strong> {{ accession }}</p>
-                        <p><strong>Input Type:</strong> ${data.input_type || 'Unknown'}</p>
-                        ${data.files_processed ? `<p><strong>Files Processed:</strong> ${data.files_processed}/${data.total_files}</p>` : ''}
-                        ${data.files_downloaded ? `<p><strong>Files Downloaded:</strong> ${data.files_downloaded}</p>` : ''}
-                        <p><strong>Finished at:</strong> ${data.finished_at}</p>
-                `;
-
-                // Add console output if available
-                console.log('Console output check (submit):', data.console_output ? data.console_output.length : 'undefined/null');
-                if (data.console_output && data.console_output.length > 0) {
-                    resultHtml += `
-                        <details open style="margin: 15px 0;">
-                            <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📋 View Console Output (${data.console_output.length} lines)</summary>
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px; font-family: 'Courier New', monospace; font-size: 13px; max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef;">
-                                ${data.console_output.map(line => `<div style="margin: 2px 0; color: #2e8b57;">${line}</div>`).join('')}
-                            </div>
-                        </details>
-                    `;
-                } else {
-                    console.log('No console output available for completed PRIDE job');
-                }
-
-                // Add individual file results if available
-                console.log('Individual file results check (submit):', data.results ? data.results.length : 'undefined/null');
-                if (data.results && data.results.length > 0) {
-                    resultHtml += `
-                        <details open style="margin: 15px 0;">
-                            <summary style="cursor: pointer; color: #007bff; font-weight: bold;">📁 Individual File Results (${data.results.length} files)</summary>
-                            <div style="margin-top: 10px;">
-                                ${data.results.map(result => `
-                                    <div style="background: #e9ecef; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 4px solid #007bff;">
-                                        <strong>${result.file_name || 'Unknown file'}</strong> 
-                                        <span style="color: #666;">(${result.input_type || 'Unknown type'})</span>
-                                        ${result.status ? `<div style="margin-top: 5px; font-size: 0.9em;">Status: ${result.status}</div>` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </details>
-                    `;
-                } else {
-                    console.log('No individual file results available for completed PRIDE job');
-                }
-                        
-                resultHtml += `
-                        <div style="margin: 20px 0;">
-                            <a href="/download-report/${currentJobId}" class="btn btn-primary">📥 Download Report</a>
-                            ${data.html_report_urls ? `
-                                <div style="margin: 15px 0;">
-                                    <h4>📊 View Reports Online</h4>
-                                    ${Object.keys(data.html_report_urls).length === 1 ? 
-                                        `<a href="${data.html_report_urls[Object.keys(data.html_report_urls)[0]]}" class="btn btn-success" target="_blank">🌐 View Report Online</a>` :
-                                        `<div style="margin: 10px 0;">
-                                            <select id="reportSelector" style="padding: 8px; margin-right: 10px;">
-                                                ${Object.entries(data.html_report_urls).map(([name, url], index) => 
-                                                    `<option value="${url}" ${index === 0 ? 'selected' : ''}>${name}</option>`
-                                                ).join('')}
-                                            </select>
-                                            <button class="btn btn-success" onclick="viewSelectedReport()">🌐 View Report Online</button>
-                                        </div>`
-                                    }
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-                
-                resultContainer.innerHTML = resultHtml;
-            } else if (data.status === 'failed') {
-                resultContainer.innerHTML = `
-                    <div class="result-error">
-                        <h3>❌ Analysis Failed</h3>
-                        <p><strong>Job ID:</strong> ${currentJobId}</p>
-                        <p><strong>Error:</strong> ${data.error}</p>
-                        <p><strong>Failed at:</strong> ${data.finished_at}</p>
-                    </div>
-                `;
-            }
+            // Redirect to the results page instead of showing results inline
+            window.location.href = `${window.APP_CONFIG.BASE_URL}/results/${currentJobId}`;
         }
 
         function showError(message) {
-            const resultContainer = document.getElementById('resultContainer');
-            resultContainer.style.display = 'block';
-            resultContainer.innerHTML = `
-                <div class="result-error">
-                    <h3>❌ Error</h3>
-                    <p>${message}</p>
-                </div>
-            `;
+            const submitBtn = document.getElementById('submitBtn');
+            const progressSection = document.getElementById('progressSection');
+            
+            // Show button and hide progress
+            submitBtn.style.display = 'inline-block';
+            progressSection.style.display = 'none';
+            
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Start Analysis';
+            
+            // Show error message below the button
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `<h3>❌ Error</h3><p>${message}</p>`;
+            errorDiv.style.marginTop = '20px';
+            errorDiv.style.padding = '15px';
+            errorDiv.style.backgroundColor = '#f8d7da';
+            errorDiv.style.border = '1px solid #f5c6cb';
+            errorDiv.style.borderRadius = '8px';
+            errorDiv.style.color = '#721c24';
+            
+            // Remove any existing error message
+            const existingError = document.querySelector('.error-message');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            // Insert error message after the button
+            submitBtn.parentNode.insertBefore(errorDiv, submitBtn.nextSibling);
         }
 
         function resetButton() {
             const submitBtn = document.getElementById('submitBtn');
+            const progressSection = document.getElementById('progressSection');
+            
+            submitBtn.style.display = 'inline-block';
+            progressSection.style.display = 'none';
             submitBtn.disabled = false;
             submitBtn.innerHTML = 'Start Analysis';
         }
