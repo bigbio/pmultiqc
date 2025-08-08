@@ -349,50 +349,142 @@ def get_pride_files(accession: str) -> List[Dict]:
         List of file dictionaries from PRIDE API
     """
     try:
-        url = f"https://www.ebi.ac.uk/pride/ws/archive/v3/projects/{accession}/files"
-        params = {"page": 0, "pageSize": 100}  # Get up to 100 files
+        all_files = []
+        page = 0
+        page_size = 100
         
         logger.info(f"Fetching files from PRIDE for accession: {accession}")
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
         
-        files = response.json()
-        logger.info(f"Retrieved {len(files)} files from PRIDE for {accession}")
-        return files
+        while True:
+            url = f"https://www.ebi.ac.uk/pride/ws/archive/v3/projects/{accession}/files"
+            params = {"page": page, "pageSize": page_size}
+            
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            
+            files = response.json()
+            
+            # If we get an empty array, we've reached the end
+            if not files:
+                logger.info(f"No more files found on page {page}")
+                break
+            
+            all_files.extend(files)
+            logger.info(f"Retrieved {len(files)} files from page {page}")
+            
+            # If we got fewer files than page_size, we've reached the end
+            if len(files) < page_size:
+                break
+            
+            page += 1
+        
+        logger.info(f"Retrieved {len(all_files)} total files from PRIDE for {accession}")
+        return all_files
         
     except requests.RequestException as e:
         logger.error(f"Error fetching PRIDE files for {accession}: {e}")
         raise Exception(f"Failed to fetch files from PRIDE: {e}")
 
-def filter_search_files(files: List[Dict]) -> List[Dict]:
+def filter_search_files(files: List[Dict]) -> tuple[List[Dict], bool]:
     """
-    Filter files to only include search engine output files.
+    Filter files to include search engine output files and peak list files for COMPLETE submissions.
     
     Args:
         files: List of file dictionaries from PRIDE API
     
     Returns:
-        List of search engine output files
+        tuple: (filtered_files, is_complete) where filtered_files is the list of files to download
+               and is_complete indicates if this is a COMPLETE submission (mzIdentML + peak lists)
     """
     search_files = []
+    peak_list_files = []
+    is_complete = False
     
+    # Log all file categories for debugging
+    file_categories = set()
     for file_info in files:
+        category = file_info.get('fileCategory', {}).get('value', 'UNKNOWN')
+        file_categories.add(category)
+    logger.info(f"Found file categories in PRIDE submission: {file_categories}")
+    
+    # First pass: identify search engine output files and check for mzIdentML
+    has_mzidentml = False
+    for file_info in files:
+        original_filename = file_info.get('fileName', '')
+        filename_lower = original_filename.lower()
+        file_category = file_info.get('fileCategory', {}).get('value', '')
+        
         # Check if it's a search engine output file
-        if (file_info.get('fileCategory', {}).get('value') == 'SEARCH' or
-            'report' in file_info.get('fileName', '').lower() or
-            'evidence' in file_info.get('fileName', '').lower() or
-            'peptides' in file_info.get('fileName', '').lower() or
-            'proteingroups' in file_info.get('fileName', '').lower() or
-            'msms' in file_info.get('fileName', '').lower()):
+        if (file_category in ['SEARCH', 'RESULT'] or
+            'report' in filename_lower or
+            'evidence' in filename_lower or
+            'peptides' in filename_lower or
+            'proteingroups' in filename_lower or
+            'msms' in filename_lower or
+            filename_lower.endswith('.mzid') or
+            filename_lower.endswith('.mzid.gz') or
+            filename_lower.endswith('.mzid.zip')):
             
             search_files.append(file_info)
+            logger.info(f"Found search engine output file: {original_filename} (category: {file_category})")
+            
+            # Check if this is an mzIdentML file (including compressed)
+            if (filename_lower.endswith('.mzid') or 
+                filename_lower.endswith('.mzid.gz') or 
+                filename_lower.endswith('.mzid.zip')):
+                has_mzidentml = True
+                logger.info(f"Found mzIdentML file: {original_filename}")
     
-    logger.info(f"Found {len(search_files)} search engine output files")
-    return search_files
+    # If we have mzIdentML files, this might be a COMPLETE submission
+    if has_mzidentml:
+        logger.info("Detected mzIdentML files - checking for associated peak list files")
+        
+        # Second pass: look for peak list files (mgf, mzml) that might be associated
+        for file_info in files:
+            original_filename = file_info.get('fileName', '')
+            filename_lower = original_filename.lower()
+            
+            # Check for peak list files (case-insensitive, including compressed)
+            if (filename_lower.endswith('.mgf') or 
+                filename_lower.endswith('.mgf.gz') or
+                filename_lower.endswith('.mgf.zip') or
+                filename_lower.endswith('.mzml') or
+                filename_lower.endswith('.mzml.gz') or
+                filename_lower.endswith('.mzml.zip') or
+                'peak' in filename_lower or
+                'spectrum' in filename_lower):
+                
+                # Only include if it's not already in search_files
+                if file_info not in search_files:
+                    peak_list_files.append(file_info)
+                    logger.info(f"Found peak list file: {original_filename}")
+        
+        # If we found both mzIdentML and peak list files, mark as COMPLETE
+        if peak_list_files:
+            is_complete = True
+            logger.info(f"Detected COMPLETE submission with {len(search_files)} search files and {len(peak_list_files)} peak list files")
+    
+    # Combine all files to download
+    all_files = search_files + peak_list_files
+    
+    logger.info(f"Found {len(search_files)} search engine output files and {len(peak_list_files)} peak list files")
+    logger.info(f"Total files to download: {len(all_files)}")
+    
+    # Log some example filenames for debugging
+    if all_files:
+        example_files = [f.get('fileName', '') for f in all_files[:5]]
+        logger.info(f"Example files to download: {example_files}")
+    else:
+        logger.warning("No files found to download - this might not be a proteomics dataset")
+        # Log some example filenames from the original list for debugging
+        example_all_files = [f.get('fileName', '') for f in files[:10]]
+        logger.info(f"Example files in submission: {example_all_files}")
+    
+    return all_files, is_complete
 
 def download_pride_file(file_info: Dict, download_dir: str, job_id: str = None) -> str:
     """
-    Download a file from PRIDE with detailed progress tracking.
+    Download a file from PRIDE with detailed progress tracking and handle compression.
     
     Args:
         file_info: File information from PRIDE API
@@ -400,7 +492,7 @@ def download_pride_file(file_info: Dict, download_dir: str, job_id: str = None) 
         job_id: Job ID for progress updates
     
     Returns:
-        Path to the downloaded file
+        Path to the downloaded file (uncompressed if it was compressed)
     """
     try:
         # Get FTP URL (preferred over Aspera for reliability)
@@ -466,7 +558,33 @@ def download_pride_file(file_info: Dict, download_dir: str, job_id: str = None) 
         
         file_size = os.path.getsize(file_path)
         logger.info(f"Successfully downloaded {filename} ({file_size} bytes)")
-        return file_path
+        
+        # Handle compression if the file is compressed
+        final_file_path = file_path
+        if filename.lower().endswith('.gz'):
+            logger.info(f"Decompressing gzipped file: {filename}")
+            import gzip
+            decompressed_path = file_path[:-3]  # Remove .gz extension
+            with gzip.open(file_path, 'rb') as f_in:
+                with open(decompressed_path, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            # Remove the compressed file
+            os.remove(file_path)
+            final_file_path = decompressed_path
+            logger.info(f"Decompressed {filename} to {os.path.basename(decompressed_path)}")
+            
+        elif filename.lower().endswith('.zip'):
+            logger.info(f"Extracting zipped file: {filename}")
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                # Extract to the same directory
+                zip_ref.extractall(download_dir)
+            # Remove the zip file
+            os.remove(file_path)
+            # Return the directory path since zip files contain multiple files
+            final_file_path = download_dir
+            logger.info(f"Extracted {filename} to directory")
+        
+        return final_file_path
         
     except Exception as e:
         logger.error(f"Error downloading file {file_info.get('fileName')}: {e}")
@@ -638,18 +756,20 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         files = get_pride_files(accession)
         
         update_job_progress(job_id, 'filtering_files', 20, 
-                          processing_stage='Filtering search engine output files...')
+                          processing_stage='Filtering search engine output files and peak lists...')
         
         # Filter search engine output files
-        search_files = filter_search_files(files)
+        search_files, is_complete = filter_search_files(files)
         
         if not search_files:
             update_job_progress(job_id, 'failed', error='No search engine output files found in PRIDE submission', 
                               finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             return
         
+        # Update progress with submission type information
+        submission_type_msg = "COMPLETE submission (mzIdentML + peak lists)" if is_complete else "Standard submission"
         update_job_progress(job_id, 'downloading_files', 30, 
-                          processing_stage=f'Downloading {len(search_files)} files from PRIDE...',
+                          processing_stage=f'Downloading {len(search_files)} files from PRIDE ({submission_type_msg})...',
                           total_files=len(search_files), files_downloaded=0)
         
         # Create download directory
@@ -684,15 +804,90 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         update_job_progress(job_id, 'extracting_files', 70, 
                           processing_stage='Extracting and analyzing downloaded files...')
         
-        # Process each downloaded file separately
+        # Process downloaded files based on submission type
         all_results = []
         total_processed = 0
-        total_files_to_process = len(downloaded_files)
         
-        for i, zip_file in enumerate(downloaded_files):
-            if zip_file.lower().endswith('.zip'):
+        if is_complete:
+            # For COMPLETE submissions, process all files together
+            logger.info("Processing COMPLETE submission - extracting all files to single directory")
+            
+            # Create a single extraction directory for all files
+            combined_extract_dir = os.path.join(download_dir, 'extracted_combined')
+            combined_output_dir = os.path.join(output_dir, 'report_combined')
+            
+            os.makedirs(combined_extract_dir, exist_ok=True)
+            os.makedirs(combined_output_dir, exist_ok=True)
+            
+            # Copy all downloaded files to the combined directory
+            for downloaded_file in downloaded_files:
+                if os.path.isdir(downloaded_file):
+                    # If it's a directory (from zip extraction), copy all contents
+                    logger.info(f"Copying directory contents from {downloaded_file}")
+                    for root, dirs, files in os.walk(downloaded_file):
+                        for file in files:
+                            src_path = os.path.join(root, file)
+                            rel_path = os.path.relpath(src_path, downloaded_file)
+                            dst_path = os.path.join(combined_extract_dir, rel_path)
+                            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                            shutil.copy2(src_path, dst_path)
+                else:
+                    # If it's a file, copy it directly
+                    filename = os.path.basename(downloaded_file)
+                    dst_path = os.path.join(combined_extract_dir, filename)
+                    shutil.copy2(downloaded_file, dst_path)
+                    logger.info(f"Copied file {filename} to combined directory")
+            
+            # Detect input type for the combined files
+            input_type, quantms_config = detect_input_type(combined_extract_dir)
+            logger.info(f"Detected input type for COMPLETE submission: {input_type}")
+            
+            if input_type == 'unknown':
+                update_job_progress(job_id, 'failed', error='Could not detect input type for COMPLETE submission', 
+                                  finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                return
+            
+            # Run PMultiQC on the combined files
+            update_job_progress(job_id, 'processing', 80, 
+                              processing_stage='Processing COMPLETE submission with mzIdentML and peak lists...')
+            
+            result = run_pmultiqc_with_progress(combined_extract_dir, combined_output_dir, input_type, quantms_config, job_id)
+            
+            if result['success']:
+                # Create zip report for the combined analysis
+                zip_report_path = os.path.join(combined_output_dir, f'pmultiqc_report_cpmplete_{job_id}.zip')
+                if create_zip_report(combined_output_dir, zip_report_path):
+                    all_results.append({
+                        'file_name': 'cpmplete_combined',
+                        'input_type': input_type,
+                        'report_path': zip_report_path,
+                        'output': result.get('output', []),
+                        'errors': result.get('errors', [])
+                    })
+                    total_processed = 1
+                else:
+                    logger.warning("Failed to create zip report for COMPLETE submission")
+            else:
+                logger.warning(f"PMultiQC failed for COMPLETE submission: {result.get('message')}")
+        else:
+            # For regular submissions, process each file separately
+            total_files_to_process = len(downloaded_files)
+            
+            for i, downloaded_file in enumerate(downloaded_files):
                 try:
-                    file_name = os.path.splitext(os.path.basename(zip_file))[0]
+                    # Determine file name and type
+                    if os.path.isdir(downloaded_file):
+                        # If it's a directory (from zip extraction), use directory name
+                        file_name = os.path.basename(downloaded_file)
+                        file_extract_dir = downloaded_file
+                    else:
+                        # If it's a file, extract the name without extension
+                        file_name = os.path.splitext(os.path.basename(downloaded_file))[0]
+                        # Create extraction directory and copy file
+                        file_extract_dir = os.path.join(download_dir, f'extracted_{file_name}')
+                        os.makedirs(file_extract_dir, exist_ok=True)
+                        shutil.copy2(downloaded_file, os.path.join(file_extract_dir, os.path.basename(downloaded_file)))
+                    
                     logger.info(f"Processing file {i+1}/{total_files_to_process}: {file_name}")
                     
                     # Update progress for processing (70-90%)
@@ -701,17 +896,9 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                                       files_processed=total_processed, total_files=total_files_to_process,
                                       processing_stage=f'Processing {file_name} ({i+1}/{total_files_to_process})...')
                     
-                    # Create separate directory for this file
-                    file_extract_dir = os.path.join(download_dir, f'extracted_{file_name}')
+                    # Create output directory for this file
                     file_output_dir = os.path.join(output_dir, f'report_{file_name}')
-                    
-                    os.makedirs(file_extract_dir, exist_ok=True)
                     os.makedirs(file_output_dir, exist_ok=True)
-                    
-                    # Extract this ZIP file
-                    logger.info(f"Extracting {zip_file}")
-                    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
-                        zip_ref.extractall(file_extract_dir)
                     
                     # Detect input type for this file
                     input_type, quantms_config = detect_input_type(file_extract_dir)
@@ -740,7 +927,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                         logger.warning(f"PMultiQC failed for {file_name}: {result.get('message')}")
                         
                 except Exception as e:
-                    logger.error(f"Error processing {zip_file}: {e}")
+                    logger.error(f"Error processing {downloaded_file}: {e}")
                     continue
         
         if not all_results:
@@ -770,6 +957,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
             'status': 'completed',
             'progress': 100,
             'accession': accession,
+            'submission_type': 'complete' if is_complete else 'standard',
             'files_processed': total_processed,
             'total_files': len(downloaded_files),
             'results': all_results,
@@ -845,9 +1033,15 @@ def detect_input_type(upload_path: str) -> tuple:
         if any(f in files for f in diann_files) or any('diann_report' in f for f in files):
             return "diann", None
         
-        # Check for mzIdentML + mzML files
-        mzid_files = ['.mzid', '.mzml']
-        if any(any(f.endswith(ext) for ext in mzid_files) for f in files):
+        # Check for mzIdentML files (CPMPLETE submissions)
+        has_mzid = any(f.endswith('.mzid') for f in files)
+        has_peak_lists = any(f.lower().endswith(('.mgf', '.mzml', '.mgf.gz', '.mzml.gz', '.mgf.zip', '.mzml.zip')) for f in files)
+        
+        if has_mzid:
+            if has_peak_lists:
+                logger.info("Detected COMPLETE submission with mzIdentML and peak list files")
+            else:
+                logger.info("Detected mzIdentML files without peak lists")
             return "mzidentml", None
         
         return "unknown", None
