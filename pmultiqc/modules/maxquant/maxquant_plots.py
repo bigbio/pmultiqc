@@ -6,6 +6,7 @@ from multiqc.plots import (
     table
 )
 from collections import OrderedDict
+import itertools
 
 from ..core.section_groups import add_sub_section
 from ..common.common_plots import remove_subtitle
@@ -48,6 +49,120 @@ def draw_parameters(sub_section, parameter_table):
             and database version information (if given in the filename).
             """
     )
+
+# Peptides Quantification Table
+def draw_peptide_table(sub_section, table_data):
+
+    draw_config = {
+        "id": "peptides_quantification_table",
+        "title": "Peptides Quantification Table",
+        "save_file": False,
+        "sort_rows": False,
+        "only_defined_headers": True,
+        "col1_header": "PeptideID",
+        "no_violin": True,
+    }
+
+    headers = {
+        "ProteinName": {
+            "title": "Protein Name",
+            "description": "Name/Identifier(s) of the protein (group)",
+            "minrange": "200",
+        },
+        "PeptideSequence": {"title": "Peptide Sequence"},
+        "BestSearchScore": {"title": "Best Search Score", "format": "{:,.4f}"},
+        "Average Intensity": {
+            "title": "Average Intensity",
+            "description": "Average intensity across all conditions",
+            "format": "{:,.4f}",
+        },
+    }
+
+    # only use the first 50 lines for the table
+    display_rows = 50
+    table_html = table.plot(
+        dict(itertools.islice(table_data.items(), display_rows)),
+        headers=headers,
+        pconfig=draw_config,
+    )
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=table_html,
+        order=1,
+        description="""
+            This plot shows the quantification information of peptides in the final result (evidence.txt).
+            """,
+        helptext="""
+            The quantification information of peptides is obtained from the evidence.txt. 
+            The table shows the quantitative level and distribution of peptides in different study variables, 
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            the average intensity for all the fractions, runs and peptiforms. 
+            Contaminants have been removed from the data by filtering using the 'Potential contaminant' field.
+
+            * BestSearchScore: maximum score (Andromeda score).
+            * Average Intensity: Average intensity of each peptide sequence (0 or NA ignored).
+            """
+    )
+
+
+# Protein Quantification Table
+def draw_protein_table(sub_section, table_data):
+
+    draw_config = {
+            "id": "protein_quant_result",
+            "title": "Protein Quantification Table",
+            "save_file": False,
+            "sort_rows": False,
+            "only_defined_headers": True,
+            "col1_header": "ProteinID",
+            "no_violin": True,
+        }
+
+    headers = {
+        "ProteinName": {
+            "title": "Protein Name",
+            "description": "Name/Identifier(s) of the protein (group)",
+        },
+        "Peptides_Number": {
+            "title": "Number of Peptides",
+            "description": "Number of peptides per proteins",
+            "format": "{:,.0f}",
+        },
+        "Average Intensity": {
+            "title": "Average Intensity",
+            "description": "Average intensity across all conditions",
+            "format": "{:,.4f}",
+        },
+    }
+
+    # only use the first 50 lines for the table
+    display_rows = 50
+    table_html = table.plot(
+        dict(itertools.islice(table_data.items(), display_rows)),
+        headers=headers,
+        pconfig=draw_config,
+    )
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=table_html,
+        order=1,
+        description="""
+            This plot shows the quantification information of peptides in the final result (evidence.txt).
+            """,
+        helptext="""
+            The quantification information of peptides is obtained from the evidence.txt. 
+            The table shows the quantitative level and distribution of peptides in different study variables, 
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            the average intensity for all the fractions, runs and peptiforms. 
+            Contaminants have been removed from the data by filtering using the 'Potential contaminant' field.
+
+            * Peptides_Number: The number of peptides for each protein.
+            * Average Intensity: Average intensity of each protein (0 or NA ignored).
+            """
+    )
+
 
 def draw_intensity_box(sub_section, distribution_box, fig_type):
 
