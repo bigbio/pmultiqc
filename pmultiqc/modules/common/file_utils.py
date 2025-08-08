@@ -117,6 +117,21 @@ def file_prefix(path):
         raise SystemExit(f"Illegal file path: {path}")
 
 def drop_empty_row(df, cols):
+    """
+    Remove rows from a DataFrame where any of the specified columns are empty or NaN.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame to filter.
+    cols : list or iterable
+        List of column names to check for empty or NaN values.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A copy of the DataFrame with rows removed where any of the specified columns are empty or NaN.
+    """
     mask = pd.Series(True, index=df.index)
     for col in cols:
         mask &= df[col].notna() & (df[col] != "")
