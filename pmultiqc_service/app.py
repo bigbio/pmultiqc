@@ -755,6 +755,14 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                 if os.path.exists(result['report_path']):
                     combined_zip.write(result['report_path'], os.path.basename(result['report_path']))
         
+        # Copy HTML report to public directory for online viewing
+        try:
+            html_urls = copy_html_report_for_online_viewing(output_dir, job_id, accession)
+            logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
+        except Exception as e:
+            logger.error(f"Failed to copy HTML reports for PRIDE job {job_id}: {e}")
+            html_urls = None
+        
         # Save job data to disk for persistence
         job_data = {
             'job_id': job_id,
@@ -767,6 +775,10 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
             'finished_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'download_url': f'{BASE_URL.rstrip("/")}/download-report/{job_id}'
         }
+        
+        # Add HTML report URLs if available
+        if html_urls:
+            job_data['html_report_urls'] = html_urls
         
         save_job_data_to_disk(job_id, job_data, output_dir)
         
@@ -1046,6 +1058,14 @@ def process_job_async(job_id: str, extract_path: str, output_dir: str, input_typ
                               finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             return
         
+        # Copy HTML report to public directory for online viewing
+        try:
+            html_urls = copy_html_report_for_online_viewing(output_dir, job_id)
+            logger.info(f"Generated html_urls for async job {job_id}: {html_urls}")
+        except Exception as e:
+            logger.error(f"Failed to copy HTML reports for async job {job_id}: {e}")
+            html_urls = None
+        
         # Update job to completed
         final_job_data = {
             'status': 'completed',
@@ -1055,6 +1075,10 @@ def process_job_async(job_id: str, extract_path: str, output_dir: str, input_typ
             'finished_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'download_url': f'{BASE_URL.rstrip("/")}/download-report/{job_id}'
         }
+        
+        # Add HTML report URLs if available
+        if html_urls:
+            final_job_data['html_report_urls'] = html_urls
         
         # Save final job data to database
         save_job_to_db(job_id, final_job_data)
@@ -1191,7 +1215,7 @@ async def view_results(request: Request, job_id: str):
                     'total_files': None,
                     'console_output': console_output,
                     'console_errors': console_errors,
-                    'html_report_urls': None,
+                    'html_report_urls': {},  # Initialize as empty dict
                     'download_url': f'{BASE_URL.rstrip("/")}/download-report/{job_id}'
                 }
                 
@@ -1490,7 +1514,7 @@ async def job_status_api(job_id: str):
                 'processing_stage': job_data.get('processing_stage'),
                 'console_output': job_data.get('console_output', []),
                 'console_errors': job_data.get('console_errors', []),
-                'html_report_urls': job_data.get('html_report_urls'),
+                'html_report_urls': job_data.get('html_report_urls', {}),
                 'download_url': job_data.get('download_url'),
                 'download_details': job_data.get('download_details', {})
             }

@@ -23,15 +23,6 @@
             return `${window.APP_CONFIG.BASE_URL}/static/${asset}`;
         }
         
-        // Define hideLoading function early to avoid reference errors
-        function hideLoading() {
-            const loading = document.getElementById('reportLoading');
-            const iframe = document.getElementById('reportIframe');
-            if (loading && iframe) {
-                loading.style.display = 'none';
-                iframe.style.display = 'block';
-            }
-        }
     </script>
 </head>
 <body>
@@ -71,13 +62,12 @@
             
             <div style="margin: 20px 0;">
                 <a href="{{ job_data.download_url }}" class="btn btn-primary">📥 Download Report</a>
-                {% if job_data.html_report_urls %}
+                {% if job_data.html_report_urls and job_data.html_report_urls|length > 0 %}
                 <div style="margin: 15px 0;">
                     <h4>📊 View Reports Online</h4>
                     {% if job_data.html_report_urls|length == 1 %}
                         {% for name, url in job_data.html_report_urls.items() %}
-                        <a href="{{ url }}" class="btn btn-success" target="_blank">🌐 View Report Online</a>
-                        <button class="btn btn-success" onclick="showPrideReport('{{ url }}')" style="margin-left: 10px;">📊 Show Report</button>
+                        <a href="{{ url }}" class="btn btn-success" target="_blank">📊 View Report Online</a>
                         {% endfor %}
                     {% else %}
                         <div style="margin: 10px 0;">
@@ -87,8 +77,7 @@
                                 <option value="{{ url }}">{{ name }}</option>
                                 {% endfor %}
                             </select>
-                            <button class="btn btn-success" onclick="viewSelectedReport()" style="margin-right: 10px;">🌐 View Report Online</button>
-                            <button class="btn btn-success" onclick="showSelectedReport()">📊 Show Report</button>
+                            <button class="btn btn-success" onclick="viewSelectedReport()">🌐 View Report Online</button>
                         </div>
                     {% endif %}
                 </div>
@@ -226,20 +215,6 @@
         </div>
     </div>
 
-    <!-- Report Modal -->
-    <div id="reportModal" class="report-modal">
-        <div class="report-modal-content">
-            <div class="report-modal-header">
-                <h3 class="report-modal-title">PRIDE Report</h3>
-                <button class="report-modal-close" onclick="closeReportModal()">&times;</button>
-            </div>
-            <div class="report-modal-body">
-                <div id="reportLoading" class="report-modal-loading">Loading report...</div>
-                <iframe id="reportIframe" class="report-modal-iframe" style="display: none;" onload="hideLoading()"></iframe>
-            </div>
-        </div>
-    </div>
-
     <script>
         {% if job_data.status not in ['completed', 'failed'] %}
         // Auto-refresh for ongoing jobs
@@ -253,44 +228,6 @@
             const selector = document.getElementById('reportSelector');
             const url = selector.value;
             window.open(url, '_blank');
-        }
-
-        function showPrideReport(url) {
-            const modal = document.getElementById('reportModal');
-            const iframe = document.getElementById('reportIframe');
-            const loading = document.getElementById('reportLoading');
-            
-            // Show modal and loading
-            modal.style.display = 'block';
-            loading.style.display = 'block';
-            iframe.style.display = 'none';
-            
-            // Set iframe source
-            iframe.src = url;
-        }
-
-        function showSelectedReport() {
-            const selector = document.getElementById('reportSelector');
-            const url = selector.value;
-            showPrideReport(url);
-        }
-
-        function closeReportModal() {
-            const modal = document.getElementById('reportModal');
-            const iframe = document.getElementById('reportIframe');
-            
-            modal.style.display = 'none';
-            iframe.src = '';
-        }
-
-
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('reportModal');
-            if (event.target === modal) {
-                closeReportModal();
-            }
         }
     </script>
 </body>
