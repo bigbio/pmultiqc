@@ -21,12 +21,13 @@ import hashlib
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import get_swagger_ui_html
 import uvicorn
 
 import sqlite3
@@ -1438,8 +1439,6 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     update_job_progress(job_id, 'queued', 50, input_type=input_type)
     
     # Start background task for processing
-    import threading
-    
     thread = threading.Thread(target=process_job_async, args=(job_id, extract_path, output_dir, input_type, quantms_config))
     thread.daemon = True
     thread.start()
@@ -1801,8 +1800,6 @@ async def openapi_json():
 @app.get("/docs", include_in_schema=False)
 async def custom_docs():
     """Custom docs endpoint that redirects to Swagger UI with correct configuration."""
-    from fastapi.openapi.docs import get_swagger_ui_html
-    
     return get_swagger_ui_html(
         openapi_url=f"{BASE_URL.rstrip('/')}/openapi.json",
         title=f"{app.title} - Swagger UI",
