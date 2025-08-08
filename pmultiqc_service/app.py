@@ -107,6 +107,7 @@ def init_database():
                 console_errors TEXT,
                 html_report_urls TEXT,
                 download_url TEXT,
+                download_details TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
@@ -134,13 +135,14 @@ def save_job_to_db(job_id: str, job_data: dict):
         console_output = json.dumps(job_data.get('console_output', []))
         console_errors = json.dumps(job_data.get('console_errors', []))
         html_report_urls = json.dumps(job_data.get('html_report_urls', {}))
+        download_details = json.dumps(job_data.get('download_details', {}))
         
         cursor.execute('''
             INSERT OR REPLACE INTO jobs (
                 job_id, status, progress, input_type, accession, started_at, finished_at,
                 error, files_processed, total_files, files_downloaded, processing_stage,
-                console_output, console_errors, html_report_urls, download_url, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                console_output, console_errors, html_report_urls, download_url, download_details, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ''', (
             job_id,
             job_data.get('status', 'unknown'),
@@ -157,7 +159,8 @@ def save_job_to_db(job_id: str, job_data: dict):
             console_output,
             console_errors,
             html_report_urls,
-            job_data.get('download_url')
+            job_data.get('download_url'),
+            download_details
         ))
         
         conn.commit()
@@ -196,8 +199,9 @@ def get_job_from_db(job_id: str) -> Optional[dict]:
                 'console_errors': json.loads(row[13]) if row[13] else [],
                 'html_report_urls': json.loads(row[14]) if row[14] else {},
                 'download_url': row[15],
-                'created_at': row[16],
-                'updated_at': row[17]
+                'download_details': json.loads(row[16]) if row[16] else {},
+                'created_at': row[17],
+                'updated_at': row[18]
             }
             logger.info(f"Retrieved job {job_id} from database")
             return job_data
@@ -228,7 +232,7 @@ def update_job_progress(job_id: str, status: str, progress: int = None, **kwargs
                       'files_processed', 'total_files', 'download_url', 'processing_stage', 'files_downloaded']:
                 update_fields.append(f'{key} = ?')
                 params.append(value)
-            elif key in ['console_output', 'console_errors', 'html_report_urls']:
+            elif key in ['console_output', 'console_errors', 'html_report_urls', 'download_details']:
                 update_fields.append(f'{key} = ?')
                 params.append(json.dumps(value))
         
@@ -384,13 +388,14 @@ def filter_search_files(files: List[Dict]) -> List[Dict]:
     logger.info(f"Found {len(search_files)} search engine output files")
     return search_files
 
-def download_pride_file(file_info: Dict, download_dir: str) -> str:
+def download_pride_file(file_info: Dict, download_dir: str, job_id: str = None) -> str:
     """
-    Download a file from PRIDE.
+    Download a file from PRIDE with detailed progress tracking.
     
     Args:
         file_info: File information from PRIDE API
         download_dir: Directory to save the file
+        job_id: Job ID for progress updates
     
     Returns:
         Path to the downloaded file
@@ -414,16 +419,51 @@ def download_pride_file(file_info: Dict, download_dir: str) -> str:
         
         logger.info(f"Downloading {filename} from {http_url}")
         
-        # Download file with progress tracking
+        # Download file with detailed progress tracking
         response = requests.get(http_url, stream=True, timeout=300)
         response.raise_for_status()
+        
+        # Get total file size for progress calculation
+        total_size = int(response.headers.get('content-length', 0))
+        downloaded_size = 0
+        start_time = time.time()
         
         with open(file_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
+                    downloaded_size += len(chunk)
+                    
+                    # Update progress every 1MB or every 5 seconds
+                    if downloaded_size % (1024 * 1024) == 0 or (time.time() - start_time) > 5:
+                        if job_id and total_size > 0:
+                            # Calculate transfer speed and ETA
+                            elapsed_time = time.time() - start_time
+                            if elapsed_time > 0:
+                                speed = downloaded_size / elapsed_time  # bytes per second
+                                remaining_bytes = total_size - downloaded_size
+                                eta_seconds = remaining_bytes / speed if speed > 0 else 0
+                                
+                                # Update job progress with detailed transfer info
+                                update_job_progress(
+                                    job_id, 
+                                    'downloading_files', 
+                                    progress=None,  # Keep existing progress
+                                    processing_stage=f'Downloading {filename}...',
+                                    download_details={
+                                        'current_file': filename,
+                                        'downloaded_bytes': downloaded_size,
+                                        'total_bytes': total_size,
+                                        'speed_bytes_per_sec': speed,
+                                        'eta_seconds': eta_seconds,
+                                        'elapsed_seconds': elapsed_time
+                                    }
+                                )
+                        
+                        start_time = time.time()  # Reset timer
         
-        logger.info(f"Successfully downloaded {filename} ({os.path.getsize(file_path)} bytes)")
+        file_size = os.path.getsize(file_path)
+        logger.info(f"Successfully downloaded {filename} ({file_size} bytes)")
         return file_path
         
     except Exception as e:
@@ -621,7 +661,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         for i, file_info in enumerate(search_files):
             try:
                 logger.info(f"Downloading file {i+1}/{total_files}: {file_info.get('fileName')}")
-                file_path = download_pride_file(file_info, download_dir)
+                file_path = download_pride_file(file_info, download_dir, job_id)
                 downloaded_files.append(file_path)
                 
                 # Update progress for downloads (30-70%)
@@ -1452,7 +1492,8 @@ async def job_status_api(job_id: str):
                 'console_output': job_data.get('console_output', []),
                 'console_errors': job_data.get('console_errors', []),
                 'html_report_urls': job_data.get('html_report_urls'),
-                'download_url': job_data.get('download_url')
+                'download_url': job_data.get('download_url'),
+                'download_details': job_data.get('download_details', {})
             }
             
             return job_data_with_defaults
@@ -1519,7 +1560,8 @@ async def job_status_api(job_id: str):
                 'console_output': console_output,
                 'console_errors': console_errors,
                 'html_report_urls': None,
-                'download_url': f'{base_url}/download-report/{job_id}'
+                'download_url': f'{base_url}/download-report/{job_id}',
+                'download_details': {}
             }
             
             # Save recovered job to database for future requests

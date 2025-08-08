@@ -57,6 +57,40 @@
                 <div id="stageDetails" style="color: #666; font-size: 13px;">
                     Preparing to fetch files from PRIDE database...
                 </div>
+                
+                <!-- Download Progress Details (initially hidden) -->
+                <div id="downloadProgressDetails" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                    <div style="font-weight: bold; color: #28a745; margin-bottom: 8px;">📥 Download Progress</div>
+                    <div id="downloadFileInfo" style="color: #495057; font-size: 12px; margin-bottom: 8px;">
+                        <span id="currentFileName">-</span>
+                    </div>
+                    <div id="downloadProgressBar" style="
+                        width: 100%; 
+                        height: 8px; 
+                        background-color: #e9ecef; 
+                        border-radius: 4px; 
+                        overflow: hidden; 
+                        margin: 8px 0;
+                    ">
+                        <div id="downloadProgressFill" style="
+                            height: 100%; 
+                            background: linear-gradient(45deg, #28a745, #20c997); 
+                            width: 0%; 
+                            transition: width 0.3s ease;
+                        "></div>
+                    </div>
+                    <div id="downloadStats" style="
+                        display: flex; 
+                        justify-content: space-between; 
+                        font-size: 11px; 
+                        color: #6c757d;
+                        margin-top: 5px;
+                    ">
+                        <span id="downloadBytes">0 B / 0 B</span>
+                        <span id="downloadSpeed">0 B/s</span>
+                        <span id="downloadEta">ETA: --</span>
+                    </div>
+                </div>
             </div>
             
             <!-- Console Output Section -->
@@ -182,6 +216,29 @@
             'failed': '❌ Analysis failed'
         };
 
+        // Helper function to format bytes
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Helper function to format speed
+        function formatSpeed(bytesPerSecond) {
+            return formatBytes(bytesPerSecond) + '/s';
+        }
+
+        // Helper function to format time
+        function formatTime(seconds) {
+            if (!isFinite(seconds) || isNaN(seconds) || seconds <= 0) return '--';
+            if (seconds < 60) return Math.round(seconds) + 's';
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.round(seconds % 60);
+            return minutes + 'm ' + remainingSeconds + 's';
+        }
+
         async function submitPrideDataset() {
             const submitBtn = document.getElementById('submitBtn');
             const progressSection = document.getElementById('progressSection');
@@ -252,6 +309,7 @@
             const stageDetails = document.getElementById('stageDetails');
             const consoleOutput = document.getElementById('consoleOutput');
             const consoleOutputSection = document.getElementById('consoleOutputSection');
+            const downloadProgressDetails = document.getElementById('downloadProgressDetails');
 
             // Update progress bar
             if (data.progress !== undefined) {
@@ -275,6 +333,35 @@
                 details = 'Processing...';
             }
             stageDetails.textContent = details;
+
+            // Update download progress details if available
+            if (data.status === 'downloading_files' && data.download_details) {
+                const downloadDetails = data.download_details;
+                downloadProgressDetails.style.display = 'block';
+                
+                // Update current file name
+                const currentFileName = document.getElementById('currentFileName');
+                currentFileName.textContent = downloadDetails.current_file || 'Unknown file';
+                
+                // Update download progress bar
+                const downloadProgressFill = document.getElementById('downloadProgressFill');
+                if (downloadDetails.total_bytes > 0) {
+                    const downloadPercent = (downloadDetails.downloaded_bytes / downloadDetails.total_bytes) * 100;
+                    downloadProgressFill.style.width = downloadPercent + '%';
+                }
+                
+                // Update download statistics
+                const downloadBytes = document.getElementById('downloadBytes');
+                const downloadSpeed = document.getElementById('downloadSpeed');
+                const downloadEta = document.getElementById('downloadEta');
+                
+                downloadBytes.textContent = `${formatBytes(downloadDetails.downloaded_bytes)} / ${formatBytes(downloadDetails.total_bytes)}`;
+                downloadSpeed.textContent = formatSpeed(downloadDetails.speed_bytes_per_sec || 0);
+                downloadEta.textContent = `ETA: ${formatTime(downloadDetails.eta_seconds)}`;
+            } else {
+                // Hide download progress details for other stages
+                downloadProgressDetails.style.display = 'none';
+            }
 
             // Update console output
             if (data.console_output && data.console_output.length > 0) {
