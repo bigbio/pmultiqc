@@ -6,6 +6,7 @@ import gzip
 import tarfile
 import os
 import shutil
+import pandas as pd
 
 import logging
 
@@ -114,3 +115,9 @@ def file_prefix(path):
         return Path(path).stem
     except:
         raise SystemExit(f"Illegal file path: {path}")
+
+def drop_empty_row(df, cols):
+    mask = pd.Series(True, index=df.index)
+    for col in cols:
+        mask &= df[col].notna() & (df[col] != "")
+    return df[mask].copy()

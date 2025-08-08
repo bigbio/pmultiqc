@@ -127,6 +127,8 @@ class MaxQuantModule:
                 "summary_identified_msms_count": None,
                 "summary_identified_peptides": None,
                 "maxquant_delta_mass_da": None,
+                "peptides_quant_table": None,
+                "protein_quant_table": None,
             }
 
         # msms.txt
@@ -223,6 +225,20 @@ class MaxQuantModule:
                 "",
                 "",
                 True
+            )
+
+        # Peptides Quantification Table
+        if self.mq_results["get_evidence_dicts"]["peptides_quant_table"]:
+            maxquant_plots.draw_peptide_table(
+                self.sub_sections["quantification"],
+                self.mq_results["get_evidence_dicts"]["peptides_quant_table"]
+            )
+
+        # Protein Quantification Table
+        if self.mq_results["get_evidence_dicts"]["protein_quant_table"]:
+            maxquant_plots.draw_protein_table(
+                self.sub_sections["quantification"],
+                self.mq_results["get_evidence_dicts"]["protein_quant_table"]
             )
 
         # Intensity

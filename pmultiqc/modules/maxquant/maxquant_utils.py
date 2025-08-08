@@ -10,7 +10,7 @@ from pandas._typing import ReadCsvBuffer
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-from ..common.file_utils import get_filename
+from ..common.file_utils import get_filename, drop_empty_row
 from ..common.calc_utils import qualUniform
 from ...logging import get_logger, Timer
 
@@ -529,6 +529,9 @@ def get_evidence(file_path):
     # Delta Mass [Da]
     maxquant_delta_mass_da = evidence_delta_mass_da(evidence_df)
 
+    # Peptides Quantification Table / Protein Quantification Table
+    peptides_quant_table, protein_quant_table = evidence_peptides_table(evidence_df)
+
     result = {
         "top_contaminants": top_cont_dict,
         "peptide_intensity": peptide_intensity_dict,
@@ -546,6 +549,8 @@ def get_evidence(file_path):
         "protein_group_count": protein_group_count,
         "summary_stat": summary_table_stat,
         "maxquant_delta_mass_da": maxquant_delta_mass_da,
+        "peptides_quant_table": peptides_quant_table,
+        "protein_quant_table": protein_quant_table,
     }
 
     logger.info("Completed processing evidence data")
@@ -1226,6 +1231,51 @@ def evidence_delta_mass_da(evidence_data):
     }
 
     return delta_mass_da
+
+# 3-13.evidence.txt: Quantification Table
+def evidence_peptides_table(evidence_data):
+
+    if any(
+        column not in evidence_data.columns for column in ["proteins", "sequence", "score", "intensity"]
+    ):
+        return None
+
+    if "potential contaminant" in evidence_data.columns:
+        evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
+
+    evidence_data = evidence_data[evidence_data["intensity"] > 0].copy()
+    evidence_data = drop_empty_row(evidence_data, ["proteins", "sequence"])
+
+    # Peptides Quantification Table
+    peptides_table_dict = dict()
+    for sequence_protein, group in evidence_data.groupby(["sequence", "proteins"]):
+
+        peptides_table_dict[sequence_protein] = {
+            "ProteinName": sequence_protein[1],
+            "PeptideSequence": sequence_protein[0],
+            "BestSearchScore": group["score"].max(),
+            "Average Intensity": np.log10(
+                group["intensity"].mean()
+            ),
+        }
+
+    peptides_result_dict = {i: v for i, (_, v) in enumerate(peptides_table_dict.items(), start=1)}
+
+    # Protein Quantification Table
+    protein_table_dict = dict()
+    for protein, group in evidence_data.groupby("proteins"):
+
+        protein_table_dict[protein] = {
+            "ProteinName": protein,
+            "Peptides_Number": group["sequence"].nunique(),
+            "Average Intensity": np.log10(
+                group["intensity"].mean()
+            ),
+        }
+
+    protein_result_dict = {i: v for i, (_, v) in enumerate(protein_table_dict.items(), start=1)}
+
+    return peptides_result_dict, protein_result_dict
 
 
 # 4.msms.txt
