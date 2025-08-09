@@ -1532,8 +1532,18 @@ async def serve_html_report(report_hash: str, filename: str):
         logger.error(f"Error serving HTML report: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.get("/health")
+@app.get("/health-check")
 async def health_check():
+    """Health check endpoint."""
+    return {
+        "schemaVersion": 1,
+        "label": "pmultiqc-service",
+        "message": "alive",
+        "color": "brightgreen"
+}
+
+@app.get("/health")
+async def health():
     """Health check endpoint."""
     return {
         "status": "healthy",
