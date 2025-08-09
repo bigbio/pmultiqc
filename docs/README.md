@@ -26,7 +26,7 @@ You can use pmultiqc through our public web services:
 
 | Service | URL | Status | Description |
 |---------|-----|--------|-------------|
-| **EBI PRIDE Service** | [https://www.ebi.ac.uk/pride/services/pmultiqc/](https://www.ebi.ac.uk/pride/services/pmultiqc/) | ![Status](https://img.shields.io/website?url=https://www.ebi.ac.uk/pride/services/pmultiqc/&style=flat-square) | Official EBI service with PRIDE integration |
+| **EBI PRIDE Service** | [https://www.ebi.ac.uk/pride/services/pmultiqc/](https://www.ebi.ac.uk/pride/services/pmultiqc/) | ![PRIDE pmultiqc service](https://img.shields.io/endpoint?url=https%3A%2F%2Fwww.ebi.ac.uk%2Fpride%2Fservices%2Fpmultiqc%2Fhealth-check)| Official EBI service with PRIDE integration |
 
 ### 🎯 Service Features
 
