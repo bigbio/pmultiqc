@@ -2,8 +2,8 @@
 # This file can be used to configure the PMultiQC service
 # Environment variables take precedence over this file
 
-# Maximum file upload size in bytes (default: 2GB)
-max_content_length: 2147483648
+# Maximum file upload size in bytes (default: 4GB)
+max_content_length: 4294967296
 
 # Directory paths for file storage
 upload_folder: /tmp/pmultiqc_uploads

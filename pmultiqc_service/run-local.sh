@@ -20,11 +20,12 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
-# Check if Redis container is already running
-if docker ps --format "table {{.Names}}" | grep -q "pmultiqc-redis"; then
-    echo -e "${YELLOW}Redis container already running, stopping it...${NC}"
+# Check if Redis container exists (running or stopped)
+if docker ps -a --format "table {{.Names}}" | grep -q "pmultiqc-redis"; then
+    echo -e "${YELLOW}Redis container exists, stopping and removing it...${NC}"
     docker stop pmultiqc-redis > /dev/null 2>&1 || true
     docker rm pmultiqc-redis > /dev/null 2>&1 || true
+    echo -e "${GREEN}✅ Existing Redis container cleaned up${NC}"
 fi
 
 # Start Redis container
