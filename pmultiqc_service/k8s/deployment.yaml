@@ -15,78 +15,138 @@ spec:
       labels:
         app: pmultiqc-service
     spec:
-      containers:
-      - name: pmultiqc-service
-        image: pmultiqc-service:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 5000
-          name: http
-        env:
-        - name: FLASK_ENV
-          valueFrom:
-            configMapKeyRef:
-              name: pmultiqc-config
-              key: FLASK_ENV
-        - name: MAX_CONTENT_LENGTH
-          valueFrom:
-            configMapKeyRef:
-              name: pmultiqc-config
-              key: MAX_CONTENT_LENGTH
-        - name: UPLOAD_FOLDER
-          valueFrom:
-            configMapKeyRef:
-              name: pmultiqc-config
-              key: UPLOAD_FOLDER
-        - name: OUTPUT_FOLDER
-          valueFrom:
-            configMapKeyRef:
-              name: pmultiqc-config
-              key: OUTPUT_FOLDER
-        - name: LOG_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              name: pmultiqc-config
-              key: LOG_LEVEL
-        volumeMounts:
-        - name: uploads-storage
-          mountPath: /tmp/pmultiqc_uploads
-        - name: outputs-storage
-          mountPath: /tmp/pmultiqc_outputs
-        resources:
-          requests:
-            memory: "1Gi"
-            cpu: "500m"
-          limits:
-            memory: "4Gi"
-            cpu: "2000m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 1000
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
       volumes:
-      - name: uploads-storage
-        persistentVolumeClaim:
-          claimName: pmultiqc-uploads-pvc
-      - name: outputs-storage
-        persistentVolumeClaim:
-          claimName: pmultiqc-outputs-pvc
+        - name: uploads-storage
+          persistentVolumeClaim:
+            claimName: pmultiqc-uploads-pvc
+        - name: outputs-storage
+          persistentVolumeClaim:
+            claimName: pmultiqc-outputs-pvc
+        - name: html-reports-storage
+          persistentVolumeClaim:
+            claimName: pmultiqc-html-reports-pvc
+      containers:
+        - name: pmultiqc-service
+          image: pridedev/pmultiqc:latest
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          env:
+            - name: FLASK_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: FLASK_ENV
+            - name: MAX_CONTENT_LENGTH
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: MAX_CONTENT_LENGTH
+            - name: UPLOAD_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: UPLOAD_FOLDER
+            - name: OUTPUT_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: OUTPUT_FOLDER
+            - name: HTML_REPORTS_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: HTML_REPORTS_FOLDER
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: BASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: REDIS_URL
+            - name: REDIS_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: REDIS_USERNAME
+            - name: REDIS_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: REDIS_PASSWORD
+            - name: REDIS_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: pmultiqc-config
+                  key: REDIS_DB
+          resources:
+            limits:
+              cpu: '4'
+              memory: 8Gi
+            requests:
+              cpu: 1000m
+              memory: 8Gi
+          volumeMounts:
+            - name: uploads-storage
+              mountPath: /tmp/pmultiqc_uploads
+            - name: outputs-storage
+              mountPath: /tmp/pmultiqc_outputs
+            - name: html-reports-storage
+              mountPath: /tmp/pmultiqc_html_reports
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+              scheme: HTTP
+            initialDelaySeconds: 120
+            timeoutSeconds: 30
+            periodSeconds: 60
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 15
+            periodSeconds: 15
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5000
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 15
+            periodSeconds: 15
+            successThreshold: 1
+            failureThreshold: 30
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: Always
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 300
+      dnsPolicy: ClusterFirst
       securityContext:
-        fsGroup: 1000 
+        fsGroup: 1000
+      imagePullSecrets:
+        - name: dockerhub-secret
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 1200 

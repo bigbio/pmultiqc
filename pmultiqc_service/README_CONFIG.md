@@ -66,18 +66,42 @@ If no environment variables or YAML file is found, the service uses these defaul
 ```yaml
 version: '3.8'
 services:
-  pmultiqc:
+  pmultiqc-service:
+    build:
+      context: ../
+      dockerfile: Dockerfile
     image: pmultiqc-service
+    container_name: pmultiqc-service
+    ports:
+      - "5000:5000"
     environment:
-      - MAX_CONTENT_LENGTH=4294967296
+      - FLASK_ENV=production
+      - MAX_CONTENT_LENGTH=4294967296  # 4GB upload limit
       - UPLOAD_FOLDER=/app/uploads
       - OUTPUT_FOLDER=/app/outputs
       - HTML_REPORTS_FOLDER=/app/reports
+      - BASE_URL=http://localhost:5000
+      - LOG_LEVEL=INFO
     volumes:
-      - ./config.yaml:/app/config.yaml
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
       - ./reports:/app/reports
+      - ./config.yaml:/app/config.yaml:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8Gi
+          cpus: '4.0'
+        reservations:
+          memory: 4Gi
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 ```
 
 ### Kubernetes
@@ -87,49 +111,117 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: pmultiqc-config
+  namespace: pmultiqc
 data:
-  config.yaml: |
-    max_content_length: 4294967296
-    upload_folder: /data/uploads
-    output_folder: /data/outputs
-    html_reports_folder: /data/reports
-    base_url: https://www.ebi.ac.uk/pride/services/pmultiqc
+  FLASK_ENV: "production"
+  MAX_CONTENT_LENGTH: "4294967296"  # 4GB in bytes
+  UPLOAD_FOLDER: "/tmp/pmultiqc_uploads"
+  OUTPUT_FOLDER: "/tmp/pmultiqc_outputs"
+  HTML_REPORTS_FOLDER: "/tmp/pmultiqc_html_reports"
+  BASE_URL: "https://www.ebi.ac.uk/pride/services/pmultiqc"
+  LOG_LEVEL: "INFO"
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pmultiqc
+  name: pmultiqc-service
+  namespace: pmultiqc
 spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pmultiqc-service
   template:
+    metadata:
+      labels:
+        app: pmultiqc-service
     spec:
       containers:
-      - name: pmultiqc
-        image: pmultiqc-service
+      - name: pmultiqc-service
+        image: pmultiqc-service:latest
+        ports:
+        - containerPort: 5000
         env:
-        - name: CONFIG_FILE
-          value: /etc/pmultiqc/config.yaml
-        volumeMounts:
-        - name: config
-          mountPath: /etc/pmultiqc
-      volumes:
-      - name: config
-        configMap:
-          name: pmultiqc-config
+        - name: FLASK_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: FLASK_ENV
+        - name: MAX_CONTENT_LENGTH
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: MAX_CONTENT_LENGTH
+        - name: UPLOAD_FOLDER
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: UPLOAD_FOLDER
+        - name: OUTPUT_FOLDER
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: OUTPUT_FOLDER
+        - name: HTML_REPORTS_FOLDER
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: HTML_REPORTS_FOLDER
+        - name: BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: pmultiqc-config
+              key: BASE_URL
+        resources:
+          limits:
+            cpu: '4'
+            memory: 8Gi
+          requests:
+            cpu: 1000m
+            memory: 8Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 120
+          periodSeconds: 60
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 15
 ```
 
 ### Docker Run
 
 ```bash
 docker run -d \
+  --memory=8g \
+  --cpus=4.0 \
+  -e FLASK_ENV=production \
   -e MAX_CONTENT_LENGTH=4294967296 \
   -e UPLOAD_FOLDER=/data/uploads \
   -e OUTPUT_FOLDER=/data/outputs \
   -e HTML_REPORTS_FOLDER=/data/reports \
   -e BASE_URL=https://www.ebi.ac.uk/pride/services/pmultiqc \
-  -v /path/to/config.yaml:/app/config.yaml \
+  -e LOG_LEVEL=INFO \
+  -v /path/to/config.yaml:/app/config.yaml:ro \
   -v /path/to/data:/data \
+  -p 5000:5000 \
   pmultiqc-service
 ```
+
+## System Requirements
+
+### Memory Requirements
+- **Minimum Memory**: 8GB RAM
+- **Recommended Memory**: 16GB RAM for production workloads
+- **Memory Usage**: The application processes large multiQC files and requires significant memory for optimal performance
+
+### CPU Requirements
+- **Minimum CPU**: 1 CPU core
+- **Recommended CPU**: 4 CPU cores for production workloads
 
 ## Configuration Options
 

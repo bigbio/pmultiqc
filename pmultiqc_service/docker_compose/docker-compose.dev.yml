@@ -4,32 +4,33 @@ services:
     build:
       context: ../
       dockerfile: Dockerfile
-    image: pmultiqc-service
-    container_name: pmultiqc-service
+    image: pmultiqc-service:dev
+    container_name: pmultiqc-service-dev
     ports:
       - "5000:5000"
     environment:
-      - FLASK_ENV=production
-      - MAX_CONTENT_LENGTH=4294967296  # 4GB upload limit
+      - FLASK_ENV=development
+      - MAX_CONTENT_LENGTH=1073741824  # 1GB upload limit for dev
       - UPLOAD_FOLDER=/app/uploads
       - OUTPUT_FOLDER=/app/outputs
       - HTML_REPORTS_FOLDER=/app/reports
       - BASE_URL=http://localhost:5000
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=DEBUG
     volumes:
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
       - ./reports:/app/reports
       - ./config.yaml:/app/config.yaml:ro
+      - ../:/app:ro  # Mount source code for development
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 8Gi
-          cpus: '4.0'
+          memory: 4Gi  # Reduced for development
+          cpus: '2.0'
         reservations:
-          memory: 4Gi
-          cpus: '1.0'
+          memory: 2Gi
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s

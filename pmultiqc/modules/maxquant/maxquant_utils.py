@@ -1238,7 +1238,7 @@ def evidence_peptides_table(evidence_data):
     if any(
         column not in evidence_data.columns for column in ["proteins", "sequence", "score", "intensity"]
     ):
-        return None
+        return None, None
 
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()

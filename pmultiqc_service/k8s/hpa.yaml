@@ -3,36 +3,59 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: pmultiqc-hpa
   namespace: pmultiqc
+  annotations:
+    # Enable custom metrics for memory usage
+    metric-config.pods.prometheus/memory-usage: |
+      {
+        "container": "pmultiqc-service",
+        "metric": "memory_usage_percentage"
+      }
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: pmultiqc-service
   minReplicas: 2
-  maxReplicas: 10
+  maxReplicas: 20  # Increased max replicas for better resource distribution
   metrics:
+  # CPU-based scaling
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 60  # Lower threshold for more aggressive scaling
+  # Memory-based scaling (primary driver)
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 80
+        averageUtilization: 70  # Scale up when memory usage reaches 70%
+  # Custom metric for memory pressure
+  - type: Pods
+    pods:
+      metric:
+        name: memory-usage
+      target:
+        type: AverageValue
+        averageValue: 80  # Scale up when average memory usage across pods reaches 80%
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 300  # 5 minutes to prevent rapid scale down
       policies:
       - type: Percent
         value: 10
         periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 60
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 60  # 1 minute for faster scale up
       policies:
       - type: Percent
-        value: 50
+        value: 100  # Double the number of pods when scaling up
+        periodSeconds: 60
+      - type: Pods
+        value: 2  # Add at least 2 pods when scaling up
         periodSeconds: 60 
