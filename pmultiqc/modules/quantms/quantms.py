@@ -270,7 +270,6 @@ class QuantMSModule:
             for msstats_input in self.find_log_files("pmultiqc/msstats", filecontents=False):
                 self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
                 self.msstats_input_valid = True
-                self.parse_msstats_input()
 
             self.draw_ms_information()
             if self.enable_dia:
@@ -319,6 +318,9 @@ class QuantMSModule:
             self.draw_quantms_quantification()
             self.draw_quantms_msms_section()
             self.draw_quantms_time_section()
+
+            if self.msstats_input_valid:
+                self.parse_msstats_input()
 
             if config.kwargs["quantification_method"] == "spectral_counting":
                 # Add a report section with psm table plot from mzTab for spectral counting
@@ -2874,68 +2876,9 @@ class QuantMSModule:
                 modifications = ";".join(modifi_list)
             return modifications
 
-        def read_mzid(m):
-            log.info(
-                "{}: Parsing MzIdentML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
-            )
-            mzid_data = mzid.MzIdentML(m)
-            if len(mzid_data) == 0:
-                raise ValueError("Please check your MzIdentML", m)
-            log.info(
-                "{}: Done parsing MzIdentML file {}.".format(
-                    datetime.now().strftime("%H:%M:%S"), m
-                )
-            )
-            m = file_prefix(m)
-            log.info(
-                "{}: Aggregating MzIdentML file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), m
-                )
-            )
-
-            mzid_dict = list()
-            for mzid_tmp in mzid_data:
-                mzid_tmp_part = {
-                    k: v for k, v in mzid_tmp.items() if k not in ["SpectrumIdentificationItem"]
-                }
-                for spectrum_item in mzid_tmp.get("SpectrumIdentificationItem", []):
-                    spectrum_item_part = {
-                        k: v
-                        for k, v in spectrum_item.items()
-                        if k not in ["PeptideEvidenceRef", "PeptideSequence"]
-                    }
-                    if (
-                        spectrum_item_part.get("rank") == 1
-                        and spectrum_item_part.get("peptide passes threshold", "true") == "true"
-                        and spectrum_item.get("passThreshold", False)
-                    ):
-                        for peptide_ref in spectrum_item.get("PeptideEvidenceRef", []):
-                            if "name" in peptide_ref:
-                                peptide_ref["PeptideEvidenceRef_name"] = peptide_ref.pop("name")
-                            if "location" in peptide_ref:
-                                peptide_ref["PeptideEvidenceRef_location"] = peptide_ref.pop(
-                                    "location"
-                                )
-                            if "FileFormat" in peptide_ref:
-                                peptide_ref["PeptideEvidenceRef_FileFormat"] = peptide_ref.pop(
-                                    "FileFormat"
-                                )
-                            mzid_dict.append(
-                                {**mzid_tmp_part, **spectrum_item_part, **peptide_ref}
-                            )
-
-            mzid_t = pd.DataFrame(mzid_dict)
-            log.info(
-                "{}: Done aggregating MzIdentML file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), m
-                )
-            )
-
-            return mzid_t
-
         mzid_table = pd.DataFrame()
         for mzid_path in self.mzid_paths:
-            mzid_table = pd.concat([mzid_table, read_mzid(mzid_path)], axis=0, ignore_index=True)
+            mzid_table = pd.concat([mzid_table, ms_io.read_mzid(mzid_path)], axis=0, ignore_index=True)
 
         search_engines = ["SEQUEST:xcorr", "Mascot:score", "PEAKS:peptideScore", "xi:score"]
         mzid_table.rename(
@@ -3285,7 +3228,6 @@ class QuantMSModule:
         msstats_data_pep_agg.reset_index(inplace=True)
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict("index")
-        msstats_data_dict_pep_init = dict(itertools.islice(msstats_data_dict_pep_full.items(), 50))
 
         self.cur.execute(
             'CREATE TABLE PEPQUANT(PeptideID INT(100) PRIMARY KEY, PeptideSequence VARCHAR(100), Modification VARCHAR(100), ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), "Average Intensity" FLOAT(4,3))'
@@ -3352,7 +3294,7 @@ class QuantMSModule:
         # only use the first 50 lines for the table
         max_pep_intensity = 50
         table_html = table.plot(
-            dict(itertools.islice(msstats_data_dict_pep_init.items(), max_pep_intensity)),
+            dict(itertools.islice(msstats_data_dict_pep_full.items(), max_pep_intensity)),
             headers=headers,
             pconfig=draw_config,
         )
