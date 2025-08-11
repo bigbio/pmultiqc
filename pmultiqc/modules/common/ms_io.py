@@ -12,6 +12,7 @@ import numpy as np
 from datetime import datetime
 from collections import OrderedDict
 from pyopenms import IdXMLFile, MzMLFile, MSExperiment
+from pyteomics import mzid
 import math
 import re
 
@@ -572,6 +573,98 @@ def parse_idxml(
     }
 
     return search_engine, msgf_label, comet_label, sage_label
+
+
+def read_mzid(file_path):
+
+    log.info(
+        "{}: Parsing MzIdentML file {}...".format(
+            datetime.now().strftime("%H:%M:%S"), file_path
+        )
+    )
+
+    mzid_data = mzid.MzIdentML(file_path)
+
+    if len(mzid_data) == 0:
+        raise ValueError("Please check your MzIdentML", file_path)
+    
+    log.info(
+        "{}: Done parsing MzIdentML file {}.".format(
+            datetime.now().strftime("%H:%M:%S"), file_path
+        )
+    )
+
+    m = file_prefix(file_path)
+
+    log.info(
+        "{}: Aggregating MzIdentML file {}...".format(
+            datetime.now().strftime("%H:%M:%S"), m
+        )
+    )
+
+    mzid_dicts = list()
+    for mzid_tmp in mzid_data:
+
+        mzid_tmp_part = {
+            k: v
+            for k, v in mzid_tmp.items()
+            if k not in ["SpectrumIdentificationItem"]
+        }
+
+        for spectrum_item in mzid_tmp.get("SpectrumIdentificationItem", []):
+
+            spectrum_item_part = {
+                k: v
+                for k, v in spectrum_item.items()
+                if k not in ["PeptideEvidenceRef", "PeptideSequence"]
+            }
+
+            rank = spectrum_item_part.get("rank")
+            peptide_pass = spectrum_item_part.get("peptide passes threshold", "true") == "true"
+            pass_threshold = spectrum_item.get("passThreshold", False)
+
+            if rank != 1 or not peptide_pass or not pass_threshold:
+                continue
+
+            for peptide_ref in spectrum_item.get("PeptideEvidenceRef", []):
+
+                if "name" in peptide_ref:
+                    peptide_ref["PeptideEvidenceRef_name"] = peptide_ref.pop("name")
+                if "location" in peptide_ref:
+                    peptide_ref["PeptideEvidenceRef_location"] = peptide_ref.pop(
+                        "location"
+                    )
+                if "FileFormat" in peptide_ref:
+                    peptide_ref["PeptideEvidenceRef_FileFormat"] = peptide_ref.pop(
+                        "FileFormat"
+                    )
+
+                mzid_dict = {
+                    **mzid_tmp_part, **spectrum_item_part, **peptide_ref
+                }
+
+                need_keys  = [
+                    "SEQUEST:xcorr", "Mascot:score", "PEAKS:peptideScore", "xi:score", 
+                    "retention time", "location", "PeptideEvidenceRef_location",
+                    "Modification", "spectrumID", "accession", "PeptideSequence", 
+                    "cross-link spectrum identification item", "isDecoy", "chargeState", 
+                    "experimentalMassToCharge", "calculatedMassToCharge"
+                ]
+
+                mzid_dicts.append(
+                    {
+                        k: v for k, v in mzid_dict.items() if k in need_keys
+                    }
+                )
+
+    mzid_df = pd.DataFrame(mzid_dicts)
+    log.info(
+        "{}: Done aggregating MzIdentML file {}...".format(
+            datetime.now().strftime("%H:%M:%S"), m
+        )
+    )
+
+    return mzid_df
 
 
 def spectra_ref_check(spectra_ref):
