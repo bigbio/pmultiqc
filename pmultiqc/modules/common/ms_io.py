@@ -716,6 +716,9 @@ def read_mzids(file_paths):
     filtered_mzid_df.rename(
         columns=lambda x: "search_engine_score" if x in search_engines else x, inplace=True
     )
+
+    if "search_engine_score" not in filtered_mzid_df.columns:
+        log.warning("Please check the 'search_engine_score' field in the mzIdentML file.")
     
     if "retention time" in filtered_mzid_df.columns:
         filtered_mzid_df.rename(columns={"retention time": "retention_time"}, inplace=True)
