@@ -14,3 +14,7 @@ dependencies:
   - numpy>=1.23
   - pyarrow
   - scikit-learn>=1.2
+  - fastapi
+  - uvicorn
+  - requests
+  - redis
