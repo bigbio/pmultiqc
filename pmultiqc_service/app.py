@@ -128,27 +128,43 @@ def init_redis():
 
 def get_redis_client():
     """Get Redis client instance."""
-    if REDIS_PASSWORD:
-        if REDIS_USERNAME:
-            # Username + password authentication
-            return redis.from_url(
-                REDIS_URL, 
-                db=REDIS_DB, 
-                decode_responses=True,
-                username=REDIS_USERNAME,
-                password=REDIS_PASSWORD
-            )
+    try:
+        logger.info(f"Connecting to Redis: {REDIS_URL}")
+        logger.info(f"Redis password provided: {REDIS_PASSWORD is not None}")
+        logger.info(f"Redis username provided: {REDIS_USERNAME is not None}")
+        logger.info(f"Redis database: {REDIS_DB}")
+        
+        if REDIS_PASSWORD:
+            if REDIS_USERNAME:
+                # Username + password authentication
+                redis_client = redis.from_url(
+                    REDIS_URL, 
+                    db=REDIS_DB, 
+                    decode_responses=True,
+                    username=REDIS_USERNAME,
+                    password=REDIS_PASSWORD
+                )
+            else:
+                # Password-only authentication
+                redis_client = redis.from_url(
+                    REDIS_URL, 
+                    db=REDIS_DB, 
+                    decode_responses=True,
+                    password=REDIS_PASSWORD
+                )
         else:
-            # Password-only authentication
-            return redis.from_url(
-                REDIS_URL, 
-                db=REDIS_DB, 
-                decode_responses=True,
-                password=REDIS_PASSWORD
-            )
-    else:
-        # No authentication
-        return redis.from_url(REDIS_URL, db=REDIS_DB, decode_responses=True)
+            # No authentication
+            redis_client = redis.from_url(REDIS_URL, db=REDIS_DB, decode_responses=True)
+        
+        # Test connection
+        redis_client.ping()
+        logger.info("Redis connection successful")
+        return redis_client
+        
+    except Exception as e:
+        logger.error(f"Failed to connect to Redis: {e}")
+        logger.error(f"Redis connection traceback: {traceback.format_exc()}")
+        return None
 
 def save_job_to_db(job_id: str, job_data: dict):
     """Save or update job data in Redis."""
@@ -201,6 +217,10 @@ def update_job_progress(job_id: str, status: str, progress: int = None, **kwargs
     try:
         redis_client = get_redis_client()
         
+        if redis_client is None:
+            logger.error(f"Cannot update job {job_id} progress: Redis client is None")
+            return
+        
         # Get existing job data
         key = f"{REDIS_KEY_PREFIX}{job_id}"
         existing_data_json = redis_client.get(key)
@@ -229,6 +249,9 @@ def update_job_progress(job_id: str, status: str, progress: int = None, **kwargs
         redis_client.expire(key, 24 * 3600)
         
         logger.info(f"Updated job {job_id} in Redis: status={status}, progress={progress}")
+        logger.info(f"Job data keys: {list(job_data.keys())}")
+        if 'html_report_urls' in job_data:
+            logger.info(f"HTML report URLs in job data: {job_data['html_report_urls']}")
         
     except Exception as e:
         logger.error(f"Error updating job {job_id} in Redis: {e}")
@@ -657,6 +680,8 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
         
         # Log the contents of the output directory first
         logger.info(f"Contents of output directory {output_path}:")
+        logger.info(f"Output path exists: {os.path.exists(output_path)}")
+        logger.info(f"Output path is directory: {os.path.isdir(output_path) if os.path.exists(output_path) else 'N/A'}")
         if os.path.exists(output_path):
             for root, dirs, files in os.walk(output_path):
                 level = root.replace(output_path, '').count(os.sep)
@@ -665,13 +690,18 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
                 subindent = ' ' * 2 * (level + 1)
                 for file in files:
                     logger.info(f"{subindent}{file}")
+                    if file == 'multiqc_report.html':
+                        logger.info(f"{subindent}*** FOUND HTML REPORT: {file} ***")
         else:
             logger.error(f"Output directory does not exist: {output_path}")
             return None
         
         # Look for all HTML report files
         html_reports = []
+        logger.info(f"Searching for HTML reports in: {output_path}")
         for root, dirs, files in os.walk(output_path):
+            logger.info(f"Checking directory: {root}")
+            logger.info(f"Files in {root}: {files}")
             for file in files:
                 if file == 'multiqc_report.html':
                     html_report_path = os.path.join(root, file)
@@ -699,8 +729,23 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
         
         # Create public directory for this report
         public_dir = os.path.join(HTML_REPORTS_FOLDER, report_hash)
-        os.makedirs(public_dir, exist_ok=True)
-        logger.info(f"Created public directory: {public_dir}")
+        try:
+            os.makedirs(public_dir, exist_ok=True)
+            logger.info(f"Created public directory: {public_dir}")
+            logger.info(f"HTML_REPORTS_FOLDER: {HTML_REPORTS_FOLDER}")
+            logger.info(f"Report hash: {report_hash}")
+            
+            # Test write permissions
+            test_file = os.path.join(public_dir, 'test_write.tmp')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            logger.info(f"Write permissions OK for {public_dir}")
+            
+        except Exception as e:
+            logger.error(f"Failed to create or write to public directory {public_dir}: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return None
         
         # Create a job file for cleanup tracking
         job_file_path = os.path.join(public_dir, '.job_id')
@@ -709,6 +754,7 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
         
         # Copy all files from output directory to public directory
         files_copied = 0
+        logger.info(f"Starting to copy files from {output_path} to {public_dir}")
         for root, dirs, files in os.walk(output_path):
             for file in files:
                 src_path = os.path.join(root, file)
@@ -719,9 +765,18 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
                 os.makedirs(os.path.dirname(dst_path), exist_ok=True)
                 
                 # Copy file
-                shutil.copy2(src_path, dst_path)
-                files_copied += 1
-                logger.info(f"Copied {src_path} to {dst_path}")
+                try:
+                    shutil.copy2(src_path, dst_path)
+                    files_copied += 1
+                    if file == 'multiqc_report.html':
+                        logger.info(f"Copied HTML report: {src_path} to {dst_path}")
+                    else:
+                        logger.info(f"Copied {src_path} to {dst_path}")
+                except Exception as e:
+                    logger.error(f"Failed to copy {src_path} to {dst_path}: {e}")
+                    if file == 'multiqc_report.html':
+                        logger.error(f"CRITICAL: Failed to copy HTML report file!")
+                        return None
         
         logger.info(f"Total files copied: {files_copied}")
         
@@ -735,6 +790,10 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
             html_url = f'{base_url}/reports/{report_hash}/{html_rel_path}'
             html_urls[report_name] = html_url
             logger.info(f"HTML report for '{report_name}' available at: {html_url}")
+            logger.info(f"  - report_name: {report_name}")
+            logger.info(f"  - html_report_path: {html_report_path}")
+            logger.info(f"  - html_rel_path: {html_rel_path}")
+            logger.info(f"  - base_url: {base_url}")
         
         logger.info(f"Generated HTML URLs: {html_urls}")
         return html_urls
@@ -746,6 +805,7 @@ def copy_html_report_for_online_viewing(output_path: str, job_id: str, accession
 
 def process_pride_job_async(job_id: str, accession: str, output_dir: str):
     """Process a PRIDE job asynchronously in a separate thread."""
+    logger.info(f"Starting process_pride_job_async for job {job_id}")
     try:
         # Initialize job in database
         update_job_progress(job_id, 'fetching_files', 10, accession=accession, 
@@ -851,10 +911,13 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
             update_job_progress(job_id, 'processing', 80, 
                               processing_stage='Processing COMPLETE submission with mzIdentML and peak lists...')
             
+            logger.info(f"Starting run_pmultiqc_with_progress for job {job_id}")
             result = run_pmultiqc_with_progress(combined_extract_dir, combined_output_dir, input_type, quantms_config, job_id)
+            logger.info(f"run_pmultiqc_with_progress completed for job {job_id}: success={result.get('success')}")
             
             if result['success']:
                 # Create zip report for the combined analysis
+                logger.info(f"Creating zip report for COMPLETE submission for job {job_id}")
                 zip_report_path = os.path.join(combined_output_dir, f'pmultiqc_report_cpmplete_{job_id}.zip')
                 if create_zip_report(combined_output_dir, zip_report_path):
                     all_results.append({
@@ -865,6 +928,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                         'errors': result.get('errors', [])
                     })
                     total_processed = 1
+                    logger.info(f"Successfully created zip report for COMPLETE submission for job {job_id}")
                 else:
                     logger.warning("Failed to create zip report for COMPLETE submission")
             else:
@@ -875,11 +939,16 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
             
             for i, downloaded_file in enumerate(downloaded_files):
                 try:
+                    logger.info(f"Processing downloaded file {i+1}/{len(downloaded_files)}: {downloaded_file}")
+                    logger.info(f"File exists: {os.path.exists(downloaded_file)}")
+                    logger.info(f"Is directory: {os.path.isdir(downloaded_file) if os.path.exists(downloaded_file) else 'N/A'}")
+                    
                     # Determine file name and type
                     if os.path.isdir(downloaded_file):
                         # If it's a directory (from zip extraction), use directory name
                         file_name = os.path.basename(downloaded_file)
                         file_extract_dir = downloaded_file
+                        logger.info(f"Using directory as-is: {file_name} -> {file_extract_dir}")
                     else:
                         # If it's a file, extract the name without extension
                         file_name = os.path.splitext(os.path.basename(downloaded_file))[0]
@@ -887,6 +956,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                         file_extract_dir = os.path.join(download_dir, f'extracted_{file_name}')
                         os.makedirs(file_extract_dir, exist_ok=True)
                         shutil.copy2(downloaded_file, os.path.join(file_extract_dir, os.path.basename(downloaded_file)))
+                        logger.info(f"Extracted file: {file_name} -> {file_extract_dir}")
                     
                     logger.info(f"Processing file {i+1}/{total_files_to_process}: {file_name}")
                     
@@ -899,6 +969,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                     # Create output directory for this file
                     file_output_dir = os.path.join(output_dir, f'report_{file_name}')
                     os.makedirs(file_output_dir, exist_ok=True)
+                    logger.info(f"Created output directory: {file_output_dir}")
                     
                     # Detect input type for this file
                     input_type, quantms_config = detect_input_type(file_extract_dir)
@@ -909,7 +980,9 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                         continue
                     
                     # Run PMultiQC on this file
+                    logger.info(f"Starting run_pmultiqc_with_progress for job {job_id}, file {file_name}")
                     result = run_pmultiqc_with_progress(file_extract_dir, file_output_dir, input_type, quantms_config, job_id)
+                    logger.info(f"run_pmultiqc_with_progress completed for job {job_id}, file {file_name}: success={result.get('success')}")
                     
                     if result['success']:
                         # Create zip report for this file
@@ -923,14 +996,19 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                                 'errors': result.get('errors', [])
                             })
                             total_processed += 1
+                            logger.info(f"Successfully processed file {file_name}, total_processed now: {total_processed}")
                     else:
                         logger.warning(f"PMultiQC failed for {file_name}: {result.get('message')}")
                         
                 except Exception as e:
                     logger.error(f"Error processing {downloaded_file}: {e}")
+                    logger.error(f"Traceback: {traceback.format_exc()}")
                     continue
         
+        logger.info(f"File processing loop completed. total_processed: {total_processed}, all_results count: {len(all_results)}")
+        
         if not all_results:
+            logger.error(f"No files were successfully processed for job {job_id}")
             update_job_progress(job_id, 'failed', error='No files were successfully processed', 
                               finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             return
@@ -943,13 +1021,54 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                 if os.path.exists(result['report_path']):
                     combined_zip.write(result['report_path'], os.path.basename(result['report_path']))
         
-        # Copy HTML report to public directory for online viewing
+        # Update job status to completed immediately after PMultiQC succeeds
+        logger.info(f"Updating PRIDE job {job_id} status to completed after PMultiQC success")
         try:
-            html_urls = copy_html_report_for_online_viewing(output_dir, job_id, accession)
-            logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
+            update_job_progress(job_id, 'completed', 100, 
+                              processing_stage='Analysis completed successfully!',
+                              finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            logger.info(f"PRIDE job {job_id} status updated to completed successfully")
+        except Exception as e:
+            logger.error(f"Failed to update job {job_id} status to completed: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Continue with HTML report copying even if status update fails
+        
+        logger.info(f"Starting HTML report processing for PRIDE job {job_id}")
+        
+        # Copy HTML report to public directory for online viewing
+        html_urls = None
+        try:
+            logger.info(f"Starting HTML report copying for PRIDE job {job_id}, output_dir: {output_dir}")
+            # Set a timeout for HTML report copying to prevent hanging
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("HTML report copying timed out")
+            
+            # Set a 5-minute timeout for HTML report copying
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(300)  # 5 minutes
+            
+            try:
+                html_urls = copy_html_report_for_online_viewing(output_dir, job_id, accession)
+                signal.alarm(0)  # Cancel the alarm
+                logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
+                if html_urls is None:
+                    logger.warning(f"HTML report copying returned None for PRIDE job {job_id}")
+            except TimeoutError:
+                signal.alarm(0)  # Cancel the alarm
+                logger.error(f"HTML report copying timed out for PRIDE job {job_id}")
+                html_urls = None
+            except Exception as copy_e:
+                signal.alarm(0)  # Cancel the alarm
+                raise copy_e  # Re-raise the original exception
+                
         except Exception as e:
             logger.error(f"Failed to copy HTML reports for PRIDE job {job_id}: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             html_urls = None
+        
+        logger.info(f"Completed HTML report processing for PRIDE job {job_id}, proceeding to final steps")
         
         # Save job data to disk for persistence
         job_data = {
@@ -968,16 +1087,55 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         # Add HTML report URLs if available
         if html_urls:
             job_data['html_report_urls'] = html_urls
+            # Also update the job in Redis with HTML URLs
+            try:
+                update_job_progress(job_id, 'completed', 100, html_report_urls=html_urls)
+            except Exception as e:
+                logger.error(f"Failed to update job {job_id} with HTML URLs in Redis: {e}")
         
         save_job_data_to_disk(job_id, job_data, output_dir)
         
-        # Save to database
-        save_job_to_db(job_id, job_data)
+        # Save to database with additional fallback mechanisms
+        try:
+            save_job_to_db(job_id, job_data)
+            logger.info(f"Successfully saved PRIDE job {job_id} to database")
+        except Exception as e:
+            logger.error(f"Failed to save job {job_id} to database: {e}")
+            # Create a fallback completed job file
+            fallback_file = os.path.join(output_dir, 'job_completed.json')
+            try:
+                with open(fallback_file, 'w') as f:
+                    json.dump(job_data, f, indent=2)
+                logger.info(f"Created fallback job completion file: {fallback_file}")
+                
+                # Also try to update Redis directly as final fallback
+                try:
+                    update_job_progress(job_id, 'completed', 100, 
+                                      processing_stage='Analysis completed successfully!',
+                                      finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                    logger.info(f"Final fallback: Updated PRIDE job {job_id} status in Redis")
+                except Exception as redis_e:
+                    logger.error(f"Final fallback Redis update failed for job {job_id}: {redis_e}")
+                    
+            except Exception as fallback_e:
+                logger.error(f"Failed to create fallback job file: {fallback_e}")
         
         logger.info(f"Successfully completed PRIDE job {job_id}: {total_processed}/{len(downloaded_files)} files processed")
+        logger.info(f"process_pride_job_async finished successfully for job {job_id}")
+        
+        # Final status verification and logging
+        try:
+            final_job_status = get_job_from_db(job_id)
+            if final_job_status:
+                logger.info(f"Final job status verification for {job_id}: {final_job_status.get('status', 'unknown')}")
+            else:
+                logger.warning(f"Could not verify final status for job {job_id} - job not found in database")
+        except Exception as verify_e:
+            logger.warning(f"Could not verify final status for job {job_id}: {verify_e}")
         
     except Exception as e:
         logger.error(f"Error in PRIDE async processing for job {job_id}: {e}")
+        logger.error(f"process_pride_job_async failed for job {job_id}: {traceback.format_exc()}")
         update_job_progress(job_id, 'failed', error=str(e), 
                           finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -1098,7 +1256,22 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
             output_lines = []
             error_lines = []
             
+            # Set a timeout for the process (30 minutes)
+            start_time = time.time()
+            timeout_seconds = 30 * 60  # 30 minutes
+            
             while True:
+                # Check for timeout
+                if time.time() - start_time > timeout_seconds:
+                    logger.error(f"MultiQC process timed out after {timeout_seconds} seconds for job {job_id}")
+                    process.terminate()
+                    return {
+                        'success': False,
+                        'message': f'MultiQC process timed out after {timeout_seconds} seconds',
+                        'output': output_lines,
+                        'errors': error_lines + [f'Process timed out after {timeout_seconds} seconds']
+                    }
+                
                 output = process.stdout.readline()
                 error = process.stderr.readline()
                 
@@ -1120,6 +1293,7 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                 
                 # Check if process has finished
                 if process.poll() is not None:
+                    logger.info(f"MultiQC process finished with return code: {process.returncode}")
                     break
             
             # Get any remaining output
@@ -1142,6 +1316,7 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                         logger.warning(f"MultiQC remaining error: {line.strip()}")
             
             if process.returncode == 0:
+                logger.info(f"MultiQC completed successfully for job {job_id}")
                 return {
                     'success': True, 
                     'message': 'Report generated successfully',
@@ -1149,6 +1324,7 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                     'errors': error_lines
                 }
             else:
+                logger.error(f"MultiQC failed with return code {process.returncode} for job {job_id}")
                 return {
                     'success': False, 
                     'message': f'MultiQC failed with return code {process.returncode}',
@@ -1157,7 +1333,7 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                 }
                 
         except subprocess.CalledProcessError as e:
-            logger.error(f"MultiQC failed with return code {e.returncode}")
+            logger.error(f"MultiQC failed with return code {e.returncode} for job {job_id}")
             logger.error(f"MultiQC stdout: {e.stdout}")
             logger.error(f"MultiQC stderr: {e.stderr}")
             return {
@@ -1253,12 +1429,28 @@ def process_job_async(job_id: str, extract_path: str, output_dir: str, input_typ
                               finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             return
         
+        # Update job status to completed immediately after PMultiQC succeeds
+        logger.info(f"Updating async job {job_id} status to completed after PMultiQC success")
+        try:
+            update_job_progress(job_id, 'completed', 100, 
+                              processing_stage='Analysis completed successfully!',
+                              finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            logger.info(f"Async job {job_id} status updated to completed successfully")
+        except Exception as e:
+            logger.error(f"Failed to update async job {job_id} status to completed: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Continue with HTML report copying even if status update fails
+        
         # Copy HTML report to public directory for online viewing
         try:
+            logger.info(f"Starting HTML report copying for async job {job_id}, output_dir: {output_dir}")
             html_urls = copy_html_report_for_online_viewing(output_dir, job_id)
             logger.info(f"Generated html_urls for async job {job_id}: {html_urls}")
+            if html_urls is None:
+                logger.warning(f"HTML report copying returned None for async job {job_id}")
         except Exception as e:
             logger.error(f"Failed to copy HTML reports for async job {job_id}: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             html_urls = None
         
         # Update job to completed
@@ -1274,9 +1466,25 @@ def process_job_async(job_id: str, extract_path: str, output_dir: str, input_typ
         # Add HTML report URLs if available
         if html_urls:
             final_job_data['html_report_urls'] = html_urls
+            # Also update the job in Redis with HTML URLs
+            try:
+                update_job_progress(job_id, 'completed', 100, html_report_urls=html_urls)
+            except Exception as e:
+                logger.error(f"Failed to update async job {job_id} with HTML URLs in Redis: {e}")
         
         # Save final job data to database
-        save_job_to_db(job_id, final_job_data)
+        try:
+            save_job_to_db(job_id, final_job_data)
+        except Exception as e:
+            logger.error(f"Failed to save async job {job_id} to database: {e}")
+            # Create a fallback completed job file
+            fallback_file = os.path.join(output_dir, 'job_completed.json')
+            try:
+                with open(fallback_file, 'w') as f:
+                    json.dump(final_job_data, f, indent=2)
+                logger.info(f"Created fallback async job completion file: {fallback_file}")
+            except Exception as fallback_e:
+                logger.error(f"Failed to create fallback async job file: {fallback_e}")
         
         logger.info(f"Successfully completed async job {job_id}")
         
@@ -1326,18 +1534,24 @@ async def submit_pride(request: Request):
     # Render the submission page with the accession pre-filled
     return templates.TemplateResponse("submit.html", {"request": request, "accession": accession, "config": {"BASE_URL": BASE_URL}})
 
-@app.get("/results/{job_id}")
-async def view_results(request: Request, job_id: str):
+@app.get("/results")
+async def view_results(request: Request):
     """View results page for a specific job.
 
     Parameters:
         request: Request object
-        job_id: Job ID
+        job (query param): Job ID
 
     Returns:
         HTMLResponse: results.html template with results page
     """
     try:
+        # Get job_id from query parameter
+        job_id = request.query_params.get('job', '').strip()
+        
+        if not job_id:
+            return templates.TemplateResponse("index.html", {"request": request, "config": {"BASE_URL": BASE_URL}, "error": f'No job ID provided. Please provide a job ID using ?job=<job_id>'})
+        
         # Validate job_id format
         try:
             uuid.UUID(job_id)
@@ -1419,7 +1633,23 @@ async def view_results(request: Request, job_id: str):
                 
                 logger.info("Returning fallback response for completed job " + job_id)
             else:
-                return templates.TemplateResponse("index.html", {"request": request, "config": {"BASE_URL": BASE_URL}, "error": f'Job {job_id} not found.'})
+                # Job not found - show results page with "not found" status
+                job_data = {
+                    'job_id': job_id,
+                    'status': 'not_found',
+                    'progress': 0,
+                    'input_type': None,
+                    'accession': None,
+                    'started_at': None,
+                    'finished_at': None,
+                    'error': f'Job {job_id} not found. This job may have expired, been deleted, or never existed.',
+                    'files_processed': None,
+                    'total_files': None,
+                    'console_output': [],
+                    'console_errors': [],
+                    'html_report_urls': {},
+                    'download_url': None
+                }
         
         # Ensure download_url is present in job_data
         if 'download_url' not in job_data:
@@ -1429,7 +1659,24 @@ async def view_results(request: Request, job_id: str):
         
     except Exception as e:
         logger.error(f"Error in view_results for job {job_id}: {e}")
-        return templates.TemplateResponse("index.html", {"request": request, "config": {"BASE_URL": BASE_URL}, "error": f'Error loading job {job_id}: {str(e)}'})
+        # Show results page with error status instead of redirecting to index
+        job_data = {
+            'job_id': job_id if 'job_id' in locals() else 'unknown',
+            'status': 'error',
+            'progress': 0,
+            'input_type': None,
+            'accession': None,
+            'started_at': None,
+            'finished_at': None,
+            'error': f'Error loading job: {str(e)}',
+            'files_processed': None,
+            'total_files': None,
+            'console_output': [],
+            'console_errors': [],
+            'html_report_urls': {},
+            'download_url': None
+        }
+        return templates.TemplateResponse("results.html", {"request": request, "job_id": job_data['job_id'], "job_data": job_data, "config": {"BASE_URL": BASE_URL}})
 
 @app.get("/reports/{report_hash}/{filename:path}")
 async def serve_html_report(report_hash: str, filename: str):
@@ -1597,7 +1844,7 @@ async def process_pride(request: Request):
         "status": "queued",
         "message": "PRIDE processing started successfully",
         "status_url": f'/job-status/{job_id}',
-        "redirect_url": f'/results/{job_id}'
+        "redirect_url": f'/results?job={job_id}'
     }
 
 @app.post("/upload-async")
@@ -1677,6 +1924,7 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
         'status': 'queued',
         'message': 'File uploaded successfully. Processing started.',
         'status_url': f'/job-status/{job_id}',
+        'redirect_url': f'/results?job={job_id}',
         'file_size': file_size
     }
 
@@ -1697,7 +1945,42 @@ async def job_status_api(job_id: str):
         
         logger.info(f"Job status request for {job_id}")
         
-        # Try to get job from database first
+        # Try to get job from Redis first (for active jobs)
+        redis_client = get_redis_client()
+        redis_key = f"{REDIS_KEY_PREFIX}{job_id}"
+        redis_data_json = redis_client.get(redis_key)
+        
+        if redis_data_json:
+            try:
+                job_data = json.loads(redis_data_json)
+                logger.info(f"Found job {job_id} in Redis with status: {job_data.get('status')}")
+                
+                # Ensure all required fields have default values
+                job_data_with_defaults = {
+                    'job_id': job_data.get('job_id', job_id),
+                    'status': job_data.get('status', 'unknown'),
+                    'progress': job_data.get('progress', 0),
+                    'input_type': job_data.get('input_type'),
+                    'accession': job_data.get('accession'),
+                    'started_at': job_data.get('started_at'),
+                    'finished_at': job_data.get('finished_at'),
+                    'error': job_data.get('error'),
+                    'files_processed': job_data.get('files_processed'),
+                    'total_files': job_data.get('total_files'),
+                    'files_downloaded': job_data.get('files_downloaded'),
+                    'processing_stage': job_data.get('processing_stage'),
+                    'console_output': job_data.get('console_output', []),
+                    'console_errors': job_data.get('console_errors', []),
+                    'html_report_urls': job_data.get('html_report_urls', {}),
+                    'download_url': job_data.get('download_url'),
+                    'download_details': job_data.get('download_details', {})
+                }
+                
+                return job_data_with_defaults
+            except Exception as e:
+                logger.error(f"Error parsing Redis data for job {job_id}: {e}")
+        
+        # Try to get job from database (for completed jobs)
         job_data = get_job_from_db(job_id)
         
         if job_data:
@@ -1798,7 +2081,81 @@ async def job_status_api(job_id: str):
             logger.info("Returning fallback response for completed job " + job_id)
             return response_data
         else:
-            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+            # Check if job is completed by looking for output files (final fallback)
+            output_dir = os.path.join(OUTPUT_FOLDER, job_id)
+            zip_report_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
+            fallback_file = os.path.join(output_dir, 'job_completed.json')
+            
+            # Check for fallback completion file first
+            if os.path.exists(fallback_file):
+                try:
+                    with open(fallback_file, 'r') as f:
+                        job_data = json.load(f)
+                    logger.info(f"Found fallback completion file for job {job_id}")
+                    return job_data
+                except Exception as e:
+                    logger.error(f"Error reading fallback file for job {job_id}: {e}")
+            
+            if os.path.exists(zip_report_path):
+                logger.info(f"Job {job_id} not found in Redis or database, but output files exist - job likely completed")
+                
+                # Try to copy HTML reports if they don't exist
+                try:
+                    html_urls = copy_html_report_for_online_viewing(output_dir, job_id)
+                    logger.info(f"Generated html_urls for completed job {job_id}: {html_urls}")
+                except Exception as e:
+                    logger.error(f"Failed to copy HTML reports for completed job {job_id}: {e}")
+                    html_urls = None
+                
+                # Create a completed job response
+                base_url = BASE_URL.rstrip('/')
+                response_data = {
+                    'job_id': job_id,
+                    'status': 'completed',
+                    'progress': 100,
+                    'input_type': None,
+                    'accession': None,
+                    'started_at': None,
+                    'finished_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'error': None,
+                    'files_processed': None,
+                    'total_files': None,
+                    'files_downloaded': None,
+                    'processing_stage': 'Analysis completed successfully!',
+                    'console_output': [],
+                    'console_errors': [],
+                    'html_report_urls': html_urls or {},
+                    'download_url': f'{base_url}/download-report/{job_id}',
+                    'download_details': {}
+                }
+                
+                # Save to database for future requests
+                save_job_to_db(job_id, response_data)
+                
+                logger.info(f"Returning completed job response for {job_id}")
+                return response_data
+            
+            # Return a proper JSON response with not_found status instead of 404
+            base_url = BASE_URL.rstrip('/')
+            return {
+                'job_id': job_id,
+                'status': 'not_found',
+                'progress': 0,
+                'input_type': None,
+                'accession': None,
+                'started_at': None,
+                'finished_at': None,
+                'error': f'Job {job_id} not found. This job may have expired, been deleted, or never existed.',
+                'files_processed': None,
+                'total_files': None,
+                'files_downloaded': None,
+                'processing_stage': 'Job not found',
+                'console_output': [],
+                'console_errors': [],
+                'html_report_urls': None,
+                'download_url': None,
+                'download_details': {}
+            }
             
     except HTTPException:
         raise
@@ -1966,7 +2323,7 @@ async def api_submit_pride(request: Request):
             'status': 'queued',
             'message': 'PRIDE processing started successfully',
             'status_url': f'/job-status/{job_id}',
-            'redirect_url': f'/results/{job_id}'
+            'redirect_url': f'/results?job={job_id}'
         }
         
     except HTTPException:
@@ -1974,6 +2331,313 @@ async def api_submit_pride(request: Request):
     except Exception as e:
         logger.error(f"Error starting PRIDE processing: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start PRIDE processing: {str(e)}")
+
+@app.post("/force-complete-job/{job_id}")
+async def force_complete_job(job_id: str):
+    """
+    Force complete a job that appears to be stuck in processing.
+    This endpoint checks if MultiQC has completed and manually updates the job status.
+    """
+    try:
+        # Validate job_id format
+        try:
+            uuid.UUID(job_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid job ID")
+        
+        logger.info(f"Force completion request for job {job_id}")
+        
+        # Check if job exists and is in a running state
+        job_data = get_job_from_db(job_id)
+        if not job_data:
+            # Try to get from Redis
+            redis_client = get_redis_client()
+            redis_key = f"{REDIS_KEY_PREFIX}{job_id}"
+            redis_data_json = redis_client.get(redis_key)
+            if redis_data_json:
+                job_data = json.loads(redis_data_json)
+        
+        if not job_data:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        
+        current_status = job_data.get('status', 'unknown')
+        if current_status in ['completed', 'failed']:
+            return {
+                'job_id': job_id,
+                'message': f'Job is already {current_status}',
+                'current_status': current_status
+            }
+        
+        # Check if output files exist (indicating completion)
+        output_dir = os.path.join(OUTPUT_FOLDER, job_id)
+        zip_report_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
+        
+        # More comprehensive completion detection
+        def detect_multiqc_completion():
+            """Detect if MultiQC has completed by checking for actual output files."""
+            completion_indicators = {
+                'console_multiqc_complete': False,
+                'zip_report_exists': False,
+                'html_reports_found': [],
+                'html_reports_in_public': [],
+                'total_html_reports': 0
+            }
+            
+            # Check console output for MultiQC complete message
+            console_errors = job_data.get('console_errors', [])
+            completion_indicators['console_multiqc_complete'] = any('MultiQC complete' in error for error in console_errors)
+            
+            # Check if main zip report exists
+            completion_indicators['zip_report_exists'] = os.path.exists(zip_report_path)
+            
+            # Look for MultiQC HTML reports in output directory
+            if os.path.exists(output_dir):
+                for root, dirs, files in os.walk(output_dir):
+                    for file in files:
+                        if file == 'multiqc_report.html':
+                            html_report_path = os.path.join(root, file)
+                            # Get relative path from output_dir for identification
+                            rel_path = os.path.relpath(root, output_dir)
+                            completion_indicators['html_reports_found'].append({
+                                'path': html_report_path,
+                                'relative_dir': rel_path,
+                                'exists': os.path.exists(html_report_path),
+                                'size': os.path.getsize(html_report_path) if os.path.exists(html_report_path) else 0
+                            })
+            
+            completion_indicators['total_html_reports'] = len(completion_indicators['html_reports_found'])
+            
+            # Check if HTML reports have been copied to public directory
+            # Look for existing HTML report hashes
+            if os.path.exists(HTML_REPORTS_FOLDER):
+                for item in os.listdir(HTML_REPORTS_FOLDER):
+                    hash_dir = os.path.join(HTML_REPORTS_FOLDER, item)
+                    if os.path.isdir(hash_dir):
+                        job_file = os.path.join(hash_dir, '.job_id')
+                        if os.path.exists(job_file):
+                            try:
+                                with open(job_file, 'r') as f:
+                                    stored_job_id = f.read().strip()
+                                if stored_job_id == job_id:
+                                    # Check for HTML reports in this directory
+                                    for root, dirs, files in os.walk(hash_dir):
+                                        for file in files:
+                                            if file == 'multiqc_report.html':
+                                                completion_indicators['html_reports_in_public'].append({
+                                                    'hash': item,
+                                                    'path': os.path.join(root, file),
+                                                    'relative_dir': os.path.relpath(root, hash_dir)
+                                                })
+                            except Exception as e:
+                                logger.warning(f"Could not read job file {job_file}: {e}")
+            
+            return completion_indicators
+        
+        completion_info = detect_multiqc_completion()
+        logger.info(f"Completion detection for job {job_id}: {completion_info}")
+        
+        # Determine if job should be considered completed
+        job_appears_completed = (
+            completion_info['console_multiqc_complete'] or 
+            completion_info['zip_report_exists'] or 
+            completion_info['total_html_reports'] > 0
+        )
+        
+        if job_appears_completed:
+            logger.info(f"Force completing job {job_id} based on file detection")
+            logger.info(f"  - Console MultiQC complete: {completion_info['console_multiqc_complete']}")
+            logger.info(f"  - Zip report exists: {completion_info['zip_report_exists']}")
+            logger.info(f"  - HTML reports found: {completion_info['total_html_reports']}")
+            logger.info(f"  - HTML reports in public: {len(completion_info['html_reports_in_public'])}")
+            
+            # Force update to completed
+            update_job_progress(job_id, 'completed', 100, 
+                              processing_stage='Analysis completed successfully! (Force completed)',
+                              finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            
+            # Try to copy HTML reports if they're not already in public directory
+            html_urls = None
+            if completion_info['total_html_reports'] > 0 and len(completion_info['html_reports_in_public']) == 0:
+                logger.info(f"Found {completion_info['total_html_reports']} HTML reports not yet in public directory, copying...")
+                try:
+                    html_urls = copy_html_report_for_online_viewing(output_dir, job_id, job_data.get('accession'))
+                    if html_urls:
+                        update_job_progress(job_id, 'completed', 100, html_report_urls=html_urls)
+                        logger.info(f"Successfully copied HTML reports to public directory: {html_urls}")
+                    else:
+                        logger.warning("HTML report copying returned None")
+                except Exception as e:
+                    logger.warning(f"Failed to copy HTML reports during force completion: {e}")
+            elif len(completion_info['html_reports_in_public']) > 0:
+                logger.info("HTML reports already exist in public directory")
+                # Reconstruct HTML URLs from existing public reports
+                try:
+                    base_url = BASE_URL.rstrip('/')
+                    html_urls = {}
+                    for report_info in completion_info['html_reports_in_public']:
+                        report_name = report_info['relative_dir'] if report_info['relative_dir'] != '.' else 'root'
+                        html_url = f"{base_url}/reports/{report_info['hash']}/{report_info['relative_dir']}/multiqc_report.html"
+                        if report_info['relative_dir'] == '.':
+                            html_url = f"{base_url}/reports/{report_info['hash']}/multiqc_report.html"
+                        html_urls[report_name] = html_url
+                    
+                    if html_urls:
+                        update_job_progress(job_id, 'completed', 100, html_report_urls=html_urls)
+                        logger.info(f"Reconstructed HTML URLs from existing public reports: {html_urls}")
+                except Exception as e:
+                    logger.warning(f"Failed to reconstruct HTML URLs: {e}")
+            
+            return {
+                'job_id': job_id,
+                'message': 'Job force completed successfully',
+                'previous_status': current_status,
+                'new_status': 'completed',
+                'completion_details': completion_info,
+                'html_urls_generated': html_urls is not None,
+                'html_urls': html_urls or {}
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Job does not appear to be completed - no MultiQC completion detected")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in force_complete_job for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/job-diagnostic/{job_id}")
+async def job_diagnostic(job_id: str):
+    """
+    Comprehensive diagnostic information for a job to help debug completion issues.
+    """
+    try:
+        # Validate job_id format
+        try:
+            uuid.UUID(job_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid job ID")
+        
+        logger.info(f"Diagnostic request for job {job_id}")
+        
+        # Get job data from both Redis and database
+        redis_data = None
+        db_data = None
+        
+        try:
+            redis_client = get_redis_client()
+            redis_key = f"{REDIS_KEY_PREFIX}{job_id}"
+            redis_data_json = redis_client.get(redis_key)
+            if redis_data_json:
+                redis_data = json.loads(redis_data_json)
+        except Exception as e:
+            logger.warning(f"Could not get Redis data for job {job_id}: {e}")
+        
+        try:
+            db_data = get_job_from_db(job_id)
+        except Exception as e:
+            logger.warning(f"Could not get database data for job {job_id}: {e}")
+        
+        # Check file system
+        output_dir = os.path.join(OUTPUT_FOLDER, job_id)
+        upload_dir = os.path.join(UPLOAD_FOLDER, job_id)
+        
+        file_system_info = {
+            'output_dir_exists': os.path.exists(output_dir),
+            'upload_dir_exists': os.path.exists(upload_dir),
+            'output_files': [],
+            'html_reports': [],
+            'zip_reports': [],
+            'public_html_reports': []
+        }
+        
+        # Scan output directory
+        if os.path.exists(output_dir):
+            for root, dirs, files in os.walk(output_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, output_dir)
+                    file_info = {
+                        'path': rel_path,
+                        'full_path': file_path,
+                        'size': os.path.getsize(file_path),
+                        'modified': os.path.getmtime(file_path)
+                    }
+                    
+                    file_system_info['output_files'].append(file_info)
+                    
+                    if file == 'multiqc_report.html':
+                        file_system_info['html_reports'].append(file_info)
+                    elif file.endswith('.zip'):
+                        file_system_info['zip_reports'].append(file_info)
+        
+        # Check public HTML reports
+        if os.path.exists(HTML_REPORTS_FOLDER):
+            for item in os.listdir(HTML_REPORTS_FOLDER):
+                hash_dir = os.path.join(HTML_REPORTS_FOLDER, item)
+                if os.path.isdir(hash_dir):
+                    job_file = os.path.join(hash_dir, '.job_id')
+                    if os.path.exists(job_file):
+                        try:
+                            with open(job_file, 'r') as f:
+                                stored_job_id = f.read().strip()
+                            if stored_job_id == job_id:
+                                # Found public reports for this job
+                                for root, dirs, files in os.walk(hash_dir):
+                                    for file in files:
+                                        if file == 'multiqc_report.html':
+                                            rel_path = os.path.relpath(root, hash_dir)
+                                            base_url = BASE_URL.rstrip('/')
+                                            if rel_path == '.':
+                                                url = f"{base_url}/reports/{item}/multiqc_report.html"
+                                                report_name = 'root'
+                                            else:
+                                                url = f"{base_url}/reports/{item}/{rel_path}/multiqc_report.html"
+                                                report_name = rel_path
+                                            
+                                            file_system_info['public_html_reports'].append({
+                                                'hash': item,
+                                                'report_name': report_name,
+                                                'relative_path': rel_path,
+                                                'url': url,
+                                                'file_size': os.path.getsize(os.path.join(root, file))
+                                            })
+                        except Exception as e:
+                            logger.warning(f"Error checking public report {hash_dir}: {e}")
+        
+        # Determine completion status
+        appears_completed = (
+            len(file_system_info['html_reports']) > 0 or
+            len(file_system_info['zip_reports']) > 0 or
+            (redis_data and 'MultiQC complete' in str(redis_data.get('console_errors', []))) or
+            (db_data and 'MultiQC complete' in str(db_data.get('console_errors', [])))
+        )
+        
+        return {
+            'job_id': job_id,
+            'redis_data': redis_data,
+            'database_data': db_data,
+            'file_system': file_system_info,
+            'appears_completed': appears_completed,
+            'completion_indicators': {
+                'html_reports_generated': len(file_system_info['html_reports']) > 0,
+                'zip_reports_generated': len(file_system_info['zip_reports']) > 0,
+                'public_html_available': len(file_system_info['public_html_reports']) > 0,
+                'total_output_files': len(file_system_info['output_files'])
+            },
+            'recommended_action': (
+                'force_complete' if appears_completed and (
+                    (redis_data and redis_data.get('status') not in ['completed', 'failed']) or
+                    (db_data and db_data.get('status') not in ['completed', 'failed']) or
+                    (not redis_data and not db_data)
+                ) else 'none'
+            )
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in job_diagnostic for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/download-report/{job_id}")
 async def download_report_api(job_id: str):

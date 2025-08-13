@@ -43,7 +43,13 @@ from .quantms_plots import (
     draw_dia_intensitys,
     draw_dia_ms2s,
     draw_dia_time_mass,
-    draw_diann_quant_table
+    draw_diann_quant_table,
+    draw_mzid_quant_table
+)
+from .mzidentml_utils import (
+    get_mzidentml_mzml_df,
+    get_mzid_mzml_charge,
+    get_mzid_rt_id
 )
 
 
@@ -106,9 +112,12 @@ class QuantMSModule:
             self.ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
 
         self.ms_info_path = []
+        self.enable_mzid = False
 
         # Check if this is a display for mzid identification results
         if config.kwargs.get("mzid_plugin", False):
+
+            self.enable_mzid = True
 
             self.mzid_peptide_map = dict()
             self.ms_without_psm = dict()
@@ -129,6 +138,28 @@ class QuantMSModule:
                 self.parse_out_mgf()
             elif self.ms_paths:
                 _ = self.parse_mzml()
+
+                mzidentml_mzml_df = get_mzidentml_mzml_df(mzid_psm, self.mzml_ms_df)
+                if len(mzidentml_mzml_df) > 0:
+
+                    draw_mzid_quant_table(
+                        self.sub_sections["quantification"],
+                        mzidentml_mzml_df
+                    )
+
+                    mzid_mzml_charge_state = get_mzid_mzml_charge(mzidentml_mzml_df)
+                    common_plots.draw_charge_state(
+                        self.sub_sections["ms2"],
+                        mzid_mzml_charge_state,
+                        "mzIdentML"
+                    )
+
+                    mzid_ids_over_rt = get_mzid_rt_id(mzidentml_mzml_df)
+                    common_plots.draw_ids_rt_count(
+                        self.sub_sections["time_mass"],
+                        mzid_ids_over_rt,
+                        "mzIdentML"
+                    )
 
             self.mzid_cal_heat_map_score(mzid_psm)
 
@@ -1788,7 +1819,7 @@ class QuantMSModule:
                 how="left",
             )
 
-        for name, group in psm.groupby("stand_spectra_ref"):
+        for name, group in psm.groupby("filename"):
             sc = group["missed_cleavages"].value_counts()
 
             self.quantms_missed_cleavages[name] = sc.to_dict()
@@ -2092,8 +2123,18 @@ class QuantMSModule:
                 self.mzml_peaks_ms2_plot_1,
                 self.ms_without_psm,
                 self.enable_dia,
+                self.enable_mzid,
             )
-            mzml_table, heatmap_charge, self.total_ms2_spectra = result
+
+            if self.enable_mzid:
+                (
+                    mzml_table,
+                    heatmap_charge,
+                    self.total_ms2_spectra,
+                    self.mzml_ms_df
+                ) = result
+            else:
+                mzml_table, heatmap_charge, self.total_ms2_spectra = result
 
         for i in self.ms_without_psm:
             log.warning("No PSM found in '{}'!".format(i))
@@ -2858,69 +2899,9 @@ class QuantMSModule:
         )
 
     def parse_out_mzid(self):
-        def parse_location(location):
-            if "\\" in location:
-                location = location.replace("\\", "/")
-            return os.path.basename(location)
 
-        def process_modification(modification):
-            if not isinstance(modification, list):
-                modifications = None
-            else:
-                modifi_list = list()
-                for i in modification:
-                    if i.get("name", None) is not None:
-                        modifi_list.append(str(i.get("location")) + "-" + i.get("name", None))
-                    elif i.get("cross-link receiver", None) is not None:
-                        modifi_list.append(str(i.get("location")) + "-CrossLinkReceiver")
-                modifications = ";".join(modifi_list)
-            return modifications
+        mzid_table = ms_io.read_mzids(self.mzid_paths)
 
-        mzid_table = pd.DataFrame()
-        for mzid_path in self.mzid_paths:
-            mzid_table = pd.concat([mzid_table, ms_io.read_mzid(mzid_path)], axis=0, ignore_index=True)
-
-        search_engines = ["SEQUEST:xcorr", "Mascot:score", "PEAKS:peptideScore", "xi:score"]
-        mzid_table.rename(
-            columns=lambda x: "search_engine_score" if x in search_engines else x, inplace=True
-        )
-
-        if "retention time" in mzid_table.columns:
-            mzid_table.rename(columns={"retention time": "retention_time"}, inplace=True)
-
-        if "location" in mzid_table.columns:
-            mzid_table["location"] = mzid_table["location"].apply(parse_location)
-
-        if "PeptideEvidenceRef_location" in mzid_table.columns:
-            mzid_table["PeptideEvidenceRef_location"] = mzid_table[
-                "PeptideEvidenceRef_location"
-            ].apply(parse_location)
-
-        mzid_table["stand_spectra_ref"] = mzid_table.apply(
-            lambda x: file_prefix(x.location), axis=1
-        )
-        mzid_table["Modifications"] = mzid_table["Modification"].apply(
-            lambda x: process_modification(x)
-        )
-
-        if "cross-link spectrum identification item" in mzid_table.columns:
-            mzid_table["CrossLinked_Peptide"] = ~mzid_table[
-                "cross-link spectrum identification item"
-            ].isna()
-        else:
-            mzid_table["CrossLinked_Peptide"] = False
-
-        mzid_table["pep_to_prot_unique"] = mzid_table.groupby(["spectrumID", "PeptideSequence"])[
-            "accession"
-        ].transform(lambda x: len(set(x)) == 1)
-        mzid_table["accession_group"] = mzid_table.groupby(["spectrumID", "PeptideSequence"])[
-            "accession"
-        ].transform(lambda x: ";".join(x.unique()))
-
-        if "isDecoy" not in mzid_table.columns:
-            mzid_table["isDecoy"] = False
-
-        mzid_table["filename"] = mzid_table.apply(lambda x: file_prefix(x.location), axis=1)
         self.ms_with_psm = mzid_table["filename"].unique().tolist()
 
         # TODO remove_decoy
@@ -2945,51 +2926,23 @@ class QuantMSModule:
         }
         self.pep_plot.to_dict(percentage=True, cats=categories)
 
-        if "retention_time" in mzid_table.columns:
-            psm = (
-                mzid_table[
-                    [
-                        "spectrumID",
-                        "PeptideSequence",
-                        "chargeState",
-                        "Modifications",
-                        "accession_group",
-                        "experimentalMassToCharge",
-                        "calculatedMassToCharge",
-                        "isDecoy",
-                        "pep_to_prot_unique",
-                        "search_engine_score",
-                        "stand_spectra_ref",
-                        "location",
-                        "filename",
-                        "retention_time",
-                    ]
-                ]
-                .drop_duplicates()
-                .reset_index()
-            )
-        else:
-            psm = (
-                mzid_table[
-                    [
-                        "spectrumID",
-                        "PeptideSequence",
-                        "chargeState",
-                        "Modifications",
-                        "accession_group",
-                        "experimentalMassToCharge",
-                        "calculatedMassToCharge",
-                        "isDecoy",
-                        "pep_to_prot_unique",
-                        "search_engine_score",
-                        "stand_spectra_ref",
-                        "location",
-                        "filename",
-                    ]
-                ]
-                .drop_duplicates()
-                .reset_index()
-            )
+        psm_cols = [
+            "spectrumID",
+            "PeptideSequence",
+            "chargeState",
+            "Modifications",
+            "accession_group",
+            "experimentalMassToCharge",
+            "calculatedMassToCharge",
+            "search_engine_score",
+            "filename",
+            "retention_time",
+        ]
+
+        if "retention_time" not in mzid_table.columns:
+            psm_cols.remove("retention_time")
+
+        psm = mzid_table[psm_cols].drop_duplicates().reset_index(drop=True)
 
         for m, group in psm.groupby("filename"):
             self.oversampling_plot = Histogram(
@@ -3004,9 +2957,7 @@ class QuantMSModule:
             proteins = set(group["accession_group"])
             peptides = group[["PeptideSequence", "Modifications"]].drop_duplicates()
 
-            unique_peptides = group[group["pep_to_prot_unique"]][
-                ["PeptideSequence", "Modifications"]
-            ].drop_duplicates()
+            unique_peptides = group[["PeptideSequence", "Modifications"]].drop_duplicates()
 
             self.identified_spectrum[m] = group["spectrumID"].drop_duplicates().tolist()
             self.mzid_peptide_map[m] = list(set(group["PeptideSequence"].tolist()))
@@ -3676,7 +3627,7 @@ class QuantMSModule:
             common_plots.draw_charge_state(
                 self.sub_sections["ms2"],
                 self.mztab_charge_state,
-                False
+                ""
             )
 
     def draw_quantms_time_section(self):

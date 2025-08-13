@@ -47,6 +47,7 @@
             <p>Select how you want to analyze your proteomics data</p>
             <button class="upload-btn" onclick="showStep('upload')">📁 Upload Files</button>
             <button class="upload-btn" onclick="showStep('pride')">🔍 PRIDE Dataset</button>
+            <button class="upload-btn" onclick="showStep('lookup')">🔍 Check Job Status</button>
         </div>
 
         <!-- Step 2: File Upload -->
@@ -69,6 +70,22 @@
             </div>
             <div style="text-align: center; margin-top: 20px;">
                 <button class="process-btn" onclick="processPrideDataset()">Process PRIDE Dataset</button>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="return-home-btn" onclick="returnToHome()">← Back to Home</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Job Lookup -->
+        <div id="step2-lookup" class="step">
+            <h3>🔍 Check Job Status</h3>
+            <p>Enter a job ID to check the status of a previous analysis or view completed results</p>
+            <input type="text" id="jobIdInput" class="pride-input" placeholder="Enter Job ID (e.g., 550e8400-e29b-41d4-a716-446655440000)" maxlength="50">
+            <div style="text-align: center; margin-top: 8px;">
+                <p style="color: #666; font-size: 14px; margin: 0;">Job IDs are provided when you start an analysis</p>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="process-btn" onclick="checkJobStatus()">Check Job Status</button>
             </div>
             <div style="text-align: center; margin-top: 15px;">
                 <button class="return-home-btn" onclick="returnToHome()">← Back to Home</button>
@@ -201,6 +218,8 @@
                 document.getElementById('step2-upload').classList.add('active');
             } else if (step === 'pride') {
                 document.getElementById('step2-pride').classList.add('active');
+            } else if (step === 'lookup') {
+                document.getElementById('step2-lookup').classList.add('active');
             }
         }
 
@@ -452,6 +471,25 @@
             window.location.href = `${window.APP_CONFIG.BASE_URL}/submit?accession=${accession}`;
         }
 
+        function checkJobStatus() {
+            const jobId = document.getElementById('jobIdInput').value.trim();
+            
+            if (!jobId) {
+                showError('Please enter a job ID');
+                return;
+            }
+            
+            // Basic UUID format validation
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(jobId)) {
+                showError('Invalid job ID format. Please enter a valid UUID.');
+                return;
+            }
+
+            // Redirect to results page with the job ID
+            window.location.href = `${window.APP_CONFIG.BASE_URL}/results?job=${jobId}`;
+        }
+
         // Poll status for file uploads
         function pollStatus(jobId) {
             let lastConsoleOutputLength = 0;
@@ -588,7 +626,7 @@
             console.log('Job ID for redirect:', jobId);
             console.log('Base URL:', window.APP_CONFIG.BASE_URL);
             
-            const redirectUrl = `${window.APP_CONFIG.BASE_URL}/results/${jobId}?t=${Date.now()}`;
+            const redirectUrl = `${window.APP_CONFIG.BASE_URL}/results?job=${jobId}&t=${Date.now()}`;
             console.log('Redirecting to:', redirectUrl);
             console.log('Current location:', window.location.href);
             

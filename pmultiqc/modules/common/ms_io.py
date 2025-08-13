@@ -119,6 +119,7 @@ def read_mzmls(
         mzml_peaks_ms2_plot_1,
         ms_without_psm,
         enable_dia=False,
+        enable_mzid=False,
 ):
     """
     Read mzML files and extract information
@@ -135,6 +136,7 @@ def read_mzmls(
         mzml_peaks_ms2_plot_1: Histogram for peaks per MS2 of unidentified spectra
         ms_without_psm: List of MS files without PSMs
         enable_dia: Whether DIA mode is enabled
+        enable_mzid: Whether mzid_plugin mode is enabled
 
     Returns:
         tuple: (mzml_table, heatmap_charge, total_ms2_spectra)
@@ -143,17 +145,19 @@ def read_mzmls(
     heatmap_charge = {}
     total_ms2_spectra = 0
 
-    exp = MSExperiment()
+    mzml_ms_dicts = list()
     for m in ms_paths:
         ms1_number = 0
         ms2_number = 0
         log.info("{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+        exp = MSExperiment()
         MzMLFile().load(m, exp)
         log.info("{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
         m_name = file_prefix(m)
         log.info(
             "{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m_name)
         )
+
         charge_2 = 0
         for i in exp:
             if i.getMSLevel() == 1:
@@ -162,6 +166,18 @@ def read_mzmls(
                 ms2_number += 1
                 charge_state = i.getPrecursors()[0].getCharge()
                 peaks_tuple = i.get_peaks()
+
+                if enable_mzid:
+                    # retention_time: minute
+                    mzml_ms_dicts.append(
+                        {
+                            "spectrumID": i.getNativeID(),
+                            "intensity": float(peaks_tuple[1].max()),
+                            "retention_time": i.getRT() / 60,
+                            "filename": m_name,
+                        }
+                    )
+
                 peak_per_ms2 = len(peaks_tuple[0])
                 if i.getMetaValue("base peak intensity"):
                     base_peak_intensity = i.getMetaValue("base peak intensity")
@@ -200,7 +216,10 @@ def read_mzmls(
             )
         )
 
-    return mzml_table, heatmap_charge, total_ms2_spectra
+    if enable_mzid:
+        return mzml_table, heatmap_charge, total_ms2_spectra, pd.DataFrame(mzml_ms_dicts)
+    else:
+        return mzml_table, heatmap_charge, total_ms2_spectra
 
 
 def read_ms_info(
@@ -575,96 +594,156 @@ def parse_idxml(
     return search_engine, msgf_label, comet_label, sage_label
 
 
-def read_mzid(file_path):
+def read_mzids(file_paths):
 
-    log.info(
-        "{}: Parsing MzIdentML file {}...".format(
-            datetime.now().strftime("%H:%M:%S"), file_path
-        )
-    )
+    def parse_location(location):
+        if "\\" in location:
+            location = location.replace("\\", "/")
+        return os.path.basename(location)
 
-    mzid_data = mzid.MzIdentML(file_path)
-
-    if len(mzid_data) == 0:
-        raise ValueError("Please check your MzIdentML", file_path)
-    
-    log.info(
-        "{}: Done parsing MzIdentML file {}.".format(
-            datetime.now().strftime("%H:%M:%S"), file_path
-        )
-    )
-
-    m = file_prefix(file_path)
-
-    log.info(
-        "{}: Aggregating MzIdentML file {}...".format(
-            datetime.now().strftime("%H:%M:%S"), m
-        )
-    )
+    def process_modification(modification):
+        if not isinstance(modification, list):
+            modifications = None
+        else:
+            modifi_list = list()
+            for i in modification:
+                if i.get("name", None) is not None:
+                    modifi_list.append(str(i.get("location")) + "-" + i.get("name", None))
+                elif i.get("cross-link receiver", None) is not None:
+                    modifi_list.append(str(i.get("location")) + "-CrossLinkReceiver")
+            modifications = ";".join(modifi_list)
+        return modifications
 
     mzid_dicts = list()
-    for mzid_tmp in mzid_data:
+    for file_path in file_paths:
 
-        mzid_tmp_part = {
-            k: v
-            for k, v in mzid_tmp.items()
-            if k not in ["SpectrumIdentificationItem"]
-        }
+        log.info(
+            "{}: Parsing MzIdentML file {}...".format(
+                datetime.now().strftime("%H:%M:%S"), file_path
+            )
+        )
 
-        for spectrum_item in mzid_tmp.get("SpectrumIdentificationItem", []):
+        mzid_data = mzid.MzIdentML(file_path)
 
-            spectrum_item_part = {
+        if len(mzid_data) == 0:
+            raise ValueError("Please check your MzIdentML", file_path)
+        
+        log.info(
+            "{}: Done parsing MzIdentML file {}.".format(
+                datetime.now().strftime("%H:%M:%S"), file_path
+            )
+        )
+        m = file_prefix(file_path)
+        log.info(
+            "{}: Aggregating MzIdentML file {}...".format(
+                datetime.now().strftime("%H:%M:%S"), m
+            )
+        )
+
+        for mzid_tmp in mzid_data:
+            mzid_tmp_part = {
                 k: v
-                for k, v in spectrum_item.items()
-                if k not in ["PeptideEvidenceRef", "PeptideSequence"]
+                for k, v in mzid_tmp.items()
+                if k not in ["SpectrumIdentificationItem"]
             }
 
-            rank = spectrum_item_part.get("rank")
-            peptide_pass = spectrum_item_part.get("peptide passes threshold", "true") == "true"
-            pass_threshold = spectrum_item.get("passThreshold", False)
-
-            if rank != 1 or not peptide_pass or not pass_threshold:
-                continue
-
-            for peptide_ref in spectrum_item.get("PeptideEvidenceRef", []):
-
-                if "name" in peptide_ref:
-                    peptide_ref["PeptideEvidenceRef_name"] = peptide_ref.pop("name")
-                if "location" in peptide_ref:
-                    peptide_ref["PeptideEvidenceRef_location"] = peptide_ref.pop(
-                        "location"
-                    )
-                if "FileFormat" in peptide_ref:
-                    peptide_ref["PeptideEvidenceRef_FileFormat"] = peptide_ref.pop(
-                        "FileFormat"
-                    )
-
-                mzid_dict = {
-                    **mzid_tmp_part, **spectrum_item_part, **peptide_ref
+            for spectrum_item in mzid_tmp.get("SpectrumIdentificationItem", []):
+                spectrum_item_part = {
+                    k: v
+                    for k, v in spectrum_item.items()
+                    if k not in ["PeptideEvidenceRef", "PeptideSequence"]
                 }
 
-                need_keys  = [
-                    "SEQUEST:xcorr", "Mascot:score", "PEAKS:peptideScore", "xi:score", 
-                    "retention time", "location", "PeptideEvidenceRef_location",
-                    "Modification", "spectrumID", "accession", "PeptideSequence", 
-                    "cross-link spectrum identification item", "isDecoy", "chargeState", 
-                    "experimentalMassToCharge", "calculatedMassToCharge"
-                ]
+                rank = spectrum_item_part.get("rank")
+                peptide_pass = spectrum_item_part.get("peptide passes threshold", "true") == "true"
+                pass_threshold = spectrum_item.get("passThreshold", False)
 
-                mzid_dicts.append(
-                    {
-                        k: v for k, v in mzid_dict.items() if k in need_keys
+                if rank != 1 or not peptide_pass or not pass_threshold:
+                    continue
+
+                for peptide_ref in spectrum_item.get("PeptideEvidenceRef", []):
+
+                    if "name" in peptide_ref:
+                        peptide_ref["PeptideEvidenceRef_name"] = peptide_ref.pop("name")
+                    if "location" in peptide_ref:
+                        peptide_ref["PeptideEvidenceRef_location"] = peptide_ref.pop(
+                            "location"
+                        )
+                    if "FileFormat" in peptide_ref:
+                        peptide_ref["PeptideEvidenceRef_FileFormat"] = peptide_ref.pop(
+                            "FileFormat"
+                        )
+
+                    mzid_dict = {
+                        **mzid_tmp_part,
+                        **spectrum_item_part,
+                        **peptide_ref,
+                        "mzid_file_name": m
                     }
-                )
+
+                    need_keys  = [
+                        "SEQUEST:xcorr", "Mascot:score", "PEAKS:peptideScore", "xi:score", 
+                        "retention time", "location", "Modification", "spectrumID", 
+                        "isDecoy", "accession", "PeptideSequence", "experimentalMassToCharge",
+                        "calculatedMassToCharge", "chargeState", "mzid_file_name"
+                    ]
+                    mzid_dicts.append(
+                        {
+                            k: v for k, v in mzid_dict.items() if k in need_keys
+                        }
+                    )
+        log.info(
+            "{}: Done aggregating MzIdentML file {}...".format(
+                datetime.now().strftime("%H:%M:%S"), m
+            )
+        )
 
     mzid_df = pd.DataFrame(mzid_dicts)
-    log.info(
-        "{}: Done aggregating MzIdentML file {}...".format(
-            datetime.now().strftime("%H:%M:%S"), m
-        )
+
+    # Check columns
+    check_list = [
+        "spectrumID", "PeptideSequence", "chargeState", "accession", 
+        "Modification", "experimentalMassToCharge", "calculatedMassToCharge"
+    ]
+    missing_cols = [col for col in check_list if col not in mzid_df.columns]
+    if missing_cols:
+        log.warning(f"MzIdentML file is missing required fields: {missing_cols}")
+
+    # Filter out contaminants: "Cont"
+    filtered_mzid_df = mzid_df[~mzid_df["accession"].str.lower().str.startswith("cont")].copy()
+
+    search_engines = ["SEQUEST:xcorr", "Mascot:score", "PEAKS:peptideScore", "xi:score"]
+    filtered_mzid_df.rename(
+        columns=lambda x: "search_engine_score" if x in search_engines else x, inplace=True
     )
 
-    return mzid_df
+    if "search_engine_score" not in filtered_mzid_df.columns:
+        log.warning("Please check the 'search_engine_score' field in the mzIdentML file.")
+    
+    if "retention time" in filtered_mzid_df.columns:
+        filtered_mzid_df.rename(columns={"retention time": "retention_time"}, inplace=True)
+
+    if "location" in filtered_mzid_df.columns:
+        filtered_mzid_df["location"] = filtered_mzid_df["location"].apply(parse_location)
+
+    filtered_mzid_df["Modifications"] = filtered_mzid_df["Modification"].apply(
+        lambda x: process_modification(x)
+    )
+
+    filtered_mzid_df["accession_group"] = filtered_mzid_df.groupby(["spectrumID", "PeptideSequence"])[
+        "accession"
+    ].transform(lambda x: ";".join(x.unique()))
+
+    if "isDecoy" not in filtered_mzid_df.columns:
+        filtered_mzid_df["isDecoy"] = False
+
+    # location: path of mzML file
+    if "location" in filtered_mzid_df.columns:
+        filtered_mzid_df["filename"] = filtered_mzid_df.apply(lambda x: file_prefix(x.location), axis=1)
+    else:
+        filtered_mzid_df["filename"] = filtered_mzid_df["mzid_file_name"]
+
+    return filtered_mzid_df
 
 
 def spectra_ref_check(spectra_ref):

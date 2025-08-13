@@ -128,6 +128,48 @@
             </div>
             {% endif %}
         </div>
+        {% elif job_data.status == 'not_found' %}
+        <div class="error-message">
+            <h3>❓ Job Not Found</h3>
+            <p><strong>Job ID:</strong> {{ job_data.job_id }}</p>
+            {% if job_data.error %}
+            <p>{{ job_data.error }}</p>
+            {% else %}
+            <p>This job was not found in the system. This could happen if:</p>
+            <ul style="text-align: left; margin: 15px 0; padding-left: 20px;">
+                <li>The job ID is incorrect or invalid</li>
+                <li>The job has expired (jobs are kept for 30 days)</li>
+                <li>The job was manually deleted</li>
+                <li>There was a system issue during job creation</li>
+            </ul>
+            {% endif %}
+            
+            <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+                <p><strong>💡 What you can do:</strong></p>
+                <ul style="text-align: left; margin: 10px 0; padding-left: 20px;">
+                    <li>Double-check the job ID for typos</li>
+                    <li>Start a new analysis from the <a href="{{ config.BASE_URL.rstrip('/') }}/" style="color: #007bff;">home page</a></li>
+                    <li>Try one of the <a href="{{ config.BASE_URL.rstrip('/') }}/#pride-examples" style="color: #007bff;">example datasets</a></li>
+                </ul>
+            </div>
+        </div>
+        {% elif job_data.status == 'error' %}
+        <div class="error-message">
+            <h3>⚠️ System Error</h3>
+            <p><strong>Job ID:</strong> {{ job_data.job_id }}</p>
+            {% if job_data.error %}
+            <p><strong>Error:</strong> {{ job_data.error }}</p>
+            {% endif %}
+            
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                <p><strong>🔧 Troubleshooting:</strong></p>
+                <ul style="text-align: left; margin: 10px 0; padding-left: 20px;">
+                    <li>Try refreshing the page</li>
+                    <li>Check if the service is running properly</li>
+                    <li>Contact support if the issue persists</li>
+                </ul>
+            </div>
+        </div>
         {% else %}
         <div class="details">
             <h3>⏳ Analysis in Progress</h3>
@@ -209,7 +251,7 @@
     </div>
 
     <script>
-        {% if job_data.status not in ['completed', 'failed'] %}
+        {% if job_data.status not in ['completed', 'failed', 'not_found', 'error'] %}
         // Auto-refresh for ongoing jobs
         setTimeout(() => {
             // Refresh the current results page instead of reloading

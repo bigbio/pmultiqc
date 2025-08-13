@@ -107,13 +107,13 @@ def add_group_modules(groups_dict, analysis_type):
             {
                 "id": "experiment_setup",
                 "key": "experiment_sub_section",
-                "name": "Experiment Setup",
+                "name": "Experimental Design and Metadata",
                 "description": ""
             },
             {
                 "id": "summary_and_heatmap",
                 "key": "summary_sub_section",
-                "name": "Summary and HeatMap",
+                "name": "Results Overview",
                 "description": ""
             },
             {

@@ -47,6 +47,16 @@
     color: #721c24;
 }
 
+.status.not_found {
+    background: #e3f2fd;
+    color: #0d47a1;
+}
+
+.status.error {
+    background: #fff3cd;
+    color: #856404;
+}
+
 .status.queued, .status.processing, .status.fetching_files, .status.filtering_files, .status.downloading_files, .status.running_pmultiqc {
     background: #fff3cd;
     color: #856404;

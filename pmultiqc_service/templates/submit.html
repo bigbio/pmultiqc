@@ -417,10 +417,10 @@
         function showResults(data) {
             console.log('Submit results data:', data);
             console.log('Current job ID:', currentJobId);
-            console.log('Redirecting to:', `${window.APP_CONFIG.BASE_URL}/results/${currentJobId}`);
+            console.log('Redirecting to:', `${window.APP_CONFIG.BASE_URL}/results?job=${currentJobId}`);
             
             // Redirect to the results page instead of showing results inline
-            window.location.href = `${window.APP_CONFIG.BASE_URL}/results/${currentJobId}`;
+            window.location.href = `${window.APP_CONFIG.BASE_URL}/results?job=${currentJobId}`;
         }
 
         function showError(message) {

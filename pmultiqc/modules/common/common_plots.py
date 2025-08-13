@@ -119,7 +119,7 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
     )
 
 # Charge-state of Per File
-def draw_charge_state(sub_section, charge_data, is_maxquant):
+def draw_charge_state(sub_section, charge_data, report_type):
 
     draw_config = {
         "id": "charge_state_of_per_raw_file",
@@ -137,9 +137,12 @@ def draw_charge_state(sub_section, charge_data, is_maxquant):
 
     bar_html = remove_subtitle(bar_html)
 
-    if is_maxquant:
+    if report_type == "MaxQuant":
         description_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
         help_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
+    elif report_type == "mzIdentML":
+        description_text = "The distribution of the charge-state of the precursor ion."
+        help_text = "The distribution of the charge-state of the precursor ion."
     else:
         description_text = "The distribution of precursor ion charge states (based on mzTab data)."
         help_text = "The distribution of precursor ion charge states (based on mzTab data)."
@@ -295,7 +298,7 @@ def draw_msms_missed_cleavages(
     )
 
 # IDs over RT
-def draw_ids_rt_count(sub_section, rt_count_data, data_type):
+def draw_ids_rt_count(sub_section, rt_count_data, report_type):
 
     draw_config = {
         "id": "IDs_over_RT",
@@ -316,16 +319,21 @@ def draw_ids_rt_count(sub_section, rt_count_data, data_type):
 
     linegraph_html = remove_subtitle(linegraph_html)
 
-    if data_type == "maxquant":
+    if report_type == "maxquant":
         description_text = "Distribution of retention time, derived from the evidence table."
         help_text = """
             The uncalibrated retention time in minutes in the elution profile of the precursor ion, 
             and does not include potential contaminants.
             """
-    elif data_type == "dia":
+    elif report_type == "dia":
         description_text = "Distribution of retention time, derived from the report.tsv."
         help_text = """
             [DIA-NN: report.tsv] Distribution of retention time (RT) for each run.
+            """
+    elif report_type == "mzIdentML":
+        description_text = "Distribution of retention time, derived from the mzIdentML (or mzML)."
+        help_text = """
+            The uncalibrated retention time in minutes in the elution profile of the precursor ion.
             """
     else:
         description_text = "Distribution of retention time, derived from the mzTab."
