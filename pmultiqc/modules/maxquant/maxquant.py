@@ -233,7 +233,7 @@ class MaxQuantModule:
                     msms_missed_cleavages=get_msms_dicts["missed_cleavages"]["plot_data"]
                     )
             except Exception as e:
-                log.warning(f"Error occurred while calculate heatmap: {e}")  
+                log.warning(f"Error occurred while calculating heatmap: {e}")
 
         return {
             "get_parameter_dicts": get_parameter_dicts,
