@@ -8,7 +8,7 @@ from ..common.common_plots import (
 from ..core.section_groups import add_sub_section
 from ..maxquant.maxquant_utils import evidence_rt_count
 from ..common.common_plots import draw_oversampling
-from . import quantms_utils
+from . import quantms_utils, mzidentml_utils
 
 import re
 import numpy as np
@@ -178,7 +178,7 @@ def draw_dia_intensity_std(sub_section, df):
             """
     )
 
-# DIA-NN Quantification Table
+# DIA-NN: Quantification Table
 def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
 
     # Peptides Quantification Table
@@ -187,7 +187,12 @@ def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
         sample_df,
         file_df
     )
-    draw_peptides_table(sub_section, peptides_table, peptides_headers)
+    draw_peptides_table(
+        sub_section,
+        peptides_table,
+        peptides_headers,
+        "DIA-NN"
+    )
 
     # Protein Quantification Table
     protein_table, protein_headers = quantms_utils.create_protein_table(
@@ -195,10 +200,42 @@ def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
         sample_df,
         file_df
     )
-    draw_protein_table(sub_section, protein_table, protein_headers)
+    draw_protein_table(
+        sub_section,
+        protein_table,
+        protein_headers,
+        "DIA-NN"
+    )
 
-# Draw: Peptides Quantification Table (DIA-NN)
-def draw_peptides_table(sub_section, table_data, headers):
+
+# mzIdentML: Quantification Table
+def draw_mzid_quant_table(sub_section, mzid_mzml_df):
+
+    # Peptides Quantification Table
+    peptides_table, peptides_headers = mzidentml_utils.create_peptides_table(
+        mzid_mzml_df
+    )
+    draw_peptides_table(
+        sub_section,
+        peptides_table,
+        peptides_headers,
+        "mzIdentML"
+    )
+
+    # Protein Quantification Table
+    protein_table, protein_headers = mzidentml_utils.create_protein_table(
+        mzid_mzml_df
+    )
+    draw_protein_table(
+        sub_section,
+        protein_table,
+        protein_headers,
+        "mzIdentML"
+    )
+
+
+# Draw: Peptides Quantification Table
+def draw_peptides_table(sub_section, table_data, headers, report_type):
 
     draw_config = {
         "id": "peptides_quantification_table",
@@ -218,14 +255,11 @@ def draw_peptides_table(sub_section, table_data, headers):
         pconfig=draw_config,
     )
 
-    add_sub_section(
-        sub_section=sub_section,
-        plot=table_html,
-        order=1,
-        description="""
+    if report_type == "DIA-NN":
+        description_text = """
             This plot shows the quantification information of peptides in the final result (DIA-NN report).
-            """,
-        helptext="""
+            """
+        helptext_text = """
             The quantification information of peptides is obtained from the DIA-NN output file. 
             The table shows the quantitative level and distribution of peptides in different study variables, 
             run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
@@ -235,10 +269,33 @@ def draw_peptides_table(sub_section, table_data, headers):
             * Average Intensity: Average intensity of each peptide sequence across all conditions (0 or NA ignored).
             * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`).
             """
+    elif report_type == "mzIdentML":
+        description_text = """
+            This plot shows the quantification information of peptides in the final result (mzIdentML).
+            """
+        helptext_text = """
+            The quantification information of peptides is obtained from the mzIdentML. 
+            The table shows the quantitative level and distribution of peptides in different study variables, 
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            the average intensity for all the fractions, runs and peptiforms.
+
+            * BestSearchScore: It is equal to max(search_engine_score) for mzIdentML datasets.
+            * Average Intensity: Average intensity of each peptide sequence (0 or NA ignored).
+            """
+    else:
+        description_text = ""
+        helptext_text = ""
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=table_html,
+        order=1,
+        description=description_text,
+        helptext=helptext_text
     )
 
-# Draw: Protein Quantification Table (DIA-NN)
-def draw_protein_table(sub_sections, table_data, headers):
+# Draw: Protein Quantification Table
+def draw_protein_table(sub_sections, table_data, headers, report_type):
 
     draw_config = {
             "id": "protein_quant_result",
@@ -257,14 +314,11 @@ def draw_protein_table(sub_sections, table_data, headers):
         pconfig=draw_config
     )
 
-    add_sub_section(
-        sub_section=sub_sections,
-        plot=table_html,
-        order=2,
-        description="""
+    if report_type == "DIA-NN":
+        description_text = """
             This plot shows the quantification information of proteins in the final result (DIA-NN report).
-            """,
-        helptext="""
+            """
+        helptext_text = """
             The quantification information of proteins is obtained from the DIA-NN output file.
             The table shows the quantitative level and distribution of proteins in different study variables and run.
 
@@ -272,4 +326,25 @@ def draw_protein_table(sub_sections, table_data, headers):
             * Average Intensity: Average intensity of each protein across all conditions (0 or NA ignored).
             * Protein intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of peptides.
             """
+    elif report_type == "mzIdentML":
+        description_text = """
+            This plot shows the quantification information of proteins in the final result (mzIdentML).
+            """
+        helptext_text = """
+            The quantification information of proteins is obtained from the mzIdentML.
+            The table shows the quantitative level and distribution of proteins in different study variables and run.
+
+            * Peptides_Number: The number of peptides for each protein.
+            * Average Intensity: Average intensity of each protein(0 or NA ignored).
+            """
+    else:
+        description_text = ""
+        helptext_text = ""
+
+    add_sub_section(
+        sub_section=sub_sections,
+        plot=table_html,
+        order=2,
+        description=description_text,
+        helptext=helptext_text
     )

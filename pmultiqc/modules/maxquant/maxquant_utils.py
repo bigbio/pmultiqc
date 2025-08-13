@@ -257,12 +257,14 @@ def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> dict[An
             logger.warning("Some intensity columns not found in data")
             return None
 
+        contaminant_count = mq_data[mq_data["potential contaminant"] == "+"].shape[0]
+        logger.debug(f"Found {contaminant_count} contaminant entries")
+        if contaminant_count == 0:
+            return None
+
         logger.debug(f"Calculating total intensity for {len(intensity_cols)} columns")
         df1 = mq_data[intensity_cols].sum().to_frame().reset_index()
         df1.columns = ["group", "total_intensity"]
-
-        contaminant_count = mq_data[mq_data["potential contaminant"] == "+"].shape[0]
-        logger.debug(f"Found {contaminant_count} contaminant entries")
 
         df2 = (
             mq_data[mq_data["potential contaminant"] == "+"][intensity_cols]
@@ -849,6 +851,12 @@ def evidence_peak_width_rt(evidence_data):
     if any(
         column not in evidence_data.columns
         for column in ["retention length", "retention time", "raw file"]
+    ):
+        return None
+    
+    if any(
+        evidence_data[column].isna().all()
+        for column in ["retention length", "retention time"]
     ):
         return None
 
