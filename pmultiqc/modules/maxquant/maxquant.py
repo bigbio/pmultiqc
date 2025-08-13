@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+import os
 
 from . import maxquant_utils, maxquant_io, maxquant_plots
 from ..core.section_groups import add_group_modules
@@ -24,170 +25,215 @@ class MaxQuantModule:
         self.maxquant_paths = None
         self.mq_results = None
         self.heatmap_color_list = heatmap_colors
-
-    def get_maxquant(self):
-
-        self.maxquant_paths = maxquant_io.maxquant_file_path(self.find_log_files)
-
-        self.get_mq_data()
-
-        return self.maxquant_paths
     
     def get_mq_data(self):
 
         # parameters.txt
+        get_parameter_dicts = {
+            "parameters_tb_dict": None
+        }
+
         if "parameters" in self.maxquant_paths.keys():
             log.info(
                 "{}: Parsing parameters file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["parameters"]
                 )
             )
-            get_parameter_dicts = maxquant_utils.get_parameters(
-                file_path=self.maxquant_paths["parameters"]
-            )
-            log.info(
-                "{}: Completed the processing of the parameters file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["parameters"]
-                )
-            )
-        else:
-            get_parameter_dicts = {"parameters_tb_dict": None}
+            if os.path.getsize(self.maxquant_paths["parameters"]) == 0:
+                log.warning("parameters.txt is empty. Please check.")
+            else:
+                try:
+                    get_parameter_dicts = maxquant_utils.get_parameters(
+                        file_path=self.maxquant_paths["parameters"]
+                    )
+                    log.info(
+                        "{}: Completed the processing of the parameters file {}...".format(
+                            datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["parameters"]
+                        )
+                    )
+                except Exception as e:
+                    log.warning(f"Error occurred while reading parameters.txt: {e}")
+
 
         # proteinGroups.txt
+        get_protegroups_dicts = {
+            "pg_contaminant": None,
+            "pg_intensity_distri": None,
+            "pg_lfq_intensity_distri": None,
+            "raw_intensity_pca": None,
+            "lfq_intensity_pca": None,
+            "protein_summary": None,
+            "num_pep_per_protein_dict": None,
+        }
+
         if "proteinGroups" in self.maxquant_paths.keys():
             log.info(
                 "{}: Parsing proteinGroups file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["proteinGroups"]
                 )
             )
-            get_protegroups_dicts = maxquant_utils.get_protegroups(
-                file_path=self.maxquant_paths["proteinGroups"]
-            )
-            log.info(
-                "{}: Completed the processing of the proteinGroups file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["proteinGroups"]
-                )
-            )
-        else:
-            get_protegroups_dicts = {
-                "pg_contaminant": None,
-                "pg_intensity_distri": None,
-                "pg_lfq_intensity_distri": None,
-                "raw_intensity_pca": None,
-                "lfq_intensity_pca": None,
-                "protein_summary": None,
-                "num_pep_per_protein_dict": None,
-            }
+            if os.path.getsize(self.maxquant_paths["proteinGroups"]) == 0:
+                log.warning("proteinGroups.txt is empty. Please check.")
+            else:
+                try:
+                    get_protegroups_dicts = maxquant_utils.get_protegroups(
+                        file_path=self.maxquant_paths["proteinGroups"]
+                    )
+                    log.info(
+                        "{}: Completed the processing of the proteinGroups file {}...".format(
+                            datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["proteinGroups"]
+                        )
+                    )
+                except Exception as e:
+                    log.warning(f"Error occurred while reading proteinGroups.txt: {e}")
+
 
         # summary.txt
+        ms_ms_identified = None
+        
         if "summary" in self.maxquant_paths.keys():
             log.info(
                 "{}: Parsing summary file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["summary"]
                 )
             )
-            ms_ms_identified = maxquant_utils.get_summary(file_path=self.maxquant_paths["summary"])
-            log.info(
-                "{}: Completed the processing of the summary file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["summary"]
-                )
-            )
-        else:
-            ms_ms_identified = None
+            if os.path.getsize(self.maxquant_paths["summary"]) == 0:
+                log.warning("summary.txt is empty. Please check.")
+            else:
+                try:
+                    ms_ms_identified = maxquant_utils.get_summary(file_path=self.maxquant_paths["summary"])
+                    log.info(
+                        "{}: Completed the processing of the summary file {}...".format(
+                            datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["summary"]
+                        )
+                    )
+                except Exception as e:
+                    log.warning(f"Error occurred while reading summary.txt: {e}")
+
 
         # evidence.txt
+        get_evidence_dicts = {
+            "top_contaminants": None,
+            "peptide_intensity": None,
+            "charge_counts": None,
+            "modified_percentage": None,
+            "rt_counts": None,
+            "evidence_df": None,
+            "peak_rt": None,
+            "oversampling": None,
+            "uncalibrated_mass_error": None,
+            "calibrated_mass_error": None,
+            "peptide_id_count": None,
+            "protein_group_count": None,
+            "summary_identified_msms_count": None,
+            "summary_identified_peptides": None,
+            "maxquant_delta_mass_da": None,
+            "peptides_quant_table": None,
+            "protein_quant_table": None,
+        }
+        
         if "evidence" in self.maxquant_paths.keys():
             log.info(
                 "{}: Parsing evidence file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["evidence"]
                 )
             )
-            get_evidence_dicts = maxquant_utils.get_evidence(
-                file_path=self.maxquant_paths["evidence"]
-            )
-            log.info(
-                "{}: Completed the processing of the evidence file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["evidence"]
-                )
-            )
-        else:
-            get_evidence_dicts = {
-                "top_contaminants": None,
-                "peptide_intensity": None,
-                "charge_counts": None,
-                "modified_percentage": None,
-                "rt_counts": None,
-                "evidence_df": None,
-                "peak_rt": None,
-                "oversampling": None,
-                "uncalibrated_mass_error": None,
-                "calibrated_mass_error": None,
-                "peptide_id_count": None,
-                "protein_group_count": None,
-                "summary_identified_msms_count": None,
-                "summary_identified_peptides": None,
-                "maxquant_delta_mass_da": None,
-                "peptides_quant_table": None,
-                "protein_quant_table": None,
-            }
+            if os.path.getsize(self.maxquant_paths["evidence"]) == 0:
+                log.warning("evidence.txt is empty. Please check.")
+            else:
+                try:
+                    get_evidence_dicts = maxquant_utils.get_evidence(
+                        file_path=self.maxquant_paths["evidence"]
+                    )
+                    log.info(
+                        "{}: Completed the processing of the evidence file {}...".format(
+                            datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["evidence"]
+                        )
+                    )
+                except Exception as e:
+                    log.warning(f"Error occurred while reading evidence.txt: {e}")
+
 
         # msms.txt
+        get_msms_dicts = {
+            "missed_cleavages": None,
+            "search_engine_scores": None,
+        }
         if "msms" in self.maxquant_paths.keys():
             log.info(
                 "{}: Parsing msms file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["msms"]
                 )
             )
-            get_msms_dicts = maxquant_utils.get_msms(
-                file_path=self.maxquant_paths["msms"],
-                evidence_df=get_evidence_dicts["evidence_df"],
-            )
-            log.info(
-                "{}: Completed the processing of the msms file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["msms"]
-                )
-            )
-        else:
-            get_msms_dicts = {
-                "missed_cleavages": None,
-                "search_engine_scores": None,
-            }
+            if os.path.getsize(self.maxquant_paths["msms"]) == 0:
+                log.warning("msms.txt is empty. Please check.")
+            else:
+                try:
+                    get_msms_dicts = maxquant_utils.get_msms(
+                        file_path=self.maxquant_paths["msms"],
+                        evidence_df=get_evidence_dicts["evidence_df"],
+                    )
+                    log.info(
+                        "{}: Completed the processing of the msms file {}...".format(
+                            datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["msms"]
+                        )
+                    )
+                except Exception as e:
+                    log.warning(f"Error occurred while reading msms.txt: {e}")
+
 
         # msScans.txt or msmsScans.txt
+        get_msms_scans_dicts = {
+            "ion_injec_time_rt": None,
+            "top_n": None,
+            "top_over_rt": None,
+            "summary_msms_spectra": None,
+        }
+
         if "msmsScans" in self.maxquant_paths.keys():
             msms_scans_file = "msmsScans"
         elif "msScans" in self.maxquant_paths.keys():
             msms_scans_file = "msScans"
         else:
             msms_scans_file = None
+
         if msms_scans_file:
             log.info(
                 "{}: Parsing msScans file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msms_scans_file]
                 )
             )
-            get_msms_scans_dicts = maxquant_utils.get_msms_scans(
-                file_path=self.maxquant_paths[msms_scans_file]
-            )
-            log.info(
-                "{}: Completed the processing of the msScans file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msms_scans_file]
-                )
-            )
-        else:
-            get_msms_scans_dicts = {
-                "ion_injec_time_rt": None,
-                "top_n": None,
-                "top_over_rt": None,
-                "summary_msms_spectra": None,
-            }
+            if os.path.getsize(self.maxquant_paths[msms_scans_file]) == 0:
+                log.warning(f"{msms_scans_file}.txt is empty. Please check.")
+            else:
+                try:
+                    get_msms_scans_dicts = maxquant_utils.get_msms_scans(
+                        file_path=self.maxquant_paths[msms_scans_file]
+                    )
+                    log.info(
+                        "{}: Completed the processing of the msScans file {}...".format(
+                            datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msms_scans_file]
+                        )
+                    )
+                except Exception as e:
+                    log.warning(f"Error occurred while reading {msms_scans_file}.txt: {e}")
+
 
         # HeatMap
-        maxquant_heatmap = maxquant_utils.calculate_heatmap(
-            evidence_df=get_evidence_dicts["evidence_df"],
-            oversampling=get_evidence_dicts["oversampling"]["plot_data"],
-            msms_missed_cleavages=get_msms_dicts["missed_cleavages"]["plot_data"]
-            )
+        maxquant_heatmap = None
+        if (
+            get_evidence_dicts.get("evidence_df") is not None and
+            get_evidence_dicts.get("oversampling") is not None and
+            get_msms_dicts.get("missed_cleavages") is not None
+        ):
+            try:
+                maxquant_heatmap = maxquant_utils.calculate_heatmap(
+                    evidence_df=get_evidence_dicts["evidence_df"],
+                    oversampling=get_evidence_dicts["oversampling"]["plot_data"],
+                    msms_missed_cleavages=get_msms_dicts["missed_cleavages"]["plot_data"]
+                    )
+            except Exception as e:
+                log.warning(f"Error occurred while calculate heatmap: {e}")  
 
         return {
             "get_parameter_dicts": get_parameter_dicts,
@@ -201,7 +247,7 @@ class MaxQuantModule:
     
     def get_data(self):
 
-        self.get_maxquant()
+        self.maxquant_paths = maxquant_io.maxquant_file_path(self.find_log_files)
         self.mq_results = self.get_mq_data()
 
         if self.mq_results:
@@ -295,7 +341,7 @@ class MaxQuantModule:
             common_plots.draw_charge_state(
                 self.sub_sections["ms2"],
                 self.mq_results["get_evidence_dicts"]["charge_counts"],
-                True
+                "MaxQuant"
             )
 
         if self.mq_results["get_evidence_dicts"]["modified_percentage"]:
