@@ -81,8 +81,15 @@ def setup_logging():
     
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured with level: {log_level}")
+
+    # Apply the filter to the uvicorn access logger
+    logging.getLogger("uvicorn.access").addFilter(NoHealthAccessLogFilter())
     
     return logger
+
+class NoHealthAccessLogFilter(logging.Filter):
+    def filter(self, record):
+        return "/health HTTP/" not in record.getMessage()
 
 # Initialize logging
 logger = setup_logging()
