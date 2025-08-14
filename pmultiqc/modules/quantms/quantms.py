@@ -48,8 +48,9 @@ from .quantms_plots import (
 )
 from .mzidentml_utils import (
     get_mzidentml_mzml_df,
-    get_mzid_mzml_charge,
-    get_mzid_rt_id
+    get_mzidentml_charge,
+    get_mzid_rt_id,
+    get_mzid_num_data
 )
 
 
@@ -136,32 +137,40 @@ class QuantMSModule:
 
             if self.mgf_paths:
                 self.parse_out_mgf()
-            elif self.ms_paths:
-                _ = self.parse_mzml()
+                self.mzid_cal_heat_map_score(mzid_psm)
 
-                mzidentml_mzml_df = get_mzidentml_mzml_df(mzid_psm, self.mzml_ms_df)
-                if len(mzidentml_mzml_df) > 0:
+            elif self.ms_paths:
+                mt = self.parse_mzml()
+
+                mzidentml_df = get_mzidentml_mzml_df(mzid_psm, self.mzml_ms_df)
+                if len(mzidentml_df) > 0:
 
                     draw_mzid_quant_table(
                         self.sub_sections["quantification"],
-                        mzidentml_mzml_df
+                        mzidentml_df
                     )
 
-                    mzid_mzml_charge_state = get_mzid_mzml_charge(mzidentml_mzml_df)
+                    mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
                     common_plots.draw_charge_state(
                         self.sub_sections["ms2"],
                         mzid_mzml_charge_state,
                         "mzIdentML"
                     )
 
-                    mzid_ids_over_rt = get_mzid_rt_id(mzidentml_mzml_df)
+                    mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
                     common_plots.draw_ids_rt_count(
                         self.sub_sections["time_mass"],
                         mzid_ids_over_rt,
                         "mzIdentML"
                     )
 
-            self.mzid_cal_heat_map_score(mzid_psm)
+                    (
+                        self.cal_num_table_data,
+                        self.identified_msms_spectra
+                    ) = get_mzid_num_data(mzidentml_df)
+                    self.draw_quantms_identification(mt)
+
+                    self.mzid_cal_heat_map_score(mzidentml_df)
 
             heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
             common_plots.draw_heatmap(
@@ -364,6 +373,9 @@ class QuantMSModule:
                             This table shows the information of peptide spectrum matches from mzTab PSM section.
                             """
                 )
+
+            if self.enable_sdrf:
+                ms_io.del_openms_convert_tsv()
 
             # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
             # currently only draw protein tabel for spectral counting
