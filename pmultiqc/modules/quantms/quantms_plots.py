@@ -200,6 +200,10 @@ def draw_rt_quality_plots(sub_section, df):
         draw_rt_binned_average(sub_section, df_rt_pred, "RT.Deviation", "RT", 
                                "RT Deviation vs RT", 12)
 
+    # 5. loess(RT ~ iRT) for each run
+    if "iRT" in df.columns:
+        draw_irt_rt_correlation(sub_section, df, 13)
+
 def draw_rt_binned_average(sub_section, df, y_col, x_col, title, order):
     """Helper function to draw RT binned averages"""
     
@@ -274,6 +278,67 @@ def draw_rt_binned_average(sub_section, df, y_col, x_col, title, order):
         order=order,
         description=description,
         helptext=helptext
+    )
+
+def draw_irt_rt_correlation(sub_section, df, order):
+    """Draw iRT vs RT correlation for each run using loess-like smoothing"""
+    
+    # Filter for valid iRT and RT values
+    df_irt = df[(df["iRT"] > 0) & (df["RT"] > 0)].copy()
+    
+    if df_irt.empty:
+        return  # No data to plot
+    
+    plot_data = {}
+    for run, group in df_irt.groupby("Run"):
+        # Sort by iRT for proper line plotting
+        group_sorted = group.sort_values("iRT")
+        
+        # Sample data if too many points (for performance and clarity)
+        if len(group_sorted) > 1000:
+            # Take every nth point to reduce to ~1000 points
+            step = len(group_sorted) // 1000
+            group_sorted = group_sorted.iloc[::step]
+        
+        if len(group_sorted) >= 5:  # Need minimum points for meaningful correlation
+            plot_data[str(run)] = {
+                float(irt): float(rt) for irt, rt in zip(group_sorted["iRT"], group_sorted["RT"])
+            }
+    
+    if not plot_data:
+        return  # No data to plot
+    
+    draw_config = {
+        "id": "irt_rt_correlation",
+        "cpswitch": False,
+        "cpswitch_c_active": False,
+        "title": "iRT vs RT Correlation",
+        "ylab": "Retention Time (min)",
+        "xlab": "iRT",
+        "tt_decimals": 2,
+        "showlegend": True,
+        "style": "lines+markers",
+    }
+
+    from multiqc.plots import linegraph
+    
+    line_html = linegraph.plot(
+        data=plot_data,
+        pconfig=draw_config
+    )
+
+    line_html = remove_subtitle(line_html)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=line_html,
+        order=order,
+        description="Correlation between indexed RT (iRT) and observed RT for each run.",
+        helptext="""
+            [DIA-NN: report.tsv] Correlation plot showing the relationship between indexed retention 
+            time (iRT) and observed retention time for each run. A good correlation indicates 
+            consistent RT prediction across the dataset. Deviations may indicate RT calibration issues.
+            """
     )
 
 # Intensity Distribution

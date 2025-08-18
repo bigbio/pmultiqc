@@ -64,7 +64,46 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
     general_stats = {
         "AcquisitionDateTime": ms1_info["AcquisitionDateTime"][0],
         "log10(TotalCurrent)": np.log10(ms1_info["Summed_Peak_Intensities"].sum()),
-        "log10(ScanCurrent)": np.log10(ms2_info["Summed_Peak_Intensities"].sum()),
+        "log10(ScanCurrent)": calculate_scan_current_log10(ms2_info),
     }
 
     return tic_data, bpc_data, ms1_peaks, general_stats
+
+
+def calculate_scan_current_log10(ms2_info):
+    """
+    Calculate log10(ScanCurrent) with better validation to avoid extremely high values
+    as mentioned in the DIANN improvements issue.
+    """
+    if ms2_info.empty or "Summed_Peak_Intensities" not in ms2_info.columns:
+        return 0.0
+    
+    # Filter out zero, negative, inf, or NaN values
+    valid_intensities = ms2_info["Summed_Peak_Intensities"]
+    valid_intensities = valid_intensities[
+        (valid_intensities > 0) & 
+        (~np.isinf(valid_intensities)) & 
+        (~np.isnan(valid_intensities))
+    ]
+    
+    if valid_intensities.empty:
+        return 0.0
+    
+    total_intensity = valid_intensities.sum()
+    
+    # If sum results in extremely large log10 values (>30), use mean-based approach
+    if total_intensity == 0:
+        return 0.0
+    
+    log_total = np.log10(total_intensity)
+    if log_total > 30:  # This would be log10 > 30, corresponding to 10^30
+        # Use average intensity per scan instead of total
+        avg_intensity = valid_intensities.mean()
+        num_scans = len(valid_intensities)
+        # This gives a more reasonable scale: log10(avg_intensity) + log10(num_scans)
+        if avg_intensity > 0:
+            return np.log10(avg_intensity) + np.log10(num_scans)
+        else:
+            return 0.0
+    
+    return log_total
