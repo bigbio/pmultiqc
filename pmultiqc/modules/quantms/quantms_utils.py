@@ -69,11 +69,27 @@ def calculate_msms_count(df):
          "cats": list(merged_df["msms_count_str"].unique())
     }
 
+def get_best_intensity_column(df):
+    """Determine the best intensity column to use, preferring non-normalized values"""
+    if "Precursor.Quantity" in df.columns:
+        return "Precursor.Quantity"
+    elif "Ms1.Area" in df.columns:
+        return "Ms1.Area"
+    elif "Precursor.Normalised" in df.columns:
+        return "Precursor.Normalised"
+    else:
+        return None
+
 # DIA-NN: Peptides Quantification Table
 def create_peptides_table(report_df, sample_df, file_df):
 
-    # Validation: remove rows with 0 or NA Precursor.Normalised values
-    report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
+    # Get the best intensity column available
+    intensity_col = get_best_intensity_column(report_df)
+    if intensity_col is None:
+        return {}, {}  # No intensity column available
+    
+    # Validation: remove rows with 0 or NA intensity values
+    report_data = report_df[report_df[intensity_col] > 0].copy()
     report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
     
     report_data["BestSearchScore"] = 1 - report_data["Q.Value"]
@@ -86,7 +102,7 @@ def create_peptides_table(report_df, sample_df, file_df):
             "PeptideSequence": sequence_protein[0],
             "BestSearchScore": group["BestSearchScore"].min(),
             "Average Intensity": np.log10(
-                group["Precursor.Normalised"].mean()
+                group[intensity_col].mean()
             ),
         }
 
@@ -117,7 +133,7 @@ def create_peptides_table(report_df, sample_df, file_df):
         )
 
         cond_report_data = pd.merge(
-            report_data[["Stripped.Sequence", "Protein.Names", "Precursor.Normalised", "Run"]],
+            report_data[["Stripped.Sequence", "Protein.Names", intensity_col, "Run"]],
             sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
             on="Run"
         )
@@ -127,7 +143,7 @@ def create_peptides_table(report_df, sample_df, file_df):
             condition_data = dict()
             for condition, sub_group in group.groupby("MSstats_Condition"):
                 condition_data[str(condition)] = np.log10(
-                    sub_group["Precursor.Normalised"].mean()
+                    sub_group[intensity_col].mean()
                 )
 
             table_dict[sequence_protein].update(condition_data)
@@ -147,8 +163,13 @@ def create_peptides_table(report_df, sample_df, file_df):
 # DIA-NN: Protein Quantification Table
 def create_protein_table(report_df, sample_df, file_df):
 
-    # Validation: remove rows with 0 or NA Precursor.Normalised values
-    report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
+    # Get the best intensity column available
+    intensity_col = get_best_intensity_column(report_df)
+    if intensity_col is None:
+        return {}, {}  # No intensity column available
+
+    # Validation: remove rows with 0 or NA intensity values
+    report_data = report_df[report_df[intensity_col] > 0].copy()
     report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
 
     table_dict = dict()
@@ -158,7 +179,7 @@ def create_protein_table(report_df, sample_df, file_df):
             "ProteinName": protein_name,
             "Peptides_Number": group["Stripped.Sequence"].nunique(),
             "Average Intensity": np.log10(
-                group["Precursor.Normalised"].mean()
+                group[intensity_col].mean()
             ),
         }
 
@@ -191,7 +212,7 @@ def create_protein_table(report_df, sample_df, file_df):
         )
 
         cond_report_data = pd.merge(
-            report_data[["Stripped.Sequence", "Protein.Names", "Precursor.Normalised", "Run"]],
+            report_data[["Stripped.Sequence", "Protein.Names", intensity_col, "Run"]],
             sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
             on="Run"
         )
@@ -201,7 +222,7 @@ def create_protein_table(report_df, sample_df, file_df):
             condition_data = dict()
             for condition, sub_group in group.groupby("MSstats_Condition"):
                 condition_data[str(condition)] = np.log10(
-                    sub_group["Precursor.Normalised"].mean()
+                    sub_group[intensity_col].mean()
                 )
 
             table_dict[protein_name].update(condition_data)
