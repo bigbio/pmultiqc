@@ -3035,8 +3035,17 @@ class QuantMSModule:
         report_data["sequence"] = report_data.apply(
             lambda x: re.sub(pattern, "", x["Modified.Sequence"]), axis=1
         )
-        self.total_protein_quantified = len(set(report_data["Protein.Names"]))
-        self.Total_Peptide_Count = len(set(report_data["sequence"]))
+        
+        # Apply decoy filtering for protein counting (consistent with other parsers)
+        if config.kwargs["remove_decoy"]:
+            protein_data_for_count = report_data[~report_data["Protein.Names"].str.contains(config.kwargs["decoy_affix"], na=False)]
+            peptide_data_for_count = report_data[~report_data["Protein.Names"].str.contains(config.kwargs["decoy_affix"], na=False)]
+        else:
+            protein_data_for_count = report_data
+            peptide_data_for_count = report_data
+            
+        self.total_protein_quantified = len(set(protein_data_for_count["Protein.Names"]))
+        self.Total_Peptide_Count = len(set(peptide_data_for_count["sequence"]))
         protein_pep_map = report_data.groupby("Protein.Group").sequence.apply(list).to_dict()
 
         self.pep_plot = Histogram("number of peptides per proteins", plot_category="frequency")
@@ -3088,6 +3097,12 @@ class QuantMSModule:
             run_file = str(run_file)
             self.ms_with_psm.append(run_file)
 
+            # Apply decoy filtering for per-run counts (consistent with other parsers)
+            if config.kwargs["remove_decoy"]:
+                group_filtered = group[~group["Protein.Names"].str.contains(config.kwargs["decoy_affix"], na=False)]
+            else:
+                group_filtered = group
+
             # Modifications
             mod_group_processed = mod_group_percentage(group.drop_duplicates())
             mod_plot_dict[run_file] = dict(
@@ -3095,13 +3110,14 @@ class QuantMSModule:
             )
             modified_cats.extend(mod_group_processed["modifications"])
 
-            self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Ids"]))}
-            self.cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
+            # Use Protein.Names for consistency with global count and other parsers
+            self.cal_num_table_data[run_file] = {"protein_num": len(set(group_filtered["Protein.Names"]))}
+            self.cal_num_table_data[run_file]["peptide_num"] = len(set(group_filtered["sequence"]))
             peptides = set(group["Modified.Sequence"])
             modified_pep = list(
                 filter(lambda x: re.match(r".*?\(.*?\).*?", x) is not None, peptides)
             )
-            group_peptides = group.groupby("sequence")["Protein.Group"].apply(list).to_dict()
+            group_peptides = group_filtered.groupby("sequence")["Protein.Group"].apply(list).to_dict()
             unique_peptides = [
                 pep for pep, prots in group_peptides.items() if len(set(prots)) == 1
             ]
