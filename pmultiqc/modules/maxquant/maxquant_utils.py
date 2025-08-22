@@ -450,7 +450,7 @@ def get_evidence(file_path):
     Returns:
         Dictionary containing various metrics extracted from the evidence file
     """
-    mq_data = read(file_path, filter_type="Reverse")
+    mq_data = read(file_path, file_type = "evidence", filter_type="Reverse")
 
     # Count peptides and MS/MS spectra
     total_entries = len(mq_data)
@@ -589,11 +589,15 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
         ].groupby("raw file"):
 
         # 1. Contaminants
-        contaminant = 1 - (group[group["potential contaminant"] == "+"]["intensity"].sum() 
-                           / group["intensity"].sum())
-        
+        intensity_contaminant = group[group["potential contaminant"] == "+"]["intensity"].sum()
+        intensity_all = group["intensity"].sum()
+        if np.isnan(intensity_contaminant) or np.isnan(intensity_all) or intensity_all == 0:
+            contaminant = 1
+        else:
+            contaminant = 1 - intensity_contaminant / intensity_all
+
         # 2. Peptide Intensity
-        peptide_intensity = np.minimum(1.0, np.nanmedian(group["intensity"]) / (2**23))
+        peptide_intensity = np.fmin(1.0, np.nanmedian(group["intensity"])) / (2**23) ## np.fmin does not propagate NaN's
 
         # 8. Pep Missing Values
         pep_missing_values = np.minimum(
@@ -716,7 +720,7 @@ def evidence_top_contaminants(evidence_df, top_n):
         intensity_per_file_protein["contaminant_intensity"]
         / intensity_per_file_protein["total_intensity"]
         * 100
-    )
+    ).replace([np.nan], 1)  ## total_intensity may be 0, which produces NaN (so we judge contaminants not to be an issue -> score 1)
 
     top_contaminant_dict = {}
 
