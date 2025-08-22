@@ -587,6 +587,7 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
         
         # 2. Peptide Intensity
         peptide_intensity = np.minimum(1.0, np.nanmedian(group["intensity"]) / (2**23))
+        peptide_intensity = np.fmin(1.0, np.nanmedian(group["intensity"])) / (2**23) ## np.fmin does not propagate NaN's
 
         # 8. Pep Missing Values
         pep_missing_values = np.minimum(
