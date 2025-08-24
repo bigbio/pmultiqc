@@ -3095,7 +3095,7 @@ class QuantMSModule:
             )
             modified_cats.extend(mod_group_processed["modifications"])
 
-            self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Ids"]))}
+            self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Group"]))}
             self.cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
             peptides = set(group["Modified.Sequence"])
             modified_pep = list(
