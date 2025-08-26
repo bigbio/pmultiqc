@@ -376,9 +376,12 @@ def intensity_count_per_file(df, runs_col):
 
     return bar_html
 
-def draw_precursor_ion_charge(df):
 
-    df[["modified_sequence", "Z=charge"]] = df["precursor ion"].str.split("|", expand=True)
+def draw_precursor_ion_charge(df):
+    if "|" in df["precursor ion"].iloc[0]:
+        df[["modified_sequence", "Z=charge"]] = df["precursor ion"].str.split("|", expand=True)
+    else:
+        df[["modified_sequence", "Z=charge"]] = df["precursor ion"].str.split("/", expand=True)
     df["charge"] = df["Z=charge"].str.extract(r"Z=(\d+)")
 
     charge_data = (
