@@ -2,6 +2,7 @@ import logging
 import os
 import pandas as pd
 import numpy as np
+import re
 
 from multiqc.plots import (
     bargraph,
@@ -378,8 +379,9 @@ def intensity_count_per_file(df, runs_col):
 
 def draw_precursor_ion_charge(df):
 
-    df[["modified_sequence", "Z=charge"]] = df["precursor ion"].str.split("|", expand=True)
-    df["charge"] = df["Z=charge"].str.extract(r"Z=(\d+)")
+    df[["modified_sequence", "charge"]] = df["precursor ion"].apply(
+        lambda x: pd.Series(parse_precursor(x))
+    )
 
     charge_data = (
         df.groupby("species")["charge"]
@@ -462,3 +464,14 @@ def calculate_log_intensity(df, runs_col):
     cols = [col for col in plot_df.columns if runs_col in col]
 
     return plot_df, cols
+
+def parse_precursor(precursor):
+    if "|" in precursor:
+        seq, z = precursor.split("|", 1)
+        charge = re.search(r"Z=(\d+)", z)
+        return seq, charge.group(1) if charge else None
+    elif "/" in precursor:
+        seq, charge = precursor.split("/", 1)
+        return seq, charge
+    else:
+        return precursor, None
