@@ -59,6 +59,7 @@ class PMultiQC(BaseMultiqcModule):
             "ms1": [],
             "ms2": [],
             "time_mass": [],
+            "rt_qc": [],
         }
 
         # Parse MaxQuant results
