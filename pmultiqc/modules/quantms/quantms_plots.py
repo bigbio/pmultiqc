@@ -536,7 +536,7 @@ def draw_rt_error_rt(sub_section, plot_data):
             Distribution of rt error with retention time, derived from the main report. 
         """,
         helptext="""
-            [DIA-NN: main report] Distribution of peak width with retention time (RT) for each run.
+            [DIA-NN: main report] Distribution of absolute RT error (|RT - Predicted.RT|) with retention time (RT) for each run.
             RT: the retention time (RT) of the PSM in minutes. 
             Predicted.RT: predicted RT based on the iRT.
         """,
