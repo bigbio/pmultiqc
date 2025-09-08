@@ -41,8 +41,10 @@ from ..maxquant.maxquant_utils import (
 )
 from .quantms_plots import (
     draw_dia_intensitys,
+    draw_dia_ms1,
     draw_dia_ms2s,
     draw_dia_time_mass,
+    draw_dia_rt_qc,
     draw_diann_quant_table,
     draw_mzid_quant_table
 )
@@ -318,7 +320,7 @@ class QuantMSModule:
                 self.draw_quantms_identi_num()
                 self.draw_num_pep_per_protein()
                 if len(self.ms_info_path) > 0 and not self.is_bruker:
-                    self.draw_precursor_charge_distribution()
+                    # self.draw_precursor_charge_distribution()
                     self.draw_peaks_per_ms2()
                     self.draw_peak_intensity_distribution()
             else:
@@ -413,6 +415,7 @@ class QuantMSModule:
                 "ms1_sub_section": self.sub_sections["ms1"],
                 "ms2_sub_section": self.sub_sections["ms2"],
                 "time_mass_sub_section": self.sub_sections["time_mass"],
+                "rt_qc_sub_section": self.sub_sections["rt_qc"],
             }
 
         add_group_modules(self.section_group_dict, "")
@@ -749,7 +752,7 @@ class QuantMSModule:
                 "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
                 "title": "Total Ion Chromatograms",
                 "ylab": "Ion Count",
-                "xlab": "Retention Time (min)",
+                "xlab": "Retention Time (seconds)",
                 "ymin": 0,
                 "showlegend": True,
             }
@@ -787,7 +790,7 @@ class QuantMSModule:
                 "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
                 "title": "MS1 Base Peak Chromatograms",
                 "ylab": "Ion Count",
-                "xlab": "Retention Time (min)",
+                "xlab": "Retention Time (seconds)",
                 "ymin": 0,
                 "showlegend": True,
             }
@@ -819,7 +822,7 @@ class QuantMSModule:
                 "tt_label": "<b>{point.x} Peak Count:</b> {point.y}",
                 "title": "MS1 Peaks",
                 "ylab": "Peak Count",
-                "xlab": "Retention Time (min)",
+                "xlab": "Retention Time (seconds)",
                 "ymin": 0,
                 "showlegend": True,
             }
@@ -1266,7 +1269,11 @@ class QuantMSModule:
         pconfig = {
             "id": "peak_intensity_distribution",
             "title": "Peak Intensity Distribution",
-            "cpswitch": True,
+            "cpswitch": False,
+            "stacking": "group",
+            "logswitch": True,
+            "logswitch_active": True,
+            "logswitch_label": "Log10 Scale",
             "ylab": "Count",
             "tt_decimals": 0,
         }
@@ -1336,8 +1343,12 @@ class QuantMSModule:
     def draw_peaks_per_ms2(self):
         pconfig = {
             "id": "peaks_per_ms2",
-            "cpswitch": True,
+            "cpswitch": False,
             "title": "Number of Peaks per MS/MS spectrum",
+            "stacking": "group",
+            "logswitch": True,
+            "logswitch_active": True,
+            "logswitch_label": "Log10 Scale",
             "ylab": "Count",
             "tt_decimals": 0,
         }
@@ -3015,12 +3026,19 @@ class QuantMSModule:
         else:
             report_data = pd.read_parquet(self.diann_report_path)
 
+        # "Decoy" appears only in DIA-NN 2.0 and later.
+        # 0 or 1 based on whether the precursor is decoy, relevant when using --report-decoys
+        if "Decoy" in report_data.columns:
+            report_data = report_data[report_data["Decoy"] == 0].copy()
+
         # Draw: Standard Deviation of Intensity
-        if "Precursor.Normalised" in report_data.columns:
+        if "Precursor.Quantity" in report_data.columns:
             draw_dia_intensitys(self.sub_sections["quantification"], report_data)
         
+        draw_dia_ms1(self.sub_sections["ms1"], report_data)
         draw_dia_ms2s(self.sub_sections["ms2"], report_data)
         draw_dia_time_mass(self.sub_sections["time_mass"], report_data)
+        draw_dia_rt_qc(self.sub_sections["rt_qc"], report_data)
 
         # Draw: Quantification Table (DIA-NN, without msstats data)
         if not self.msstats_input_valid:
@@ -3095,7 +3113,7 @@ class QuantMSModule:
             )
             modified_cats.extend(mod_group_processed["modifications"])
 
-            self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Ids"]))}
+            self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Group"]))}
             self.cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
             peptides = set(group["Modified.Sequence"])
             modified_pep = list(
