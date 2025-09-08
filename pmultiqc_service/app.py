@@ -993,7 +993,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                     
                     if result['success']:
                         # Create zip report for this file
-                        zip_report_path = os.path.join(file_output_dir, f'pmultiqc_report_{file_name}.zip')
+                        zip_report_path = os.path.join(file_output_dir, f'pmultiqc_report_{job_id}.zip')
                         if create_zip_report(file_output_dir, zip_report_path):
                             all_results.append({
                                 'file_name': file_name,
