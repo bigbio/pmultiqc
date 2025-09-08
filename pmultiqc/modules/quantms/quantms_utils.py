@@ -5,9 +5,14 @@ import numpy as np
 import os
 
 from ..common.file_utils import drop_empty_row
+from statsmodels.nonparametric.smoothers_lowess import lowess
+
+
+DEFAULT_BINS = 500
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
+
 
 def extract_condition_and_replicate(run_name):
 
@@ -217,3 +222,58 @@ def create_protein_table(report_df, sample_df, file_df):
     result_dict = {i: v for i, (_, v) in enumerate(table_dict.items(), start=1)}
 
     return result_dict, headers
+
+def cal_feature_avg_rt(report_data, col):
+
+    # RT: the retention time (RT) of the PSM in minutes
+    sub_df = report_data[[col, "Run", "RT"]].copy()
+
+    # RT bin
+    sub_df["RT_bin"] = pd.cut(sub_df["RT"], bins=DEFAULT_BINS)
+    sub_df['RT_bin_mid'] = sub_df['RT_bin'].apply(lambda x: x.mid)
+    result = sub_df.groupby(
+        ["Run", "RT_bin_mid"],
+        observed=False
+    )[col].mean().reset_index()
+    result[col] = result[col].fillna(0)
+
+    plot_dict = {
+        str(run): group.set_index("RT_bin_mid")[col].to_dict()
+        for run, group in result.groupby("Run")
+    }
+
+    return plot_dict
+
+# Lowess (Loess)
+def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=DEFAULT_BINS):
+
+    df = report_df.copy()
+    
+    # bin
+    x_min, x_max = df["iRT"].min(), df["iRT"].max()
+    bins = np.linspace(x_min, x_max, data_bins)
+    
+    plot_dict = dict()    
+    for run, group in df.groupby("Run"):
+
+        group_sorted = group.sort_values("iRT")
+        x = group_sorted["iRT"].values
+        y = group_sorted["RT"].values
+
+        # lowess
+        smoothed = lowess(y, x, frac=frac)
+        smoothed_x = smoothed[:, 0]
+        smoothed_y = smoothed[:, 1]
+
+        bin_indices = np.digitize(smoothed_x, bins)
+        binned_dict = dict()
+        for i in range(1, len(bins)):
+            mask = bin_indices == i
+            if np.any(mask):
+                x_bin_mean = float(smoothed_x[mask].mean())
+                y_bin_mean = float(smoothed_y[mask].mean())
+                binned_dict[x_bin_mean] = y_bin_mean
+
+        plot_dict[run] = binned_dict
+    
+    return plot_dict
