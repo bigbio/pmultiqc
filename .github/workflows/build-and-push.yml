@@ -4,8 +4,6 @@ on:
   push:
     branches: [ main, master, build-final ]
     tags: [ 'v*' ]
-  pull_request:
-    branches: [ main, master, build-final ]
 
 env:
   REGISTRY: ghcr.io
@@ -39,7 +37,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
