@@ -27,7 +27,7 @@ spec:
             claimName: pmultiqc-html-reports-pvc
       containers:
         - name: pmultiqc-service
-          image: ghcr.io/bigbio/pmultiqc:latest
+          image: ghcr.io/bigbio/pmultiqc:build-final
           ports:
             - name: http
               containerPort: 5000
