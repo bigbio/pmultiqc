@@ -55,6 +55,7 @@ jobs:
           # safety fallback → dev
           else
             echo "tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
