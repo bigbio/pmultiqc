@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from ..common.file_utils import get_filename, drop_empty_row
-from ..common.calc_utils import qualUniform
+from ..common.calc_utils import qualUniform, cal_delta_mass_dict
 from ...logging import get_logger, Timer
 
 # Initialize logger for this module
@@ -1225,24 +1225,10 @@ def evidence_delta_mass_da(evidence_data):
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
-    evidence_data.dropna(subset=["mass error [da]"], inplace=True)
-
-    count_bin = evidence_data["mass error [da]"].value_counts(sort=False, bins=1000)
-    count_bin_data = dict()
-    for index in count_bin.index:
-        count_bin_data[float(index.mid)] = int(count_bin[index])
-
-    frequency_bin = evidence_data["mass error [da]"].value_counts(sort=False, bins=1000, normalize=True)
-    frequency_bin_data = dict()
-    for index in frequency_bin.index:
-        frequency_bin_data[float(index.mid)] = float(frequency_bin[index])
-
-    delta_mass_da = {
-        "count": count_bin_data,
-        "frequency": frequency_bin_data,
-    }
+    delta_mass_da = cal_delta_mass_dict(evidence_data, "mass error [da]")
 
     return delta_mass_da
+
 
 # 3-13.evidence.txt: Quantification Table
 def evidence_peptides_table(evidence_data):

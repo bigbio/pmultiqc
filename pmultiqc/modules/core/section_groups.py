@@ -158,6 +158,12 @@ def add_group_modules(groups_dict, analysis_type):
                 "name": "Time and Mass Error Trends",
                 "description": ""
             },
+            {
+                "id": "rt_quality_control",
+                "key": "rt_qc_sub_section",
+                "name": "RT Quality Control",
+                "description": ""
+            },
         ]
 
     for group in group_configs:
@@ -187,16 +193,17 @@ def add_group_modules(groups_dict, analysis_type):
     
     else:
         config.report_section_order = {
-            "pmultiqc": {"order": 19},
-            "experiment_setup": {"order": 18},
-            "summary_and_heatmap": {"order": 17},
-            "identification_summary": {"order": 16},
-            "search_engine_scores": {"order": 15},
-            "contaminants": {"order": 14},
-            "quantification_analysis": {"order": 13},
-            "ms1_analysis": {"order": 12},
-            "ms2_and_spectral_stats": {"order": 11},
-            "time_and_mass_error_trends": {"order": 10},
+            "pmultiqc": {"order": 20},
+            "experiment_setup": {"order": 19},
+            "summary_and_heatmap": {"order": 18},
+            "identification_summary": {"order": 17},
+            "search_engine_scores": {"order": 16},
+            "contaminants": {"order": 15},
+            "quantification_analysis": {"order": 14},
+            "ms1_analysis": {"order": 13},
+            "ms2_and_spectral_stats": {"order": 12},
+            "time_and_mass_error_trends": {"order": 11},
+            "rt_quality_control": {"order": 10},
             "software_versions": {"order": 9},
             "multiqc_software_versions": {"order": 8},
             "nf_core_quantms_software": {"order": 7},

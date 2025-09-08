@@ -326,9 +326,9 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
             and does not include potential contaminants.
             """
     elif report_type == "dia":
-        description_text = "Distribution of retention time, derived from the report.tsv."
+        description_text = "Distribution of retention time, derived from the main report."
         help_text = """
-            [DIA-NN: report.tsv] Distribution of retention time (RT) for each run.
+            [DIA-NN: main report] Distribution of retention time (RT) for each run.
             """
     elif report_type == "mzIdentML":
         description_text = "Distribution of retention time, derived from the mzIdentML (or mzML)."
