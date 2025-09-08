@@ -65,11 +65,9 @@
                 {% if job_data.html_report_urls and job_data.html_report_urls|length > 0 %}
                 <div style="margin: 15px 0;">
                     <h4>📊 View Reports Online</h4>
-                    {% if job_data.html_report_urls|length == 1 %}
-                        {% for name, url in job_data.html_report_urls.items() %}
-                        <a href="{{ url }}" class="btn btn-success" target="_blank">📊 View Report Online</a>
-                        {% endfor %}
-                    {% endif %}
+                    {% for name, url in job_data.html_report_urls.items() %}
+                    <a href="{{ url }}" class="btn btn-success" target="_blank">📊 View Report Online</a>
+                    {% endfor %}
                 </div>
                 {% endif %}
             </div>
