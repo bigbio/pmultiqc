@@ -1023,10 +1023,11 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         # Create combined zip report
         combined_zip_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
         
-        with zipfile.ZipFile(combined_zip_path, 'w') as combined_zip:
-            for result in all_results:
-                if os.path.exists(result['report_path']):
-                    combined_zip.write(result['report_path'], os.path.basename(result['report_path']))
+        if not create_zip_report(output_dir, combined_zip_path):
+            logger.error(f"Failed to create combined zip report for job {job_id}")
+            update_job_progress(job_id, 'failed', error='Failed to create zip report', 
+                              finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            return
         
         # Update job status to completed immediately after PMultiQC succeeds
         logger.info(f"Updating PRIDE job {job_id} status to completed after PMultiQC success")
