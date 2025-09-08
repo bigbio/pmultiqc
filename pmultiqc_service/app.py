@@ -1047,29 +1047,11 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         html_urls = None
         try:
             logger.info(f"Starting HTML report copying for PRIDE job {job_id}, output_dir: {output_dir}")
-            # Set a timeout for HTML report copying to prevent hanging
-            import signal
-            
-            def timeout_handler(signum, frame):
-                raise TimeoutError("HTML report copying timed out")
-            
-            # Set a 5-minute timeout for HTML report copying
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(300)  # 5 minutes
-            
-            try:
-                html_urls = copy_html_report_for_online_viewing(output_dir, job_id, accession)
-                signal.alarm(0)  # Cancel the alarm
-                logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
-                if html_urls is None:
-                    logger.warning(f"HTML report copying returned None for PRIDE job {job_id}")
-            except TimeoutError:
-                signal.alarm(0)  # Cancel the alarm
-                logger.error(f"HTML report copying timed out for PRIDE job {job_id}")
-                html_urls = None
-            except Exception as copy_e:
-                signal.alarm(0)  # Cancel the alarm
-                raise copy_e  # Re-raise the original exception
+            # Copy HTML reports without signal-based timeout (signals don't work in background threads)
+            html_urls = copy_html_report_for_online_viewing(output_dir, job_id, accession)
+            logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
+            if html_urls is None:
+                logger.warning(f"HTML report copying returned None for PRIDE job {job_id}")
                 
         except Exception as e:
             logger.error(f"Failed to copy HTML reports for PRIDE job {job_id}: {e}")
