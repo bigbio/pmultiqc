@@ -589,10 +589,6 @@ def draw_loess_rt_irt(sub_section, plot_data):
         """,
     )
 
-
-
-
-
 # mzIdentML: Quantification Table
 def draw_mzid_quant_table(sub_section, mzid_mzml_df):
 
