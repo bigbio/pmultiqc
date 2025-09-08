@@ -47,8 +47,6 @@ def draw_dia_ms2s(sub_section, df):
     # Charge-state of Per File
     draw_dia_ms2_charge(sub_section, df)
 
-    # MS2.Scan does not exist in the main report of DIA-NN versions 2.0 and later.
-
 def draw_dia_time_mass(sub_section, df):
 
     # IDs over RT
