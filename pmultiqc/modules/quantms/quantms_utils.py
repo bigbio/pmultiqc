@@ -8,6 +8,8 @@ from ..common.file_utils import drop_empty_row
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
 
+DEFAULT_BINS = 500
+
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
@@ -227,7 +229,7 @@ def cal_feature_avg_rt(report_data, col):
     sub_df = report_data[[col, "Run", "RT"]].copy()
 
     # RT bin
-    sub_df["RT_bin"] = pd.cut(sub_df["RT"], bins=500)
+    sub_df["RT_bin"] = pd.cut(sub_df["RT"], bins=DEFAULT_BINS)
     sub_df['RT_bin_mid'] = sub_df['RT_bin'].apply(lambda x: x.mid)
     result = sub_df.groupby(
         ["Run", "RT_bin_mid"],
@@ -243,7 +245,7 @@ def cal_feature_avg_rt(report_data, col):
     return plot_dict
 
 # Lowess (Loess)
-def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=500):
+def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=DEFAULT_BINS):
 
     df = report_df.copy()
     

@@ -7,7 +7,6 @@ from ..common.common_plots import (
 )
 from ..core.section_groups import add_sub_section
 from ..maxquant.maxquant_utils import evidence_rt_count
-# from ..common.common_plots import draw_oversampling
 from . import quantms_utils, mzidentml_utils
 from ..common.calc_utils import cal_delta_mass_dict
 
@@ -47,16 +46,6 @@ def draw_dia_ms2s(sub_section, df):
 
     # Charge-state of Per File
     draw_dia_ms2_charge(sub_section, df)
-
-    # MS2.Scan does not exist in the main report of DIA-NN versions 2.0 and later.
-    # if "MS2.Scan" in df.columns:
-    #     msms_count_data = quantms_utils.calculate_msms_count(df)
-    #     draw_oversampling(
-    #         sub_section,
-    #         msms_count_data["plot_data"],
-    #         msms_count_data["cats"],
-    #         False
-    #     )
 
 def draw_dia_time_mass(sub_section, df):
 
