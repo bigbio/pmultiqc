@@ -29,18 +29,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set image tag
-        id: image-tag
-        run: |
-          echo "tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
-
-      - name: Build Docker image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./pmultiqc_service
           file: ./pmultiqc_service/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.image-tag.outputs.tag }}
+          tags: ghcr.io/bigbio/pmultiqc:latest
+          labels: ""
           cache-from: type=gha
           cache-to: type=gha,mode=max
