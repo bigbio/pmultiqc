@@ -49,14 +49,6 @@ def draw_dia_ms2s(sub_section, df):
     draw_dia_ms2_charge(sub_section, df)
 
     # MS2.Scan does not exist in the main report of DIA-NN versions 2.0 and later.
-    # if "MS2.Scan" in df.columns:
-    #     msms_count_data = quantms_utils.calculate_msms_count(df)
-    #     draw_oversampling(
-    #         sub_section,
-    #         msms_count_data["plot_data"],
-    #         msms_count_data["cats"],
-    #         False
-    #     )
 
 def draw_dia_time_mass(sub_section, df):
 
