@@ -1,13 +1,12 @@
-name: Build and Push to GitHub Packages
+name: Build and Push to GitHub Container Registry
 
 on:
   push:
     branches: [ main, master ]
-    tags: [ 'v*' ]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: bigbio/pmultiqc
 
 jobs:
   build-and-push:
@@ -18,54 +17,26 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226
+        uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@96383f45573cb7e561a8e4d4d0d8b1489a6a2d8e
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}
-
       - name: Build and push Docker image
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09
+        uses: docker/build-push-action@v5
         with:
           context: ./pmultiqc_service
           file: ./pmultiqc_service/Dockerfile
+          platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Generate simple image tags
-        id: simple_tags
-        run: |
-          tags="${{ steps.meta.outputs.tags }}"
-          simple_tags=$(echo "$tags" | sed 's/:/:simple-/g')
-          echo "tags=$simple_tags" >> $GITHUB_OUTPUT
-
-      - name: Build and push Docker image (simple)
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09
-        with:
-          context: ./pmultiqc_service
-          file: ./pmultiqc_service/Dockerfile.simple
-          push: true
-          tags: ${{ steps.simple_tags.outputs.tags }}
+          tags: ghcr.io/bigbio/pmultiqc:latest
+          labels: ""
           cache-from: type=gha
           cache-to: type=gha,mode=max

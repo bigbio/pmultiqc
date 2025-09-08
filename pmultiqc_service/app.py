@@ -993,7 +993,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                     
                     if result['success']:
                         # Create zip report for this file
-                        zip_report_path = os.path.join(file_output_dir, f'pmultiqc_report_{file_name}.zip')
+                        zip_report_path = os.path.join(file_output_dir, f'pmultiqc_report_{job_id}.zip')
                         if create_zip_report(file_output_dir, zip_report_path):
                             all_results.append({
                                 'file_name': file_name,
@@ -1023,10 +1023,11 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         # Create combined zip report
         combined_zip_path = os.path.join(output_dir, f'pmultiqc_report_{job_id}.zip')
         
-        with zipfile.ZipFile(combined_zip_path, 'w') as combined_zip:
-            for result in all_results:
-                if os.path.exists(result['report_path']):
-                    combined_zip.write(result['report_path'], os.path.basename(result['report_path']))
+        if not create_zip_report(output_dir, combined_zip_path):
+            logger.error(f"Failed to create combined zip report for job {job_id}")
+            update_job_progress(job_id, 'failed', error='Failed to create zip report', 
+                              finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            return
         
         # Update job status to completed immediately after PMultiQC succeeds
         logger.info(f"Updating PRIDE job {job_id} status to completed after PMultiQC success")
@@ -1046,29 +1047,11 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         html_urls = None
         try:
             logger.info(f"Starting HTML report copying for PRIDE job {job_id}, output_dir: {output_dir}")
-            # Set a timeout for HTML report copying to prevent hanging
-            import signal
-            
-            def timeout_handler(signum, frame):
-                raise TimeoutError("HTML report copying timed out")
-            
-            # Set a 5-minute timeout for HTML report copying
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(300)  # 5 minutes
-            
-            try:
-                html_urls = copy_html_report_for_online_viewing(output_dir, job_id, accession)
-                signal.alarm(0)  # Cancel the alarm
-                logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
-                if html_urls is None:
-                    logger.warning(f"HTML report copying returned None for PRIDE job {job_id}")
-            except TimeoutError:
-                signal.alarm(0)  # Cancel the alarm
-                logger.error(f"HTML report copying timed out for PRIDE job {job_id}")
-                html_urls = None
-            except Exception as copy_e:
-                signal.alarm(0)  # Cancel the alarm
-                raise copy_e  # Re-raise the original exception
+            # Copy HTML reports without signal-based timeout (signals don't work in background threads)
+            html_urls = copy_html_report_for_online_viewing(output_dir, job_id, accession)
+            logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
+            if html_urls is None:
+                logger.warning(f"HTML report copying returned None for PRIDE job {job_id}")
                 
         except Exception as e:
             logger.error(f"Failed to copy HTML reports for PRIDE job {job_id}: {e}")
@@ -1374,9 +1357,12 @@ def create_zip_report(output_path: str, zip_path: str) -> bool:
             return False
         
         files_found = []
+        zip_filename = os.path.basename(zip_path)
         for root, dirs, files in os.walk(output_path):
             for file in files:
-                files_found.append(os.path.join(root, file))
+                # Skip the zip file we're creating to avoid infinite loop
+                if file != zip_filename:
+                    files_found.append(os.path.join(root, file))
         
         logger.info(f"Found {len(files_found)} files to zip")
         

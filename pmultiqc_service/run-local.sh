@@ -30,11 +30,12 @@ fi
 
 # Start Redis container
 echo -e "${YELLOW}Starting Redis container...${NC}"
+REDIS_PASSWORD=${REDIS_PASSWORD:-"pmultiqc123"}
 docker run -d \
     --name pmultiqc-redis \
     -p 6379:6379 \
-    -e REDIS_PASSWORD=pmultiqc123 \
-    redis:7-alpine redis-server --requirepass pmultiqc123
+    -e REDIS_PASSWORD=$REDIS_PASSWORD \
+    redis:7-alpine redis-server --requirepass $REDIS_PASSWORD
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Redis container started successfully${NC}"
@@ -48,7 +49,7 @@ echo -e "${YELLOW}Waiting for Redis to be ready...${NC}"
 sleep 3
 
 # Test Redis connection
-if docker exec pmultiqc-redis redis-cli -a pmultiqc123 ping | grep -q "PONG"; then
+if docker exec pmultiqc-redis redis-cli -a $REDIS_PASSWORD ping | grep -q "PONG"; then
     echo -e "${GREEN}✅ Redis is ready${NC}"
 else
     echo -e "${RED}❌ Redis is not responding${NC}"
@@ -94,7 +95,7 @@ docker run --rm \
     -e LOG_LEVEL=DEBUG \
     -e BASE_URL=http://localhost:5000 \
     -e REDIS_URL=redis://redis:6379 \
-    -e REDIS_PASSWORD=pmultiqc123 \
+    -e REDIS_PASSWORD=$REDIS_PASSWORD \
     pmultiqc-service:latest
 
 echo ""
