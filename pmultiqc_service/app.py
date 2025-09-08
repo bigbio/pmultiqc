@@ -1375,9 +1375,12 @@ def create_zip_report(output_path: str, zip_path: str) -> bool:
             return False
         
         files_found = []
+        zip_filename = os.path.basename(zip_path)
         for root, dirs, files in os.walk(output_path):
             for file in files:
-                files_found.append(os.path.join(root, file))
+                # Skip the zip file we're creating to avoid infinite loop
+                if file != zip_filename:
+                    files_found.append(os.path.join(root, file))
         
         logger.info(f"Found {len(files_found)} files to zip")
         
