@@ -36,7 +36,7 @@ jobs:
           file: ./pmultiqc_service/Dockerfile
           platforms: linux/amd64
           push: true
-          images: ghcr.io/bigbio/pmultiqc:latest
+          tags: ghcr.io/bigbio/pmultiqc:latest
           labels: ""
           cache-from: type=gha
           cache-to: type=gha,mode=max
