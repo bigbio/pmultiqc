@@ -1238,7 +1238,7 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         
         # Add type-specific arguments
         if input_type == 'maxquant':
-            args.extend(['--parse_maxquant'])
+            args.extend(['--parse_maxquant', '--ignore', 'summary.txt'])
         elif input_type == "quantms":
             args.extend(["--config", pmultiqc_config])
         elif input_type == 'diann':
