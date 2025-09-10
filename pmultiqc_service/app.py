@@ -1161,7 +1161,7 @@ def detect_input_type(upload_path: str) -> tuple:
     Detect the type of input data based on the contents of the extracted zip file.
     
     Returns:
-        tuple: (input_type, quantms_config_path) where input_type is one of 'maxquant', 'diann', 'quantms', 'mzidentml', or 'unknown'
+        tuple: (input_type, quantms_config_path) where input_type is one of 'maxquant', 'diann', 'quantms', 'mzidentml', 'dia', or 'unknown'
     """
     try:
         files, file_paths = scan_files(upload_path)
@@ -1171,15 +1171,23 @@ def detect_input_type(upload_path: str) -> tuple:
         if "multiqc_config.yml" in files and any(any(substr in f for substr in quantms_files) for f in files):
             return "quantms", file_paths["multiqc_config.yml"]
 
+        # Check for DIA/DIANN files - check this BEFORE MaxQuant
+        # DIANN is a tool for analyzing DIA (Data Independent Acquisition) data
+        diann_files = ['report.tsv', 'report.parquet', 'diann_report.tsv', 'diann_report.parquet']
+        diann_indicators = ['diann', 'spectronaut', 'dia', 'dda', 'dda_report']
+        
+        # Check for DIANN files or DIA indicators in filenames
+        has_diann_files = any(f in files for f in diann_files)
+        has_diann_indicators = any(any(indicator in f.lower() for indicator in diann_indicators) for f in files)
+        
+        if has_diann_files or has_diann_indicators:
+            logger.info("Detected DIA/DIANN experiment files")
+            return "diann", None
+
         # Check for MaxQuant files
         maxquant_files = ['evidence.txt', 'msms.txt', 'peptides.txt', 'proteinGroups.txt']
         if any(f in files for f in maxquant_files):
             return "maxquant", None
-        
-        # Check for DIANN files
-        diann_files = ['report.tsv', 'report.parquet']
-        if any(f in files for f in diann_files) or any('diann_report' in f for f in files):
-            return "diann", None
         
         # Check for mzIdentML files (CPMPLETE submissions)
         has_mzid = any(f.endswith('.mzid') for f in files)
@@ -1218,7 +1226,8 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
             args.extend(["--config", pmultiqc_config])
         elif input_type == 'diann':
             # DIANN files are handled automatically by pmultiqc
-            pass
+            # For DIA experiments, we might need specific arguments
+            args.extend(['--parse_diann'])
         elif input_type == 'mzidentml':
             args.extend(['--mzid_plugin'])
         
