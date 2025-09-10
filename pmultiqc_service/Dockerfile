@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    git \
     libxml2-dev \
     libxslt-dev \
     zlib1g-dev \
@@ -25,8 +26,8 @@ RUN pip install --upgrade pip setuptools wheel
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install pmultiqc from main branch instead of PyPI version
-RUN pip install --no-cache-dir git+https://github.com/bigbio/pmultiqc.git@main
+# Install pmultiqc from main branch (overrides PyPI version)
+RUN pip install --no-cache-dir --force-reinstall git+https://github.com/bigbio/pmultiqc.git@main
 
 # Copy service files
 COPY app.py .
