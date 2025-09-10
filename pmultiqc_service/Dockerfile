@@ -26,10 +26,6 @@ RUN pip install --upgrade pip setuptools wheel
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install pmultiqc from local source (current directory)
-COPY . /tmp/pmultiqc_source
-RUN pip install --no-cache-dir /tmp/pmultiqc_source
-
 # Copy service files
 COPY app.py .
 COPY templates/ ./templates/
