@@ -92,16 +92,25 @@
                     }
                     
                     // Check if html_report_urls is now populated by polling the job status
-                    fetch(`/job-status/{{ job_data.job_id }}`)
-                        .then(response => response.json())
+                    fetch(`{{ config.BASE_URL.rstrip('/') }}/job-status/{{ job_data.job_id }}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             console.log('Checking job status:', data.status, 'html_report_urls:', data.html_report_urls);
-                            if (data.html_report_urls && Object.keys(data.html_report_urls).length > 0) {
+                            console.log('html_report_urls type:', typeof data.html_report_urls);
+                            console.log('html_report_urls keys:', data.html_report_urls ? Object.keys(data.html_report_urls) : 'null');
+                            
+                            if (data.html_report_urls && typeof data.html_report_urls === 'object' && Object.keys(data.html_report_urls).length > 0) {
                                 // HTML reports are ready, refresh the page
                                 console.log('HTML reports ready, refreshing page...');
                                 location.reload();
                             } else {
                                 // Not ready yet, check again in 1 second
+                                console.log('HTML reports not ready yet, checking again...');
                                 setTimeout(checkForHtmlReports, 1000);
                             }
                         })
