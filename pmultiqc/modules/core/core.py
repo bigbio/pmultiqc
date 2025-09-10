@@ -58,7 +58,7 @@ class PMultiQC(BaseMultiqcModule):
             "quantification": [],
             "ms1": [],
             "ms2": [],
-            "time_mass": [],
+            "mass_error": [],
             "rt_qc": [],
         }
 
