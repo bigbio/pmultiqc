@@ -1243,7 +1243,8 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
             args.extend(["--config", pmultiqc_config])
         elif input_type == 'diann':
             # DIANN files are handled automatically by pmultiqc
-            pass
+            # Add memory optimization arguments for large files
+            args.extend(['--no-megaqc-upload', '--quiet'])
         elif input_type == 'mzidentml':
             args.extend(['--mzid_plugin'])
         
