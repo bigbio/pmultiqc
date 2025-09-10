@@ -40,10 +40,11 @@ from ..maxquant.maxquant_utils import (
     evidence_calibrated_mass_error
 )
 from .quantms_plots import (
+    draw_dia_heatmap,
     draw_dia_intensitys,
     draw_dia_ms1,
     draw_dia_ms2s,
-    draw_dia_time_mass,
+    draw_dia_mass_error,
     draw_dia_rt_qc,
     draw_diann_quant_table,
     draw_mzid_quant_table
@@ -161,7 +162,7 @@ class QuantMSModule:
 
                     mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
                     common_plots.draw_ids_rt_count(
-                        self.sub_sections["time_mass"],
+                        self.sub_sections["rt_qc"],
                         mzid_ids_over_rt,
                         "mzIdentML"
                     )
@@ -414,7 +415,7 @@ class QuantMSModule:
                 "quantification_sub_section": self.sub_sections["quantification"],
                 "ms1_sub_section": self.sub_sections["ms1"],
                 "ms2_sub_section": self.sub_sections["ms2"],
-                "time_mass_sub_section": self.sub_sections["time_mass"],
+                "mass_error_sub_section": self.sub_sections["mass_error"],
                 "rt_qc_sub_section": self.sub_sections["rt_qc"],
             }
 
@@ -1601,9 +1602,9 @@ class QuantMSModule:
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
 
         add_sub_section(
-            sub_section=self.sub_sections["time_mass"],
+            sub_section=self.sub_sections["mass_error"],
             plot=line_html,
-            order=3,
+            order=1,
             description="""
                 This chart represents the distribution of the relative frequency of experimental 
                 precursor ion mass (m/z) - theoretical precursor ion mass (m/z).
@@ -3031,13 +3032,21 @@ class QuantMSModule:
         if "Decoy" in report_data.columns:
             report_data = report_data[report_data["Decoy"] == 0].copy()
 
+        # Normalisation.Factor: can be calculated as Precursor.Normalised/Precursor.Quantity
+        required_cols = ["Precursor.Normalised", "Precursor.Quantity"]
+        if "Normalisation.Factor" not in report_data.columns and all(
+            col in report_data.columns for col in required_cols
+        ):
+            report_data["Normalisation.Factor"] = report_data[required_cols[0]] / report_data[required_cols[1]]
+
         # Draw: Standard Deviation of Intensity
         if "Precursor.Quantity" in report_data.columns:
             draw_dia_intensitys(self.sub_sections["quantification"], report_data)
+            draw_dia_heatmap(self.sub_sections["summary"], report_data, self.heatmap_color_list)
         
         draw_dia_ms1(self.sub_sections["ms1"], report_data)
         draw_dia_ms2s(self.sub_sections["ms2"], report_data)
-        draw_dia_time_mass(self.sub_sections["time_mass"], report_data)
+        draw_dia_mass_error(self.sub_sections["mass_error"], report_data)
         draw_dia_rt_qc(self.sub_sections["rt_qc"], report_data)
 
         # Draw: Quantification Table (DIA-NN, without msstats data)
@@ -3665,7 +3674,7 @@ class QuantMSModule:
         # 1.IDs over RT
         if self.quantms_ids_over_rt:
             common_plots.draw_ids_rt_count(
-                self.sub_sections["time_mass"],
+                self.sub_sections["rt_qc"],
                 self.quantms_ids_over_rt,
                 ""
             )
@@ -3673,7 +3682,7 @@ class QuantMSModule:
         # 2.Delta Mass [ppm]
         if self.quantms_mass_error:
             common_plots.draw_delta_mass_da_ppm(
-                self.sub_sections["time_mass"],
+                self.sub_sections["mass_error"],
                 self.quantms_mass_error,
                 "quantms_ppm"
             )
