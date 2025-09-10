@@ -1,0 +1,30 @@
+# Local data directories
+local_uploads/
+local_outputs/
+local_html_reports/
+
+# Virtual environment
+venv/
+
+# Docker images and archives
+*.tar
+*.tar.gz
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
