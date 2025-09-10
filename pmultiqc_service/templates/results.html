@@ -80,7 +80,7 @@
                 <script>
                 // Auto-refresh until html_report_urls is populated
                 let refreshCount = 0;
-                const maxRefreshAttempts = 30; // 30 attempts = 1 minute
+                const maxRefreshAttempts = 60; // 60 attempts = 1 minute (checking every 1 second)
                 
                 function checkForHtmlReports() {
                     refreshCount++;
@@ -95,22 +95,24 @@
                     fetch(`/job-status/{{ job_data.job_id }}`)
                         .then(response => response.json())
                         .then(data => {
+                            console.log('Checking job status:', data.status, 'html_report_urls:', data.html_report_urls);
                             if (data.html_report_urls && Object.keys(data.html_report_urls).length > 0) {
                                 // HTML reports are ready, refresh the page
+                                console.log('HTML reports ready, refreshing page...');
                                 location.reload();
                             } else {
-                                // Not ready yet, check again in 2 seconds
-                                setTimeout(checkForHtmlReports, 2000);
+                                // Not ready yet, check again in 1 second
+                                setTimeout(checkForHtmlReports, 1000);
                             }
                         })
                         .catch(error => {
                             console.error('Error checking job status:', error);
-                            setTimeout(checkForHtmlReports, 2000);
+                            setTimeout(checkForHtmlReports, 1000);
                         });
                 }
                 
-                // Start checking after a 2-second delay
-                setTimeout(checkForHtmlReports, 2000);
+                // Start checking immediately (no delay)
+                checkForHtmlReports();
                 </script>
                 {% endif %}
             </div>
