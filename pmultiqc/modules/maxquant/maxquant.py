@@ -379,21 +379,21 @@ class MaxQuantModule:
 
         if self.mq_results["get_evidence_dicts"]["rt_counts"]:
             common_plots.draw_ids_rt_count(
-                self.sub_sections["time_mass"],
+                self.sub_sections["rt_qc"],
                 self.mq_results["get_evidence_dicts"]["rt_counts"],
                 "maxquant"
             )
 
         if self.mq_results["get_evidence_dicts"]["peak_rt"]:
             maxquant_plots.draw_evidence_peak_width_rt(
-                self.sub_sections["time_mass"],
+                self.sub_sections["rt_qc"],
                 self.mq_results["get_evidence_dicts"]["peak_rt"],
             )
 
         # Uncalibrated Mass Error
         if self.mq_results["get_evidence_dicts"]["uncalibrated_mass_error"]:
             maxquant_plots.draw_mass_error_box(
-                self.sub_sections["time_mass"],
+                self.sub_sections["mass_error"],
                 self.mq_results["get_evidence_dicts"]["uncalibrated_mass_error"]
             )
 
@@ -429,7 +429,7 @@ class MaxQuantModule:
         # MaxQuant: Delta Mass [Da]
         if self.mq_results["get_evidence_dicts"]["maxquant_delta_mass_da"]:
             common_plots.draw_delta_mass_da_ppm(
-                self.sub_sections["time_mass"],
+                self.sub_sections["mass_error"],
                 self.mq_results["get_evidence_dicts"]["maxquant_delta_mass_da"],
                 "Mass Error [Da]"
             )
@@ -437,7 +437,7 @@ class MaxQuantModule:
         # MaxQuant: Delta Mass [ppm]
         if self.mq_results["get_evidence_dicts"]["calibrated_mass_error"]:
             common_plots.draw_delta_mass_da_ppm(
-                self.sub_sections["time_mass"],
+                self.sub_sections["mass_error"],
                 self.mq_results["get_evidence_dicts"]["calibrated_mass_error"],
                 "Mass Error [ppm]"
             )
@@ -445,17 +445,17 @@ class MaxQuantModule:
         # TopN
         if self.mq_results["get_msms_scans_dicts"]["top_n"]:
             maxquant_plots.draw_msms_scans_top_n(
-                self.sub_sections["time_mass"],
+                self.sub_sections["rt_qc"],
                 self.mq_results["get_msms_scans_dicts"]["top_n"]
             )
         if self.mq_results["get_msms_scans_dicts"]["top_over_rt"]:
             maxquant_plots.draw_msms_scans_top_over_rt(
-                self.sub_sections["time_mass"],
+                self.sub_sections["rt_qc"],
                 self.mq_results["get_msms_scans_dicts"]["top_over_rt"]
             )
         if self.mq_results["get_msms_scans_dicts"]["ion_injec_time_rt"]:
             maxquant_plots.draw_msms_scans_ion_injec_time_rt(
-                self.sub_sections["time_mass"],
+                self.sub_sections["rt_qc"],
                 self.mq_results["get_msms_scans_dicts"]["ion_injec_time_rt"]
             )
 
@@ -468,7 +468,8 @@ class MaxQuantModule:
             "quantification_sub_section": self.sub_sections["quantification"],
             "ms1_sub_section": self.sub_sections["ms1"],
             "ms2_sub_section": self.sub_sections["ms2"],
-            "time_mass_sub_section": self.sub_sections["time_mass"],
+            "mass_error_sub_section": self.sub_sections["mass_error"],
+            "rt_qc_sub_section": self.sub_sections["rt_qc"],
         }
 
         add_group_modules(self.section_group_dict, "")

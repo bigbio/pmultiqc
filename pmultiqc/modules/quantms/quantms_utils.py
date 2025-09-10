@@ -6,6 +6,7 @@ import os
 
 from ..common.file_utils import drop_empty_row
 from statsmodels.nonparametric.smoothers_lowess import lowess
+from ..common.calc_utils import qualUniform
 
 
 DEFAULT_BINS = 500
@@ -244,7 +245,7 @@ def cal_feature_avg_rt(report_data, col):
 
     return plot_dict
 
-# Lowess (Loess)
+# DIA-NN: Lowess (Loess)
 def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=DEFAULT_BINS):
 
     df = report_df.copy()
@@ -277,3 +278,90 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=DEFAULT_BINS):
         plot_dict[run] = binned_dict
     
     return plot_dict
+
+# DIA-NN: HeatMap
+def cal_dia_heatmap(report_df):
+
+    # "Contaminants" & "Peptide Intensity"
+    pep_intensity = heatmap_cont_pep_intensity(report_df)
+
+    # missed tryptic cleavages: there is no available data
+
+
+
+    return pep_intensity
+
+def heatmap_cont_pep_intensity(report_df):
+
+    df = report_df[
+        [
+            "Run", "Protein.Names", "Precursor.Quantity", "RT", "Predicted.RT", 
+            "Precursor.Charge", "Normalisation.Factor", "RT.Stop", "RT.Start"
+        ]
+    ].copy()
+
+    # TODO "CON"?
+    df["is_contaminant"] = df["Protein.Names"].str.startswith("CON")
+
+    # 3. "Charge"
+    charge = dict()
+    for raw_file, group in df[["Run", "Precursor.Charge"]].groupby("Run"):
+        charge[raw_file] = group["Precursor.Charge"].value_counts()[2] / len(group)
+    charge_median = np.median(list(charge.values()))
+    heatmap_charge = dict(
+        zip(
+            charge.keys(),
+            list(map(lambda v: float(1 - np.abs(v - charge_median)), charge.values())),
+        )
+    )
+
+    heatmap_dict = {}
+    for run, group in df.groupby("Run"):
+        
+        # 1. "Contaminants"
+        cont_intensity_sum = group[group["is_contaminant"]]["Precursor.Quantity"].sum()
+        if np.isnan(cont_intensity_sum) or cont_intensity_sum == 0:
+            contaminant = 1
+        else:
+            intensity_sum = group["Precursor.Quantity"].sum()
+            contaminant = 1 - cont_intensity_sum / intensity_sum
+
+        # 2. "Peptide Intensity"
+        pep_median = np.nanmedian(group["Precursor.Quantity"].to_numpy())
+        pep_intensity = float(np.fmin(1.0, pep_median / (2**23)))
+
+
+        # 4. "RT Alignment"
+        rt_alignment = max(
+            0.0,
+            1 - float(np.mean(np.abs(group["RT"] - group["Predicted.RT"])))
+        )
+
+        # 5. "ID rate over RT"
+        ids_rate_over_rt = qualUniform(group["RT"])
+
+        # 6. Normalization Factor MAD
+        def mean_abs_dev(x):
+            mean_x = x.mean()
+            return float(1- np.mean(np.abs(x - mean_x)))
+
+        norm_factor_mad = mean_abs_dev(group["Normalisation.Factor"])
+
+        # 7. Peak Width = RT.Stop - RT.Start
+        peak_width = max(
+            0.0,
+            1 - float(np.mean(group["RT.Stop"] - group["RT.Start"]))
+        )
+
+        # All Dict
+        heatmap_dict[run] = {
+            "Contaminants": contaminant,
+            "Peptide Intensity": pep_intensity,
+            "Charge": heatmap_charge.get(run, 0),
+            "RT Alignment": rt_alignment,
+            "ID rate over RT": ids_rate_over_rt,
+            "Norm Factor": norm_factor_mad,
+            "Peak Width": peak_width,
+        }
+
+    return heatmap_dict
