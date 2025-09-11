@@ -1313,6 +1313,7 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         # Fallback: check if report.tsv files exist even if input type detection failed
         if not should_preprocess:
             try:
+                import glob
                 input_dir = args[1]  # Second argument is the input directory (first is 'multiqc')
                 if os.path.exists(input_dir):
                     report_files = glob.glob(f"{input_dir}/**/report.tsv", recursive=True)
