@@ -1260,6 +1260,37 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         except Exception as e:
             logger.error(f"Error checking pmultiqc plugin: {e}")
         
+        # Add timeout for large datasets (30 minutes)
+        import signal
+        import time
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError("MultiQC processing timed out after 30 minutes")
+        
+        # Set timeout for large files
+        if input_type == 'diann':
+            # Check if we have a large file
+            input_dir = args[1]
+            large_file_detected = False
+            try:
+                for root, dirs, files in os.walk(input_dir):
+                    for file in files:
+                        if file.endswith('.tsv'):
+                            file_path = os.path.join(root, file)
+                            file_size = os.path.getsize(file_path)
+                            if file_size > 500 * 1024 * 1024:  # > 500MB
+                                large_file_detected = True
+                                break
+                    if large_file_detected:
+                        break
+            except:
+                pass
+            
+            if large_file_detected:
+                logger.info("Large file detected, setting 30-minute timeout")
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(1800)  # 30 minutes
+        
         # Set environment variables to fix matplotlib and other issues
         import os
         os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
@@ -1288,7 +1319,7 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                 # Check if input directory exists
                 if not os.path.exists(input_dir):
                     logger.warning(f"Input directory does not exist: {input_dir}")
-                    return
+                    # Continue with MultiQC even if preprocessing fails
                 
                 # List all files in the input directory
                 all_files = []
@@ -1303,23 +1334,86 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                 for report_file in report_files:
                     logger.info(f"Processing report file: {report_file}")
                     try:
-                        # Read the report file
-                        df = pd.read_csv(report_file, sep='\t')
-                        logger.info(f"Loaded report file with {len(df)} rows and columns: {list(df.columns)}")
+                        # Check file size first
+                        file_size = os.path.getsize(report_file)
+                        file_size_mb = file_size / (1024 * 1024)
+                        logger.info(f"Report file size: {file_size_mb:.2f} MB")
                         
-                        # Check if is_contaminant column exists and has NaN values
-                        if 'is_contaminant' in df.columns:
-                            nan_count = df['is_contaminant'].isna().sum()
-                            logger.info(f"Found {nan_count} NaN values in is_contaminant column")
-                            if nan_count > 0:
-                                logger.info(f"Filling {nan_count} NaN values in is_contaminant column with False")
-                                df['is_contaminant'] = df['is_contaminant'].fillna(False)
+                        # Warn if file is very large
+                        if file_size_mb > 1000:  # > 1GB
+                            logger.warning(f"Large dataset detected: {file_size_mb:.2f} MB. This may take a long time to process.")
+                        
+                        # Read the report file with chunking for large files
+                        if file_size_mb > 500:  # > 500MB, use chunking
+                            logger.info("Large file detected, using chunked reading...")
+                            chunk_size = 100000  # 100k rows per chunk
+                            chunks_processed = 0
+                            total_rows = 0
+                            
+                            # First, count total rows
+                            logger.info("Counting total rows in file...")
+                            with open(report_file, 'r') as f:
+                                total_rows = sum(1 for line in f) - 1  # Subtract header
+                            logger.info(f"Total rows in file: {total_rows:,}")
+                            
+                            # Process in chunks
+                            for chunk_df in pd.read_csv(report_file, sep='\t', chunksize=chunk_size):
+                                chunks_processed += 1
+                                rows_in_chunk = len(chunk_df)
+                                total_processed = chunks_processed * chunk_size
+                                progress_pct = min(100, (total_processed / total_rows) * 100)
                                 
-                                # Write the cleaned data back
-                                df.to_csv(report_file, sep='\t', index=False)
-                                logger.info(f"Cleaned report file saved: {report_file}")
+                                logger.info(f"Processing chunk {chunks_processed}: {rows_in_chunk:,} rows (Progress: {progress_pct:.1f}%)")
+                                
+                                # Check if is_contaminant column exists and has NaN values
+                                if 'is_contaminant' in chunk_df.columns:
+                                    nan_count = chunk_df['is_contaminant'].isna().sum()
+                                    if nan_count > 0:
+                                        logger.info(f"Found {nan_count:,} NaN values in chunk {chunks_processed}")
+                                        chunk_df['is_contaminant'] = chunk_df['is_contaminant'].fillna(False)
+                                
+                                # Write chunk to temporary file
+                                temp_file = f"{report_file}.chunk_{chunks_processed}"
+                                chunk_df.to_csv(temp_file, sep='\t', index=False)
+                                
+                                if chunks_processed % 10 == 0:  # Log every 10 chunks
+                                    logger.info(f"Processed {chunks_processed} chunks, {total_processed:,} rows")
+                            
+                            # Combine chunks back into original file
+                            logger.info("Combining processed chunks back into original file...")
+                            first_chunk = True
+                            with open(report_file, 'w') as outfile:
+                                for i in range(1, chunks_processed + 1):
+                                    temp_file = f"{report_file}.chunk_{i}"
+                                    with open(temp_file, 'r') as infile:
+                                        if first_chunk:
+                                            outfile.write(infile.read())  # Write header and first chunk
+                                            first_chunk = False
+                                        else:
+                                            next(infile)  # Skip header
+                                            outfile.write(infile.read())  # Write data
+                                    os.remove(temp_file)  # Clean up temp file
+                            
+                            logger.info(f"Successfully processed {total_rows:,} rows in {chunks_processed} chunks")
                         else:
-                            logger.info("No is_contaminant column found in report file")
+                            # Regular processing for smaller files
+                            logger.info("Reading file normally...")
+                            df = pd.read_csv(report_file, sep='\t')
+                            logger.info(f"Loaded report file with {len(df):,} rows and columns: {list(df.columns)}")
+                            
+                            # Check if is_contaminant column exists and has NaN values
+                            if 'is_contaminant' in df.columns:
+                                nan_count = df['is_contaminant'].isna().sum()
+                                logger.info(f"Found {nan_count:,} NaN values in is_contaminant column")
+                                if nan_count > 0:
+                                    logger.info(f"Filling {nan_count:,} NaN values in is_contaminant column with False")
+                                    df['is_contaminant'] = df['is_contaminant'].fillna(False)
+                                    
+                                    # Write the cleaned data back
+                                    df.to_csv(report_file, sep='\t', index=False)
+                                    logger.info(f"Cleaned report file saved: {report_file}")
+                            else:
+                                logger.info("No is_contaminant column found in report file")
                         
                     except Exception as e:
                         logger.warning(f"Could not preprocess report file {report_file}: {e}")
@@ -1334,6 +1428,10 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         
         # Run multiqc as a subprocess with real-time output
         try:
+            # Handle timeout for large files
+            if input_type == 'diann' and large_file_detected:
+                logger.info("Starting MultiQC with timeout handling for large file")
+            
             # Run the multiqc command with real-time output
             process = subprocess.Popen(
                 args, 
