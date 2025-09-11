@@ -9,6 +9,7 @@ import os
 from pandas._typing import ReadCsvBuffer
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from pathlib import Path
 
 from ..common.file_utils import get_filename, drop_empty_row
 from ..common.calc_utils import qualUniform, cal_delta_mass_dict
@@ -1718,3 +1719,36 @@ def mod_group_percentage(group):
     )
 
     return percentage_df
+
+def read_sdrf(sdrf_path):
+
+    sdrf_df = pd.read_csv(sdrf_path, sep="\t")
+    sdrf_df.columns = sdrf_df.columns.str.lower()
+
+    required_cols = [
+        "source name", 
+        "comment[data file]",
+        "comment[technical replicate]",
+        "comment[fraction identifier]",
+        "characteristics[biological replicate]"
+    ]
+
+    if any(col in sdrf_df.columns for col in required_cols):
+
+        sdrf_df = sdrf_df[required_cols].copy()
+        sdrf_df.rename(
+            columns={
+                "source name": "sample",
+                "comment[data file]": "data_file",
+                "comment[technical replicate]": "technical_replicate",
+                "comment[fraction identifier]": "fraction_identifier",
+                "characteristics[biological replicate]": "biological_replicate",
+            },
+            inplace=True
+        )
+        sdrf_df["file_name"] = sdrf_df["data_file"].apply(lambda x: Path(x).stem)
+        sdrf_df = sdrf_df.drop("data_file", axis=1)
+        return sdrf_df
+    
+    else:
+        return None

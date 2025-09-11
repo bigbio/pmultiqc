@@ -40,6 +40,7 @@ pmultiqc supports the following data sources:
    - `evidence.txt`: Peptide evidence
    - `msms.txt`: MS/MS scan information
    - `msmsScans.txt`: MS/MS scan details
+   - `*sdrf.tsv`: SDRF-Proteomics (optional)
 
 3. **[DIA-NN](https://aptila.bio)** result files:
    - `report.tsv` or `report.parquet`: DIA-NN main report
