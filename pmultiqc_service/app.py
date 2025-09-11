@@ -1284,8 +1284,8 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                                 break
                     if large_file_detected:
                         break
-            except:
-                pass
+            except (OSError, IOError) as e:
+                logger.warning(f"Could not check file sizes in {input_dir}: {e}")
             
             if large_file_detected:
                 logger.info("Large file detected, setting 30-minute timeout")
@@ -1321,8 +1321,8 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                     if report_files:
                         logger.info(f"Found report.tsv files despite input_type={input_type}, running preprocessing as fallback")
                         should_preprocess = True
-            except:
-                pass
+            except (OSError, IOError, ImportError) as e:
+                logger.debug(f"Could not check for report files in fallback detection: {e}")
         
         if should_preprocess:
             logger.info(f"Preprocessing {input_type} data to handle NaN values...")
