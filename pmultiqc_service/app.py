@@ -1244,12 +1244,34 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         elif input_type == 'diann':
             # DIANN files are handled automatically by pmultiqc
             # Add memory optimization arguments for large files
-            args.extend(['--no-megaqc-upload'])
+            args.extend(['--no-megaqc-upload', '--verbose'])
         elif input_type == 'mzidentml':
             args.extend(['--mzid_plugin'])
         
         # Run MultiQC with PMultiQC plugin
         logger.info(f"Running PMultiQC with args: {args}")
+        
+        # Test if pmultiqc plugin is available
+        try:
+            import pmultiqc
+            logger.info(f"pmultiqc plugin version: {pmultiqc.__version__}")
+        except ImportError as e:
+            logger.error(f"pmultiqc plugin not available: {e}")
+        except Exception as e:
+            logger.error(f"Error checking pmultiqc plugin: {e}")
+        
+        # Set environment variables to fix matplotlib and other issues
+        import os
+        os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
+        os.makedirs('/tmp/matplotlib', exist_ok=True)
+        
+        # Set output directory environment variable to help pmultiqc plugin
+        output_dir = args[args.index('-o') + 1] if '-o' in args else '/tmp/multiqc_output'
+        os.environ['MULTIQC_OUTPUT_DIR'] = output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Set MultiQC config to use the output directory
+        os.environ['MULTIQC_CONFIG'] = f"output_dir: {output_dir}"
         
         # Initialize console output in job status
         update_job_progress(job_id, 'running_pmultiqc', 0, 
