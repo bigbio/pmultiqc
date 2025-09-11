@@ -36,10 +36,17 @@ class MaxQuantModule:
         # SDRF
         if "sdrf" in self.maxquant_paths.keys():
             try:
-
-                sdrf = self.maxquant_paths["sdrf"]
-
-                print(f"\nMaxQuant SDRF:\n{sdrf}\n")
+                log.info(
+                    "{}: Parsing SDRF file {}...".format(
+                        datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["sdrf"]
+                    )
+                )
+                sdrf_data = maxquant_utils.read_sdrf(self.maxquant_paths["sdrf"])
+                if sdrf_data is not None:
+                    maxquant_plots.draw_exp_design(
+                        sdrf_data,
+                        self.sub_sections["experiment"]
+                    )
 
             except Exception as e:
                 log.warning(f"Error occurred while draw_exp_design: {e}")

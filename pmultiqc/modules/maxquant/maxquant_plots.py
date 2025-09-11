@@ -1,6 +1,3 @@
-import numpy as np
-import re
-
 from typing import Dict, List
 from multiqc.types import SampleGroup, SampleName
 from multiqc.plots.table_object import InputRow
@@ -16,129 +13,44 @@ from multiqc.plots import (
 from collections import OrderedDict
 import itertools
 
-from ..quantms.quantms_utils import condition_split
 from ..core.section_groups import add_sub_section
 from ..common.common_plots import remove_subtitle
 
 
 def draw_exp_design(
-        exp_design,
+        sdrf_df,
         sub_sections
     ):
 
-    sample_df, file_df = exp_design
-
-    # Create table plot
-    pattern = r'^(\w+=[^=;]+)(;\w+=[^=;]+)*$'
-    is_multi_conditions = all(sample_df["MSstats_Condition"].apply(lambda x: bool(re.match(pattern, str(x)))))
-
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
-    if is_multi_conditions:
-        for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
-            file_df_sample = file_df[file_df["Sample"] == sample].copy()
-            sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
-            row_data: List[InputRow] = []
-
-            sample_data = {}
-            for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                sample_data["MSstats_Condition_" + str(k)] = v
-            
-            sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
-            sample_data["Fraction_Group"] = ""
-            sample_data["Fraction"] = ""
-            sample_data["Label"] = ""
-
-            row_data.append(
-                InputRow(
-                    sample=SampleName(sample),
-                    data=sample_data,
-                )
+    for sample, group in sdrf_df.groupby("sample"):
+        row_data: List[InputRow] = []
+        row_data.append(
+            InputRow(
+                sample=SampleName(sample),
+                data={
+                    "BioReplicate": int(group["biological_replicate"].iloc[0]),
+                    "Fraction": "",
+                    "TecReplicate": "",
+                },
             )
+        )
 
-            for _, row in file_df_sample.iterrows():
-
-                sample_data = {}
-                for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                    sample_data["MSstats_Condition_" + str(k)] = ""
-
-                sample_data["MSstats_BioReplicate"] = ""
-                sample_data["Fraction_Group"] = row["Fraction_Group"]
-                sample_data["Fraction"] = row["Fraction"]
-                sample_data["Label"] = row["Label"]
-
-                row_data.append(
-                    InputRow(
-                        sample=SampleName(row["Run"]),
-                        data=sample_data,
-                    )
-                )
-            group_name: SampleGroup = SampleGroup(sample)
-            rows_by_group[group_name] = row_data
-        headers = {}
-        headers["Sample"] = {
-            "title": "Sample [Spectra File]",
-            "description": "",
-            "scale": False,
-        }
-        for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-            headers["MSstats_Condition_" + str(k)] ={
-                "title": "MSstats Condition: " + str(k),
-                "description": "",
-                "scale": False,
-            }
-        headers["MSstats_BioReplicate"] = {
-            "title": "MSstats BioReplicate",
-            "description": "",
-            "scale": False,
-        }
-        headers["Fraction_Group"] = {
-            "title": "Fraction Group",
-            "description": "",
-            "scale": False,
-        }
-        headers["Fraction"] = {
-            "title": "Fraction",
-            "description": "Fraction Identifier",
-            "scale": False,
-        }
-        headers["Label"] = {
-            "title": "Label",
-            "description": "",
-            "scale": False,
-        }
-    else:
-        for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
-            file_df_sample = file_df[file_df["Sample"] == sample].copy()
-            sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
-            row_data: List[InputRow] = []
+        for _, row in group.iterrows():
             row_data.append(
                 InputRow(
-                    sample=SampleName(sample),
+                    sample=SampleName(row["file_name"]),
                     data={
-                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
-                        "Fraction_Group": "",
-                        "Fraction": "",
-                        "Label": "",
+                        "MSstats_BioReplicate": "",
+                        "Fraction": row["fraction_identifier"],
+                        "TecReplicate": row["technical_replicate"],
                     },
                 )
             )
-            for _, row in file_df_sample.iterrows():
-                row_data.append(
-                    InputRow(
-                        sample=SampleName(row["Run"]),
-                        data={
-                            "MSstats_Condition": "",
-                            "MSstats_BioReplicate": "",
-                            "Fraction_Group": row["Fraction_Group"],
-                            "Fraction": row["Fraction"],
-                            "Label": row["Label"],
-                        },
-                    )
-                )
-            group_name: SampleGroup = SampleGroup(sample)
-            rows_by_group[group_name] = row_data
+
+        group_name: SampleGroup = SampleGroup(sample)
+        rows_by_group[group_name] = row_data
 
         headers = {
             "Sample": {
@@ -146,29 +58,19 @@ def draw_exp_design(
                 "description": "",
                 "scale": False,
             },
-            "MSstats_Condition": {
-                "title": "MSstats Condition",
-                "description": "MSstats Condition",
-                "scale": False,
-            },
-            "MSstats_BioReplicate": {
-                "title": "MSstats BioReplicate",
-                "description": "MSstats BioReplicate",
-                "scale": False,
-            },
-            "Fraction_Group": {
-                "title": "Fraction Group",
-                "description": "Fraction Group",
+            "BioReplicate": {
+                "title": "BioReplicate",
+                "description": "characteristics[biological replicate]",
                 "scale": False,
             },
             "Fraction": {
                 "title": "Fraction",
-                "description": "Fraction Identifier",
+                "description": "comment[fraction identifier]",
                 "scale": False,
             },
-            "Label": {
-                "title": "Label",
-                "description": "Label",
+            "TecReplicate": {
+                "title": "TecReplicate",
+                "description": "comment[technical replicate]",
                 "scale": False,
             },
         }
@@ -193,9 +95,6 @@ def draw_exp_design(
             https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
             """
     )
-
-
-
 
 # MaxQuant parameters table
 def draw_parameters(sub_section, parameter_table):
