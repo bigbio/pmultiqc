@@ -69,6 +69,60 @@
                     <a href="{{ url }}" class="btn btn-success" target="_blank">📊 View Report Online</a>
                     {% endfor %}
                 </div>
+                {% elif job_data.status == 'completed' %}
+                <div style="margin: 15px 0;">
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; color: #856404;">
+                        <strong>⏳ Processing Reports...</strong><br>
+                        <small>Online reports are being generated. This page will refresh automatically when ready.</small>
+                        <div id="refresh-timer" style="margin-top: 5px; font-size: 0.9em;"></div>
+                    </div>
+                </div>
+                <script>
+                // Auto-refresh until html_report_urls is populated
+                let refreshCount = 0;
+                const maxRefreshAttempts = 60; // 60 attempts = 1 minute (checking every 1 second)
+                
+                function checkForHtmlReports() {
+                    refreshCount++;
+                    document.getElementById('refresh-timer').textContent = `Checking... (${refreshCount}/${maxRefreshAttempts})`;
+                    
+                    if (refreshCount >= maxRefreshAttempts) {
+                        document.getElementById('refresh-timer').innerHTML = 'Timeout reached. <button onclick="location.reload()" style="margin-left: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Refresh Manually</button>';
+                        return;
+                    }
+                    
+                    // Check if html_report_urls is now populated by polling the job status
+                    fetch(`{{ config.BASE_URL.rstrip('/') }}/job-status/{{ job_data.job_id }}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('Checking job status:', data.status, 'html_report_urls:', data.html_report_urls);
+                            console.log('html_report_urls type:', typeof data.html_report_urls);
+                            console.log('html_report_urls keys:', data.html_report_urls ? Object.keys(data.html_report_urls) : 'null');
+                            
+                            if (data.html_report_urls && typeof data.html_report_urls === 'object' && Object.keys(data.html_report_urls).length > 0) {
+                                // HTML reports are ready, refresh the page
+                                console.log('HTML reports ready, refreshing page...');
+                                location.reload();
+                            } else {
+                                // Not ready yet, check again in 1 second
+                                console.log('HTML reports not ready yet, checking again...');
+                                setTimeout(checkForHtmlReports, 1000);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error checking job status:', error);
+                            setTimeout(checkForHtmlReports, 1000);
+                        });
+                }
+                
+                // Start checking immediately (no delay)
+                checkForHtmlReports();
+                </script>
                 {% endif %}
             </div>
 
