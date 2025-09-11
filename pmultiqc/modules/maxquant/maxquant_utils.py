@@ -12,6 +12,7 @@ from sklearn.preprocessing import StandardScaler
 
 from ..common.file_utils import get_filename, drop_empty_row
 from ..common.calc_utils import qualUniform, cal_delta_mass_dict
+from ..common.statistics_utils import nanmedian
 from ...logging import get_logger, Timer
 
 # Initialize logger for this module
@@ -597,7 +598,7 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
             contaminant = 1 - intensity_contaminant / intensity_all
 
         # 2. Peptide Intensity
-        median_int = np.fmax(0, np.nanmedian(group["intensity"]))  ## if everything is NaN, take 0 (np.fmax ignores NaN)
+        median_int = nanmedian(group["intensity"], 0)  ## if everything is NaN, use 0
         peptide_intensity = np.minimum(1.0, median_int / (2**23)) ## score = 1, iff intensity >= 2**23
 
         # 8. Pep Missing Values
