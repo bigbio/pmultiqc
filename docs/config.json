@@ -41,6 +41,14 @@
             "file_type": "maxquant"
         },
         {
+            "accession": "MaxDIA",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/maxquant/MaxDIA_txt.zip"
+            ],
+            "path": "docs/MaxDIA",
+            "file_type": "maxquant"
+        },
+        {
             "accession": "ProteoBench",
             "urls": [
                 "https://proteobench.cubimed.rub.de/datasets/d01e87b997b84c985868204b1ed26749902fd7f9/d01e87b997b84c985868204b1ed26749902fd7f9_data.zip"

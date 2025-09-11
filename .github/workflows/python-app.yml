@@ -204,6 +204,29 @@ jobs:
           name: results_maxquant
           path: ./results_maxquant
 
+  test_maxquant_dia:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python "3.10"
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install package
+        run: pip install .
+      - name: Test MaxQuant DIA file
+        run: |
+          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/maxquant/MaxDIA_txt.zip
+          unzip MaxDIA_txt.zip
+          multiqc --parse_maxquant ./MaxDIA_txt -o ./results_maxquant_dia
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_maxquant_dia
+          path: ./results_maxquant_dia
+
   test_proteobench:
     needs: setup
     runs-on: ubuntu-latest

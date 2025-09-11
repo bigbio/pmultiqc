@@ -365,3 +365,10 @@ def heatmap_cont_pep_intensity(report_df):
         }
 
     return heatmap_dict
+
+def condition_split(conditions):
+    items = conditions.split(';')
+    key_value_pairs = [item.split('=') for item in items if '=' in item]
+
+    result_dict = {k.strip(): v.strip() for k, v in key_value_pairs}
+    return result_dict

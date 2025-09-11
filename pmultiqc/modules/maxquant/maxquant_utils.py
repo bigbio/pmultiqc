@@ -9,6 +9,7 @@ import os
 from pandas._typing import ReadCsvBuffer
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from pathlib import Path
 
 from ..common.file_utils import get_filename, drop_empty_row
 from ..common.calc_utils import qualUniform, cal_delta_mass_dict
@@ -300,7 +301,8 @@ def pg_intensity_distr(mq_data, intensity_cols):
         log_df = np.log2(log_df).reset_index(drop=True)
         log_df_dict = log_df.to_dict(orient="list")
         log_df_dict = {
-            key: [value for value in values if value != 0] for key, values in log_df_dict.items()
+            key: [value for value in values if value != 0] if any(value != 0 for value in values) else [0] 
+            for key, values in log_df_dict.items()
         }
         return log_df_dict
 
@@ -747,14 +749,17 @@ def evidence_peptide_intensity(evidence_df):
 
     # Take the logarithm and remove zero values
     def box_fun(intensity_df):
-        intensity_df["intensity_processed"] = intensity_df["intensity"].apply(
-            lambda x: 1 if (pd.isna(x) or x == 0) else x
+        intensity_df["intensity_checked"] = intensity_df["intensity"].apply(
+            lambda x: 0 if (pd.isna(x) or x == 0) else x
         )
-        intensity_df["log_intensity_processed"] = np.log2(intensity_df["intensity_processed"])
         box_dict = {}
         for raw_file, group in intensity_df.groupby("raw file"):
-            log_intensity = group["log_intensity_processed"]
-            box_dict[raw_file] = list(log_intensity[log_intensity != 0])
+            if np.all(group["intensity_checked"] == 0):
+                box_dict[raw_file] = [0]
+            else:
+                non_zero_intensity = group[group["intensity_checked"] != 0]["intensity_checked"]
+                log_intensity = np.log2(non_zero_intensity)
+                box_dict[raw_file] = list(log_intensity)
         return box_dict
 
     if "potential contaminant" in evidence_df.columns:
@@ -1303,11 +1308,11 @@ def get_msms(file_path: Union[Path, str], evidence_df: pd.DataFrame = None):
 
     if evidence_df is None:
         logger.warning("No evidence data provided, skipping missed cleavages calculation")
-        return {"missed_cleavages": None}
-
-    # Missed cleavages per Raw file
-    logger.debug("Calculating missed cleavages")
-    missed_cleavages = msms_missed_cleavages(mq_data, evidence_df)
+        missed_cleavages = None
+    else:
+        # Missed cleavages per Raw file
+        logger.debug("Calculating missed cleavages")
+        missed_cleavages = msms_missed_cleavages(mq_data, evidence_df)
 
     # MaxQuant: Search Engine Scores
     search_engine_scores_dict = search_engine_scores(mq_data)
@@ -1372,7 +1377,9 @@ def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
 # 4-2.msms.txt: Search Engine Scores
 def search_engine_scores(msms_df):
 
-    if "score" not in msms_df.columns:
+    if any(
+        column not in msms_df.columns for column in ["score", "raw file"]
+    ):
         return None
 
     bins_start = 0
@@ -1714,3 +1721,36 @@ def mod_group_percentage(group):
     )
 
     return percentage_df
+
+def read_sdrf(sdrf_path):
+
+    sdrf_df = pd.read_csv(sdrf_path, sep="\t")
+    sdrf_df.columns = sdrf_df.columns.str.lower()
+
+    required_cols = [
+        "source name", 
+        "comment[data file]",
+        "comment[technical replicate]",
+        "comment[fraction identifier]",
+        "characteristics[biological replicate]"
+    ]
+
+    if any(col in sdrf_df.columns for col in required_cols):
+
+        sdrf_df = sdrf_df[required_cols].copy()
+        sdrf_df.rename(
+            columns={
+                "source name": "sample",
+                "comment[data file]": "data_file",
+                "comment[technical replicate]": "technical_replicate",
+                "comment[fraction identifier]": "fraction_identifier",
+                "characteristics[biological replicate]": "biological_replicate",
+            },
+            inplace=True
+        )
+        sdrf_df["file_name"] = sdrf_df["data_file"].apply(lambda x: Path(x).stem)
+        sdrf_df = sdrf_df.drop("data_file", axis=1)
+        return sdrf_df
+    
+    else:
+        return None
