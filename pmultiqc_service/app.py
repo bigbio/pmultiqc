@@ -1279,27 +1279,47 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
             try:
                 import pandas as pd
                 import glob
+                import os
                 
                 # Find all report.tsv files in the input directory
                 input_dir = args[0]  # First argument is the input directory
+                logger.info(f"Looking for report files in: {input_dir}")
+                
+                # Check if input directory exists
+                if not os.path.exists(input_dir):
+                    logger.warning(f"Input directory does not exist: {input_dir}")
+                    return
+                
+                # List all files in the input directory
+                all_files = []
+                for root, dirs, files in os.walk(input_dir):
+                    for file in files:
+                        all_files.append(os.path.join(root, file))
+                logger.info(f"All files in input directory: {all_files}")
+                
                 report_files = glob.glob(f"{input_dir}/**/report.tsv", recursive=True)
+                logger.info(f"Found report files: {report_files}")
                 
                 for report_file in report_files:
                     logger.info(f"Processing report file: {report_file}")
                     try:
                         # Read the report file
                         df = pd.read_csv(report_file, sep='\t')
+                        logger.info(f"Loaded report file with {len(df)} rows and columns: {list(df.columns)}")
                         
                         # Check if is_contaminant column exists and has NaN values
                         if 'is_contaminant' in df.columns:
                             nan_count = df['is_contaminant'].isna().sum()
+                            logger.info(f"Found {nan_count} NaN values in is_contaminant column")
                             if nan_count > 0:
-                                logger.info(f"Found {nan_count} NaN values in is_contaminant column, filling with False")
+                                logger.info(f"Filling {nan_count} NaN values in is_contaminant column with False")
                                 df['is_contaminant'] = df['is_contaminant'].fillna(False)
                                 
                                 # Write the cleaned data back
                                 df.to_csv(report_file, sep='\t', index=False)
                                 logger.info(f"Cleaned report file saved: {report_file}")
+                        else:
+                            logger.info("No is_contaminant column found in report file")
                         
                     except Exception as e:
                         logger.warning(f"Could not preprocess report file {report_file}: {e}")
