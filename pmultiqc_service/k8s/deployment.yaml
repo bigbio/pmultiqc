@@ -86,10 +86,10 @@ spec:
           resources:
             limits:
               cpu: '4'
-              memory: 8Gi
+              memory: 16Gi
             requests:
               cpu: 1000m
-              memory: 8Gi
+              memory: 12Gi
           volumeMounts:
             - name: uploads-storage
               mountPath: /tmp/pmultiqc_uploads
