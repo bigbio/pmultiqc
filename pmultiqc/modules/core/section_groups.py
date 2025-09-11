@@ -153,9 +153,9 @@ def add_group_modules(groups_dict, analysis_type):
                 "description": ""
             },
             {
-                "id": "time_and_mass_error_trends",
-                "key": "time_mass_sub_section",
-                "name": "Time and Mass Error Trends",
+                "id": "mass_error_trends",
+                "key": "mass_error_sub_section",
+                "name": "Mass Error Trends",
                 "description": ""
             },
             {
@@ -202,7 +202,7 @@ def add_group_modules(groups_dict, analysis_type):
             "quantification_analysis": {"order": 14},
             "ms1_analysis": {"order": 13},
             "ms2_and_spectral_stats": {"order": 12},
-            "time_and_mass_error_trends": {"order": 11},
+            "mass_error_trends": {"order": 11},
             "rt_quality_control": {"order": 10},
             "software_versions": {"order": 9},
             "multiqc_software_versions": {"order": 8},
