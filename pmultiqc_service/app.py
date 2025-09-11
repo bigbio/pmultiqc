@@ -1273,6 +1273,40 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         # Set MultiQC config to use the output directory
         os.environ['MULTIQC_CONFIG'] = f"output_dir: {output_dir}"
         
+        # Preprocess DIANN data to handle NaN values in is_contaminant column
+        if input_type == 'diann':
+            logger.info("Preprocessing DIANN data to handle NaN values...")
+            try:
+                import pandas as pd
+                import glob
+                
+                # Find all report.tsv files in the input directory
+                input_dir = args[0]  # First argument is the input directory
+                report_files = glob.glob(f"{input_dir}/**/report.tsv", recursive=True)
+                
+                for report_file in report_files:
+                    logger.info(f"Processing report file: {report_file}")
+                    try:
+                        # Read the report file
+                        df = pd.read_csv(report_file, sep='\t')
+                        
+                        # Check if is_contaminant column exists and has NaN values
+                        if 'is_contaminant' in df.columns:
+                            nan_count = df['is_contaminant'].isna().sum()
+                            if nan_count > 0:
+                                logger.info(f"Found {nan_count} NaN values in is_contaminant column, filling with False")
+                                df['is_contaminant'] = df['is_contaminant'].fillna(False)
+                                
+                                # Write the cleaned data back
+                                df.to_csv(report_file, sep='\t', index=False)
+                                logger.info(f"Cleaned report file saved: {report_file}")
+                        
+                    except Exception as e:
+                        logger.warning(f"Could not preprocess report file {report_file}: {e}")
+                        
+            except Exception as e:
+                logger.warning(f"Error during DIANN data preprocessing: {e}")
+        
         # Initialize console output in job status
         update_job_progress(job_id, 'running_pmultiqc', 0, 
                           console_output=[], console_errors=[], 
