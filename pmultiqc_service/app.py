@@ -1250,6 +1250,7 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         
         # Run MultiQC with PMultiQC plugin
         logger.info(f"Running PMultiQC with args: {args}")
+        logger.info(f"Detected input type: {input_type}")
         
         # Test if pmultiqc plugin is available
         try:
@@ -1305,8 +1306,24 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         os.environ['MULTIQC_CONFIG'] = f"output_dir: {output_dir}"
         
         # Preprocess DIANN data to handle NaN values in is_contaminant column
-        if input_type == 'diann':
-            logger.info("Preprocessing DIANN data to handle NaN values...")
+        # Run preprocessing for both 'diann' and 'quantms' input types since they both use DIANN reports
+        # Also run as fallback if input type detection failed but report.tsv files exist
+        should_preprocess = input_type in ['diann', 'quantms']
+        
+        # Fallback: check if report.tsv files exist even if input type detection failed
+        if not should_preprocess:
+            try:
+                input_dir = args[1]  # Second argument is the input directory (first is 'multiqc')
+                if os.path.exists(input_dir):
+                    report_files = glob.glob(f"{input_dir}/**/report.tsv", recursive=True)
+                    if report_files:
+                        logger.info(f"Found report.tsv files despite input_type={input_type}, running preprocessing as fallback")
+                        should_preprocess = True
+            except:
+                pass
+        
+        if should_preprocess:
+            logger.info(f"Preprocessing {input_type} data to handle NaN values...")
             try:
                 import pandas as pd
                 import glob
