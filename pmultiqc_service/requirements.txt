@@ -4,7 +4,6 @@ python-multipart>=0.0.6
 jinja2>=3.0.0
 requests>=2.31.0
 redis>=4.5.0
-pmultiqc==0.0.32
 multiqc
 pandas
 pyteomics
