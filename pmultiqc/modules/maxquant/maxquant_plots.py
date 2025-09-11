@@ -1,3 +1,11 @@
+import numpy as np
+import re
+
+from typing import Dict, List
+from multiqc.types import SampleGroup, SampleName
+from multiqc.plots.table_object import InputRow
+
+
 from multiqc.plots import (
     bargraph,
     linegraph,
@@ -8,8 +16,185 @@ from multiqc.plots import (
 from collections import OrderedDict
 import itertools
 
+from ..quantms.quantms_utils import condition_split
 from ..core.section_groups import add_sub_section
 from ..common.common_plots import remove_subtitle
+
+
+def draw_exp_design(
+        exp_design,
+        sub_sections
+    ):
+
+    sample_df, file_df = exp_design
+
+    # Create table plot
+    pattern = r'^(\w+=[^=;]+)(;\w+=[^=;]+)*$'
+    is_multi_conditions = all(sample_df["MSstats_Condition"].apply(lambda x: bool(re.match(pattern, str(x)))))
+
+    rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
+
+    if is_multi_conditions:
+        for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
+            file_df_sample = file_df[file_df["Sample"] == sample].copy()
+            sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
+            row_data: List[InputRow] = []
+
+            sample_data = {}
+            for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                sample_data["MSstats_Condition_" + str(k)] = v
+            
+            sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
+            sample_data["Fraction_Group"] = ""
+            sample_data["Fraction"] = ""
+            sample_data["Label"] = ""
+
+            row_data.append(
+                InputRow(
+                    sample=SampleName(sample),
+                    data=sample_data,
+                )
+            )
+
+            for _, row in file_df_sample.iterrows():
+
+                sample_data = {}
+                for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                    sample_data["MSstats_Condition_" + str(k)] = ""
+
+                sample_data["MSstats_BioReplicate"] = ""
+                sample_data["Fraction_Group"] = row["Fraction_Group"]
+                sample_data["Fraction"] = row["Fraction"]
+                sample_data["Label"] = row["Label"]
+
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(row["Run"]),
+                        data=sample_data,
+                    )
+                )
+            group_name: SampleGroup = SampleGroup(sample)
+            rows_by_group[group_name] = row_data
+        headers = {}
+        headers["Sample"] = {
+            "title": "Sample [Spectra File]",
+            "description": "",
+            "scale": False,
+        }
+        for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+            headers["MSstats_Condition_" + str(k)] ={
+                "title": "MSstats Condition: " + str(k),
+                "description": "",
+                "scale": False,
+            }
+        headers["MSstats_BioReplicate"] = {
+            "title": "MSstats BioReplicate",
+            "description": "",
+            "scale": False,
+        }
+        headers["Fraction_Group"] = {
+            "title": "Fraction Group",
+            "description": "",
+            "scale": False,
+        }
+        headers["Fraction"] = {
+            "title": "Fraction",
+            "description": "Fraction Identifier",
+            "scale": False,
+        }
+        headers["Label"] = {
+            "title": "Label",
+            "description": "",
+            "scale": False,
+        }
+    else:
+        for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
+            file_df_sample = file_df[file_df["Sample"] == sample].copy()
+            sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
+            row_data: List[InputRow] = []
+            row_data.append(
+                InputRow(
+                    sample=SampleName(sample),
+                    data={
+                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
+                        "Fraction_Group": "",
+                        "Fraction": "",
+                        "Label": "",
+                    },
+                )
+            )
+            for _, row in file_df_sample.iterrows():
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(row["Run"]),
+                        data={
+                            "MSstats_Condition": "",
+                            "MSstats_BioReplicate": "",
+                            "Fraction_Group": row["Fraction_Group"],
+                            "Fraction": row["Fraction"],
+                            "Label": row["Label"],
+                        },
+                    )
+                )
+            group_name: SampleGroup = SampleGroup(sample)
+            rows_by_group[group_name] = row_data
+
+        headers = {
+            "Sample": {
+                "title": "Sample [Spectra File]",
+                "description": "",
+                "scale": False,
+            },
+            "MSstats_Condition": {
+                "title": "MSstats Condition",
+                "description": "MSstats Condition",
+                "scale": False,
+            },
+            "MSstats_BioReplicate": {
+                "title": "MSstats BioReplicate",
+                "description": "MSstats BioReplicate",
+                "scale": False,
+            },
+            "Fraction_Group": {
+                "title": "Fraction Group",
+                "description": "Fraction Group",
+                "scale": False,
+            },
+            "Fraction": {
+                "title": "Fraction",
+                "description": "Fraction Identifier",
+                "scale": False,
+            },
+            "Label": {
+                "title": "Label",
+                "description": "Label",
+                "scale": False,
+            },
+        }
+
+    pconfig = {
+        "id": "experimental_design",
+        "title": "Experimental Design",
+        "save_file": False,
+        "raw_data_fn": "multiqc_Experimental_Design_table",
+        "no_violin": True,
+    }
+    table_html = table.plot(rows_by_group, headers, pconfig)
+    add_sub_section(
+        sub_section=sub_sections,
+        plot=table_html,
+        order=1,
+        description="""
+            This table shows the design of the experiment. I.e., which files and channels correspond to which sample/condition/fraction.
+            """,
+        helptext="""
+            You can see details about it in 
+            https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
+            """
+    )
+
+
 
 
 # MaxQuant parameters table
@@ -40,7 +225,7 @@ def draw_parameters(sub_section, parameter_table):
     add_sub_section(
         sub_section=sub_section,
         plot=table_html,
-        order=1,
+        order=2,
         description="This table presents the parameters used in MaxQuant.",
         helptext="""
             MaxQuant parameters, extracted from parameters.txt, summarizes the settings used for the MaxQuant analysis. 
@@ -89,7 +274,7 @@ def draw_peptide_table(sub_section, table_data):
     add_sub_section(
         sub_section=sub_section,
         plot=table_html,
-        order=1,
+        order=6,
         description="""
             This plot shows the quantification information of peptides in the final result (evidence.txt).
             """,
@@ -147,7 +332,7 @@ def draw_protein_table(sub_section, table_data):
     add_sub_section(
         sub_section=sub_section,
         plot=table_html,
-        order=1,
+        order=7,
         description="""
             This plot shows the quantification information of proteins in the final result (evidence.txt).
             """,
@@ -195,7 +380,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
         add_sub_section(
             sub_section=sub_section,
             plot=box_html,
-            order=3,
+            order=1,
             description="",
             helptext="""
                 Intensity boxplots by experimental groups. Groups are user-defined during MaxQuant configuration. 
@@ -231,7 +416,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
         add_sub_section(
             sub_section=sub_section,
             plot=box_html,
-            order=4,
+            order=2,
             description="Label-free quantification (LFQ) intensity boxplots by experimental groups.",
             helptext="""
                 Label-free quantification (LFQ) intensity boxplots by experimental groups. Groups are user-defined 
@@ -268,7 +453,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
         add_sub_section(
             sub_section=sub_section,
             plot=box_html,
-            order=5,
+            order=3,
             description="""
                 Peptide precursor intensity per Raw file from evidence.txt WITHOUT match-between-runs evidence.
                 """,
@@ -292,12 +477,12 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
     if fig_type == "raw_intensity":
         fig_id = "pca_of_raw_intensity"
         fig_title = "PCA of Raw Intensity"
-        plot_order = 6
+        plot_order = 4
 
     if fig_type == "lfq_intensity":
         fig_id = "pca_of_lfq_intensity"
         fig_title = "PCA of LFQ Intensity"
-        plot_order = 7
+        plot_order = 5
 
     draw_config = {
         "id": fig_id,

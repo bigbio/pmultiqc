@@ -64,7 +64,7 @@ def pmultiqc_plugin_execution_start():
         config.update_dict(config.sp, {"pmultiqc/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0}})
 
     if "pmultiqc/sdrf" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/sdrf": {"fn": "*.sdrf.tsv", "num_lines": 0}})
+        config.update_dict(config.sp, {"pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0}})
 
     if "pmultiqc/mztab" not in config.sp:
         config.update_dict(config.sp, {"pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0}})

@@ -299,7 +299,8 @@ def pg_intensity_distr(mq_data, intensity_cols):
         log_df = np.log2(log_df).reset_index(drop=True)
         log_df_dict = log_df.to_dict(orient="list")
         log_df_dict = {
-            key: [value for value in values if value != 0] for key, values in log_df_dict.items()
+            key: [value for value in values if value != 0] if any(value != 0 for value in values) else [0] 
+            for key, values in log_df_dict.items()
         }
         return log_df_dict
 
@@ -745,14 +746,17 @@ def evidence_peptide_intensity(evidence_df):
 
     # Take the logarithm and remove zero values
     def box_fun(intensity_df):
-        intensity_df["intensity_processed"] = intensity_df["intensity"].apply(
-            lambda x: 1 if (pd.isna(x) or x == 0) else x
+        intensity_df["intensity_checked"] = intensity_df["intensity"].apply(
+            lambda x: 0 if (pd.isna(x) or x == 0) else x
         )
-        intensity_df["log_intensity_processed"] = np.log2(intensity_df["intensity_processed"])
         box_dict = {}
         for raw_file, group in intensity_df.groupby("raw file"):
-            log_intensity = group["log_intensity_processed"]
-            box_dict[raw_file] = list(log_intensity[log_intensity != 0])
+            if np.all(group["intensity_checked"] == 0):
+                box_dict[raw_file] = [0]
+            else:
+                non_zero_intensity = group[group["intensity_checked"] != 0]["intensity_checked"]
+                log_intensity = np.log2(non_zero_intensity)
+                box_dict[raw_file] = list(log_intensity)
         return box_dict
 
     if "potential contaminant" in evidence_df.columns:
@@ -1301,11 +1305,11 @@ def get_msms(file_path: Union[Path, str], evidence_df: pd.DataFrame = None):
 
     if evidence_df is None:
         logger.warning("No evidence data provided, skipping missed cleavages calculation")
-        return {"missed_cleavages": None}
-
-    # Missed cleavages per Raw file
-    logger.debug("Calculating missed cleavages")
-    missed_cleavages = msms_missed_cleavages(mq_data, evidence_df)
+        missed_cleavages = None
+    else:
+        # Missed cleavages per Raw file
+        logger.debug("Calculating missed cleavages")
+        missed_cleavages = msms_missed_cleavages(mq_data, evidence_df)
 
     # MaxQuant: Search Engine Scores
     search_engine_scores_dict = search_engine_scores(mq_data)
@@ -1370,7 +1374,9 @@ def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
 # 4-2.msms.txt: Search Engine Scores
 def search_engine_scores(msms_df):
 
-    if "score" not in msms_df.columns:
+    if any(
+        column not in msms_df.columns for column in ["score", "raw file"]
+    ):
         return None
 
     bins_start = 0

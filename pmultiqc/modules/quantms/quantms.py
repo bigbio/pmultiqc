@@ -49,6 +49,7 @@ from .quantms_plots import (
     draw_diann_quant_table,
     draw_mzid_quant_table
 )
+from .quantms_utils import condition_split
 from .mzidentml_utils import (
     get_mzidentml_mzml_df,
     get_mzidentml_charge,
@@ -3062,7 +3063,7 @@ class QuantMSModule:
         report_data["sequence"] = report_data.apply(
             lambda x: re.sub(pattern, "", x["Modified.Sequence"]), axis=1
         )
-        self.total_protein_quantified = len(set(report_data["Protein.Names"]))
+        self.total_protein_quantified = len(set(report_data["Protein.Group"]))
         self.Total_Peptide_Count = len(set(report_data["sequence"]))
         protein_pep_map = report_data.groupby("Protein.Group").sequence.apply(list).to_dict()
 
@@ -3729,10 +3730,3 @@ def find_modification(peptide):
     original_mods = ",".join(str(i) for i in original_mods) if len(original_mods) > 0 else "nan"
 
     return AASequence.fromString(peptide).toUnmodifiedString(), original_mods
-
-def condition_split(conditions):
-    items = conditions.split(';')
-    key_value_pairs = [item.split('=') for item in items if '=' in item]
-
-    result_dict = {k.strip(): v.strip() for k, v in key_value_pairs}
-    return result_dict
