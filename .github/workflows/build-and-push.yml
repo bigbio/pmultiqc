@@ -40,3 +40,11 @@ jobs:
           labels: ""
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Deploy to Kubernetes
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl rollout restart deployment/pmultiqc-service -n pmultiqc
+          kubectl rollout status deployment/pmultiqc-service -n pmultiqc

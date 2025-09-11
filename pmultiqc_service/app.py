@@ -982,6 +982,13 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                     input_type, quantms_config = detect_input_type(file_extract_dir)
                     logger.info(f"Detected input type for {file_name}: {input_type}")
                     
+                    # Log files found in the directory for debugging
+                    try:
+                        files_in_dir = os.listdir(file_extract_dir)
+                        logger.info(f"Files in {file_name} directory: {files_in_dir}")
+                    except Exception as e:
+                        logger.warning(f"Could not list files in {file_extract_dir}: {e}")
+                    
                     if input_type == 'unknown':
                         logger.warning(f"Could not detect input type for {file_name}")
                         continue
@@ -1015,8 +1022,12 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         logger.info(f"File processing loop completed. total_processed: {total_processed}, all_results count: {len(all_results)}")
         
         if not all_results:
-            logger.error(f"No files were successfully processed for job {job_id}")
-            update_job_progress(job_id, 'failed', error='No files were successfully processed', 
+            error_msg = f"No files were successfully processed for job {job_id}"
+            logger.error(error_msg)
+            logger.error(f"Total files downloaded: {len(downloaded_files)}")
+            logger.error(f"Files processed: {total_processed}")
+            logger.error(f"All results count: {len(all_results)}")
+            update_job_progress(job_id, 'failed', error=error_msg, 
                               finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             return
         
@@ -1176,11 +1187,25 @@ def detect_input_type(upload_path: str) -> tuple:
         if any(f in files for f in maxquant_files):
             return "maxquant", None
         
-        # Check for DIANN files
-        diann_files = ['report.tsv', 'report.parquet']
-        if any(f in files for f in diann_files) or any('diann_report' in f for f in files):
-            return "diann", None
+        # Check for DIANN files - more comprehensive detection
+        diann_files = ['report.tsv', 'report.parquet', 'diann_report.tsv', 'diann_report.parquet']
+        diann_patterns = ['*report.tsv', '*report.parquet', '*diann_report*']
+        diann_indicators = ['diann', 'dia', 'dda']
         
+        # Check for exact DIANN files
+        has_diann_files = any(f in files for f in diann_files)
+        
+        # Check for DIANN files with patterns
+        has_diann_patterns = any(any(f.endswith(pattern.replace('*', '')) for pattern in diann_patterns) for f in files)
+        
+        # Check for DIA indicators in filenames
+        has_diann_indicators = any(any(indicator in f.lower() for indicator in diann_indicators) for f in files)
+        
+        if has_diann_files or has_diann_patterns or has_diann_indicators:
+            logger.info(f"Detected DIANN files: exact={has_diann_files}, patterns={has_diann_patterns}, indicators={has_diann_indicators}")
+            logger.info(f"Files found: {[f for f in files if any(indicator in f.lower() for indicator in diann_indicators)]}")
+            return "diann", None
+
         # Check for mzIdentML files (CPMPLETE submissions)
         has_mzid = any(f.endswith('.mzid') for f in files)
         has_peak_lists = any(f.lower().endswith(('.mgf', '.mzml', '.mgf.gz', '.mzml.gz', '.mgf.zip', '.mzml.zip')) for f in files)
@@ -1213,12 +1238,13 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
         
         # Add type-specific arguments
         if input_type == 'maxquant':
-            args.extend(['--parse_maxquant'])
+            args.extend(['--parse_maxquant', '--ignore', 'summary.txt'])
         elif input_type == "quantms":
             args.extend(["--config", pmultiqc_config])
         elif input_type == 'diann':
             # DIANN files are handled automatically by pmultiqc
-            pass
+            # Add memory optimization arguments for large files
+            args.extend(['--no-megaqc-upload', '--quiet'])
         elif input_type == 'mzidentml':
             args.extend(['--mzid_plugin'])
         
@@ -1357,12 +1383,12 @@ def create_zip_report(output_path: str, zip_path: str) -> bool:
             return False
         
         files_found = []
-        zip_filename = os.path.basename(zip_path)
         for root, dirs, files in os.walk(output_path):
             for file in files:
+                file_path = os.path.join(root, file)
                 # Skip the zip file we're creating to avoid infinite loop
-                if file != zip_filename:
-                    files_found.append(os.path.join(root, file))
+                if file_path != zip_path:
+                    files_found.append(file_path)
         
         logger.info(f"Found {len(files_found)} files to zip")
         
