@@ -1,3 +1,8 @@
+from typing import Dict, List
+from multiqc.types import SampleGroup, SampleName
+from multiqc.plots.table_object import InputRow
+
+
 from multiqc.plots import (
     bargraph,
     linegraph,
@@ -11,6 +16,85 @@ import itertools
 from ..core.section_groups import add_sub_section
 from ..common.common_plots import remove_subtitle
 
+
+def draw_exp_design(
+        sdrf_df,
+        sub_sections
+    ):
+
+    rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
+
+    for sample, group in sdrf_df.groupby("sample"):
+        row_data: List[InputRow] = []
+        row_data.append(
+            InputRow(
+                sample=SampleName(sample),
+                data={
+                    "BioReplicate": int(group["biological_replicate"].iloc[0]),
+                    "Fraction": "",
+                    "TecReplicate": "",
+                },
+            )
+        )
+
+        for _, row in group.iterrows():
+            row_data.append(
+                InputRow(
+                    sample=SampleName(row["file_name"]),
+                    data={
+                        "MSstats_BioReplicate": "",
+                        "Fraction": row["fraction_identifier"],
+                        "TecReplicate": row["technical_replicate"],
+                    },
+                )
+            )
+
+        group_name: SampleGroup = SampleGroup(sample)
+        rows_by_group[group_name] = row_data
+
+        headers = {
+            "Sample": {
+                "title": "Sample [Spectra File]",
+                "description": "",
+                "scale": False,
+            },
+            "BioReplicate": {
+                "title": "BioReplicate",
+                "description": "characteristics[biological replicate]",
+                "scale": False,
+            },
+            "Fraction": {
+                "title": "Fraction",
+                "description": "comment[fraction identifier]",
+                "scale": False,
+            },
+            "TecReplicate": {
+                "title": "TecReplicate",
+                "description": "comment[technical replicate]",
+                "scale": False,
+            },
+        }
+
+    pconfig = {
+        "id": "experimental_design",
+        "title": "Experimental Design",
+        "save_file": False,
+        "raw_data_fn": "multiqc_Experimental_Design_table",
+        "no_violin": True,
+    }
+    table_html = table.plot(rows_by_group, headers, pconfig)
+    add_sub_section(
+        sub_section=sub_sections,
+        plot=table_html,
+        order=1,
+        description="""
+            This table shows the design of the experiment. I.e., which files and channels correspond to which sample/condition/fraction.
+            """,
+        helptext="""
+            You can see details about it in 
+            https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
+            """
+    )
 
 # MaxQuant parameters table
 def draw_parameters(sub_section, parameter_table):
@@ -40,7 +124,7 @@ def draw_parameters(sub_section, parameter_table):
     add_sub_section(
         sub_section=sub_section,
         plot=table_html,
-        order=1,
+        order=2,
         description="This table presents the parameters used in MaxQuant.",
         helptext="""
             MaxQuant parameters, extracted from parameters.txt, summarizes the settings used for the MaxQuant analysis. 
@@ -89,7 +173,7 @@ def draw_peptide_table(sub_section, table_data):
     add_sub_section(
         sub_section=sub_section,
         plot=table_html,
-        order=1,
+        order=6,
         description="""
             This plot shows the quantification information of peptides in the final result (evidence.txt).
             """,
@@ -147,7 +231,7 @@ def draw_protein_table(sub_section, table_data):
     add_sub_section(
         sub_section=sub_section,
         plot=table_html,
-        order=1,
+        order=7,
         description="""
             This plot shows the quantification information of proteins in the final result (evidence.txt).
             """,
@@ -195,7 +279,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
         add_sub_section(
             sub_section=sub_section,
             plot=box_html,
-            order=3,
+            order=1,
             description="",
             helptext="""
                 Intensity boxplots by experimental groups. Groups are user-defined during MaxQuant configuration. 
@@ -231,7 +315,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
         add_sub_section(
             sub_section=sub_section,
             plot=box_html,
-            order=4,
+            order=2,
             description="Label-free quantification (LFQ) intensity boxplots by experimental groups.",
             helptext="""
                 Label-free quantification (LFQ) intensity boxplots by experimental groups. Groups are user-defined 
@@ -268,7 +352,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
         add_sub_section(
             sub_section=sub_section,
             plot=box_html,
-            order=5,
+            order=3,
             description="""
                 Peptide precursor intensity per Raw file from evidence.txt WITHOUT match-between-runs evidence.
                 """,
@@ -292,12 +376,12 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
     if fig_type == "raw_intensity":
         fig_id = "pca_of_raw_intensity"
         fig_title = "PCA of Raw Intensity"
-        plot_order = 6
+        plot_order = 4
 
     if fig_type == "lfq_intensity":
         fig_id = "pca_of_lfq_intensity"
         fig_title = "PCA of LFQ Intensity"
-        plot_order = 7
+        plot_order = 5
 
     draw_config = {
         "id": fig_id,
