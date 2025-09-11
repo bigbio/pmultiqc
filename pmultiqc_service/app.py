@@ -34,9 +34,10 @@ import redis
 from pathlib import Path
 
 # Configuration
-UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/tmp/pmultiqc_uploads')
-OUTPUT_FOLDER = os.environ.get('OUTPUT_FOLDER', '/tmp/pmultiqc_outputs')
-HTML_REPORTS_FOLDER = os.environ.get('HTML_REPORTS_FOLDER', '/tmp/pmultiqc_html_reports')
+# Use environment variables with fallback to current working directory subdirectories
+UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'pmultiqc_uploads'))
+OUTPUT_FOLDER = os.environ.get('OUTPUT_FOLDER', os.path.join(os.getcwd(), 'pmultiqc_outputs'))
+HTML_REPORTS_FOLDER = os.environ.get('HTML_REPORTS_FOLDER', os.path.join(os.getcwd(), 'pmultiqc_html_reports'))
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 
 # Ensure directories exist
@@ -1262,17 +1263,16 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
             logger.error(f"Error checking pmultiqc plugin: {e}")
         
         # Add timeout for large datasets (30 minutes)
-        import signal
+        import threading
         import time
         
-        def timeout_handler(signum, frame):
-            raise TimeoutError("MultiQC processing timed out after 30 minutes")
+        # Check if we have a large file and set timeout accordingly
+        large_file_detected = False
+        timeout_seconds = 30 * 60  # 30 minutes default
         
-        # Set timeout for large files
         if input_type == 'diann':
             # Check if we have a large file
             input_dir = args[1]
-            large_file_detected = False
             try:
                 for root, dirs, files in os.walk(input_dir):
                     for file in files:
@@ -1289,16 +1289,17 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
             
             if large_file_detected:
                 logger.info("Large file detected, setting 30-minute timeout")
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(1800)  # 30 minutes
+                timeout_seconds = 30 * 60  # 30 minutes for large files
         
         # Set environment variables to fix matplotlib and other issues
         import os
-        os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
-        os.makedirs('/tmp/matplotlib', exist_ok=True)
+        import tempfile
+        matplotlib_dir = os.environ.get('MPLCONFIGDIR', os.path.join(tempfile.gettempdir(), 'matplotlib'))
+        os.environ['MPLCONFIGDIR'] = matplotlib_dir
+        os.makedirs(matplotlib_dir, exist_ok=True)
         
         # Set output directory environment variable to help pmultiqc plugin
-        output_dir = args[args.index('-o') + 1] if '-o' in args else '/tmp/multiqc_output'
+        output_dir = args[args.index('-o') + 1] if '-o' in args else os.path.join(tempfile.gettempdir(), 'multiqc_output')
         os.environ['MULTIQC_OUTPUT_DIR'] = output_dir
         os.makedirs(output_dir, exist_ok=True)
         
@@ -1464,9 +1465,9 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
             output_lines = []
             error_lines = []
             
-            # Set a timeout for the process (30 minutes)
+            # Set a timeout for the process
             start_time = time.time()
-            timeout_seconds = 30 * 60  # 30 minutes
+            logger.info(f"Starting MultiQC with {timeout_seconds} second timeout")
             
             while True:
                 # Check for timeout

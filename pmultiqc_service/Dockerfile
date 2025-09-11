@@ -33,14 +33,17 @@ RUN pip install --no-cache-dir --force-reinstall git+https://github.com/bigbio/p
 COPY app.py .
 COPY templates/ ./templates/
 
-# Create necessary directories
-RUN mkdir -p /tmp/pmultiqc_uploads /tmp/pmultiqc_outputs
+# Create necessary directories (will be created by the application using environment variables)
+RUN mkdir -p /app/pmultiqc_uploads /app/pmultiqc_outputs /app/pmultiqc_html_reports
 
 # Expose port
 EXPOSE 5000
 
 # Set environment variables
 ENV FLASK_APP=app.py
+ENV UPLOAD_FOLDER=/app/pmultiqc_uploads
+ENV OUTPUT_FOLDER=/app/pmultiqc_outputs
+ENV HTML_REPORTS_FOLDER=/app/pmultiqc_html_reports
 
 # Run the application
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "2"]
