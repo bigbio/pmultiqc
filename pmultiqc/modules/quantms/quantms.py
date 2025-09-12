@@ -3024,7 +3024,12 @@ class QuantMSModule:
 
         # parse DIA-NN report data
         if os.path.splitext(self.diann_report_path)[1] == ".tsv":
-            report_data = pd.read_csv(self.diann_report_path, header=0, sep="\t")
+            report_data = pd.read_csv(
+                self.diann_report_path,
+                header=0,
+                sep="\t",
+                on_bad_lines="warn"
+            )
         else:
             report_data = pd.read_parquet(self.diann_report_path)
 
@@ -3045,13 +3050,21 @@ class QuantMSModule:
             draw_dia_intensitys(self.sub_sections["quantification"], report_data)
             draw_dia_heatmap(self.sub_sections["summary"], report_data, self.heatmap_color_list)
         
+        log.info("Draw the DIA MS1 subsection.")
         draw_dia_ms1(self.sub_sections["ms1"], report_data)
+
+        log.info("Draw the DIA MS2 subsection.")
         draw_dia_ms2s(self.sub_sections["ms2"], report_data)
+
+        log.info("Draw the DIA mass_error subsection.")
         draw_dia_mass_error(self.sub_sections["mass_error"], report_data)
+
+        log.info("Draw the DIA rt_qc subsection.")
         draw_dia_rt_qc(self.sub_sections["rt_qc"], report_data)
 
         # Draw: Quantification Table (DIA-NN, without msstats data)
         if not self.msstats_input_valid:
+            log.info("Draw the DIA quant table subsection.")
             draw_diann_quant_table(
                 self.sub_sections["quantification"],
                 report_data,
@@ -3060,19 +3073,21 @@ class QuantMSModule:
             )
 
         pattern = re.compile(r"\(.*?\)")
-        report_data["sequence"] = report_data.apply(
-            lambda x: re.sub(pattern, "", x["Modified.Sequence"]), axis=1
-        )
+        report_data["sequence"] = [
+            pattern.sub("", s) for s in report_data["Modified.Sequence"]
+        ]
+
         self.total_protein_quantified = len(set(report_data["Protein.Group"]))
         self.Total_Peptide_Count = len(set(report_data["sequence"]))
-        protein_pep_map = report_data.groupby("Protein.Group").sequence.apply(list).to_dict()
 
+        log.info("Processing DIA pep_plot.")
+        protein_pep_map = report_data.groupby("Protein.Group")["sequence"].agg(list).to_dict()
         self.pep_plot = Histogram("number of peptides per proteins", plot_category="frequency")
-
         for _, peps in protein_pep_map.items():
             number = len(set(peps))
             self.pep_plot.add_value(number)
 
+        log.info("Processing DIA peptide_search_score.")
         self.peptide_search_score = dict()
         pattern = re.compile(r"\((.*?)\)")
         unimod_data = UnimodDatabase()
@@ -3094,6 +3109,7 @@ class QuantMSModule:
         self.pep_plot.to_dict(percentage=True, cats=categorys)
 
         # Modifications Name
+        log.info("Processing DIA Modifications.")
         mod_pattern = re.compile(r"\((.*?)\)")
         def find_diann_modified(peptide):
             if isinstance(peptide, str):
@@ -3109,9 +3125,9 @@ class QuantMSModule:
 
         report_data["Modifications"] = report_data["Modified.Sequence"].apply(lambda x: find_diann_modified(x))
 
+        log.info("Processing DIA mod_plot_dict.")
         mod_plot_dict = dict()
         modified_cats = list()
-
         for run_file, group in report_data.groupby("Run"):
             run_file = str(run_file)
             self.ms_with_psm.append(run_file)
