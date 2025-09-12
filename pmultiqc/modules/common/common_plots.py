@@ -181,9 +181,29 @@ def draw_modifications(sub_section, modified_data):
         plot=bar_html,
         order=6,
         description="""
-            Compute an occurence table of modifications (e.g. Oxidation (M)) for all peptides, including the unmodified.
+            Compute an occurence table of modifications (e.g. Oxidation (M)) for all peptides, including the unmodified (but without contaminants).
             """,
-        helptext="Post-translational modifications contained within the identified peptide sequence."
+        helptext="""
+Post-translational modifications contained within the identified peptide sequence.<br>
+
+<p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences (where different charge state counts as a separate peptide) per Raw file.
+The sum of frequencies may exceed 100% per Raw file, since a peptide can have multiple modifications.</p>
+
+E.g. given three peptides in a single Raw file                 <br>
+1. _M(Oxidation (M))LVLDEADEM(Oxidation (M))LNK_               <br>
+2. _(Acetyl (Protein N-term))M(Oxidation (M))YGLLLENLSEYIK_    <br>
+3. DPFIANGER                                                   <br>
+
+<p>, the following frequencies arise:</p>
+
+* 33% of 'Acetyl (Protein N-term)' <br>
+* 33% of 'Oxidation (M)'           <br>
+* 33% of '2 Oxidation (M)'         <br>
+* 33% of 'Unmodified'              <br>
+
+<p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once. 
+If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
+"""
     )
 
 def draw_oversampling(
