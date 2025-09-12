@@ -15,8 +15,10 @@ log = logging.getLogger(__name__)
 
 def draw_dia_heatmap(sub_section, report_df, heatmap_color):
 
+    log.info("Compute the Heatmap.")
     heatmap_data = quantms_utils.cal_dia_heatmap(report_df)
     dia_plots.draw_heatmap(sub_section, heatmap_color, heatmap_data)
+    log.info("Heatmap calculation is done.")
 
 def draw_dia_intensitys(sub_section, report_df):
 
@@ -65,32 +67,38 @@ def draw_dia_rt_qc(sub_section, report_df):
     #   Normalisation.Factor: normalisation factor applied to the precursor in the specific run, 
     #   i.e. normalised quantity = normalisation factor X non-normalised quantity
     if "Normalisation.Factor" in df.columns:
+        log.info("Draw[rt_qc]: norm_factor_rt")
         norm_factor_rt = quantms_utils.cal_feature_avg_rt(df, "Normalisation.Factor")
         dia_plots.draw_norm_factor_rt(sub_section, norm_factor_rt)
 
     # 2. FWHM over RT
     #   FWHM: estimated peak width at half-maximum
     if "FWHM" in df.columns:
+        log.info("Draw[rt_qc]: draw_fwhm_rt")
         fwhm_rt = quantms_utils.cal_feature_avg_rt(df, "FWHM")
         dia_plots.draw_fwhm_rt(sub_section, fwhm_rt)
     
     # 3. Peak Width over RT
     #   RT.Start and RT.Stop peak boundaries
     if all(col in df.columns for col in ["RT.Start", "RT.Stop"]):
+        log.info("Draw[rt_qc]: draw_peak_width_rt")
         df["peak_width"] = df["RT.Stop"] - df["RT.Start"]
         peak_width_rt = quantms_utils.cal_feature_avg_rt(df, "peak_width")
         dia_plots.draw_peak_width_rt(sub_section, peak_width_rt)
 
     # 4. Absolute RT Error over RT
     if all(col in df.columns for col in ["RT", "Predicted.RT"]):
+        log.info("Draw[rt_qc]: draw_rt_error_rt")
         df["rt_error"] = abs(df["RT"] - df["Predicted.RT"])
         rt_error_rt = quantms_utils.cal_feature_avg_rt(df, "rt_error")
         dia_plots.draw_rt_error_rt(sub_section, rt_error_rt)
 
     # 5. loess(RT ~ iRT)
     if all(col in df.columns for col in ["RT", "iRT"]):
+        log.info("Draw[rt_qc]: draw_loess_rt_irt")
         rt_irt_loess = quantms_utils.cal_rt_irt_loess(df)
-        dia_plots.draw_loess_rt_irt(sub_section, rt_irt_loess)
+        if rt_irt_loess is not None:
+            dia_plots.draw_loess_rt_irt(sub_section, rt_irt_loess)
 
 # DIA-NN: IDs over RT
 def draw_dia_ids_rt(sub_section, report_df):
