@@ -1,38 +1,86 @@
-version: '3.8'
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: pmultiqc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.1'
+
   pmultiqc-service:
     build:
       context: ../
       dockerfile: Dockerfile
-    image: pmultiqc-service
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    image: pmultiqc-service:universal
     container_name: pmultiqc-service
     ports:
-      - "5000:5000"
+      - "8080:5000"
     environment:
       - FLASK_ENV=production
       - MAX_CONTENT_LENGTH=4294967296  # 4GB upload limit
-      - UPLOAD_FOLDER=/app/uploads
-      - OUTPUT_FOLDER=/app/outputs
-      - HTML_REPORTS_FOLDER=/app/reports
-      - BASE_URL=http://localhost:5000
-      - LOG_LEVEL=INFO
+      - UPLOAD_FOLDER=/tmp/pmultiqc_uploads
+      - OUTPUT_FOLDER=/tmp/pmultiqc_outputs
+      - HTML_REPORTS_FOLDER=/tmp/pmultiqc_html_reports
+      - BASE_URL=http://localhost:8080  # Local testing URL
+      - LOG_LEVEL=DEBUG
+      - REDIS_URL=redis://redis:6379
+      - REDIS_USERNAME=
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
     volumes:
-      - ./uploads:/app/uploads
-      - ./outputs:/app/outputs
-      - ./reports:/app/reports
       - ./config.yaml:/app/config.yaml:ro
+    tmpfs:
+      - /tmp/pmultiqc_uploads:uid=1000,gid=1000
+      - /tmp/pmultiqc_outputs:uid=1000,gid=1000
+      - /tmp/pmultiqc_html_reports:uid=1000,gid=1000
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     deploy:
       resources:
         limits:
-          memory: 8Gi
+          memory: 16384M
           cpus: '4.0'
         reservations:
-          memory: 4Gi
+          memory: 12288M
           cpus: '1.0'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 120s
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    # Create the required directories at startup
+    command: >
+      sh -c "
+        mkdir -p /tmp/pmultiqc_uploads /tmp/pmultiqc_outputs /tmp/pmultiqc_html_reports &&
+        uvicorn app:app --host 0.0.0.0 --port 5000 --workers 2
+      "
+
+volumes:
+  redis_data:
+  uploads_data:
+  outputs_data:
+  reports_data:
