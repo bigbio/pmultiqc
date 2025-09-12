@@ -181,7 +181,7 @@ def draw_modifications(sub_section, modified_data):
         plot=bar_html,
         order=6,
         description="""
-            Compute an occurence table of modifications (e.g. Oxidation (M)) for all peptides, including the unmodified (but without contaminants).
+            Compute an occurrence table of modifications (e.g. Oxidation (M)) for all peptides, including the unmodified (but without contaminants).
             """,
         helptext="""
 Post-translational modifications contained within the identified peptide sequence.<br>
