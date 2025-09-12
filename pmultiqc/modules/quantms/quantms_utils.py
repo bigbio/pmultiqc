@@ -248,6 +248,11 @@ def cal_feature_avg_rt(report_data, col):
 # DIA-NN: Lowess (Loess)
 def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=DEFAULT_BINS):
 
+    if len(report_df) > 1000000:
+        log.warning(f"Dataset too large ({len(report_df)} rows). Skipping LOWESS computation.")
+        return None
+
+    log.info("Start compute loess...")
     df = report_df.copy()
     
     # bin
@@ -287,8 +292,6 @@ def cal_dia_heatmap(report_df):
 
     # missed tryptic cleavages: there is no available data
 
-
-
     return pep_intensity
 
 def heatmap_cont_pep_intensity(report_df):
@@ -301,7 +304,7 @@ def heatmap_cont_pep_intensity(report_df):
     ].copy()
 
     # TODO "CON"?
-    df["is_contaminant"] = df["Protein.Names"].str.startswith("CON")
+    df["is_contaminant"] = df["Protein.Names"].str.startswith("CON", na=False)
 
     # 3. "Charge"
     charge = dict()
