@@ -29,7 +29,7 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
         sub_section=sub_section,
         plot=bar_html,
         order=7,
-        description="MS/MS identification rate per Raw file.",
+        description="MS/MS identification rate per raw file.",
         helptext="MS/MS identification rate per raw file (quantms data from mzTab and mzML files; MaxQuant data from summary.txt)"
     )
 
@@ -61,7 +61,9 @@ def draw_potential_contaminants(
         help_text = """
             External protein contamination should be controlled for, therefore MaxQuant ships with a 
             comprehensive, yet customizable protein contamination database, which is searched by MaxQuant 
-            by default. A contamination plot derived from the proteinGroups (PG) table, showing the 
+            by default. 
+            
+            A contamination plot derived from the proteinGroups (PG) table, showing the 
             fraction of total protein intensity attributable to contaminants. 
             
             Note that this plot is based on experimental groups, and therefore may not correspond 1:1 to Raw files.
@@ -137,15 +139,21 @@ def draw_charge_state(sub_section, charge_data, report_type):
 
     bar_html = remove_subtitle(bar_html)
 
+    help_text = """Charge distribution per Raw file. For typtic digests, peptides of charge 2
+    (one N-terminal and one at tryptic C-terminal R or K residue) should be dominant.
+    Ionization issues (voltage?), in-source fragmentation, missed cleavages and buffer irregularities can
+    cause a shift (see Bittremieux 2017, DOI: 10.1002/mas.21544).
+    The charge distribution should be similar across Raw files.
+    Consistent charge distribution is paramount for comparable 3D-peak intensities across samples."""
+
     if report_type == "MaxQuant":
         description_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
-        help_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
+        help_text += "<p>This plot ignores charge states of contaminants.<p>"
     elif report_type == "mzIdentML":
         description_text = "The distribution of the charge-state of the precursor ion."
-        help_text = "The distribution of the charge-state of the precursor ion."
     else:
         description_text = "The distribution of precursor ion charge states (based on mzTab data)."
-        help_text = "The distribution of precursor ion charge states (based on mzTab data)."
+        help_text += "<p>Precursor ion charge states are based on mzTab data.<p>"
 
     add_sub_section(
         sub_section=sub_section,
@@ -246,7 +254,16 @@ def draw_oversampling(
         )
 
     bar_html = remove_subtitle(bar_html)
-    
+
+    helptext = """
+                For high complexity samples, oversampling of individual 3D-peaks automatically leads to 
+                undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
+                Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
+                exclusion windows for data independent acquisitions.
+                """
+    if (is_maxquant):
+        helptext += "<p>If DIA-Data: this metric is skipped.</p>"
+
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
@@ -256,12 +273,7 @@ def draw_oversampling(
             (same sequence and same charge state) was identified by at least two distinct MS2 spectra 
             in the same Raw file.
             """,
-        helptext="""
-            For high complexity samples, oversampling of individual 3D-peaks automatically leads to 
-            undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
-            Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
-            exclusion windows for data independent acquisitions.
-            """
+        helptext=helptext
     )
 
 # Missed Cleavages Per Raw File
@@ -288,8 +300,25 @@ def draw_msms_missed_cleavages(
 
     bar_html = remove_subtitle(bar_html)
 
+    helptext = """
+                Under optimal digestion conditions (high enzyme grade etc.), only few missed cleavages (MC) are expected. In 
+                general, increased MC counts also increase the number of peptide signals, thus cluttering the available 
+                space and potentially provoking overlapping peptide signals, biasing peptide quantification.
+                Thus, low MC counts should be favored. Interestingly, it has been shown recently that 
+                incorporation of peptides with missed cleavages does not negatively influence protein quantification (see 
+                [Chiva, C., Ortega, M., and Sabido, E. Influence of the Digestion Technique, Protease, and Missed 
+                Cleavage Peptides in Protein Quantitation. J. Proteome Res. 2014, 13, 3979-86](https://doi.org/10.1021/pr500294d) ). 
+                However this is true only if all samples show the same degree of digestion. High missed cleavage values 
+                can indicate for example, either a) failed digestion, b) a high (post-digestion) protein contamination, or 
+                c) a sample with high amounts of unspecifically degraded peptides which are not digested by trypsin. 
+
+                If MC>=1 is high (>20%) you should re-analyse with increased missed cleavages parameters and compare the number of peptides.
+                Usually high MC correlates with bad identification rates, since many spectra cannot be matched to the forward database.
+                """
+
     if is_maxquant:
         description_text = "[Excludes Contaminants] Missed Cleavages per raw file."
+        helptext += "<p>In the rare case that 'no enzyme' was specified in MaxQuant, neither scores nor plots are shown.</p>"
     else:
         description_text = "Missed Cleavages per raw file."
 
@@ -298,23 +327,7 @@ def draw_msms_missed_cleavages(
         plot=bar_html,
         order=5,
         description=description_text,
-        helptext="""
-            Under optimal digestion conditions (high enzyme grade etc.), only few missed cleavages (MC) are expected. In 
-            general, increased MC counts also increase the number of peptide signals, thus cluttering the available 
-            space and potentially provoking overlapping peptide signals, biasing peptide quantification.
-            Thus, low MC counts should be favored. Interestingly, it has been shown recently that 
-            incorporation of peptides with missed cleavages does not negatively influence protein quantification (see 
-            [Chiva, C., Ortega, M., and Sabido, E. Influence of the Digestion Technique, Protease, and Missed 
-            Cleavage Peptides in Protein Quantitation. J. Proteome Res. 2014, 13, 3979-86](https://doi.org/10.1021/pr500294d) ). 
-            However this is true only if all samples show the same degree of digestion. High missed cleavage values 
-            can indicate for example, either a) failed digestion, b) a high (post-digestion) protein contamination, or 
-            c) a sample with high amounts of unspecifically degraded peptides which are not digested by trypsin. 
-
-            If MC>=1 is high (>20%) you should increase the missed cleavages settings in MaxQuant and compare the number of peptides.
-            Usually high MC correlates with bad identification rates, since many spectra cannot be matched to the forward database.
-
-            In the rare case that 'no enzyme' was specified in MaxQuant, neither scores nor plots are shown.
-            """
+        helptext=helptext
     )
 
 # IDs over RT
@@ -360,7 +373,15 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
         help_text = """
             The uncalibrated retention time in minutes in the elution profile of the precursor ion.
             """
-        
+
+    help_text+= """
+            <p>This plot allows to judge column occupancy over retention time.
+            Ideally, the LC gradient is chosen such that the number of identifications (here, after FDR filtering) is
+            uniform over time, to ensure consistent instrument duty cycles. Sharp peaks and uneven distribution of
+            identifications over time indicate potential for LC gradient optimization.
+            See [Moruz 2014, DOI: 10.1002/pmic.201400036](https://pubmed.ncbi.nlm.nih.gov/24700534/) for details.</p>
+"""
+
     add_sub_section(
         sub_section=sub_section,
         plot=linegraph_html,
@@ -400,6 +421,8 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
         help_text = """
             Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison to the 
             predicted monoisotopic mass of the identified peptide sequence in parts per million.
+            
+            Ppm errors should be centered on zero and their spread is expected to be significantly smaller than before calibration.
             """
     
     # quantms: Delta Mass [ppm]
@@ -562,7 +585,7 @@ def draw_heatmap(
             pconfig=pconfig
         )
         
-        description_text = "This heatmap provides an overview of the performance of the MaxQuant results."
+        description_text = "This heatmap provides an overview of the performance of MaxQuant."
 
     else:
 
@@ -573,7 +596,7 @@ def draw_heatmap(
             pconfig
         )
 
-        description_text = "This heatmap provides an overview of the performance of the quantms."
+        description_text = "This heatmap provides an overview of the performance of quantms."
 
     hm_html = remove_subtitle(hm_html)
 
