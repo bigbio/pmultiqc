@@ -1328,7 +1328,6 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
             try:
                 import pandas as pd
                 import glob
-                import os
                 
                 # Find all report.tsv files in the input directory
                 input_dir = args[1]  # Second argument is the input directory (first is 'multiqc')
