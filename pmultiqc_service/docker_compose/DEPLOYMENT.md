@@ -1,6 +1,6 @@
-# Quick Deployment Guide for https://abi-services.cs.uni-tuebingen.de/pmultiqc/
+# Quick Deployment Guide
 
-This guide shows how to deploy PMultiQC with the correct BASE_URL configuration for your domain.
+This guide shows how to deploy PMultiQC with the correct BASE_URL configuration for your domain, specifically for deployments like https://abi-services.cs.uni-tuebingen.de/pmultiqc/.
 
 ## Before (Problem)
 
