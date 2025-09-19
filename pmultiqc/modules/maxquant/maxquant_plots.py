@@ -175,13 +175,12 @@ def draw_peptide_table(sub_section, table_data):
         plot=table_html,
         order=6,
         description="""
-            This plot shows the quantification information of peptides in the final result (evidence.txt).
+            This plot shows the quantification information of peptides in evidence.txt.
             """,
         helptext="""
-            The quantification information of peptides is obtained from the evidence.txt. 
             The table shows the quantitative level and distribution of peptides in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
-            the average intensity for all the fractions, runs and peptiforms. 
+            run and peptidoforms. The distribution shows all the intensity values in a bar plot above and below 
+            the average intensity for all the fractions, runs and peptidoforms. 
             Contaminants have been removed from the data by filtering using the 'Potential contaminant' field.
 
             * BestSearchScore: maximum score (Andromeda score).
@@ -236,10 +235,10 @@ def draw_protein_table(sub_section, table_data):
             This plot shows the quantification information of proteins in the final result (evidence.txt).
             """,
         helptext="""
-            The quantification information of peptides is obtained from the evidence.txt. 
+            The quantification information of peptides is obtained from evidence.txt. 
             The table shows the quantitative level and distribution of peptides in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
-            the average intensity for all the fractions, runs and peptiforms. 
+            run and peptidoforms. The distribution shows all the intensity values in a bar plot above and below 
+            the average intensity for all the fractions, runs and peptidoforms. 
             Contaminants have been removed from the data by filtering using the 'Potential contaminant' field.
 
             * Peptides_Number: The number of peptides for each protein.
@@ -361,11 +360,10 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
                 Low peptide intensity usually goes hand in hand with low MS/MS identifcation rates and unfavourable 
                 signal/noise ratios, which makes signal detection harder. Also instrument acquisition time increases 
                 for trapping instruments. 
+                
                 Failing to reach the intensity threshold is usually due to unfavorable column conditions, inadequate 
                 column loading or ionization issues. If the study is not a dilution series or pulsed SILAC experiment, 
-                we would expect every condition to have about the same median log-intensity (of 2<sup>%1.1f</sup>). 
-                The relative standard deviation (RSD) gives an indication about reproducibility across files and should 
-                be below 5%%.
+                we would expect every condition to have about the same median log-intensity. 
                 """
         )
 
@@ -410,10 +408,10 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
         helptext="""
             This plot is shown only if more than one experimental group was defined. 
             If LFQ was activated in MaxQuant, an additional PCA plot for LFQ intensities is shown. 
-            Similarly, if iTRAQ/TMT reporter intensities are detected. 
-            Since experimental groups and Raw files do not necessarily correspond 1:1, this plot 
-            cannot use the abbreviated Raw file names, but instead must rely on automatic shortening 
-            of group names.
+            Similarly, if iTRAQ/TMT reporter intensities are detected.
+             
+            Since experimental groups and Raw files do not necessarily correspond 1:1, 
+            this plot may not reflect individual raw file performance.
             """
     )
 
@@ -450,7 +448,9 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
             """,
         helptext="""
             If MBR was enabled, three categories ('Genuine (Exclusive)', 'Genuine + Transferred', 'Transferred (Exclusive)'
-            are shown, so the user can judge the gain that MBR provides. Peptides in the 'Genuine + Transferred' category 
+            are shown, so the user can judge the gain that MBR provides. 
+            
+            Peptides in the 'Genuine + Transferred' category 
             were identified within the Raw file by MS/MS, but at the same time also transferred to this Raw file using MBR. 
             This ID transfer can be correct (e.g. in case of different charge states), or incorrect -- see MBR-related 
             metrics to tell the difference. 
@@ -542,6 +542,10 @@ def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
             The distribution of the widths of peptide elution peaks, 
             derived from the evidence table and excluding potential contaminants, 
             is one parameter of optimal and reproducible chromatographic separation.
+            
+            Ideally, all Raw files show a similar
+            distribution, e.g. to allow for equal conditions during dynamic precursor exclusion, RT alignment or
+            peptide quantification.
             """
     )
 
