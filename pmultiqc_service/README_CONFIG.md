@@ -63,6 +63,28 @@ If no environment variables or YAML file is found, the service uses these defaul
 
 ### Docker Compose
 
+For production deployments with configurable BASE_URL and other settings, use the enhanced Docker Compose configuration in the `docker_compose/` directory:
+
+```bash
+# Copy and customize environment configuration
+cd pmultiqc_service/docker_compose
+cp .env.production.example .env
+
+# Edit .env to set your BASE_URL and other settings
+# CRITICAL: Set BASE_URL to your actual deployment URL
+# Example: BASE_URL=https://your-domain.com/pmultiqc
+
+# Deploy with production configuration
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+**Key Configuration for Production:**
+- Set `BASE_URL` to your actual public URL (e.g., `https://abi-services.cs.uni-tuebingen.de/pmultiqc`)
+- This is equivalent to the Kubernetes ConfigMap approach but for Docker Compose
+- See `docker_compose/README.md` for detailed deployment instructions
+
+Basic Docker Compose example (legacy):
+
 ```yaml
 version: '3.8'
 services:
@@ -80,7 +102,7 @@ services:
       - UPLOAD_FOLDER=/app/uploads
       - OUTPUT_FOLDER=/app/outputs
       - HTML_REPORTS_FOLDER=/app/reports
-      - BASE_URL=http://localhost:5000
+      - BASE_URL=http://localhost:5000  # CHANGE THIS for production!
       - LOG_LEVEL=INFO
     volumes:
       - ./uploads:/app/uploads
