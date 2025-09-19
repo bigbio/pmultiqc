@@ -27,20 +27,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install pmultiqc from GitHub main branch (overrides PyPI version)
-# Handle architecture-specific dependencies
-RUN set -e; \
-    if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-        echo "Building for ARM64 - skipping pyopenms"; \
-        pip install --no-cache-dir --force-reinstall git+https://github.com/bigbio/pmultiqc.git@main --no-deps; \
-        pip install --no-cache-dir multiqc pandas pyteomics sdrf-pipelines lxml numpy pyarrow scikit-learn; \
-        # Fix missing __version__ attribute for ARM64 build \
-        echo "__version__ = '0.0.34'" >> /usr/local/lib/python3.10/site-packages/pmultiqc/__init__.py; \
-        # Patch quantms module to handle missing pyopenms \
-        sed -i 's/from pyopenms import OpenMSBuildInfo, AASequence/try:\n    from pyopenms import OpenMSBuildInfo, AASequence\nexcept ImportError:\n    OpenMSBuildInfo = None\n    AASequence = None/' /usr/local/lib/python3.10/site-packages/pmultiqc/modules/quantms/quantms.py; \
-    else \
-        echo "Building for AMD64 - installing all dependencies"; \
-        pip install --no-cache-dir --force-reinstall git+https://github.com/bigbio/pmultiqc.git@main; \
-    fi
+RUN pip install --no-cache-dir --force-reinstall git+https://github.com/bigbio/pmultiqc.git@main
 
 # Copy service files
 COPY app.py .
