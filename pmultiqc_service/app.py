@@ -1292,7 +1292,6 @@ def run_pmultiqc_with_progress(input_path: str, output_path: str, input_type: st
                 timeout_seconds = 30 * 60  # 30 minutes for large files
         
         # Set environment variables to fix matplotlib and other issues
-        import os
         import tempfile
         matplotlib_dir = os.environ.get('MPLCONFIGDIR', os.path.join(tempfile.gettempdir(), 'matplotlib'))
         os.environ['MPLCONFIGDIR'] = matplotlib_dir
