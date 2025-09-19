@@ -26,22 +26,8 @@ RUN pip install --upgrade pip setuptools wheel
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy patch script early
-COPY patch_arm64.py .
-
 # Install pmultiqc from GitHub main branch (overrides PyPI version)
-# Handle architecture-specific dependencies
-RUN set -e; \
-    if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-        echo "Building for ARM64 - skipping pyopenms"; \
-        pip install --no-cache-dir --force-reinstall git+https://github.com/bigbio/pmultiqc.git@main --no-deps; \
-        pip install --no-cache-dir multiqc pandas pyteomics sdrf-pipelines lxml numpy pyarrow scikit-learn; \
-        # Apply ARM64 compatibility patches \
-        python /app/patch_arm64.py; \
-    else \
-        echo "Building for AMD64 - installing all dependencies"; \
-        pip install --no-cache-dir --force-reinstall git+https://github.com/bigbio/pmultiqc.git@main; \
-    fi
+RUN pip install --no-cache-dir --force-reinstall git+https://github.com/bigbio/pmultiqc.git@main
 
 # Copy service files
 COPY app.py .
