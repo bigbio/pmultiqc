@@ -1,3 +1,17 @@
+# Production Docker Compose Configuration for PMultiQC Service
+# 
+# This configuration is designed for production deployments where you need to
+# configure the BASE_URL and other environment variables for your specific setup.
+#
+# Usage:
+# 1. Copy .env.template to .env and configure your settings
+# 2. Run: docker compose -f docker-compose.prod.yml up -d
+#
+# For deployments behind reverse proxies or on subpaths, make sure to:
+# - Set BASE_URL to your full public URL (e.g., https://your-domain.com/pmultiqc)
+# - Configure your reverse proxy to forward requests properly
+#
+
 services:
   redis:
     image: redis:7-alpine
@@ -32,19 +46,9 @@ services:
     image: pmultiqc-service:universal
     container_name: pmultiqc-service
     ports:
-      - "8080:5000"
-    environment:
-      - FLASK_ENV=${FLASK_ENV:-production}
-      - MAX_CONTENT_LENGTH=${MAX_CONTENT_LENGTH:-4294967296}  # 4GB upload limit
-      - UPLOAD_FOLDER=${UPLOAD_FOLDER:-/tmp/pmultiqc_uploads}
-      - OUTPUT_FOLDER=${OUTPUT_FOLDER:-/tmp/pmultiqc_outputs}
-      - HTML_REPORTS_FOLDER=${HTML_REPORTS_FOLDER:-/tmp/pmultiqc_html_reports}
-      - BASE_URL=${BASE_URL:-http://localhost:8080}  # IMPORTANT: Configure this for your deployment
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - REDIS_USERNAME=${REDIS_USERNAME:-}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - REDIS_DB=${REDIS_DB:-0}
+      - "${HOST_PORT:-8080}:5000"
+    env_file:
+      - .env  # Load environment variables from .env file
     volumes:
       - ./config.yaml:/app/config.yaml:ro
     tmpfs:
@@ -81,6 +85,3 @@ services:
 
 volumes:
   redis_data:
-  uploads_data:
-  outputs_data:
-  reports_data:
