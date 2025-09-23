@@ -932,17 +932,29 @@ def evidence_oversampling(evidence_data):
 
 # 3-8.evidence.txt: Uncalibrated mass error
 def evidence_uncalibrated_mass_error(evidence_data):
-    if any(
-        column not in evidence_data.columns
-        for column in ["uncalibrated mass error [ppm]", "raw file"]
-    ):
-        return None
 
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
+    evd_df = recommpute_mass_error(evidence_data)
+
+    if evd_df is None:
+        if any(
+            column not in evidence_data.columns
+            for column in ["uncalibrated mass error [ppm]", "raw file"]
+        ):
+            logger.warning(
+                "evidence_uncalibrated_mass_error: Required columns 'uncalibrated mass error [ppm]' or 'raw file' are missing in Evidence DataFrame."
+            )
+            return None
+        else:
+            logger.warning(
+                "Missing required columns. Skipping mass error recomputation and falling back to 'uncalibrated mass error [ppm]' and 'raw file' only."
+            )
+            evd_df = evidence_data[["uncalibrated mass error [ppm]", "raw file"]].copy()
+
     uncalibrated_mass_error = {}
-    for raw_file, group in evidence_data.groupby("raw file"):
+    for raw_file, group in evd_df.groupby("raw file"):
         mass_error = list(
             group["uncalibrated mass error [ppm]"].map(lambda x: 0 if pd.isna(x) else x)
         )
@@ -954,20 +966,35 @@ def evidence_uncalibrated_mass_error(evidence_data):
 
 # 3-8.evidence.txt: Calibrated mass error
 def evidence_calibrated_mass_error(evidence_data):
-    if any(column not in evidence_data.columns for column in ["mass error [ppm]", "raw file"]):
-        return None
 
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
-    evidence_data.dropna(subset=["mass error [ppm]"], inplace=True)
+    evd_df = recommpute_mass_error(evidence_data)
 
-    count_bin = evidence_data["mass error [ppm]"].value_counts(sort=False, bins=1000)
+    if evd_df is None:
+        if any(
+            column not in evidence_data.columns
+            for column in ["mass error [ppm]", "raw file"]
+        ):
+            logger.warning(
+                "evidence_calibrated_mass_error: Required columns 'mass error [ppm]' or 'raw file' are missing in Evidence DataFrame."
+            )
+            return None
+        else:
+            logger.warning(
+                "Missing required columns. Skipping mass error recomputation and falling back to 'mass error [ppm]' and 'raw file' only."
+            )
+            evd_df = evidence_data[["mass error [ppm]", "raw file"]].copy()
+
+    evd_df.dropna(subset=["mass error [ppm]"], inplace=True)
+
+    count_bin = evd_df["mass error [ppm]"].value_counts(sort=False, bins=1000)
     count_bin_data = dict()
     for index in count_bin.index:
         count_bin_data[float(index.mid)] = int(count_bin[index])
 
-    frequency_bin = evidence_data["mass error [ppm]"].value_counts(sort=False, bins=1000, normalize=True)
+    frequency_bin = evd_df["mass error [ppm]"].value_counts(sort=False, bins=1000, normalize=True)
     frequency_bin_data = dict()
     for index in frequency_bin.index:
         frequency_bin_data[float(index.mid)] = float(frequency_bin[index])
@@ -1754,3 +1781,49 @@ def read_sdrf(sdrf_path):
     
     else:
         return None
+
+# re-compute mass error
+def recommpute_mass_error(evidence_df):
+
+    required_cols = [
+        "mass error [ppm]",
+        "uncalibrated mass error [ppm]",
+        "raw file",
+        "mass",
+        "charge",
+        "m/z",
+        "uncalibrated - calibrated m/z [ppm]"
+    ]
+
+    if not all(col in evidence_df.columns for col in required_cols):
+        logger.info("Evidence is missing one or more required columns in recommpute_mass_error.")
+        return None
+
+    df = evidence_df[required_cols].copy()
+
+    decal_df = (
+        df
+        .groupby("raw file", as_index=False)
+        .agg(
+            decal=(
+                "uncalibrated mass error [ppm]", lambda x: np.median(np.abs(x)) > 1e3
+            )
+        )
+    )
+
+    if decal_df["decal"].any():
+
+        logger.info("Detected at least one raw file with unusually high uncalibrated mass error.")
+
+        df["theoretical_mz"] = df["mass"] / df["charge"] + 1.00726
+        df["mass_error_ppm"] = (df["theoretical_mz"] - df["m/z"]) / df["theoretical_mz"] * 1e6
+        df["uncalibrated_mass_error_ppm"] = df["mass_error_ppm"] + df["uncalibrated - calibrated m/z [ppm]"]
+
+        idx_overwrite = df["raw file"].isin(decal_df.loc[decal_df["decal"], "raw file"])
+        df.loc[idx_overwrite, "mass error [ppm]"] = df.loc[idx_overwrite, "mass_error_ppm"]
+        df.loc[idx_overwrite, "uncalibrated mass error [ppm]"] = df.loc[idx_overwrite, "uncalibrated_mass_error_ppm"]
+
+    else:
+        logger.info("No raw files with unusually high uncalibrated mass error detected.")
+
+    return df[["mass error [ppm]", "uncalibrated mass error [ppm]", "raw file"]]
