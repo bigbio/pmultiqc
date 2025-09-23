@@ -24,8 +24,11 @@ fi
 echo
 echo "📋 Test 2: Testing docker-compose.yml with default BASE_URL (no .env)..."
 # Temporarily move .env if it exists
+RESTORE_ENV=0
 if [[ -f ".env" ]]; then
     mv .env .env.temp
+    RESTORE_ENV=1
+    trap 'if [[ "$RESTORE_ENV" -eq 1 && -f ".env.temp" ]]; then mv .env.temp .env; fi' EXIT
 fi
 BASE_URL_DEFAULT=$(docker compose -f docker-compose.yml config | grep -A 1 "BASE_URL:" | grep -v "API_BASE" | head -1 | awk '{print $2}')
 echo "Default BASE_URL: $BASE_URL_DEFAULT"
@@ -34,9 +37,11 @@ if [[ "$BASE_URL_DEFAULT" == "http://localhost:8080" ]]; then
 else
     echo "❌ Default BASE_URL is wrong: expected 'http://localhost:8080', got '$BASE_URL_DEFAULT'"
 fi
-# Restore .env if it existed
-if [[ -f ".env.temp" ]]; then
+# Restore .env if it existed (early, to avoid lingering rename if subsequent tests pass)
+if [[ "$RESTORE_ENV" -eq 1 && -f ".env.temp" ]]; then
     mv .env.temp .env
+    RESTORE_ENV=0
+    trap - EXIT
 fi
 
 # Test 3: Test docker-compose.yml with custom BASE_URL
