@@ -3,7 +3,7 @@ services:
     image: redis:7-alpine
     container_name: pmultiqc-redis-dev
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data_dev:/data
     restart: unless-stopped
@@ -32,7 +32,7 @@ services:
     image: pmultiqc-service:dev
     container_name: pmultiqc-service-dev
     ports:
-      - "5000:5000"
+      - "${HOST_PORT:-5000}:5000"
     environment:
       - FLASK_ENV=development
       - MAX_CONTENT_LENGTH=1073741824  # 1GB upload limit for dev
