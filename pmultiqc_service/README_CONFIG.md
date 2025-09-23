@@ -183,6 +183,7 @@ location /pmultiqc/ {
 | `MAX_CONTENT_LENGTH` | `4294967296` | Max upload size in bytes (4GB) |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG/INFO/WARNING/ERROR) |
 | `REDIS_URL` | `redis://redis:6379` | Redis connection URL |
+| `REDIS_HOST_PORT` | `6379` | Host port to bind Redis container port 6379 |
 | `MEMORY_LIMIT` | `16384M` | Container memory limit |
 | `CPU_LIMIT` | `4.0` | Container CPU limit |
 
