@@ -40,9 +40,6 @@ services:
     build:
       context: ../
       dockerfile: Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
     image: pmultiqc-service:universal
     container_name: pmultiqc-service
     ports:
