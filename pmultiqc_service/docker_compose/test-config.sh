@@ -77,11 +77,17 @@ else
     exit 1
 fi
 
-if docker compose -f docker-compose.prod.yml config --quiet 2>/dev/null || [[ ! -f ".env" ]]; then
+if docker compose -f docker-compose.prod.yml config --quiet >/dev/null 2>&1; then
     echo "✅ docker-compose.prod.yml syntax is valid"
 else
-    echo "❌ docker-compose.prod.yml has syntax errors"
-    exit 1
+    # If config fails, check if it's because .env is missing (expected in CI)
+    if ! [[ -f ".env" ]]; then
+        echo "✅ docker-compose.prod.yml syntax is valid (skipped due to missing .env)"
+    else
+        echo "❌ docker-compose.prod.yml has syntax errors"
+        docker compose -f docker-compose.prod.yml config
+        exit 1
+    fi
 fi
 
 echo
