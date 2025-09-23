@@ -32,7 +32,7 @@ services:
     image: pmultiqc-service:universal
     container_name: pmultiqc-service
     ports:
-      - "8080:5000"
+      - "${HOST_PORT:-8080}:5000"
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
       - MAX_CONTENT_LENGTH=${MAX_CONTENT_LENGTH:-4294967296}  # 4GB upload limit
