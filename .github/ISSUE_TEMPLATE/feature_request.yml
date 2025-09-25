@@ -62,8 +62,7 @@ body:
     attributes:
       label: Reference Manuscript
       description: If available, provide a reference to a manuscript or publication describing this metric/feature.
-      placeholder: e.g., DOI: 10.1000/example, PMID: 12345678, or full citation
-
+     placeholder: "e.g., DOI: 10.1000/example, PMID: 12345678, or full citation"
   - type: textarea
     id: implementation_details
     attributes:
