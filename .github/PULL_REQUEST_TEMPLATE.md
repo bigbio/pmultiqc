@@ -93,8 +93,8 @@ If applicable, describe any performance implications:
 
 ## Reviewers
 
-@ypriverol - Please review this PR
+Please request a review from one of the project maintainers or a relevant code owner.
 
 ## Assignees
 
-@ypriverol - Please assign this PR
+Please assign this PR to a relevant maintainer.
