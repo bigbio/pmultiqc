@@ -195,7 +195,7 @@ We have comprehensive issue templates to help you report problems effectively:
 - **Metric Requests**: For new proteomics quality control metrics (we actively encourage these!)
 - **Feature Requests**: For new visualizations, data format support, or functionality
 - **Service Issues**: For problems with the PRIDE web service
-- **Suggestions**: For general improvements and ideas
+- **General Issues**: For questions, suggestions, or issues that don't fit other categories
 
 ## Contributing
 
