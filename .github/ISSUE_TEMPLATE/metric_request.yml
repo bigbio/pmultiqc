@@ -47,8 +47,7 @@ body:
     attributes:
       label: Reference Manuscript
       description: Please provide a reference to a manuscript or publication describing this metric.
-      placeholder: e.g., DOI: 10.1000/example, PMID: 12345678, or full citation
-
+      placeholder: "e.g., DOI: 10.1000/example, PMID: 12345678, or full citation"
   - type: textarea
     id: expected_values
     attributes:
