@@ -1,0 +1,126 @@
+name: 💡 Suggestion
+description: General suggestions and ideas for PMultiQC
+title: "[SUGGESTION] "
+labels: ["suggestion", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for your suggestion! We value your input and ideas for improving PMultiQC.
+
+  - type: dropdown
+    id: suggestion_type
+    attributes:
+      label: Suggestion Type
+      description: What type of suggestion are you making?
+      options:
+        - Documentation Improvement
+        - User Experience Enhancement
+        - Performance Optimization
+        - New Integration
+        - Workflow Improvement
+        - General Feedback
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion_description
+    attributes:
+      label: Suggestion Description
+      description: A clear and concise description of your suggestion.
+      placeholder: Describe your suggestion...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What motivated this suggestion? What problem does it solve?
+      placeholder: |
+        - What problem does this solve?
+        - How would this improve the user experience?
+        - What inspired this idea?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: How do you think this could be implemented?
+      placeholder: |
+        - What specific changes would you suggest?
+        - How would this work in practice?
+        - Any specific implementation ideas?
+
+  - type: textarea
+    id: benefits
+    attributes:
+      label: Benefits
+      description: What benefits would this suggestion provide?
+      placeholder: |
+        - Who would benefit from this?
+        - What improvements would users see?
+        - Any quantitative benefits?
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Any examples or references to similar implementations?
+      placeholder: |
+        - Similar features in other tools
+        - Examples from other projects
+        - References to best practices
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      description: How much impact would this suggestion have?
+      options:
+        - Low - Minor improvement
+        - Medium - Noticeable improvement
+        - High - Significant improvement
+        - Very High - Game-changing improvement
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation_effort
+    attributes:
+      label: Implementation Effort
+      description: How complex do you think this would be to implement?
+      placeholder: |
+        - Simple - Minor changes
+        - Moderate - Some development work
+        - Complex - Significant development
+        - Very Complex - Major undertaking
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Are there any alternative approaches to achieve the same goal?
+      placeholder: |
+        - Other ways to solve this problem
+        - Different approaches to consider
+        - Trade-offs between different solutions
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other context, information, or details about your suggestion.
+      placeholder: Add any other relevant information...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

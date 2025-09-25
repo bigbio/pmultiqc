@@ -1,0 +1,188 @@
+name: 🌐 Service Issue
+description: Report issues with the PRIDE PMultiQC web service
+title: "[SERVICE] "
+labels: ["service", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue with the PRIDE PMultiQC service! Please provide details about the problem you encountered.
+
+  - type: dropdown
+    id: service_type
+    attributes:
+      label: Service Type
+      description: Which service are you having issues with?
+      options:
+        - PRIDE Dataset Analysis
+        - File Upload
+        - Job Status Check
+        - Report Generation
+        - Report Download
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue_description
+    attributes:
+      label: Issue Description
+      description: A clear and concise description of the issue you encountered.
+      placeholder: Describe what went wrong...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the issue
+      placeholder: |
+        1. Go to 'https://www.ebi.ac.uk/pride/services/pmultiqc/'
+        2. Click on '...'
+        3. Enter '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: input
+    id: job_id
+    attributes:
+      label: Job ID (if applicable)
+      description: If you have a job ID, please provide it here.
+      placeholder: e.g., abc123-def456-ghi789
+
+  - type: input
+    id: pride_accession
+    attributes:
+      label: PRIDE Accession (if applicable)
+      description: If you were analyzing a PRIDE dataset, provide the accession number.
+      placeholder: e.g., PXD003133
+
+  - type: textarea
+    id: error_message
+    attributes:
+      label: Error Message
+      description: If you received an error message, please paste it here.
+      placeholder: Paste the error message here...
+      render: shell
+
+  - type: textarea
+    id: browser_info
+    attributes:
+      label: Browser Information
+      description: Information about your browser and system
+      placeholder: |
+        - Browser: [e.g., Chrome 120.0, Firefox 121.0, Safari 17.0]
+        - OS: [e.g., Windows 10, macOS 13.0, Ubuntu 20.04]
+        - Screen resolution: [e.g., 1920x1080]
+        - Any browser extensions that might interfere?
+
+  - type: textarea
+    id: file_details
+    attributes:
+      label: File Details (if applicable)
+      description: If you uploaded files, provide details about them.
+      placeholder: |
+        - File size: [e.g., 50MB, 2GB]
+        - File type: [e.g., .zip, .tar.gz]
+        - Number of files: [e.g., 10 files]
+        - File names (if not sensitive): [e.g., data.zip, results.tar.gz]
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: What actually happened?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: troubleshooting
+    attributes:
+      label: Troubleshooting Steps
+      description: What troubleshooting steps have you tried?
+      options:
+        - label: Refreshed the page
+          required: false
+        - label: Cleared browser cache
+          required: false
+        - label: Tried a different browser
+          required: false
+        - label: Tried a different network
+          required: false
+        - label: Checked if the service is down
+          required: false
+        - label: Tried with a smaller file
+          required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If you have screenshots of the issue, please describe them here.
+      placeholder: |
+        - Screenshot 1: Error message on upload page
+        - Screenshot 2: Blank page after job submission
+        - Screenshot 3: Browser console errors
+        (We'll provide instructions for sharing screenshots)
+
+  - type: textarea
+    id: network_info
+    attributes:
+      label: Network Information
+      description: Any relevant network or connectivity information
+      placeholder: |
+        - Internet connection: [e.g., WiFi, Ethernet, Mobile]
+        - Location: [e.g., University network, Home, Corporate network]
+        - Any firewall or proxy settings?
+        - Any VPN usage?
+
+  - type: textarea
+    id: timing_info
+    attributes:
+      label: Timing Information
+      description: When did this issue occur?
+      placeholder: |
+        - Date and time: [e.g., 2024-01-15 14:30 UTC]
+        - Timezone: [e.g., UTC, EST, PST]
+        - How long did you wait before reporting?
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this issue?
+      options:
+        - Low - Minor inconvenience
+        - Medium - Affects functionality but workaround exists
+        - High - Major functionality broken
+        - Critical - Service completely unusable
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other context, information, or details about the issue.
+      placeholder: Add any other relevant information...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

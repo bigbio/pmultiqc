@@ -1,0 +1,147 @@
+name: ✨ Feature Request
+description: Request a new feature or functionality for PMultiQC (for metrics, use Metric Request template)
+title: "[FEATURE] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please provide as much detail as possible to help us understand your request.
+
+  - type: dropdown
+    id: feature_type
+    attributes:
+      label: Feature Type
+      description: What type of feature are you requesting? (For new metrics, please use the Metric Request template)
+      options:
+        - New Visualization
+        - New Data Format Support
+        - Performance Improvement
+        - User Interface Enhancement
+        - Workflow Improvement
+        - Integration Feature
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: Feature Description
+      description: A clear and concise description of the feature you'd like to see.
+      placeholder: Describe the feature you want...
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: Describe the problem this feature would solve or the use case it would support.
+      placeholder: |
+        - What problem does this solve?
+        - Who would benefit from this feature?
+        - How would this improve proteomics analysis?
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature_details
+    attributes:
+      label: Feature Details
+      description: Provide detailed information about the feature you're requesting.
+      placeholder: |
+        - Feature name:
+        - What does it do?
+        - How would it work?
+        - What are the key components?
+        - Any specific requirements?
+
+  - type: input
+    id: reference_manuscript
+    attributes:
+      label: Reference Manuscript
+      description: If available, provide a reference to a manuscript or publication describing this metric/feature.
+      placeholder: e.g., DOI: 10.1000/example, PMID: 12345678, or full citation
+
+  - type: textarea
+    id: implementation_details
+    attributes:
+      label: Implementation Details
+      description: Any thoughts on how this feature could be implemented?
+      placeholder: |
+        - Which module would this belong to?
+        - Any specific data requirements?
+        - Integration with existing metrics?
+
+  - type: textarea
+    id: expected_interface
+    attributes:
+      label: Expected Interface/Experience
+      description: Describe how you expect this feature to work or be presented.
+      placeholder: |
+        - How would users interact with this feature?
+        - What would the interface look like?
+        - Any specific styling or formatting?
+        - Should it be interactive?
+
+  - type: checkboxes
+    id: files_provided
+    attributes:
+      label: Supporting Files
+      description: What supporting materials can you provide?
+      options:
+        - label: Screenshots of expected visualization
+          required: false
+        - label: Example data files
+          required: false
+        - label: Reference implementation code
+          required: false
+        - label: Sample output from other tools
+          required: false
+
+  - type: textarea
+    id: additional_files
+    attributes:
+      label: Additional Supporting Materials
+      description: Describe any additional files or materials you can provide.
+      placeholder: Describe the files you can provide...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to your work?
+      options:
+        - Low - Nice to have
+        - Medium - Would be helpful
+        - High - Important for my research
+        - Critical - Blocking my analysis
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: |
+        - What other tools provide this functionality?
+        - Any workarounds you're currently using?
+        - Why is PMultiQC the right place for this feature?
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or information about the feature request.
+      placeholder: Add any other relevant information...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

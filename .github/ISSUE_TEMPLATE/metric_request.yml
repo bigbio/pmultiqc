@@ -1,0 +1,202 @@
+name: 📊 Metric Request
+description: Request implementation of a new proteomics quality control metric
+title: "[METRIC] "
+labels: ["metric-request", "enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for requesting a new metric! We actively encourage metric requests as they help improve proteomics quality control. Please provide detailed information about the metric you'd like to see implemented.
+
+  - type: textarea
+    id: metric_name
+    attributes:
+      label: Metric Name
+      description: What is the name of the metric you want implemented?
+      placeholder: e.g., "Peptide Identification Rate", "Mass Accuracy Score", "Protein Coverage"
+    validations:
+      required: true
+
+  - type: textarea
+    id: metric_description
+    attributes:
+      label: Metric Description
+      description: What does this metric measure? What does it tell us about data quality?
+      placeholder: |
+        - What does this metric measure?
+        - What does it indicate about data quality?
+        - Why is this metric important for proteomics analysis?
+    validations:
+      required: true
+
+  - type: textarea
+    id: calculation_method
+    attributes:
+      label: Calculation Method
+      description: How is this metric calculated? Provide formulas, algorithms, or step-by-step process.
+      placeholder: |
+        - Formula: [mathematical formula if applicable]
+        - Algorithm: [step-by-step calculation process]
+        - Input data: [what data is needed]
+        - Output: [what the metric produces]
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_values
+    attributes:
+      label: Expected Values
+      description: What are the expected values or ranges for this metric?
+      placeholder: |
+        - Range: [e.g., 0-1, 0-100%, specific units]
+        - Good values: [what indicates good quality]
+        - Poor values: [what indicates poor quality]
+        - Thresholds: [any specific thresholds or cutoffs]
+    validations:
+      required: true
+
+  - type: input
+    id: reference_manuscript
+    attributes:
+      label: Reference Manuscript
+      description: Please provide a reference to a manuscript or publication describing this metric.
+      placeholder: e.g., DOI: 10.1000/example, PMID: 12345678, or full citation
+
+  - type: textarea
+    id: alternative_names
+    attributes:
+      label: Alternative Names
+      description: Are there other names or variations of this metric?
+      placeholder: |
+        - Also known as: [alternative names]
+        - Related metrics: [similar or related metrics]
+        - Variations: [different ways this metric might be calculated]
+
+  - type: dropdown
+    id: metric_category
+    attributes:
+      label: Metric Category
+      description: What category does this metric belong to?
+      options:
+        - Identification Quality
+        - Quantification Quality
+        - Instrument Performance
+        - Sample Quality
+        - Data Completeness
+        - Statistical Quality
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: data_requirements
+    attributes:
+      label: Data Requirements
+      description: What data is needed to calculate this metric?
+      placeholder: |
+        - Input files: [e.g., .mzML, .mzTab, .txt files]
+        - Data types: [e.g., peptide identifications, protein quantifications]
+        - Minimum data: [minimum amount of data needed]
+        - Data format: [specific format requirements]
+
+  - type: textarea
+    id: visualization_preference
+    attributes:
+      label: Visualization Preference
+      description: How would you like this metric to be visualized?
+      placeholder: |
+        - Plot type: [histogram, scatter plot, heatmap, box plot, etc.]
+        - X-axis: [what should be on the x-axis]
+        - Y-axis: [what should be on the y-axis]
+        - Color coding: [any color schemes or categories]
+        - Interactive elements: [zoom, hover, filtering, etc.]
+
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: Use Cases
+      description: When and why would researchers use this metric?
+      placeholder: |
+        - Research scenarios: [when this metric is most useful]
+        - Quality control: [how it helps with QC]
+        - Troubleshooting: [how it helps identify problems]
+        - Comparison: [how it helps compare datasets]
+
+  - type: textarea
+    id: implementation_thoughts
+    attributes:
+      label: Implementation Thoughts
+      description: Any thoughts on how this metric could be implemented in PMultiQC?
+      placeholder: |
+        - Which module: [quantms, maxquant, proteobench, core]
+        - Integration: [how it fits with existing metrics]
+        - Performance: [any performance considerations]
+        - Dependencies: [any additional libraries needed]
+
+  - type: checkboxes
+    id: supporting_materials
+    attributes:
+      label: Supporting Materials
+      description: What supporting materials can you provide?
+      options:
+        - label: Example implementation code
+          required: false
+        - label: Sample data files
+          required: false
+        - label: Screenshots of expected visualization
+          required: false
+        - label: Reference implementation from other tools
+          required: false
+        - label: Mathematical formulas or equations
+          required: false
+
+  - type: textarea
+    id: additional_files
+    attributes:
+      label: Additional Supporting Materials
+      description: Describe any additional files or materials you can provide.
+      placeholder: |
+        - Code examples: [describe any code you can share]
+        - Data samples: [describe sample data you can provide]
+        - Visual examples: [describe any visual examples]
+        - Documentation: [any additional documentation]
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this metric to your research?
+      options:
+        - Low - Nice to have
+        - Medium - Would be helpful
+        - High - Important for my research
+        - Critical - Essential for my analysis
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative approaches or similar metrics?
+      placeholder: |
+        - Similar metrics: [other metrics that might serve the same purpose]
+        - Alternative calculations: [different ways to calculate this metric]
+        - Other tools: [tools that already implement this metric]
+        - Workarounds: [current workarounds you're using]
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other context, information, or details about this metric request.
+      placeholder: Add any other relevant information...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

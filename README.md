@@ -187,9 +187,21 @@ pmultiqc generates a comprehensive report with multiple sections:
 
 You can find example reports on the [docs page](https://bigbio.github.io/pmultiqc).
 
-## Development
+## 🐛 Reporting Issues
 
-To contribute to pmultiqc:
+We have comprehensive issue templates to help you report problems effectively:
+
+- **🐛 Bug Reports**: For crashes, incorrect metrics, or unexpected behavior
+- **📊 Metric Requests**: For new proteomics quality control metrics (we actively encourage these!)
+- **✨ Feature Requests**: For new visualizations, data format support, or functionality
+- **🌐 Service Issues**: For problems with the PRIDE web service
+- **💡 Suggestions**: For general improvements and ideas
+
+## 🤝 Contributing
+
+We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for detailed instructions.
+
+### Quick Start for Contributors
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/pmultiqc`
