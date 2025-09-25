@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to PMultiQC! This guide will help you get started.
 
-## 🚀 Quick Start
+## Quick Start
 
 1. **Fork and clone** the repository
 2. **Install in development mode**: `pip install -e .`
@@ -11,17 +11,17 @@ Thank you for your interest in contributing to PMultiQC! This guide will help yo
 5. **Make your changes** and test them
 6. **Submit a pull request**
 
-## 🐛 Reporting Issues
+## Reporting Issues
 
 We have issue templates for different types of problems:
 
-- **🐛 Bug Reports**: Crashes, incorrect metrics, unexpected behavior
-- **📊 Metric Requests**: New proteomics quality control metrics (we encourage these!)
-- **✨ Feature Requests**: New visualizations, data format support, functionality
-- **🌐 Service Issues**: Problems with the PRIDE web service
-- **💡 Suggestions**: General improvements and ideas
+- **Bug Reports**: Crashes, incorrect metrics, unexpected behavior
+- **Metric Requests**: New proteomics quality control metrics (we encourage these!)
+- **Feature Requests**: New visualizations, data format support, functionality
+- **Service Issues**: Problems with the PRIDE web service
+- **Suggestions**: General improvements and ideas
 
-## 🔧 Development
+## Development
 
 ### Code Style
 - Follow PEP 8 guidelines
@@ -52,7 +52,7 @@ cd tests && multiqc resources/LFQ -o ./test_output
 - Make plots interactive with plotly when possible
 - Add plots to the MultiQC report using `add_section()`
 
-## 📝 Pull Requests
+## Pull Requests
 
 When submitting a PR:
 
@@ -62,20 +62,20 @@ When submitting a PR:
 - [ ] All tests pass
 - [ ] PR description is complete
 
-## 🤝 Community
+## Community
 
 - **Be respectful** and inclusive
 - **Be constructive** in feedback
 - **Be patient** with newcomers
 - **Help others** when you can
 
-## 📞 Getting Help
+## Getting Help
 
 - **GitHub Discussions**: For questions and ideas
 - **Issue Tracker**: For bugs and feature requests
 - **Email**: ypriverol@gmail.com for urgent issues
 
-## 🎯 Good First Issues
+## Good First Issues
 
 Look for issues labeled `good-first-issue` or `help-wanted`:
 - Documentation improvements
@@ -87,4 +87,4 @@ Look for issues labeled `good-first-issue` or `help-wanted`:
 
 ---
 
-Thank you for contributing to PMultiQC! Your contributions help make proteomics analysis more accessible and reliable for the entire community. 🧬✨
+Thank you for contributing to PMultiQC! Your contributions help make proteomics analysis more accessible and reliable for the entire community.
