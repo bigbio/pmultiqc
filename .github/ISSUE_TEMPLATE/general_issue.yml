@@ -1,7 +1,7 @@
 name: General Issue
 description: General questions, suggestions, or issues that don't fit other categories
 title: "[GENERAL] "
-labels: ["question", "needs-triage"]
+labels: ["general", "needs-triage"]
 body:
   - type: markdown
     attributes:
