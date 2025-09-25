@@ -1,0 +1,178 @@
+name: 🐛 Bug Report
+description: Report a bug in PMultiQC library or metrics
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please fill out the form below to help us understand and reproduce the issue.
+
+  - type: dropdown
+    id: bug_type
+    attributes:
+      label: Bug Type
+      description: What type of bug are you reporting?
+      options:
+        - Library/Code Bug
+        - Metric Calculation Bug
+        - Visualization Bug
+        - Data Processing Bug
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the bug...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual Behavior
+      description: A clear and concise description of what actually happened.
+      placeholder: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_message
+    attributes:
+      label: Error Message/Logs
+      description: If applicable, paste any error messages or logs here.
+      placeholder: Paste error messages or logs here...
+      render: shell
+
+  - type: input
+    id: pmultiqc_version
+    attributes:
+      label: PMultiQC Version
+      description: What version of PMultiQC are you using?
+      placeholder: e.g., 0.0.35
+    validations:
+      required: true
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version
+      description: What version of Python are you using?
+      placeholder: e.g., 3.10.0
+    validations:
+      required: true
+
+  - type: input
+    id: multiqc_version
+    attributes:
+      label: MultiQC Version
+      description: What version of MultiQC are you using?
+      placeholder: e.g., 1.29.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: data_type
+    attributes:
+      label: Data Type
+      description: What type of proteomics data are you analyzing?
+      options:
+        - quantms pipeline
+        - MaxQuant
+        - DIA-NN
+        - ProteoBench
+        - mzIdentML
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: dataset_info
+    attributes:
+      label: Dataset Information
+      description: Provide details about your dataset (size, number of files, etc.)
+      placeholder: |
+        - Dataset size: X GB
+        - Number of files: X
+        - File types: .mzML, .mzTab, etc.
+        - Any other relevant details...
+
+  - type: textarea
+    id: command_used
+    attributes:
+      label: Command Used
+      description: The exact command you used to run PMultiQC
+      placeholder: multiqc /path/to/data -o ./report --option
+      render: shell
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: files_provided
+    attributes:
+      label: Files Provided
+      description: What files are you able to provide to help debug this issue?
+      options:
+        - label: Sample data files (anonymized if needed)
+          required: false
+        - label: Screenshots of the issue
+          required: false
+        - label: Generated report files
+          required: false
+        - label: Configuration files
+          required: false
+        - label: Log files
+          required: false
+
+  - type: textarea
+    id: additional_files
+    attributes:
+      label: Additional Files
+      description: If you have files to share, please describe them here and we'll provide instructions for sharing.
+      placeholder: Describe the files you can provide...
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your computing environment
+      placeholder: |
+        - OS: [e.g., Ubuntu 20.04, macOS 13.0, Windows 10]
+        - Memory: [e.g., 16GB RAM]
+        - CPU: [e.g., Intel i7, Apple M1]
+        - Any other relevant environment details...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

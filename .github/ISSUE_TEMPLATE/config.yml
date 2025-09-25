@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://bigbio.github.io/pmultiqc
+    about: Please check our documentation for usage instructions and examples
+  - name: 💬 Discussions
+    url: https://github.com/bigbio/pmultiqc/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🌐 PRIDE Service
+    url: https://www.ebi.ac.uk/pride/services/pmultiqc/
+    about: Use our web service for easy analysis without local installation
+  - name: 📧 Contact
+    url: mailto:ypriverol@gmail.com
+    about: Contact the maintainers directly for urgent issues
