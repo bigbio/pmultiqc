@@ -1,0 +1,58 @@
+name: General Issue
+description: General questions, suggestions, or issues that don't fit other categories
+title: "[GENERAL] "
+labels: ["general", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reaching out! Please provide details about your question, suggestion, or issue.
+
+  - type: textarea
+    id: issue_description
+    attributes:
+      label: Issue Description
+      description: A clear and concise description of your question, suggestion, or issue.
+      placeholder: Describe your question or issue...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Issue Type
+      description: What type of issue is this?
+      options:
+        - Question
+        - Suggestion
+        - Documentation Issue
+        - General Feedback
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any relevant context about your question or suggestion.
+      placeholder: |
+        - What are you trying to achieve?
+        - What have you tried so far?
+        - Any specific use case or scenario?
+
+  - type: textarea
+    id: additional_information
+    attributes:
+      label: Additional Information
+      description: Any other information that might be helpful.
+      placeholder: Add any other relevant information...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
