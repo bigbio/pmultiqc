@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 from pathlib import Path
 
 from ..common.file_utils import get_filename, drop_empty_row
-from ..common.calc_utils import qualUniform, cal_delta_mass_dict
+from ..common.calc_utils import QualUniform, cal_delta_mass_dict
 from ..common.statistics_utils import nanmedian
 from ...logging import get_logger, Timer
 
@@ -612,7 +612,7 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
         heatmap_dict[raw_file] = {
             "Contaminants": contaminant,
             "Peptide Intensity": peptide_intensity,
-            "ID rate over RT": qualUniform(group["retention time"]),      # 6. ID rate over RT
+            "ID rate over RT": QualUniform(group["retention time"]),      # 6. ID rate over RT
             "Pep Missing Values": pep_missing_values,
         }
 

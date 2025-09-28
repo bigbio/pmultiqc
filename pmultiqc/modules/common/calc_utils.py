@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def qualUniform(group_df_rt):
+def QualUniform(group_df_rt):
     """
     Parameters:
     -----------

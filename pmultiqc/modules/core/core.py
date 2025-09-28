@@ -78,12 +78,22 @@ class PMultiQC(BaseMultiqcModule):
             return None
 
         # quantms, DIA-NN, and mzid results
-        QuantMSModule = get_module("quantms", "QuantMSModule")
-        QuantMSModule(
-            self.find_log_files,
-            self.sub_sections,
-            heatmap_color_list
-        )
+        if config.kwargs.get("mzid_plugin", False):
+            # Use MzIdentMLModule for mzid plugin
+            MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
+            mzid_module = MzIdentMLModule(
+                self.find_log_files,
+                self.sub_sections,
+                heatmap_color_list
+            )
+        else:
+            # Use QuantMSModule for regular quantms processing
+            QuantMSModule = get_module("quantms", "QuantMSModule")
+            QuantMSModule(
+                self.find_log_files,
+                self.sub_sections,
+                heatmap_color_list
+            )
 
 def get_module(module_name, class_name):
     module = import_module(f"..{module_name}", __package__)

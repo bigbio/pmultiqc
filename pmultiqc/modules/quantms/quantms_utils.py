@@ -6,7 +6,7 @@ import os
 
 from ..common.file_utils import drop_empty_row
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from ..common.calc_utils import qualUniform
+from ..common.calc_utils import QualUniform
 
 
 DEFAULT_BINS = 500
@@ -341,7 +341,7 @@ def heatmap_cont_pep_intensity(report_df):
         )
 
         # 5. "ID rate over RT"
-        ids_rate_over_rt = qualUniform(group["RT"])
+        ids_rate_over_rt = QualUniform(group["RT"])
 
         # 6. Normalization Factor MAD
         def mean_abs_dev(x):

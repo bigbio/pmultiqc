@@ -31,7 +31,7 @@ from . import sparklines
 from .ms_functions import get_ms_qc_info
 from ..common import ms_io, common_plots
 from ..common.histogram import Histogram
-from ..common.calc_utils import qualUniform
+from ..common.calc_utils import QualUniform
 from ..common.file_utils import file_prefix
 from ..core.section_groups import add_group_modules, add_sub_section
 from ..maxquant.maxquant_utils import (
@@ -47,15 +47,8 @@ from .quantms_plots import (
     draw_dia_mass_error,
     draw_dia_rt_qc,
     draw_diann_quant_table,
-    draw_mzid_quant_table
 )
 from .quantms_utils import condition_split
-from .mzidentml_utils import (
-    get_mzidentml_mzml_df,
-    get_mzidentml_charge,
-    get_mzid_rt_id,
-    get_mzid_num_data
-)
 
 
 # Initialise the main MultiQC logger
@@ -84,8 +77,8 @@ class QuantMSModule:
         self.oversampling = dict()
         self.identified_spectrum = dict()
         self.delta_mass = dict()
-        self.Total_ms2_Spectral_Identified = 0
-        self.Total_Peptide_Count = 0
+        self.total_ms2_spectral_identified = 0
+        self.total_peptide_count = 0
         self.total_ms2_spectra = 0
         self.enable_dia = False
         self.is_bruker = False
@@ -119,63 +112,136 @@ class QuantMSModule:
         self.ms_info_path = []
         self.enable_mzid = False
 
-        # Check if this is a display for mzid identification results
-        if config.kwargs.get("mzid_plugin", False):
 
-            self.enable_mzid = True
+        if config.output_dir:
+            if os.path.exists(config.output_dir):
+                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
+            else:
+                os.makedirs(config.output_dir)
+                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
+        else:
+            self.con = sqlite3.connect("./quantms.db")
 
-            self.mzid_peptide_map = dict()
-            self.ms_without_psm = dict()
+        self.cur = self.con.cursor()
+        self.cur.execute("drop table if exists PROTQUANT")
+        self.con.commit()
 
-            self.mgf_paths = []
-            for mgf_file in self.find_log_files("pmultiqc/mgf", filecontents=False):
-                self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
-            self.mgf_paths.sort()
+        self.cur.execute("drop table if exists PEPQUANT")
+        self.con.commit()
 
-            self.mzid_paths = []
-            for mzid_file in self.find_log_files("pmultiqc/mzid", filecontents=False):
-                self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
-            self.mzid_paths.sort()
+        self.cur.execute("drop table if exists PSM")
+        self.con.commit()
 
-            mzid_psm = self.parse_out_mzid()
+        self.enable_exp = False
+        self.enable_sdrf = False
+        self.msstats_input_valid = False
+        # TODO what if multiple are found??
+        for f in self.find_log_files("pmultiqc/exp_design", filecontents=False):
+            self.exp_design = os.path.join(f["root"], f["fn"])
+            self.enable_exp = True
 
-            if self.mgf_paths:
-                self.parse_out_mgf()
-                self.mzid_cal_heat_map_score(mzid_psm)
+        if not self.enable_exp:
 
-            elif self.ms_paths:
-                mt = self.parse_mzml()
+            for f in self.find_log_files("pmultiqc/sdrf", filecontents=False):
+                self.sdrf = os.path.join(f["root"], f["fn"])
+                OpenMS().openms_convert(
+                    self.sdrf,
+                    config.kwargs["raw"],
+                    False,
+                    True,
+                    False,
+                    config.kwargs["condition"],
+                )
+                # experimental_design.tsv is the default output name
+                # experimental_design.tsv will be in the folder where pmultiqc is executed.
+                self.exp_design = "experimental_design.tsv"
+                self.enable_sdrf = True
 
-                mzidentml_df = get_mzidentml_mzml_df(mzid_psm, self.mzml_ms_df)
-                if len(mzidentml_df) > 0:
+        self.psm_table = dict()
+        self.mzml_peptide_map = dict()
+        self.pep_quant_table = dict()
+        self.mzml_table = OrderedDict()
+        self.search_engine = OrderedDict()
+        self.xcorr_hist_range = {"start": 0, "end": 5, "step": 0.1}
+        self.hyper_hist_range = {"start": 0, "end": 5, "step": 0.1}
+        self.spec_evalue_hist_range = {"start": 0, "end": 20, "step": 0.4}
+        self.pep_hist_range = {
+            "start": 0,
+            "end": 1,
+            "low_thresh": 0.3,
+            "high_thresh": 0.7,
+            "end": 1,
+            "low_step": 0.03,
+            "high_step": 0.08
+            }
+        self.total_protein_quantified = 0
+        self.out_csv_data = dict()
+        self.mL_spec_ident_final = dict()
+        self.heatmap_con_score = dict()
+        self.heatmap_pep_intensity = {}
+        self.ms1_tic = dict()
+        self.ms1_bpc = dict()
+        self.ms1_peaks = dict()
+        self.ms1_general_stats = dict()
+        self.is_multi_conditions = False
+        self.sample_df = pd.DataFrame()
+        self.file_df = pd.DataFrame()
 
-                    draw_mzid_quant_table(
-                        self.sub_sections["quantification"],
-                        mzidentml_df
-                    )
+        # draw the experimental design
+        if self.enable_exp or self.enable_sdrf:
+            self.draw_exp_design()
 
-                    mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
-                    common_plots.draw_charge_state(
-                        self.sub_sections["ms2"],
-                        mzid_mzml_charge_state,
-                        "mzIdentML"
-                    )
+        for ms_info in self.find_log_files("pmultiqc/ms_info", filecontents=False):
+            self.ms_info_path.append(os.path.join(ms_info["root"], ms_info["fn"]))
+            self.ms_info_path.sort()
+            
+        if len(self.ms_info_path) > 0:
+            self.read_ms_info = True
+            self.ms_paths = [
+                file_prefix(i).replace("_ms_info", ".mzML") for i in self.ms_info_path
+            ]
 
-                    mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
-                    common_plots.draw_ids_rt_count(
-                        self.sub_sections["rt_qc"],
-                        mzid_ids_over_rt,
-                        "mzIdentML"
-                    )
+        # DIA-NN report file path
+        diann_report_path = None
+        for file_type in ["pmultiqc/diann_report_tsv", "pmultiqc/diann_report_parquet"]:
+            for f in self.find_log_files(file_type, filecontents=False):
+                diann_report_path = os.path.join(f["root"], f["fn"])
+            if diann_report_path:
+                break
 
-                    (
-                        self.cal_num_table_data,
-                        self.identified_msms_spectra
-                    ) = get_mzid_num_data(mzidentml_df)
-                    self.draw_quantms_identification(mt)
+        if diann_report_path:
+            self.diann_report_path = diann_report_path
+            self.enable_dia = True
 
-                    self.mzid_cal_heat_map_score(mzidentml_df)
+        if not self.enable_dia:
+            for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
+                self.out_mztab_path = os.path.join(f["root"], f["fn"])
+                self.parse_out_mztab()
 
+        mt = self.parse_mzml()
+        self.idx_paths = []
+        for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
+            self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
+
+        for msstats_input in self.find_log_files("pmultiqc/msstats", filecontents=False):
+            self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
+            self.msstats_input_valid = True
+
+        self.draw_ms_information()
+        if self.enable_dia:
+            self.parse_diann_report()
+            self.draw_summary_protein_ident_table()
+            self.draw_quantms_identi_num()
+            self.draw_num_pep_per_protein()
+            if len(self.ms_info_path) > 0 and not self.is_bruker:
+                # self.draw_precursor_charge_distribution()
+                self.draw_peaks_per_ms2()
+                self.draw_peak_intensity_distribution()
+        else:
+            if not config.kwargs["ignored_idxml"]:
+                self.parse_idxml(mt)
+            self.cal_heat_map_score()
+                
             heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
             common_plots.draw_heatmap(
                 self.sub_sections["summary"],
@@ -187,8 +253,11 @@ class QuantMSModule:
             )
 
             self.draw_summary_protein_ident_table()
-            self.draw_mzid_identi_num()
+            self.draw_quantms_identi_num()
             self.draw_num_pep_per_protein()
+            if not config.kwargs["ignored_idxml"]:
+                self.draw_mzml_ms()
+                self.draw_search_engine()
             self.draw_precursor_charge_distribution()
             self.draw_peaks_per_ms2()
             self.draw_peak_intensity_distribution()
@@ -198,214 +267,57 @@ class QuantMSModule:
                 self.oversampling_plot.dict["cats"],
                 False
             )
+            self.draw_delta_mass()
 
-        else:
+        self.draw_quantms_identification(mt)
+        self.draw_quantms_contaminants()
+        self.draw_quantms_quantification()
+        self.draw_quantms_msms_section()
+        self.draw_quantms_time_section()
 
-            if config.output_dir:
-                if os.path.exists(config.output_dir):
-                    self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
-                else:
-                    os.makedirs(config.output_dir)
-                    self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
-            else:
-                self.con = sqlite3.connect("./quantms.db")
+        if self.msstats_input_valid:
+            self.parse_msstats_input()
 
-            self.cur = self.con.cursor()
-            self.cur.execute("drop table if exists PROTQUANT")
-            self.con.commit()
-
-            self.cur.execute("drop table if exists PEPQUANT")
-            self.con.commit()
-
-            self.cur.execute("drop table if exists PSM")
-            self.con.commit()
-
-            self.enable_exp = False
-            self.enable_sdrf = False
-            self.msstats_input_valid = False
-            # TODO what if multiple are found??
-            for f in self.find_log_files("pmultiqc/exp_design", filecontents=False):
-                self.exp_design = os.path.join(f["root"], f["fn"])
-                self.enable_exp = True
-
-            if not self.enable_exp:
-
-                for f in self.find_log_files("pmultiqc/sdrf", filecontents=False):
-                    self.sdrf = os.path.join(f["root"], f["fn"])
-                    OpenMS().openms_convert(
-                        self.sdrf,
-                        config.kwargs["raw"],
-                        False,
-                        True,
-                        False,
-                        config.kwargs["condition"],
-                    )
-                    # experimental_design.tsv is the default output name
-                    # experimental_design.tsv will be in the folder where pmultiqc is executed.
-                    self.exp_design = "experimental_design.tsv"
-                    self.enable_sdrf = True
-
-            self.psm_table = dict()
-            self.mzml_peptide_map = dict()
-            self.pep_quant_table = dict()
-            self.mzml_table = OrderedDict()
-            self.search_engine = OrderedDict()
-            self.xcorr_hist_range = {"start": 0, "end": 5, "step": 0.1}
-            self.hyper_hist_range = {"start": 0, "end": 5, "step": 0.1}
-            self.spec_evalue_hist_range = {"start": 0, "end": 20, "step": 0.4}
-            self.pep_hist_range = {
-                "start": 0,
-                "end": 1,
-                "low_thresh": 0.3,
-                "high_thresh": 0.7,
-                "end": 1,
-                "low_step": 0.03,
-                "high_step": 0.08
-                }
-            self.total_protein_quantified = 0
-            self.out_csv_data = dict()
-            self.mL_spec_ident_final = dict()
-            self.heatmap_con_score = dict()
-            self.heatmap_pep_intensity = {}
-            self.ms1_tic = dict()
-            self.ms1_bpc = dict()
-            self.ms1_peaks = dict()
-            self.ms1_general_stats = dict()
-            self.is_multi_conditions = False
-            self.sample_df = pd.DataFrame()
-            self.file_df = pd.DataFrame()
-
-            # draw the experimental design
-            if self.enable_exp or self.enable_sdrf:
-                self.draw_exp_design()
-
-            for ms_info in self.find_log_files("pmultiqc/ms_info", filecontents=False):
-                self.ms_info_path.append(os.path.join(ms_info["root"], ms_info["fn"]))
-            self.ms_info_path.sort()
-            
-            if len(self.ms_info_path) > 0:
-                self.read_ms_info = True
-                self.ms_paths = [
-                    file_prefix(i).replace("_ms_info", ".mzML") for i in self.ms_info_path
-                ]
-
-            # DIA-NN report file path
-            diann_report_path = None
-            for file_type in ["pmultiqc/diann_report_tsv", "pmultiqc/diann_report_parquet"]:
-                for f in self.find_log_files(file_type, filecontents=False):
-                    diann_report_path = os.path.join(f["root"], f["fn"])
-                if diann_report_path:
-                    break
-
-            if diann_report_path:
-                self.diann_report_path = diann_report_path
-                self.enable_dia = True
-
-            if not self.enable_dia:
-                for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
-                    self.out_mztab_path = os.path.join(f["root"], f["fn"])
-                    self.parse_out_mztab()
-
-            mt = self.parse_mzml()
-            self.idx_paths = []
-            for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
-                self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
-
-            for msstats_input in self.find_log_files("pmultiqc/msstats", filecontents=False):
-                self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
-                self.msstats_input_valid = True
-
-            self.draw_ms_information()
-            if self.enable_dia:
-                self.parse_diann_report()
-                self.draw_summary_protein_ident_table()
-                self.draw_quantms_identi_num()
-                self.draw_num_pep_per_protein()
-                if len(self.ms_info_path) > 0 and not self.is_bruker:
-                    # self.draw_precursor_charge_distribution()
-                    self.draw_peaks_per_ms2()
-                    self.draw_peak_intensity_distribution()
-            else:
-                if not config.kwargs["ignored_idxml"]:
-                    self.parse_idxml(mt)
-                self.cal_heat_map_score()
-                
-                heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
-                common_plots.draw_heatmap(
-                    self.sub_sections["summary"],
-                    self.heatmap_color_list,
-                    heatmap_data,
-                    heatmap_xnames,
-                    heatmap_ynames,
-                    False
-                )
-
-                self.draw_summary_protein_ident_table()
-                self.draw_quantms_identi_num()
-                self.draw_num_pep_per_protein()
-                if not config.kwargs["ignored_idxml"]:
-                    self.draw_mzml_ms()
-                    self.draw_search_engine()
-                self.draw_precursor_charge_distribution()
-                self.draw_peaks_per_ms2()
-                self.draw_peak_intensity_distribution()
-                common_plots.draw_oversampling(
-                    self.sub_sections["ms2"],
-                    self.oversampling,
-                    self.oversampling_plot.dict["cats"],
-                    False
-                )
-                self.draw_delta_mass()
-
-            self.draw_quantms_identification(mt)
-            self.draw_quantms_contaminants()
-            self.draw_quantms_quantification()
-            self.draw_quantms_msms_section()
-            self.draw_quantms_time_section()
-
-            if self.msstats_input_valid:
-                self.parse_msstats_input()
-
-            if config.kwargs["quantification_method"] == "spectral_counting":
-                # Add a report section with psm table plot from mzTab for spectral counting
-                add_sub_section(
-                    sub_section=self.sub_sections["identification"],
-                    plot=self.psm_table_html,
-                    order=2,
-                    description="This plot shows the information of peptide spectrum matches",
-                    helptext="""
-                            This table shows the information of peptide spectrum matches from mzTab PSM section.
-                            """
-                )
-
-            if self.enable_sdrf:
-                ms_io.del_openms_convert_tsv()
-
-            # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
-            # currently only draw protein tabel for spectral counting
-            if (
-                not self.msstats_input_valid
-                and config.kwargs["quantification_method"] == "spectral_counting"
-            ):
-                log.warning("MSstats input file not found!")
-                add_sub_section(
-                    sub_section=self.sub_sections["quantification"],
-                    plot=self.protein_quantification_table_html,
-                    order=2,
-                    description="""
-                        This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
-                        """,
-                    helptext="""
-                        The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
-                        The table shows the quantitative level and distribution of proteins in different study variables and run.
-
-                        * Peptides_Number: The number of peptides for each protein.
-                        * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
-                        * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
-
-                        Click `Show replicates` to switch to bar plots of counting in each replicate.
+        if config.kwargs["quantification_method"] == "spectral_counting":
+            # Add a report section with psm table plot from mzTab for spectral counting
+            add_sub_section(
+                sub_section=self.sub_sections["identification"],
+                plot=self.psm_table_html,
+                order=2,
+                description="This plot shows the information of peptide spectrum matches",
+                helptext="""
+                        This table shows the information of peptide spectrum matches from mzTab PSM section.
                         """
-                )
+            )
+
+        if self.enable_sdrf:
+            ms_io.del_openms_convert_tsv()
+
+        # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
+        # currently only draw protein tabel for spectral counting
+        if (
+            not self.msstats_input_valid
+            and config.kwargs["quantification_method"] == "spectral_counting"
+        ):
+            log.warning("MSstats input file not found!")
+            add_sub_section(
+                sub_section=self.sub_sections["quantification"],
+                plot=self.protein_quantification_table_html,
+                order=2,
+                description="""
+                    This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
+                    """,
+                helptext="""
+                    The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
+                    The table shows the quantitative level and distribution of proteins in different study variables and run.
+
+                    * Peptides_Number: The number of peptides for each protein.
+                    * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
+                    * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
+
+                    Click `Show replicates` to switch to bar plots of counting in each replicate.
+                    """
+            )
 
         self.section_group_dict = {
                 "experiment_sub_section": self.sub_sections["experiment"],
@@ -677,20 +589,20 @@ class QuantMSModule:
         headers = OrderedDict()
         if self.enable_dia:
             summary_table = {
-                self.Total_Peptide_Count: {"#Proteins Quantified": self.total_protein_quantified}
+                self.total_peptide_count: {"#Proteins Quantified": self.total_protein_quantified}
             }
             col_header = "#Peptides Quantified"
         else:
             summary_table = {
                 self.total_ms2_spectra: {
-                    "#Identified MS2 Spectra": self.Total_ms2_Spectral_Identified
+                    "#Identified MS2 Spectra": self.total_ms2_spectral_identified
                 }
             }
-            coverage = self.Total_ms2_Spectral_Identified / self.total_ms2_spectra * 100
+            coverage = self.total_ms2_spectral_identified / self.total_ms2_spectra * 100
             summary_table[self.total_ms2_spectra]["%Identified MS2 Spectra"] = coverage
             summary_table[self.total_ms2_spectra][
                 "#Peptides Identified"
-            ] = self.Total_Peptide_Count
+            ] = self.total_peptide_count
             summary_table[self.total_ms2_spectra][
                 "#Proteins Identified"
             ] = self.total_protein_identified
@@ -1672,17 +1584,17 @@ class QuantMSModule:
 
         xcorr_bar_html = (
             bargraph.plot(list(self.search_engine["xcorr"].values()), xcorr_cats, xcorr_pconfig)
-            if self.Comet_label
+            if self.comet_label
             else ""
         )
         spec_e_bar_html = (
             bargraph.plot(list(self.search_engine["SpecE"].values()), spec_e_cats, spec_e_pconfig)
-            if self.MSGF_label
+            if self.msgf_label
             else ""
         )
         hyper_bar_html = (
             bargraph.plot(list(self.search_engine["hyper"].values()), hyper_cats, hyper_pconfig)
-            if self.Sage_label
+            if self.sage_label
             else ""
         )
 
@@ -1808,85 +1720,6 @@ class QuantMSModule:
         #         """,
         #     )
 
-    def mzid_cal_heat_map_score(self, psm):
-        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
-
-        # HeatMapMissedCleavages
-        global_peps = psm[["PeptideSequence", "Modifications"]].drop_duplicates()
-        global_peps_count = len(global_peps)
-
-        enzyme_list = list()
-        for mzid_path in self.mzid_paths:
-            try:
-                enzyme_iter = mzid.MzIdentML(mzid_path).iterfind("Enzyme")
-                enzyme = next(enzyme_iter).get("EnzymeName", None)
-                if enzyme:
-                    enzyme_name = list(enzyme.keys())[0]
-                else:
-                    enzyme_name = "Trypsin"
-                enzyme_list.append(enzyme_name)
-            except StopIteration:
-                enzyme_list.append("Trypsin")
-
-        enzyme_list = list(set(enzyme_list))
-        enzyme = enzyme_list[0] if len(enzyme_list) == 1 else "Trypsin"
-        psm["missed_cleavages"] = psm.apply(
-            lambda x: self.cal_miss_cleavages(x["PeptideSequence"], enzyme), axis=1
-        )
-
-        # Calculate the ID RT Score
-        if "retention_time" not in psm.columns and self.mgf_paths:
-            # MGF
-            psm = pd.merge(
-                psm,
-                self.mgf_rtinseconds[["spectrumID", "filename", "retention_time"]],
-                on=["filename", "spectrumID"],
-                how="left",
-            )
-
-        for name, group in psm.groupby("filename"):
-            sc = group["missed_cleavages"].value_counts()
-
-            self.quantms_missed_cleavages[name] = sc.to_dict()
-
-            mis_0 = sc.get(0, 0)
-            self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = qualUniform(group["retention_time"])
-
-            #  For HeatMapOverSamplingScore
-            self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
-                list(self.oversampling[name].values())
-            )
-
-            # For HeatMapPepMissingScore
-            id_fraction = (
-                len(
-                    pd.merge(
-                        global_peps,
-                        group[["PeptideSequence", "Modifications"]].drop_duplicates(),
-                        on=["PeptideSequence", "Modifications"],
-                    ).drop_duplicates()
-                )
-                / global_peps_count
-            )
-            self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
-
-        median = np.median(list(self.missed_clevages_heatmap_score.values()))
-        self.missed_cleavages_var_score = dict(
-            zip(
-                self.missed_clevages_heatmap_score.keys(),
-                list(
-                    map(
-                        lambda v: 1 - np.abs(v - median),
-                        self.missed_clevages_heatmap_score.values(),
-                    )
-                ),
-            )
-        )
-        log.info(
-            "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
-        )
-
     def cal_heat_map_score(self):
         log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
         mztab_data = mztab.MzTab(self.out_mztab_path)
@@ -1978,7 +1811,7 @@ class QuantMSModule:
 
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = qualUniform(group["retention_time"])
+            self.id_rt_score[name] = QualUniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -2229,7 +2062,7 @@ class QuantMSModule:
             config.kwargs["remove_decoy"],
         )
 
-        self.search_engine, self.MSGF_label, self.Comet_label, self.Sage_label = result
+        self.search_engine, self.msgf_label, self.comet_label, self.sage_label = result
 
         # mass spectrum files sorted based on experimental file
         for spectrum_name in self.exp_design_runs:
@@ -2511,15 +2344,15 @@ class QuantMSModule:
         # extract delta mass
         self.mL_spec_ident_final = ml_spec_ident_final
         if config.kwargs["remove_decoy"]:
-            self.Total_ms2_Spectral_Identified = len(
+            self.total_ms2_spectral_identified = len(
                 set(psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1]["spectra_ref"])
             )
-            self.Total_Peptide_Count = len(
+            self.total_peptide_count = len(
                 set(psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1]["sequence"])
             )
         else:
-            self.Total_ms2_Spectral_Identified = len(set(psm["spectra_ref"]))
-            self.Total_Peptide_Count = len(set(psm["sequence"]))
+            self.total_ms2_spectral_identified = len(set(psm["spectra_ref"]))
+            self.total_peptide_count = len(set(psm["sequence"]))
 
         # draw PSMs table for spectral counting
         if config.kwargs["quantification_method"] == "spectral_counting" and not config.kwargs.get(
@@ -3013,8 +2846,8 @@ class QuantMSModule:
                 "modified_peptide_num": 0,
             }
 
-        self.Total_ms2_Spectral_Identified = psm["spectrumID"].nunique()
-        self.Total_Peptide_Count = psm["PeptideSequence"].nunique()
+        self.total_ms2_spectral_identified = psm["spectrumID"].nunique()
+        self.total_peptide_count = psm["PeptideSequence"].nunique()
 
         return psm
 
@@ -3078,7 +2911,7 @@ class QuantMSModule:
         ]
 
         self.total_protein_quantified = len(set(report_data["Protein.Group"]))
-        self.Total_Peptide_Count = len(set(report_data["sequence"]))
+        self.total_peptide_count = len(set(report_data["sequence"]))
 
         log.info("Processing DIA pep_plot.")
         protein_pep_map = report_data.groupby("Protein.Group")["sequence"].agg(list).to_dict()

@@ -4,7 +4,7 @@ from multiqc.plots import table
 from ..common.common_plots import draw_ids_rt_count
 from ..core.section_groups import add_sub_section
 from ..maxquant.maxquant_utils import evidence_rt_count
-from . import quantms_utils, mzidentml_utils, dia_plots
+from . import quantms_utils, dia_plots
 
 import numpy as np
 import itertools
@@ -146,32 +146,6 @@ def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
         protein_headers,
         "DIA-NN"
     )
-
-# mzIdentML: Quantification Table
-def draw_mzid_quant_table(sub_section, mzid_mzml_df):
-
-    # Peptides Quantification Table
-    peptides_table, peptides_headers = mzidentml_utils.create_peptides_table(
-        mzid_mzml_df
-    )
-    draw_peptides_table(
-        sub_section,
-        peptides_table,
-        peptides_headers,
-        "mzIdentML"
-    )
-
-    # Protein Quantification Table
-    protein_table, protein_headers = mzidentml_utils.create_protein_table(
-        mzid_mzml_df
-    )
-    draw_protein_table(
-        sub_section,
-        protein_table,
-        protein_headers,
-        "mzIdentML"
-    )
-
 
 # Draw: Peptides Quantification Table
 def draw_peptides_table(sub_section, table_data, headers, report_type):
