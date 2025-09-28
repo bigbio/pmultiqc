@@ -81,7 +81,7 @@ class PMultiQC(BaseMultiqcModule):
         if config.kwargs.get("mzid_plugin", False):
             # Use MzIdentMLModule for mzid plugin
             MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
-            mzid_module = MzIdentMLModule(
+            MzIdentMLModule(
                 self.find_log_files,
                 self.sub_sections,
                 heatmap_color_list
