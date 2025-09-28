@@ -170,10 +170,9 @@ class QuantMSModule:
             "end": 1,
             "low_thresh": 0.3,
             "high_thresh": 0.7,
-            "end": 1,
             "low_step": 0.03,
-            "high_step": 0.08
-            }
+            "high_step": 0.08,
+        }
         self.total_protein_quantified = 0
         self.out_csv_data = dict()
         self.mL_spec_ident_final = dict()
