@@ -237,7 +237,11 @@ class MzIdentMLModule:
                 "#Identified MS2 Spectra": self.total_ms2_spectral_identified
             }
         }
-        coverage = self.total_ms2_spectral_identified / self.total_ms2_spectra * 100
+        coverage = (
+            (self.total_ms2_spectral_identified / self.total_ms2_spectra) * 100
+            if self.total_ms2_spectra
+            else 0.0
+        )
         summary_table[self.total_ms2_spectra]["%Identified MS2 Spectra"] = coverage
         summary_table[self.total_ms2_spectra][
             "#Peptides Identified"
