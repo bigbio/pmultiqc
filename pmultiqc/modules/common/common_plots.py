@@ -1,8 +1,4 @@
-from multiqc.plots import (
-    bargraph,
-    linegraph,
-    heatmap
-)
+from multiqc.plots import bargraph, linegraph, heatmap
 from ..core.section_groups import add_sub_section
 
 
@@ -18,10 +14,7 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
         "ylab": "MS/MS Identified [%]",
     }
 
-    bar_html = bargraph.plot(
-        data=msms_identified_percent,
-        pconfig=draw_config
-    )
+    bar_html = bargraph.plot(data=msms_identified_percent, pconfig=draw_config)
 
     bar_html = remove_subtitle(bar_html)
 
@@ -30,15 +23,12 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
         plot=bar_html,
         order=7,
         description="MS/MS identification rate per raw file.",
-        helptext="MS/MS identification rate per raw file (quantms data from mzTab and mzML files; MaxQuant data from summary.txt)"
+        helptext="MS/MS identification rate per raw file (quantms data from mzTab and mzML files; MaxQuant data from summary.txt)",
     )
 
+
 # Potential Contaminants per Group
-def draw_potential_contaminants(
-        sub_section,
-        contaminant_percent,
-        is_maxquant
-    ):
+def draw_potential_contaminants(sub_section, contaminant_percent, is_maxquant):
 
     draw_config = {
         "id": "potential_contaminants_per_group",
@@ -49,10 +39,7 @@ def draw_potential_contaminants(
         "ylab": "Percent [%]",
     }
 
-    bar_html = bargraph.plot(
-        data=contaminant_percent,
-        pconfig=draw_config
-    )
+    bar_html = bargraph.plot(data=contaminant_percent, pconfig=draw_config)
 
     bar_html = remove_subtitle(bar_html)
 
@@ -80,8 +67,9 @@ def draw_potential_contaminants(
         plot=bar_html,
         order=2,
         description=description_text,
-        helptext=help_text
+        helptext=help_text,
     )
+
 
 # Top5 Contaminants Per Raw File
 def draw_top_n_contaminants(sub_section, top_contaminants_data):
@@ -117,8 +105,9 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
             If you see less than 5 contaminants, it either means there are actually less, or that 
             one (or more) of the shortened contaminant names subsume multiple of the top5 
             contaminants (since they start with the same prefix).
-            """
+            """,
     )
+
 
 # Charge-state of Per File
 def draw_charge_state(sub_section, charge_data, report_type):
@@ -132,9 +121,7 @@ def draw_charge_state(sub_section, charge_data, report_type):
     }
 
     bar_html = bargraph.plot(
-        data=charge_data["plot_data"],
-        cats=charge_data["cats"],
-        pconfig=draw_config
+        data=charge_data["plot_data"], cats=charge_data["cats"], pconfig=draw_config
     )
 
     bar_html = remove_subtitle(bar_html)
@@ -160,8 +147,9 @@ def draw_charge_state(sub_section, charge_data, report_type):
         plot=bar_html,
         order=6,
         description=description_text,
-        helptext=help_text
+        helptext=help_text,
     )
+
 
 # Modifications
 def draw_modifications(sub_section, modified_data):
@@ -177,9 +165,7 @@ def draw_modifications(sub_section, modified_data):
     }
 
     bar_html = bargraph.plot(
-        data=modified_data["plot_data"],
-        cats=modified_data["cats"],
-        pconfig=draw_config
+        data=modified_data["plot_data"], cats=modified_data["cats"], pconfig=draw_config
     )
 
     bar_html = remove_subtitle(bar_html)
@@ -211,15 +197,11 @@ E.g. given three peptides in a single Raw file                 <br>
 
 <p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once. 
 If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
-"""
+""",
     )
 
-def draw_oversampling(
-        sub_section,
-        oversampling,
-        oversampling_plot,
-        is_maxquant
-    ):
+
+def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant):
 
     if is_maxquant:
         draw_config = {
@@ -232,9 +214,7 @@ def draw_oversampling(
         }
 
         bar_html = bargraph.plot(
-            data=oversampling["plot_data"],
-            cats=oversampling["cats"],
-            pconfig=draw_config
+            data=oversampling["plot_data"], cats=oversampling["cats"], pconfig=draw_config
         )
 
     else:
@@ -247,11 +227,7 @@ def draw_oversampling(
             "tt_decimals": 0,
         }
 
-        bar_html = bargraph.plot(
-            data=oversampling,
-            cats=oversampling_plot,
-            pconfig=draw_config
-        )
+        bar_html = bargraph.plot(data=oversampling, cats=oversampling_plot, pconfig=draw_config)
 
     bar_html = remove_subtitle(bar_html)
 
@@ -261,7 +237,7 @@ def draw_oversampling(
                 Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
                 exclusion windows for data independent acquisitions.
                 """
-    if (is_maxquant):
+    if is_maxquant:
         helptext += "<p>If DIA-Data: this metric is skipped.</p>"
 
     add_sub_section(
@@ -273,15 +249,12 @@ def draw_oversampling(
             (same sequence and same charge state) was identified by at least two distinct MS2 spectra 
             in the same Raw file.
             """,
-        helptext=helptext
+        helptext=helptext,
     )
 
+
 # Missed Cleavages Per Raw File
-def draw_msms_missed_cleavages(
-        sub_section,
-        missed_cleavages_data,
-        is_maxquant
-    ):
+def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
 
     draw_config = {
         "id": "missed_cleavages_per_raw_file",
@@ -327,8 +300,9 @@ def draw_msms_missed_cleavages(
         plot=bar_html,
         order=5,
         description=description_text,
-        helptext=helptext
+        helptext=helptext,
     )
+
 
 # IDs over RT
 def draw_ids_rt_count(sub_section, rt_count_data, report_type):
@@ -345,10 +319,7 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=rt_count_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=rt_count_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -374,7 +345,7 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
             The uncalibrated retention time in minutes in the elution profile of the precursor ion.
             """
 
-    help_text+= """
+    help_text += """
             <p>This plot allows to judge column occupancy over retention time.
             Ideally, the LC gradient is chosen such that the number of identifications (here, after FDR filtering) is
             uniform over time, to ensure consistent instrument duty cycles. Sharp peaks and uneven distribution of
@@ -387,7 +358,7 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
         plot=linegraph_html,
         order=1,
         description=description_text,
-        helptext=help_text
+        helptext=help_text,
     )
 
 
@@ -408,7 +379,7 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
             Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison to the
             predicted monoisotopic mass of the identified peptide sequence in milli-Dalton.
             """
-    
+
     # MaxQuant: Delta Mass [ppm]
     elif delta_mass_type == "Mass Error [ppm]":
         plot_id = "delta_mass_ppm"
@@ -424,7 +395,7 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
             
             Ppm errors should be centered on zero and their spread is expected to be significantly smaller than before calibration.
             """
-    
+
     # quantms: Delta Mass [ppm]
     elif delta_mass_type == "quantms_ppm":
         plot_id = "delta_mass_ppm"
@@ -450,11 +421,13 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
     if max(abs(x) for x in x_values) > range_abs:
 
         delta_mass_range = {k: v for k, v in delta_mass["count"].items() if abs(k) <= range_abs}
-        delta_mass_percent_range = {k: v for k, v in delta_mass["frequency"].items() if abs(k) <= range_abs}
+        delta_mass_percent_range = {
+            k: v for k, v in delta_mass["frequency"].items() if abs(k) <= range_abs
+        }
 
         x_values_adj = list(delta_mass_range.keys())
         range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
-        
+
         data_label = [
             {
                 "name": f"Count (range: -{range_abs} to {range_abs})",
@@ -504,9 +477,9 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
                 {"count": delta_mass_range},
                 {"relative_frequency": delta_mass_percent_range},
                 {"count": delta_mass["count"]},
-                {"relative_frequency": delta_mass["frequency"]}
+                {"relative_frequency": delta_mass["frequency"]},
             ],
-            pconfig
+            pconfig,
         )
 
     else:
@@ -540,11 +513,8 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
         }
 
         line_html = linegraph.plot(
-            [
-                {"count": delta_mass["count"]},
-                {"relative_frequency": delta_mass["frequency"]}
-            ],
-            pconfig
+            [{"count": delta_mass["count"]}, {"relative_frequency": delta_mass["frequency"]}],
+            pconfig,
         )
 
     add_sub_section(
@@ -552,18 +522,13 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
         plot=line_html,
         order=sub_section_order,
         description=description_text,
-        helptext=help_text
+        helptext=help_text,
     )
 
 
 def draw_heatmap(
-        sub_sections,
-        hm_colors,
-        heatmap_data,
-        heatmap_xnames,
-        heatmap_ynames,
-        is_maxquant
-    ):
+    sub_sections, hm_colors, heatmap_data, heatmap_xnames, heatmap_ynames, is_maxquant
+):
 
     pconfig = {
         "id": "heatmap",
@@ -580,21 +545,13 @@ def draw_heatmap(
 
     if is_maxquant:
 
-        hm_html = heatmap.plot(
-            data=heatmap_data,
-            pconfig=pconfig
-        )
-        
+        hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
+
         description_text = "This heatmap provides an overview of the performance of MaxQuant."
 
     else:
 
-        hm_html = heatmap.plot(
-            heatmap_data,
-            heatmap_xnames,
-            heatmap_ynames,
-            pconfig
-        )
+        hm_html = heatmap.plot(heatmap_data, heatmap_xnames, heatmap_ynames, pconfig)
 
         description_text = "This heatmap provides an overview of the performance of quantms."
 
@@ -632,6 +589,7 @@ def draw_heatmap(
             *Heatmap score [Pep Missing Values]: Linear scale of the fraction of missing peptides
         """,
     )
+
 
 def remove_subtitle(plot_html):
 

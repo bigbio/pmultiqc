@@ -37,7 +37,7 @@ from ..core.section_groups import add_group_modules, add_sub_section
 from ..maxquant.maxquant_utils import (
     mod_group_percentage,
     evidence_rt_count,
-    evidence_calibrated_mass_error
+    evidence_calibrated_mass_error,
 )
 from .quantms_plots import (
     draw_dia_heatmap,
@@ -57,19 +57,14 @@ log = logging.getLogger(__name__)
 
 log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
 
+
 class QuantMSModule:
 
-    def __init__(
-            self,
-            find_log_files_func,
-            sub_sections,
-            heatmap_colors
-        ):
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
         self.find_log_files = find_log_files_func
         self.sub_sections = sub_sections
         self.heatmap_color_list = heatmap_colors
-
 
         self.ms_with_psm = list()
         self.total_protein_identified = 0
@@ -103,7 +98,6 @@ class QuantMSModule:
         self.quantms_contaminant_percent = dict()
         self.quantms_top_contaminant_percent = dict()
         self.quantms_mass_error = dict()
-        
 
         self.ms_paths = []
         for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
@@ -111,7 +105,6 @@ class QuantMSModule:
 
         self.ms_info_path = []
         self.enable_mzid = False
-
 
         if config.output_dir:
             if os.path.exists(config.output_dir):
@@ -193,7 +186,7 @@ class QuantMSModule:
         for ms_info in self.find_log_files("pmultiqc/ms_info", filecontents=False):
             self.ms_info_path.append(os.path.join(ms_info["root"], ms_info["fn"]))
             self.ms_info_path.sort()
-            
+
         if len(self.ms_info_path) > 0:
             self.read_ms_info = True
             self.ms_paths = [
@@ -240,7 +233,7 @@ class QuantMSModule:
             if not config.kwargs["ignored_idxml"]:
                 self.parse_idxml(mt)
             self.cal_heat_map_score()
-                
+
             heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
             common_plots.draw_heatmap(
                 self.sub_sections["summary"],
@@ -248,7 +241,7 @@ class QuantMSModule:
                 heatmap_data,
                 heatmap_xnames,
                 heatmap_ynames,
-                False
+                False,
             )
 
             self.draw_summary_protein_ident_table()
@@ -264,7 +257,7 @@ class QuantMSModule:
                 self.sub_sections["ms2"],
                 self.oversampling,
                 self.oversampling_plot.dict["cats"],
-                False
+                False,
             )
             self.draw_delta_mass()
 
@@ -286,7 +279,7 @@ class QuantMSModule:
                 description="This plot shows the information of peptide spectrum matches",
                 helptext="""
                         This table shows the information of peptide spectrum matches from mzTab PSM section.
-                        """
+                        """,
             )
 
         if self.enable_sdrf:
@@ -315,24 +308,24 @@ class QuantMSModule:
                     * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
 
                     Click `Show replicates` to switch to bar plots of counting in each replicate.
-                    """
+                    """,
             )
 
         self.section_group_dict = {
-                "experiment_sub_section": self.sub_sections["experiment"],
-                "summary_sub_section": self.sub_sections["summary"],
-                "identification_sub_section": self.sub_sections["identification"],
-                "search_engine_sub_section": self.sub_sections["search_engine"],
-                "contaminants_sub_section": self.sub_sections["contaminants"],
-                "quantification_sub_section": self.sub_sections["quantification"],
-                "ms1_sub_section": self.sub_sections["ms1"],
-                "ms2_sub_section": self.sub_sections["ms2"],
-                "mass_error_sub_section": self.sub_sections["mass_error"],
-                "rt_qc_sub_section": self.sub_sections["rt_qc"],
-            }
+            "experiment_sub_section": self.sub_sections["experiment"],
+            "summary_sub_section": self.sub_sections["summary"],
+            "identification_sub_section": self.sub_sections["identification"],
+            "search_engine_sub_section": self.sub_sections["search_engine"],
+            "contaminants_sub_section": self.sub_sections["contaminants"],
+            "quantification_sub_section": self.sub_sections["quantification"],
+            "ms1_sub_section": self.sub_sections["ms1"],
+            "ms2_sub_section": self.sub_sections["ms2"],
+            "mass_error_sub_section": self.sub_sections["mass_error"],
+            "rt_qc_sub_section": self.sub_sections["rt_qc"],
+        }
 
         add_group_modules(self.section_group_dict, "")
-        
+
         self.css = {
             "assets/css/quantms.css": os.path.join(
                 os.path.dirname(__file__), "assets", "css", "quantms.css"
@@ -419,8 +412,10 @@ class QuantMSModule:
             self.is_bruker = True
 
         # Create table plot
-        pattern = r'^(\w+=[^=;]+)(;\w+=[^=;]+)*$'
-        self.is_multi_conditions = all(self.sample_df["MSstats_Condition"].apply(lambda x: bool(re.match(pattern, str(x)))))
+        pattern = r"^(\w+=[^=;]+)(;\w+=[^=;]+)*$"
+        self.is_multi_conditions = all(
+            self.sample_df["MSstats_Condition"].apply(lambda x: bool(re.match(pattern, str(x))))
+        )
 
         rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
@@ -433,8 +428,10 @@ class QuantMSModule:
                 sample_data = {}
                 for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                     sample_data["MSstats_Condition_" + str(k)] = v
-                
-                sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
+
+                sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[
+                    0
+                ]
                 sample_data["Fraction_Group"] = ""
                 sample_data["Fraction"] = ""
                 sample_data["Label"] = ""
@@ -449,7 +446,9 @@ class QuantMSModule:
                 for _, row in file_df_sample.iterrows():
 
                     sample_data = {}
-                    for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                    for k, _ in condition_split(
+                        sample_df_slice["MSstats_Condition"].iloc[0]
+                    ).items():
                         sample_data["MSstats_Condition_" + str(k)] = ""
 
                     sample_data["MSstats_BioReplicate"] = ""
@@ -472,7 +471,7 @@ class QuantMSModule:
                 "scale": False,
             }
             for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                headers["MSstats_Condition_" + str(k)] ={
+                headers["MSstats_Condition_" + str(k)] = {
                     "title": "MSstats Condition: " + str(k),
                     "description": "",
                     "scale": False,
@@ -507,7 +506,9 @@ class QuantMSModule:
                         sample=SampleName(sample),
                         data={
                             "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                            "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
+                            "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[
+                                0
+                            ],
                             "Fraction_Group": "",
                             "Fraction": "",
                             "Label": "",
@@ -581,7 +582,7 @@ class QuantMSModule:
             helptext="""
                 You can see details about it in 
                 https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
-                """
+                """,
         )
 
     def draw_summary_protein_ident_table(self):
@@ -654,7 +655,7 @@ class QuantMSModule:
             plot=table_html,
             order=1,
             description=description_str,
-            helptext=helptext_str
+            helptext=helptext_str,
         )
 
     def draw_ms_information(self):
@@ -693,7 +694,7 @@ class QuantMSModule:
                     
                     Deviations such as shifted retention times, missing peaks, or inconsistent intensities may signal problems 
                     in sample preparation, LC conditions, or mass spectrometer performance that require further investigation.
-                    """
+                    """,
             )
 
         if self.ms1_bpc:
@@ -725,7 +726,7 @@ class QuantMSModule:
                     clearer peak visualization when signal-to-noise ratio is a concern. Comparing BPC patterns across
                     samples allows you to evaluate consistency in the detection of high-abundance compounds
                     and can reveal significant variations in sample composition or instrument performance.
-                    """
+                    """,
             )
 
         if self.ms1_peaks:
@@ -769,7 +770,7 @@ class QuantMSModule:
                     Monitoring MS1 peak counts complements total ion chromatogram (TIC) and base peak chromatogram
                     (BPC) data, offering an additional layer of quality control related to signal complexity,
                     instrument stability, and sample composition.
-                    """
+                    """,
             )
 
         if self.ms1_general_stats:
@@ -788,7 +789,7 @@ class QuantMSModule:
                 },
                 "log10(TotalCurrent)": {
                     "title": "log10(Total Current)",
-                    "format": "{:,.4f}", 
+                    "format": "{:,.4f}",
                 },
                 "log10(ScanCurrent)": {
                     "title": "log10(Scan Current)",
@@ -810,7 +811,7 @@ class QuantMSModule:
                     allowing for comparison of overall signal intensity across samples. Consistent TotalCurrent and ScanCurrent values across similar samples typically
                     indicate good reproducibility in the mass spectrometry analysis, while significant variations may suggest issues with sample preparation,
                     instrument performance, or ionization efficiency. The blue shading helps visualize the relative intensity differences between samples.
-                    """
+                    """,
             )
 
     def draw_quantms_identi_num(self):
@@ -818,7 +819,7 @@ class QuantMSModule:
         rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
         if self.enable_exp or self.enable_sdrf:
-                
+
             if self.is_multi_conditions:
                 for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
                     file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
@@ -826,10 +827,14 @@ class QuantMSModule:
                     row_data: List[InputRow] = []
 
                     sample_data = {}
-                    for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                    for k, v in condition_split(
+                        sample_df_slice["MSstats_Condition"].iloc[0]
+                    ).items():
                         sample_data["MSstats_Condition_" + str(k)] = v
-                    
-                    sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
+
+                    sample_data["MSstats_BioReplicate"] = sample_df_slice[
+                        "MSstats_BioReplicate"
+                    ].iloc[0]
                     sample_data["Fraction"] = ""
                     sample_data["Peptide_Num"] = ""
                     sample_data["Unique_Peptide_Num"] = ""
@@ -846,27 +851,37 @@ class QuantMSModule:
                     for _, row in file_df_sample.iterrows():
 
                         sample_data = {}
-                        for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                        for k, _ in condition_split(
+                            sample_df_slice["MSstats_Condition"].iloc[0]
+                        ).items():
                             sample_data["MSstats_Condition_" + str(k)] = ""
 
                         sample_data["Fraction"] = row["Fraction"]
-                        sample_data["Peptide_Num"] = self.cal_num_table_data[row["Run"]]["peptide_num"]
-                        sample_data["Unique_Peptide_Num"] = self.cal_num_table_data[row["Run"]]["unique_peptide_num"]
-                        sample_data["Modified_Peptide_Num"] = self.cal_num_table_data[row["Run"]]["modified_peptide_num"]
-                        sample_data["Protein_Num"] = self.cal_num_table_data[row["Run"]]["protein_num"]
+                        sample_data["Peptide_Num"] = self.cal_num_table_data[row["Run"]][
+                            "peptide_num"
+                        ]
+                        sample_data["Unique_Peptide_Num"] = self.cal_num_table_data[row["Run"]][
+                            "unique_peptide_num"
+                        ]
+                        sample_data["Modified_Peptide_Num"] = self.cal_num_table_data[row["Run"]][
+                            "modified_peptide_num"
+                        ]
+                        sample_data["Protein_Num"] = self.cal_num_table_data[row["Run"]][
+                            "protein_num"
+                        ]
 
                         row_data.append(
                             InputRow(
                                 sample=SampleName(row["Run"]),
                                 data=sample_data,
                             )
-                        ) 
+                        )
                     group_name: SampleGroup = SampleGroup(sample)
                     rows_by_group[group_name] = row_data
-                    
+
                 headers = {}
                 for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                    headers["MSstats_Condition_" + str(k)] ={
+                    headers["MSstats_Condition_" + str(k)] = {
                         "title": "MSstats Condition: " + str(k),
                         "description": "",
                         "scale": False,
@@ -917,13 +932,21 @@ class QuantMSModule:
                                 data={
                                     "MSstats_Condition": "",
                                     "Fraction": row["Fraction"],
-                                    "Peptide_Num": self.cal_num_table_data[row["Run"]]["peptide_num"],
-                                    "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]]["unique_peptide_num"],
-                                    "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]]["modified_peptide_num"],
-                                    "Protein_Num": self.cal_num_table_data[row["Run"]]["protein_num"],
-                                    },
-                                )
+                                    "Peptide_Num": self.cal_num_table_data[row["Run"]][
+                                        "peptide_num"
+                                    ],
+                                    "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]][
+                                        "unique_peptide_num"
+                                    ],
+                                    "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]][
+                                        "modified_peptide_num"
+                                    ],
+                                    "Protein_Num": self.cal_num_table_data[row["Run"]][
+                                        "protein_num"
+                                    ],
+                                },
                             )
+                        )
                     group_name: SampleGroup = SampleGroup(sample)
                     rows_by_group[group_name] = row_data
 
@@ -965,7 +988,7 @@ class QuantMSModule:
                     "Modified_Peptide_Num": value["modified_peptide_num"],
                     "Protein_Num": value["protein_num"],
                 }
-            
+
             headers = {
                 "Peptide_Num": {
                     "title": "#Peptide IDs",
@@ -1003,7 +1026,7 @@ class QuantMSModule:
                 Including Sample Name, Possible Study Variables, identified the number of peptide in the pipeline,
                 and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained 
                 from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
-                """
+                """,
         )
 
     def draw_mzid_identi_num(self):
@@ -1046,7 +1069,7 @@ class QuantMSModule:
                 This plot shows the submitted results.
                 Including the number of identified peptides and the number of identified modified peptides in the submitted results. 
                 You can also remove the decoy with the `remove_decoy` parameter.
-                """
+                """,
         )
 
     # draw number of peptides per proteins
@@ -1056,19 +1079,19 @@ class QuantMSModule:
             data_labels = ["Frequency", "Percentage"]
         else:
             data_labels = [
-                    {
-                        "name": "Frequency",
-                        "ylab": "Frequency",
-                        "tt_suffix": "",
-                        "tt_decimals": 0,
-                    },
-                    {
-                        "name": "Percentage",
-                        "ylab": "Percentage [%]",
-                        "tt_suffix": "%",
-                        "tt_decimals": 2,
-                    },
-                ]
+                {
+                    "name": "Frequency",
+                    "ylab": "Frequency",
+                    "tt_suffix": "",
+                    "tt_decimals": 0,
+                },
+                {
+                    "name": "Percentage",
+                    "ylab": "Percentage [%]",
+                    "tt_suffix": "%",
+                    "tt_decimals": 2,
+                },
+            ]
 
         pconfig = {
             "id": "number_of_peptides_per_proteins",
@@ -1097,13 +1120,13 @@ class QuantMSModule:
                         This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
                         identifications can constitute more confident results.
                     """
-        
+
         add_sub_section(
             sub_section=self.sub_sections["identification"],
             plot=bar_html,
             order=1,
             description=description_str,
-            helptext=helptext_str
+            helptext=helptext_str,
         )
 
     def draw_mzml_ms(self):
@@ -1175,7 +1198,7 @@ class QuantMSModule:
                 * Sage: The Number of spectra identified by Sage search engine
                 * PSMs from quant. peptides: extracted from PSM table in mzTab file
                 * Peptides quantified: extracted from PSM table in mzTab file
-                """
+                """,
         )
 
     def draw_peak_intensity_distribution(self):
@@ -1218,7 +1241,7 @@ class QuantMSModule:
                 spectrum pre-processing before matching the spectra. Thus, the spectra reported are not 
                 necessarily pre-processed since the search engine may have applied the pre-processing step 
                 internally. This pre-processing is not necessarily reported in the experimental metadata.
-                """
+                """,
         )
 
     def draw_precursor_charge_distribution(self):
@@ -1250,7 +1273,7 @@ class QuantMSModule:
                 distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ 
                 charged ions. An unexpected charge distribution may furthermore be caused by specific search 
                 engine parameter settings such as limiting the search to specific ion charges.
-                """
+                """,
         )
 
     def draw_peaks_per_ms2(self):
@@ -1286,21 +1309,23 @@ class QuantMSModule:
                 or a detector fault, as opposed to a large number of peaks representing very noisy spectra. 
                 This chart is extensively dependent on the pre-processing steps performed to the spectra 
                 (centroiding, deconvolution, peak picking approach, etc).
-                """
+                """,
         )
-
-
 
     def draw_delta_mass(self):
 
         delta_mass = self.delta_mass
         delta_mass_percent = {
-            "target": {k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()}
+            "target": {
+                k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()
+            }
         }
-        
+
         if delta_mass["decoy"]:
 
-            delta_mass_percent["decoy"] = {k: v / sum(delta_mass["decoy"].values()) for k, v in delta_mass["decoy"].items()}
+            delta_mass_percent["decoy"] = {
+                k: v / sum(delta_mass["decoy"].values()) for k, v in delta_mass["decoy"].items()
+            }
 
             x_values = list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())
 
@@ -1314,14 +1339,24 @@ class QuantMSModule:
             if max(abs(x) for x in x_values) > range_abs:
 
                 delta_mass_range = dict()
-                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs}
-                delta_mass_range["decoy"] = {k: v for k, v in delta_mass["decoy"].items() if abs(k) <= range_abs}
+                delta_mass_range["target"] = {
+                    k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs
+                }
+                delta_mass_range["decoy"] = {
+                    k: v for k, v in delta_mass["decoy"].items() if abs(k) <= range_abs
+                }
 
                 delta_mass_percent_range = dict()
-                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs}
-                delta_mass_percent_range["decoy"] = {k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= range_abs}
-                
-                x_values_adj = list(delta_mass_range["target"].keys()) + list(delta_mass_range["decoy"].keys())
+                delta_mass_percent_range["target"] = {
+                    k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs
+                }
+                delta_mass_percent_range["decoy"] = {
+                    k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= range_abs
+                }
+
+                x_values_adj = list(delta_mass_range["target"].keys()) + list(
+                    delta_mass_range["decoy"].keys()
+                )
                 range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
 
                 data_label = [
@@ -1368,13 +1403,8 @@ class QuantMSModule:
                     "showlegend": True,
                 }
                 line_html = linegraph.plot(
-                    [
-                        delta_mass_range,
-                        delta_mass_percent_range,
-                        delta_mass,
-                        delta_mass_percent
-                    ],
-                    pconfig
+                    [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
+                    pconfig,
                 )
 
             else:
@@ -1422,11 +1452,17 @@ class QuantMSModule:
             if max(abs(x) for x in x_values) > range_abs:
 
                 delta_mass_range = {
-                    "target": {k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs}
+                    "target": {
+                        k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs
+                    }
                 }
 
                 delta_mass_percent_range = {
-                    "target": {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs}
+                    "target": {
+                        k: v
+                        for k, v in delta_mass_percent["target"].items()
+                        if abs(k) <= range_abs
+                    }
                 }
 
                 x_values_adj = list(delta_mass_range["target"].keys())
@@ -1475,13 +1511,8 @@ class QuantMSModule:
                     "style": "lines+markers",
                 }
                 line_html = linegraph.plot(
-                    [
-                        delta_mass_range,
-                        delta_mass_percent_range,
-                        delta_mass,
-                        delta_mass_percent
-                    ],
-                    pconfig
+                    [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
+                    pconfig,
                 )
 
             else:
@@ -1527,7 +1558,7 @@ class QuantMSModule:
                 This plot can highlight systematic bias if not centered on zero. 
                 Other distributions can reflect modifications not being reported properly. 
                 Also it is easy to see the different between the target and the decoys identifications.
-                """
+                """,
         )
 
     def draw_search_engine(self):
@@ -1609,7 +1640,7 @@ class QuantMSModule:
                 helptext="""
                         This statistic is extracted from idXML files. SpecEvalue: Spectral E-values, 
                         the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
-                        """
+                        """,
             )
 
         if xcorr_bar_html != "":
@@ -1624,7 +1655,7 @@ class QuantMSModule:
                 helptext="""
                         This statistic is extracted from idXML files. xcorr: cross-correlation scores, 
                         the search score of Comet. The value used for plotting is xcorr.
-                        """
+                        """,
             )
 
         if hyper_bar_html != "":
@@ -1639,7 +1670,7 @@ class QuantMSModule:
                 helptext="""
                         This statistic is extracted from idXML files. hyperscore: Hyperscore, the search 
                         score of Sage. The value used for plotting is hyperscore.
-                        """
+                        """,
             )
 
         # Create PEPs summary plot
@@ -1666,7 +1697,7 @@ class QuantMSModule:
             plot=pep_bar_html,
             order=4,
             description="",
-            helptext="This statistic is extracted from idXML files."
+            helptext="This statistic is extracted from idXML files.",
         )
 
         # Create identified number plot
@@ -1706,7 +1737,7 @@ class QuantMSModule:
                     three search runs, peptides identified by two of them will have a "support" of 0.5.) 
                     For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide 
                     is the average similarity of the most-similar peptide from each (other) search run.
-                    """
+                    """,
             )
 
         # TODO
@@ -1744,23 +1775,32 @@ class QuantMSModule:
             pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
 
             # Contaminants
-            if len(pep_table[pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])]) > 0:
+            if (
+                len(
+                    pep_table[
+                        pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
+                    ]
+                )
+                > 0
+            ):
 
                 self.quantms_contaminant_percent = self.cal_quantms_contaminant_percent(
                     pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy()
                 )
 
                 self.quantms_top_contaminant_percent = self.top_n_contaminant_percent(
-                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(),
-                    5
+                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(), 5
                 )
 
             for name, group in pep_table.groupby("stand_spectra_ref"):
 
-                contaminant_sum = group[
-                    group["accession"].str.contains(
-                        config.kwargs["contaminant_affix"]
-                    )][study_variables].sum(axis=0).sum()
+                contaminant_sum = (
+                    group[group["accession"].str.contains(config.kwargs["contaminant_affix"])][
+                        study_variables
+                    ]
+                    .sum(axis=0)
+                    .sum()
+                )
                 all_sum = group[study_variables].sum(axis=0).sum()
                 self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
 
@@ -1770,7 +1810,9 @@ class QuantMSModule:
                             study_variables
                         ].to_numpy()
                     )
-                    self.quantms_pep_intensity[name] = group[(group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)]["average_intensity"].apply(
+                    self.quantms_pep_intensity[name] = group[
+                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
+                    ]["average_intensity"].apply(
                         lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
                     )
                 else:
@@ -1984,12 +2026,7 @@ class QuantMSModule:
             )
 
             if self.enable_mzid:
-                (
-                    mzml_table,
-                    heatmap_charge,
-                    self.total_ms2_spectra,
-                    self.mzml_ms_df
-                ) = result
+                (mzml_table, heatmap_charge, self.total_ms2_spectra, self.mzml_ms_df) = result
             else:
                 mzml_table, heatmap_charge, self.total_ms2_spectra = result
 
@@ -2204,6 +2241,7 @@ class QuantMSModule:
         # Modifications Name
         modifi_pattern = re.compile(r"UNIMOD:\d+")
         unimod_data = UnimodDatabase()
+
         def get_unimod_modification(modifis):
             if isinstance(modifis, str):
                 modifi_matches = modifi_pattern.findall(modifis)
@@ -2212,7 +2250,7 @@ class QuantMSModule:
                     mod_list.append(unimod_data.get_by_accession(mod.upper()).get_name())
                 return ",".join(set(mod_list))
             return "Unmodified"
-        
+
         psm["Modifications"] = psm["modifications"].apply(lambda x: get_unimod_modification(x))
 
         mod_plot_dict = dict()
@@ -2225,16 +2263,16 @@ class QuantMSModule:
                 group = group[group["opt_global_cv_MS:1002217_decoy_peptide"] == 0]
 
             # Modifications
-            mod_group_processed = mod_group_percentage(group[["sequence", "charge", "Modifications"]].drop_duplicates())
+            mod_group_processed = mod_group_percentage(
+                group[["sequence", "charge", "Modifications"]].drop_duplicates()
+            )
             mod_plot_dict[m] = dict(
                 zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
             )
             modified_cats.extend(mod_group_processed["modifications"])
 
             # Identified MS2 Spectra Raw File:
-            self.identified_msms_spectra[m] = {
-                "Identified": len(set(group["spectra_ref"]))
-            }
+            self.identified_msms_spectra[m] = {"Identified": len(set(group["spectra_ref"]))}
 
             # Each loop resets the instance.
             self.oversampling_plot = Histogram(
@@ -2278,14 +2316,16 @@ class QuantMSModule:
 
         # Modifications
         self.quantms_modified["plot_data"] = mod_plot_dict
-        self.quantms_modified["cats"] = list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))
+        self.quantms_modified["cats"] = list(
+            sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
+        )
 
         # Charge-state of Per File
         charge_state_df = psm.groupby(["filename", "charge"]).size().unstack(fill_value=0)
         charge_state_df.rename(columns=lambda x: str(x), inplace=True)
         self.mztab_charge_state = {
             "plot_data": charge_state_df.to_dict(orient="index"),
-            "cats": charge_state_df.columns.tolist()
+            "cats": charge_state_df.columns.tolist(),
         }
 
         # IDs over RT
@@ -2297,15 +2337,14 @@ class QuantMSModule:
         # Delta Mass [ppm]
         mass_error = psm[["filename", "calc_mass_to_charge", "exp_mass_to_charge"]].copy()
         mass_error["mass error [ppm]"] = (
-            (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"]) / mass_error["calc_mass_to_charge"]
+            (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"])
+            / mass_error["calc_mass_to_charge"]
         ) * 1e6
         mass_error.rename(columns={"filename": "raw file"}, inplace=True)
         self.quantms_mass_error = evidence_calibrated_mass_error(mass_error)
 
         # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
-        self.ms_without_psm = set([file_prefix(i) for i in self.ms_paths]) - set(
-            self.ms_with_psm
-        )
+        self.ms_without_psm = set([file_prefix(i) for i in self.ms_paths]) - set(self.ms_with_psm)
         for i in self.ms_without_psm:
             self.cal_num_table_data[i] = {
                 "protein_num": 0,
@@ -2857,10 +2896,7 @@ class QuantMSModule:
         # parse DIA-NN report data
         if os.path.splitext(self.diann_report_path)[1] == ".tsv":
             report_data = pd.read_csv(
-                self.diann_report_path,
-                header=0,
-                sep="\t",
-                on_bad_lines="warn"
+                self.diann_report_path, header=0, sep="\t", on_bad_lines="warn"
             )
         else:
             report_data = pd.read_parquet(self.diann_report_path)
@@ -2875,13 +2911,15 @@ class QuantMSModule:
         if "Normalisation.Factor" not in report_data.columns and all(
             col in report_data.columns for col in required_cols
         ):
-            report_data["Normalisation.Factor"] = report_data[required_cols[0]] / report_data[required_cols[1]]
+            report_data["Normalisation.Factor"] = (
+                report_data[required_cols[0]] / report_data[required_cols[1]]
+            )
 
         # Draw: Standard Deviation of Intensity
         if "Precursor.Quantity" in report_data.columns:
             draw_dia_intensitys(self.sub_sections["quantification"], report_data)
             draw_dia_heatmap(self.sub_sections["summary"], report_data, self.heatmap_color_list)
-        
+
         log.info("Draw the DIA MS1 subsection.")
         draw_dia_ms1(self.sub_sections["ms1"], report_data)
 
@@ -2898,16 +2936,11 @@ class QuantMSModule:
         if not self.msstats_input_valid:
             log.info("Draw the DIA quant table subsection.")
             draw_diann_quant_table(
-                self.sub_sections["quantification"],
-                report_data,
-                self.sample_df,
-                self.file_df
+                self.sub_sections["quantification"], report_data, self.sample_df, self.file_df
             )
 
         pattern = re.compile(r"\(.*?\)")
-        report_data["sequence"] = [
-            pattern.sub("", s) for s in report_data["Modified.Sequence"]
-        ]
+        report_data["sequence"] = [pattern.sub("", s) for s in report_data["Modified.Sequence"]]
 
         self.total_protein_quantified = len(set(report_data["Protein.Group"]))
         self.total_peptide_count = len(set(report_data["sequence"]))
@@ -2943,6 +2976,7 @@ class QuantMSModule:
         # Modifications Name
         log.info("Processing DIA Modifications.")
         mod_pattern = re.compile(r"\((.*?)\)")
+
         def find_diann_modified(peptide):
             if isinstance(peptide, str):
                 mods = mod_pattern.findall(peptide)
@@ -2955,7 +2989,9 @@ class QuantMSModule:
                     return "Unmodified"
             return None
 
-        report_data["Modifications"] = report_data["Modified.Sequence"].apply(lambda x: find_diann_modified(x))
+        report_data["Modifications"] = report_data["Modified.Sequence"].apply(
+            lambda x: find_diann_modified(x)
+        )
 
         log.info("Processing DIA mod_plot_dict.")
         mod_plot_dict = dict()
@@ -2985,11 +3021,11 @@ class QuantMSModule:
             self.cal_num_table_data[run_file]["modified_peptide_num"] = len(modified_pep)
 
         self.quantms_modified["plot_data"] = mod_plot_dict
-        self.quantms_modified["cats"] = list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))
-
-        self.ms_without_psm = set([file_prefix(i) for i in self.ms_paths]) - set(
-            self.ms_with_psm
+        self.quantms_modified["cats"] = list(
+            sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
         )
+
+        self.ms_without_psm = set([file_prefix(i) for i in self.ms_paths]) - set(self.ms_with_psm)
         for i in self.ms_without_psm:
             log.warning("No PSM found in '{}'!".format(i))
 
@@ -3038,15 +3074,10 @@ class QuantMSModule:
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
             gdict["BestSearchScore"] = g["BestSearchScore"].min()
             ## TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
-            grouped = (
-                g.groupby(["Condition", "BioReplicate"], as_index=False)["Intensity"]
-                .mean()
-            )
-            cond_grp = (
-                grouped
-                .groupby("Condition", group_keys=False)[["BioReplicate", "Intensity"]]
-                .apply(fill_dict)
-            )
+            grouped = g.groupby(["Condition", "BioReplicate"], as_index=False)["Intensity"].mean()
+            cond_grp = grouped.groupby("Condition", group_keys=False)[
+                ["BioReplicate", "Intensity"]
+            ].apply(fill_dict)
 
             cond_grp.index = [str(c) + "_distribution" for c in cond_grp.index]
             gdict.update(cond_grp.to_dict())
@@ -3157,7 +3188,7 @@ class QuantMSModule:
                 * Average Intensity: Average intensity of each peptide sequence across all conditions with NA=0 or NA ignored.
                 * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, 
                 and then mean intensity in technical replicates/biological replicates separately.
-                """
+                """,
         )
 
         # Helper functions for pandas
@@ -3275,15 +3306,17 @@ class QuantMSModule:
                 * Peptides_Number: The number of peptides for each protein.
                 * Average Intensity: Average intensity of each protein across all conditions with NA=0 or NA ignored.
                 * Protein intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of peptides.
-                """
+                """,
         )
-
 
     def cal_quantms_contaminant_percent(self, pep_df):
 
         group_stats = pep_df.groupby("stand_spectra_ref").agg(
             total_intensity=("average_intensity", "sum"),
-            cont_intensity=("average_intensity", lambda x: x[pep_df["accession"].str.contains("CONT")].sum())
+            cont_intensity=(
+                "average_intensity",
+                lambda x: x[pep_df["accession"].str.contains("CONT")].sum(),
+            ),
         )
 
         group_stats["contaminant_percent"] = (
@@ -3300,13 +3333,14 @@ class QuantMSModule:
 
         not_cont_tag = "NOT_CONT"
         pep_df["cont_accession"] = pep_df["accession"].apply(
-            lambda x: x.replace("CONTAMINANT_", "") if x.startswith("CONTAMINANT_") else not_cont_tag
+            lambda x: (
+                x.replace("CONTAMINANT_", "") if x.startswith("CONTAMINANT_") else not_cont_tag
+            )
         )
 
         pep_contaminant_df = pep_df[pep_df["cont_accession"] != not_cont_tag].copy()
         contaminant_df = (
-            pep_contaminant_df
-            .groupby("cont_accession", as_index=False)["average_intensity"]
+            pep_contaminant_df.groupby("cont_accession", as_index=False)["average_intensity"]
             .sum()
             .sort_values(by="average_intensity", ascending=False)
         )
@@ -3315,36 +3349,40 @@ class QuantMSModule:
 
         plot_dict = dict()
         plot_cats = list()
-        
+
         for file_name, group in pep_df.groupby("stand_spectra_ref"):
 
             contaminant_rows = group[group["cont_accession"] != not_cont_tag].copy()
-            contaminant_rows.loc[~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"] = (
-                "Other"
-            )
+            contaminant_rows.loc[
+                ~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"
+            ] = "Other"
 
             cont_df = (
-                contaminant_rows
-                .groupby("cont_accession", as_index=False)["average_intensity"]
+                contaminant_rows.groupby("cont_accession", as_index=False)["average_intensity"]
                 .sum()
                 .sort_values(by="average_intensity", ascending=False)
                 .reset_index(drop=True)
             )
-            cont_df["contaminant_percent"] = (cont_df["average_intensity"] / group["average_intensity"].sum()) * 100
+            cont_df["contaminant_percent"] = (
+                cont_df["average_intensity"] / group["average_intensity"].sum()
+            ) * 100
 
-            plot_dict[file_name] = dict(zip(cont_df["cont_accession"], cont_df["contaminant_percent"]))
+            plot_dict[file_name] = dict(
+                zip(cont_df["cont_accession"], cont_df["contaminant_percent"])
+            )
             plot_cats.extend(cont_df["cont_accession"].tolist())
 
         plot_cats = list(set(plot_cats))
         if "Other" in plot_cats:
-            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [x for x in plot_cats if x == "Other"]
+            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [
+                x for x in plot_cats if x == "Other"
+            ]
 
         result_dict = dict()
         result_dict["plot_data"] = plot_dict
         result_dict["cats"] = plot_cats_ordered
 
         return result_dict
-
 
     def draw_quantms_identification(self, mzml_table):
 
@@ -3358,8 +3396,14 @@ class QuantMSModule:
         }
 
         if self.cal_num_table_data:
-            protein_count = {sample: {"Count": info["protein_num"]} for sample, info in self.cal_num_table_data.items()}
-            peptide_count = {sample: {"Count": info["peptide_num"]} for sample, info in self.cal_num_table_data.items()}
+            protein_count = {
+                sample: {"Count": info["protein_num"]}
+                for sample, info in self.cal_num_table_data.items()
+            }
+            peptide_count = {
+                sample: {"Count": info["peptide_num"]}
+                for sample, info in self.cal_num_table_data.items()
+            }
         else:
             return
 
@@ -3376,7 +3420,7 @@ class QuantMSModule:
             description="Number of protein groups per raw file.",
             helptext="""
                 Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
-                """
+                """,
         )
 
         # 2.Peptide ID Count
@@ -3402,7 +3446,7 @@ class QuantMSModule:
                 """,
             helptext="""
                 Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
-                """
+                """,
         )
 
         # 3.Missed Cleavages Per Raw File
@@ -3425,25 +3469,18 @@ class QuantMSModule:
                     mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
                     continue
                 mc_group_ratio[sample] = {
-                    group: count / total * 100
-                    for group, count in counts.items()
+                    group: count / total * 100 for group, count in counts.items()
                 }
 
-            mc_data = {
-                "plot_data": mc_group_ratio,
-                "cats": ["0", "1", ">=2"]
-            }
+            mc_data = {"plot_data": mc_group_ratio, "cats": ["0", "1", ">=2"]}
             common_plots.draw_msms_missed_cleavages(
-                self.sub_sections["identification"],
-                mc_data,
-                False
+                self.sub_sections["identification"], mc_data, False
             )
-    
+
         # 4.Modifications Per Raw File
         if self.quantms_modified:
             common_plots.draw_modifications(
-                self.sub_sections["identification"],
-                self.quantms_modified
+                self.sub_sections["identification"], self.quantms_modified
             )
 
         # 5.MS/MS Identified per Raw File
@@ -3456,30 +3493,24 @@ class QuantMSModule:
                 all_ms2 = mzml_table.get(m, {}).get("MS2_Num", 0)
 
                 if all_ms2 > 0:
-                    msms_identified_rate[m] = {
-                        "Identified Rate": (identified_ms2 / all_ms2) * 100
-                    }
+                    msms_identified_rate[m] = {"Identified Rate": (identified_ms2 / all_ms2) * 100}
 
             common_plots.draw_ms_ms_identified(
-                self.sub_sections["identification"],
-                msms_identified_rate
+                self.sub_sections["identification"], msms_identified_rate
             )
-    
+
     def draw_quantms_contaminants(self):
 
         # 1.Potential Contaminants per Group
         if self.quantms_contaminant_percent:
             common_plots.draw_potential_contaminants(
-                self.sub_sections["contaminants"],
-                self.quantms_contaminant_percent,
-                False
+                self.sub_sections["contaminants"], self.quantms_contaminant_percent, False
             )
 
         # 2.Top5 Contaminants per Raw file
         if self.quantms_top_contaminant_percent:
             common_plots.draw_top_n_contaminants(
-                self.sub_sections["contaminants"],
-                self.quantms_top_contaminant_percent
+                self.sub_sections["contaminants"], self.quantms_top_contaminant_percent
             )
 
     def draw_quantms_quantification(self):
@@ -3487,12 +3518,12 @@ class QuantMSModule:
         # 1.Peptide Intensity Distribution
         if self.quantms_pep_intensity:
             draw_config = {
-            "id": "peptide_intensity_distribution_box",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
-            "title": "Peptide Intensity Distribution",
-            "tt_decimals": 2,
-            "xlab": "log2(Intensity)",
+                "id": "peptide_intensity_distribution_box",
+                "cpswitch": False,
+                "cpswitch_c_active": False,
+                "title": "Peptide Intensity Distribution",
+                "tt_decimals": 2,
+                "xlab": "log2(Intensity)",
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
             box_html = common_plots.remove_subtitle(box_html)
@@ -3505,36 +3536,29 @@ class QuantMSModule:
                 helptext="""
                     Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the 
                     peptide table in the mzTab file, and then apply a log2 transformation.
-                    """
+                    """,
             )
 
     def draw_quantms_msms_section(self):
 
         # 1.Charge-state of Per File
         if self.mztab_charge_state:
-            common_plots.draw_charge_state(
-                self.sub_sections["ms2"],
-                self.mztab_charge_state,
-                ""
-            )
+            common_plots.draw_charge_state(self.sub_sections["ms2"], self.mztab_charge_state, "")
 
     def draw_quantms_time_section(self):
 
         # 1.IDs over RT
         if self.quantms_ids_over_rt:
             common_plots.draw_ids_rt_count(
-                self.sub_sections["rt_qc"],
-                self.quantms_ids_over_rt,
-                ""
+                self.sub_sections["rt_qc"], self.quantms_ids_over_rt, ""
             )
 
         # 2.Delta Mass [ppm]
         if self.quantms_mass_error:
             common_plots.draw_delta_mass_da_ppm(
-                self.sub_sections["mass_error"],
-                self.quantms_mass_error,
-                "quantms_ppm"
+                self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
+
 
 def read_openms_design(desfile):
     with open(desfile, "r") as f:
@@ -3556,12 +3580,11 @@ def read_openms_design(desfile):
                 f_table.append(row.replace("\n", "").split("\t"))
 
         f_table = pd.DataFrame(f_table, columns=f_header)
-        f_table["Run"] = f_table.apply(
-            lambda x: file_prefix(x["Spectra_Filepath"]), axis=1
-        )
+        f_table["Run"] = f_table.apply(lambda x: file_prefix(x["Spectra_Filepath"]), axis=1)
         s_data_frame = pd.DataFrame(s_table, columns=s_header)
 
     return s_data_frame, f_table
+
 
 def find_modification(peptide):
     peptide = str(peptide)

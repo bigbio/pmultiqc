@@ -1,5 +1,5 @@
 from multiqc import BaseMultiqcModule, config
-from matplotlib.colors import LinearSegmentedColormap, to_hex 
+from matplotlib.colors import LinearSegmentedColormap, to_hex
 from importlib import import_module
 
 
@@ -34,7 +34,9 @@ class PMultiQC(BaseMultiqcModule):
 
         # HeatMap color list
         color_map = LinearSegmentedColormap.from_list("red_green", ["#ff0000", "#00ff00"])
-        heatmap_color_list = [[s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]]
+        heatmap_color_list = [
+            [s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]
+        ]
 
         # Parse ProteoBench results
         if config.kwargs.get("parse_proteobench", False):
@@ -66,11 +68,7 @@ class PMultiQC(BaseMultiqcModule):
         if config.kwargs.get("parse_maxquant", False):
 
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
-            mq = MaxQuantModule(
-                self.find_log_files,
-                self.sub_sections,
-                heatmap_color_list
-            )
+            mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list)
 
             if mq.get_data():
                 mq.draw_report_plots()
@@ -81,19 +79,12 @@ class PMultiQC(BaseMultiqcModule):
         if config.kwargs.get("mzid_plugin", False):
             # Use MzIdentMLModule for mzid plugin
             MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
-            MzIdentMLModule(
-                self.find_log_files,
-                self.sub_sections,
-                heatmap_color_list
-            )
+            MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list)
         else:
             # Use QuantMSModule for regular quantms processing
             QuantMSModule = get_module("quantms", "QuantMSModule")
-            QuantMSModule(
-                self.find_log_files,
-                self.sub_sections,
-                heatmap_color_list
-            )
+            QuantMSModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+
 
 def get_module(module_name, class_name):
     module = import_module(f"..{module_name}", __package__)

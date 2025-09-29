@@ -4,7 +4,7 @@
 import numpy as np
 
 
-def nanmedian(values : np.ndarray, all_nan_fallback : np.float64) -> np.float64:
+def nanmedian(values: np.ndarray, all_nan_fallback: np.float64) -> np.float64:
     """
     Compute the median of the given array, ignoring NaNs; if all values are NaN (or the array is empty), return a fallback.
 

@@ -68,7 +68,7 @@ def extract_tar(file_path, extract_to):
 
 def extract_archive_file(root_dir, file_name):
     file_path = os.path.join(root_dir, file_name)
-    
+
     try:
         # *.zip
         if file_name.endswith(".zip"):
@@ -85,7 +85,7 @@ def extract_archive_file(root_dir, file_name):
         ):
             extract_tar(file_path, root_dir)
     except Exception:
-            raise SystemExit(f"Failed to extract: {file_path}")
+        raise SystemExit(f"Failed to extract: {file_path}")
 
 
 def extract_files(folder_path):
@@ -115,6 +115,7 @@ def file_prefix(path):
         return Path(path).stem
     except:
         raise SystemExit(f"Illegal file path: {path}")
+
 
 def drop_empty_row(df, cols):
     """
