@@ -571,7 +571,6 @@ class MzIdentMLModule:
 
 
 
-
     def draw_search_engine(self):
 
         # Create scores summary plot
