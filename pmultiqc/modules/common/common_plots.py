@@ -983,7 +983,7 @@ def draw_summary_protein_ident_table(
 
     table_html = table.plot(summary_table, headers, pconfig)
 
-    if config.kwargs.get("mzid_plugin", False) or config.kwargs.get("parse_diann", False):
+    if config.kwargs.get("mzid_plugin", False) or config.kwargs.get("diann_plugin", False):
         description_str = "This plot shows the summary statistics of the submitted data."
         # TODO: add description here @Yasset
         helptext_str = """
