@@ -66,6 +66,7 @@ disable_plugin = click.option(
     help="Disable the pmultiqc plugin on this run",
 )
 mzid_plugin = click.option("--mzid_plugin", "mzid_plugin", is_flag=True, help="Extract mzIdentML")
+parse_diann = click.option("--parse_diann", "parse_diann", is_flag=True, help="Parse DIA-NN results")
 parse_maxquant = click.option(
     "--parse_maxquant", "parse_maxquant", is_flag=True, help="Parse MaxQuant results"
 )

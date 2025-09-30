@@ -3,8 +3,20 @@ from datetime import datetime
 import os
 
 from . import maxquant_utils, maxquant_io, maxquant_plots
-from ..core.section_groups import add_group_modules
-from ..common import common_plots
+from pmultiqc.modules.core.section_groups import add_group_modules
+from pmultiqc.modules.common.common_plots import (
+    HEATMAP_COLOR_LIST,
+    draw_heatmap,
+    draw_ms_ms_identified,
+    draw_potential_contaminants,
+    draw_top_n_contaminants,
+    draw_charge_state,
+    draw_modifications,
+    draw_oversampling,
+    draw_msms_missed_cleavages,
+    draw_ids_rt_count,
+    draw_delta_mass_da_ppm
+)
 
 
 logging.basicConfig(level=logging.INFO)
@@ -13,15 +25,19 @@ log = logging.getLogger(__name__)
 
 class MaxQuantModule:
 
-    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
+    def __init__(
+            self,
+            find_log_files_func,
+            sub_sections
+        ):
 
         self.find_log_files = find_log_files_func
         self.sub_sections = sub_sections
 
         self.maxquant_paths = None
         self.mq_results = None
-        self.heatmap_color_list = heatmap_colors
-
+        self.heatmap_color_list = HEATMAP_COLOR_LIST
+    
     def get_mq_data(self):
 
         # Experimental Design and Metadata
@@ -280,7 +296,7 @@ class MaxQuantModule:
         # HeatMap
         if self.mq_results["maxquant_heatmap"]:
             try:
-                common_plots.draw_heatmap(
+                draw_heatmap(
                     self.sub_sections["summary"],
                     self.heatmap_color_list,
                     self.mq_results["maxquant_heatmap"],
@@ -304,12 +320,12 @@ class MaxQuantModule:
         # Protein Quantification Table
         if self.mq_results["get_evidence_dicts"].get("protein_quant_table") is not None:
             try:
-                maxquant_plots.draw_protein_table(
+                maxquant_plots.draw_mq_protein_table(
                     self.sub_sections["quantification"],
                     self.mq_results["get_evidence_dicts"]["protein_quant_table"],
                 )
             except Exception as e:
-                log.warning(f"Error occurred while draw_protein_table: {e}")
+                log.warning(f"Error occurred while draw_mq_protein_table: {e}")
 
         # Intensity
         if self.mq_results["get_protegroups_dicts"].get("pg_intensity_distri") is not None:
@@ -350,7 +366,7 @@ class MaxQuantModule:
                 log.warning(f"Error occurred while draw_pg_pca: {e}")
         if self.mq_results["ms_ms_identified"]:
             try:
-                common_plots.draw_ms_ms_identified(
+                draw_ms_ms_identified(
                     self.sub_sections["identification"], self.mq_results["ms_ms_identified"]
                 )
             except Exception as e:
@@ -368,7 +384,7 @@ class MaxQuantModule:
         # Contaminants
         if self.mq_results["get_protegroups_dicts"].get("pg_contaminant") is not None:
             try:
-                common_plots.draw_potential_contaminants(
+                draw_potential_contaminants(
                     self.sub_sections["contaminants"],
                     self.mq_results["get_protegroups_dicts"]["pg_contaminant"],
                     True,
@@ -377,7 +393,7 @@ class MaxQuantModule:
                 log.warning(f"Error occurred while draw_potential_contaminants: {e}")
         if self.mq_results["get_evidence_dicts"].get("top_contaminants") is not None:
             try:
-                common_plots.draw_top_n_contaminants(
+                draw_top_n_contaminants(
                     self.sub_sections["contaminants"],
                     self.mq_results["get_evidence_dicts"]["top_contaminants"],
                 )
@@ -386,7 +402,7 @@ class MaxQuantModule:
 
         if self.mq_results["get_evidence_dicts"].get("charge_counts") is not None:
             try:
-                common_plots.draw_charge_state(
+                draw_charge_state(
                     self.sub_sections["ms2"],
                     self.mq_results["get_evidence_dicts"]["charge_counts"],
                     "MaxQuant",
@@ -396,7 +412,7 @@ class MaxQuantModule:
 
         if self.mq_results["get_evidence_dicts"].get("modified_percentage") is not None:
             try:
-                common_plots.draw_modifications(
+                draw_modifications(
                     self.sub_sections["identification"],
                     self.mq_results["get_evidence_dicts"]["modified_percentage"],
                 )
@@ -423,7 +439,7 @@ class MaxQuantModule:
 
         if self.mq_results["get_evidence_dicts"].get("oversampling") is not None:
             try:
-                common_plots.draw_oversampling(
+                draw_oversampling(
                     self.sub_sections["ms2"],
                     self.mq_results["get_evidence_dicts"]["oversampling"],
                     "",
@@ -434,7 +450,7 @@ class MaxQuantModule:
 
         if self.mq_results["get_msms_dicts"].get("missed_cleavages") is not None:
             try:
-                common_plots.draw_msms_missed_cleavages(
+                draw_msms_missed_cleavages(
                     self.sub_sections["identification"],
                     self.mq_results["get_msms_dicts"]["missed_cleavages"],
                     True,
@@ -444,7 +460,7 @@ class MaxQuantModule:
 
         if self.mq_results["get_evidence_dicts"].get("rt_counts") is not None:
             try:
-                common_plots.draw_ids_rt_count(
+                draw_ids_rt_count(
                     self.sub_sections["rt_qc"],
                     self.mq_results["get_evidence_dicts"]["rt_counts"],
                     "maxquant",
@@ -517,7 +533,7 @@ class MaxQuantModule:
         # MaxQuant: Delta Mass [Da]
         if self.mq_results["get_evidence_dicts"].get("maxquant_delta_mass_da") is not None:
             try:
-                common_plots.draw_delta_mass_da_ppm(
+                draw_delta_mass_da_ppm(
                     self.sub_sections["mass_error"],
                     self.mq_results["get_evidence_dicts"]["maxquant_delta_mass_da"],
                     "Mass Error [Da]",
@@ -528,7 +544,7 @@ class MaxQuantModule:
         # MaxQuant: Delta Mass [ppm]
         if self.mq_results["get_evidence_dicts"].get("calibrated_mass_error") is not None:
             try:
-                common_plots.draw_delta_mass_da_ppm(
+                draw_delta_mass_da_ppm(
                     self.sub_sections["mass_error"],
                     self.mq_results["get_evidence_dicts"]["calibrated_mass_error"],
                     "Mass Error [ppm]",

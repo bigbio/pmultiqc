@@ -176,7 +176,7 @@ def draw_peptide_table(sub_section, table_data):
 
 
 # Protein Quantification Table
-def draw_protein_table(sub_section, table_data):
+def draw_mq_protein_table(sub_section, table_data):
 
     draw_config = {
         "id": "protein_quant_result",
