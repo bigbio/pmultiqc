@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import re
 import numpy as np
-import inspect
+from multiqc import config
 
 from pmultiqc.modules.common.histogram import Histogram
 from sdrf_pipelines.openms.openms import UnimodDatabase
@@ -176,26 +176,19 @@ class DiaNNModule:
             quantms_modified=self.quantms_modified
         )
 
-        caller_frame = inspect.stack()[1].frame
-        caller_instance = caller_frame.f_locals.get('self')
+        if not config.kwargs.get("quantms_plugin", False):
+            self.section_group_dict = {
+                    "experiment_sub_section": self.sub_sections["experiment"],
+                    "summary_sub_section": self.sub_sections["summary"],
+                    "identification_sub_section": self.sub_sections["identification"],
+                    "quantification_sub_section": self.sub_sections["quantification"],
+                    "ms1_sub_section": self.sub_sections["ms1"],
+                    "ms2_sub_section": self.sub_sections["ms2"],
+                    "mass_error_sub_section": self.sub_sections["mass_error"],
+                    "rt_qc_sub_section": self.sub_sections["rt_qc"],
+                }
 
-        if caller_instance is not None:
-
-            from pmultiqc.modules.quantms import QuantMSModule
-            if not isinstance(caller_instance, QuantMSModule):
-
-                self.section_group_dict = {
-                        "experiment_sub_section": self.sub_sections["experiment"],
-                        "summary_sub_section": self.sub_sections["summary"],
-                        "identification_sub_section": self.sub_sections["identification"],
-                        "quantification_sub_section": self.sub_sections["quantification"],
-                        "ms1_sub_section": self.sub_sections["ms1"],
-                        "ms2_sub_section": self.sub_sections["ms2"],
-                        "mass_error_sub_section": self.sub_sections["mass_error"],
-                        "rt_qc_sub_section": self.sub_sections["rt_qc"],
-                    }
-
-                add_group_modules(self.section_group_dict, "")
+            add_group_modules(self.section_group_dict, "")
 
         if self.enable_sdrf:
             del_openms_convert_tsv()

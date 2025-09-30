@@ -33,7 +33,7 @@ class PMultiQC(BaseMultiqcModule):
             return None
 
         # Parse ProteoBench results
-        if config.kwargs.get("parse_proteobench", False):
+        if config.kwargs.get("proteobench_plugin", False):
 
             ProteoBenchModule = get_module("proteobench", "ProteoBenchModule")
             pb = ProteoBenchModule(self.find_log_files)
@@ -47,7 +47,7 @@ class PMultiQC(BaseMultiqcModule):
         self.sub_sections = SUB_SECTIONS
 
         # Parse MaxQuant results
-        if config.kwargs.get("parse_maxquant", False):
+        if config.kwargs.get("maxquant_plugin", False):
 
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
             mq = MaxQuantModule(
@@ -83,13 +83,15 @@ class PMultiQC(BaseMultiqcModule):
             return None
 
         # quantms (include quantms Dia)
-        else:
+        if config.kwargs.get("quantms_plugin", False):
             # Use QuantMSModule for regular quantms processing
             QuantMSModule = get_module("quantms", "QuantMSModule")
             QuantMSModule(
                 self.find_log_files,
                 self.sub_sections
             )
+
+            return None
 
 def get_module(module_name, class_name):
     module = import_module(f"..{module_name}", __package__)
