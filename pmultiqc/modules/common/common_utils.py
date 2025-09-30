@@ -290,6 +290,7 @@ def parse_mzml(
 
     mzml_table = {}
     heatmap_charge = {}
+    mzml_ms_df = None
 
     # Use the refactored functions from ms_io.py
     if read_ms_info:
@@ -335,7 +336,6 @@ def parse_mzml(
             (mzml_table, heatmap_charge, total_ms2_spectra, mzml_ms_df) = result
         else:
             mzml_table, heatmap_charge, total_ms2_spectra = result
-            mzml_ms_df = None
 
     for i in ms_without_psm:
         log.warning("No PSM found in '{}'!".format(i))
