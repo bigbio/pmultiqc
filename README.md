@@ -143,6 +143,7 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--quantification_method` | Quantification method for LFQ experiment | `feature_intensity` |
 | `--disable_table` | Disable protein/peptide table plots for large datasets | `False` |
 | `--ignored_idxml` | Ignore idXML files for faster processing | `False` |
+| `--parse_diann` | Generate reports based on DIA-NN results | `False` |
 | `--parse_maxquant` | Generate reports based on MaxQuant results | `False` |
 | `--parse_proteobench` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
