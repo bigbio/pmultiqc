@@ -14,7 +14,8 @@ from typing import List
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.ms_functions import get_ms_qc_info
 from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common import ms_io
+from pmultiqc.modules.common.ms.mzml import MzMLReader
+from pmultiqc.modules.common.ms.msinfo import MSInfoReader
 
 
 logging.basicConfig(level=logging.INFO)
@@ -294,18 +295,19 @@ def parse_mzml(
 
     # Use the refactored functions from ms_io.py
     if read_ms_info:
-        result = ms_io.read_ms_info(
-            ms_info_path,
-            ms_with_psm,
-            identified_spectrum,
-            mzml_charge_plot,
-            mzml_peak_distribution_plot,
-            mzml_peaks_ms2_plot,
-            mzml_charge_plot_1,
-            mzml_peak_distribution_plot_1,
-            mzml_peaks_ms2_plot_1,
-            ms_without_psm,
-            enable_dia,
+        ms_info_reader = MSInfoReader()
+        result = ms_info_reader.read(
+            file_paths=ms_info_path,
+            ms_with_psm=ms_with_psm,
+            identified_spectrum=identified_spectrum,
+            mzml_charge_plot=mzml_charge_plot,
+            mzml_peak_distribution_plot=mzml_peak_distribution_plot,
+            mzml_peaks_ms2_plot=mzml_peaks_ms2_plot,
+            mzml_charge_plot_1=mzml_charge_plot_1,
+            mzml_peak_distribution_plot_1=mzml_peak_distribution_plot_1,
+            mzml_peaks_ms2_plot_1=mzml_peaks_ms2_plot_1,
+            ms_without_psm=ms_without_psm,
+            enable_dia=enable_dia,
         )
         (
             mzml_table,
@@ -317,19 +319,20 @@ def parse_mzml(
             ms1_general_stats,
         ) = result
     else:
-        result = ms_io.read_mzmls(
-            ms_paths,
-            ms_with_psm,
-            identified_spectrum,
-            mzml_charge_plot,
-            mzml_peak_distribution_plot,
-            mzml_peaks_ms2_plot,
-            mzml_charge_plot_1,
-            mzml_peak_distribution_plot_1,
-            mzml_peaks_ms2_plot_1,
-            ms_without_psm,
-            enable_dia,
-            enable_mzid,
+        mzml_reader = MzMLReader()
+        result = mzml_reader.read(
+            file_paths=ms_paths,
+            ms_with_psm=ms_with_psm,
+            identified_spectrum=identified_spectrum,
+            mzml_charge_plot=mzml_charge_plot,
+            mzml_peak_distribution_plot=mzml_peak_distribution_plot,
+            mzml_peaks_ms2_plot=mzml_peaks_ms2_plot,
+            mzml_charge_plot_1=mzml_charge_plot_1,
+            mzml_peak_distribution_plot_1=mzml_peak_distribution_plot_1,
+            mzml_peaks_ms2_plot_1=mzml_peaks_ms2_plot_1,
+            ms_without_psm=ms_without_psm,
+            enable_dia=enable_dia,
+            enable_mzid=enable_mzid,
         )
 
         if enable_mzid:

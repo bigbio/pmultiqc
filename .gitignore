@@ -145,3 +145,7 @@ pmultiqc_service/local*
 pmultiqc_service/patch_arm64.py
 pmultiqc_service/Dockerfile.arm64
 pmultiqc_service/docker_compose/docker-compose.arm64.yml
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc

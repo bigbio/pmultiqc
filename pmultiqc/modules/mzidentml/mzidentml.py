@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """ MultiQC mzIdentML plugin module """
 
 from __future__ import absolute_import
@@ -12,13 +10,14 @@ from multiqc.plots import table, bargraph
 
 import pandas as pd
 import re
-from pyteomics import mztab, mzid, mgf
+from pyteomics import mztab, mzid
 from pyopenms import OpenMSBuildInfo
 import os
 import numpy as np
-import copy
 
-from pmultiqc.modules.common import ms_io, common_plots
+from pmultiqc.modules.common import common_plots
+from pmultiqc.modules.common.id.mzid import MzIdentMLReader
+from pmultiqc.modules.common.ms.mgf import MGFReader
 from pmultiqc.modules.common.common_utils import parse_mzml
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.calc_utils import QualUniform
@@ -94,7 +93,26 @@ class MzIdentMLModule:
         mzid_psm = self.parse_out_mzid()
 
         if self.mgf_paths:
-            self.parse_out_mgf()
+            mgf_reader = MGFReader()
+            mgf_result = mgf_reader.read(
+                file_paths=self.mgf_paths,
+                ms_with_psm=self.ms_with_psm,
+                identified_spectrum=self.identified_spectrum,
+                ms_without_psm=self.ms_without_psm
+            )
+
+            # Extract results from MGFReader
+            self.mgf_rtinseconds = mgf_result["mgf_rtinseconds"]
+            self.mgf_charge_plot = mgf_result["mgf_charge_plot"]
+            self.mgf_peak_distribution_plot = mgf_result["mgf_peak_distribution_plot"]
+            self.mgf_peaks_ms2_plot = mgf_result["mgf_peaks_ms2_plot"]
+            self.mgf_charge_plot_1 = mgf_result["mgf_charge_plot_1"]
+            self.mgf_peak_distribution_plot_1 = mgf_result["mgf_peak_distribution_plot_1"]
+            self.mgf_peaks_ms2_plot_1 = mgf_result["mgf_peaks_ms2_plot_1"]
+            self.ms_info.update(mgf_result["ms_info"])
+            self.heatmap_charge_score = mgf_result["heatmap_charge_score"]
+            self.total_ms2_spectra = mgf_result["total_ms2_spectra"]
+
             self.mzid_cal_heat_map_score(mzid_psm)
 
         elif self.ms_paths:
@@ -820,132 +838,11 @@ class MzIdentMLModule:
                     return "TARGET"
                 return "DECOY"
 
-    def parse_out_mgf(self):
-        def get_spectrum_id(spectrum_title, index):
-            if "scan=" in spectrum_title:
-                spectrum_id = spectrum_title
-            else:
-                spectrum_id = "index=" + str(index)
-            return spectrum_id
-
-        self.mgf_peak_distribution_plot = Histogram(
-            "Peak Intensity",
-            plot_category="range",
-            breaks=[0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000],
-        )
-        self.mgf_charge_plot = Histogram("Precursor Charge", plot_category="frequency")
-        self.mgf_peaks_ms2_plot = Histogram(
-            "#Peaks per MS/MS spectrum",
-            plot_category="range",
-            breaks=[i for i in range(0, 1001, 100)],
-        )
-
-        self.mgf_peak_distribution_plot_1 = copy.deepcopy(self.mgf_peak_distribution_plot)
-        self.mgf_charge_plot_1 = copy.deepcopy(self.mgf_charge_plot)
-        self.mgf_peaks_ms2_plot_1 = copy.deepcopy(self.mgf_peaks_ms2_plot)
-
-        heatmap_charge = dict()
-        mgf_rtinseconds = {"spectrumID": [], "title": [], "filename": [], "retention_time": []}
-
-        for m in self.mgf_paths:
-            log.info("{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
-            mgf_data = mgf.MGF(m)
-            log.info(
-                "{}: Done parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
-            )
-            m = file_prefix(m)
-            log.info(
-                "{}: Aggregating MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
-            )
-
-            charge_2 = 0
-
-            for i, spectrum in enumerate(mgf_data):
-                charge_state = int(spectrum.get("params", {}).get("charge", [])[0])
-                if charge_state == 2:
-                    charge_2 += 1
-
-                peak_per_ms2 = len(spectrum["m/z array"])
-                base_peak_intensity = (
-                    max(spectrum["intensity array"])
-                    if len(spectrum["intensity array"]) > 0
-                    else None
-                )
-
-                raw_title = spectrum.get("params", {}).get("title", [])
-                mgf_rtinseconds["title"].append(raw_title)
-                title = get_spectrum_id(raw_title, i)
-                mgf_rtinseconds["spectrumID"].append(title)
-                mgf_rtinseconds["filename"].append(m)
-
-                rtinseconds = float(spectrum.get("params", {}).get("rtinseconds", None))
-                mgf_rtinseconds["retention_time"].append(rtinseconds)
-
-                if m in self.ms_with_psm:
-                    if title in self.identified_spectrum[m]:
-                        self.mgf_charge_plot.add_value(charge_state)
-                        self.mgf_peak_distribution_plot.add_value(base_peak_intensity)
-                        self.mgf_peaks_ms2_plot.add_value(peak_per_ms2)
-                    else:
-                        self.mgf_charge_plot_1.add_value(charge_state)
-                        self.mgf_peak_distribution_plot_1.add_value(base_peak_intensity)
-                        self.mgf_peaks_ms2_plot_1.add_value(peak_per_ms2)
-                else:
-                    if m not in self.ms_without_psm:
-                        self.ms_without_psm.append(m)
-            ms2_number = i + 1
-
-            heatmap_charge[m] = charge_2 / ms2_number
-            self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
-            log.info(
-                "{}: Done aggregating MGF file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), m
-                )
-            )
-
-        self.mgf_rtinseconds = pd.DataFrame(mgf_rtinseconds)
-
-        for i in self.ms_without_psm:
-            log.warning("No PSM found in '{}'!".format(i))
-
-        self.mgf_peaks_ms2_plot.to_dict()
-        self.mgf_peak_distribution_plot.to_dict()
-        self.mgf_peaks_ms2_plot_1.to_dict()
-        self.mgf_peak_distribution_plot_1.to_dict()
-        self.mgf_charge_plot.to_dict()
-        self.mgf_charge_plot_1.to_dict()
-
-        self.mgf_charge_plot.dict["cats"].update(self.mgf_charge_plot_1.dict["cats"])
-        charge_cats_keys = [int(i) for i in self.mgf_charge_plot.dict["cats"]]
-        charge_cats_keys.sort()
-        self.mgf_charge_plot.dict["cats"] = OrderedDict(
-            {str(i): self.mgf_charge_plot.dict["cats"][str(i)] for i in charge_cats_keys}
-        )
-
-        self.ms_info["charge_distribution"] = {
-            "identified_spectra": self.mgf_charge_plot.dict["data"],
-            "unidentified_spectra": self.mgf_charge_plot_1.dict["data"],
-        }
-        self.ms_info["peaks_per_ms2"] = {
-            "identified_spectra": self.mgf_peaks_ms2_plot.dict["data"],
-            "unidentified_spectra": self.mgf_peaks_ms2_plot_1.dict["data"],
-        }
-        self.ms_info["peak_distribution"] = {
-            "identified_spectra": self.mgf_peak_distribution_plot.dict["data"],
-            "unidentified_spectra": self.mgf_peak_distribution_plot_1.dict["data"],
-        }
-
-        median = np.median(list(heatmap_charge.values()))
-        self.heatmap_charge_score = dict(
-            zip(
-                heatmap_charge.keys(),
-                list(map(lambda v: 1 - np.abs(v - median), heatmap_charge.values())),
-            )
-        )
 
     def parse_out_mzid(self):
 
-        mzid_table = ms_io.read_mzids(self.mzid_paths)
+        mzid_reader = MzIdentMLReader()
+        mzid_table = mzid_reader.read_mzids(self.mzid_paths)
 
         self.ms_with_psm = mzid_table["filename"].unique().tolist()
 

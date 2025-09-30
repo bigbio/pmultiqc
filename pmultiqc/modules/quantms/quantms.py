@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """ MultiQC pmultiqc plugin module """
 
 from __future__ import absolute_import
@@ -26,6 +24,8 @@ import json
 
 from . import sparklines
 from pmultiqc.modules.common import ms_io, common_plots
+from pmultiqc.modules.common.id.mzid import MzIdentMLReader
+from pmultiqc.modules.common.id.idxml import IDXMLReader
 from pmultiqc.modules.common.common_utils import (
     get_exp_sdrf,
     get_ms_path,
@@ -1214,7 +1214,8 @@ class QuantMSModule:
 
     def parse_idxml(self, mzml_table):
         # Use the refactored function from ms_io.py
-        result = ms_io.parse_idxml(
+        idxml_reader = IDXMLReader()
+        result = idxml_reader.parse_idxml(
             self.idx_paths,
             mzml_table,
             self.xcorr_hist_range,
@@ -1924,7 +1925,8 @@ class QuantMSModule:
 
     def parse_out_mzid(self):
 
-        mzid_table = ms_io.read_mzids(self.mzid_paths)
+        mzid_reader = MzIdentMLReader()
+        mzid_table = mzid_reader.read_mzids(self.mzid_paths)
 
         self.ms_with_psm = mzid_table["filename"].unique().tolist()
 
