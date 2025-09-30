@@ -288,8 +288,8 @@ class DiaNNModule:
         pattern = re.compile(r"\((.*?)\)")
         unimod_data = UnimodDatabase()
         for peptide, group in report_data.groupby("Modified.Sequence"):
-            origianl_mods = re.findall(pattern, peptide)
-            for mod in set(origianl_mods):
+            original_mods = re.findall(pattern, peptide)
+            for mod in set(original_mods):
                 name = unimod_data.get_by_accession(mod.upper()).get_name()
                 peptide = peptide.replace(mod, name)
             if peptide.startswith("("):
