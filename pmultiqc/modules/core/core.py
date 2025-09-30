@@ -72,7 +72,7 @@ class PMultiQC(BaseMultiqcModule):
             return None
         
         # DIA-NN
-        if config.kwargs.get("parse_diann", False):
+        if config.kwargs.get("diann_plugin", False):
             # Use DiaNNModule for regular quantms processing
             DiaNNModule = get_module("diann", "DiaNNModule")
             DiaNNModule(
