@@ -29,12 +29,10 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
     """
     ms1_info = ms_info[ms_info["ms_level"] == 1].copy()
     ms2_info = ms_info[ms_info["ms_level"] == 2].copy()
-    ms1_info["rt_normalize"] = (
-        ms1_info.sort_values(by="rt")["rt"] / SECOND_RESOLUTION
-    ).astype(int)
-    tic_data = ms1_info.groupby("rt_normalize")[
-        ["rt", "summed_peak_intensities"]
-    ].min()
+    ms1_info["rt_normalize"] = (ms1_info.sort_values(by="rt")["rt"] / SECOND_RESOLUTION).astype(
+        int
+    )
+    tic_data = ms1_info.groupby("rt_normalize")[["rt", "summed_peak_intensities"]].min()
     tic_data = dict(zip(tic_data["rt"], tic_data["summed_peak_intensities"]))
 
     bpc_data = dict(

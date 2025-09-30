@@ -137,6 +137,10 @@ dmypy.json
 .qodo
 pmultiqc_service/local*
 
+.vscode
+.cursor
+.codacy
+
 # ARM64 patches for local testing only
 pmultiqc_service/patch_arm64.py
 pmultiqc_service/Dockerfile.arm64

@@ -1,7 +1,7 @@
 from multiqc import BaseMultiqcModule, config
-from matplotlib.colors import LinearSegmentedColormap, to_hex 
 from importlib import import_module
 
+from .section_groups import SUB_SECTIONS
 
 class PMultiQC(BaseMultiqcModule):
 
@@ -32,10 +32,6 @@ class PMultiQC(BaseMultiqcModule):
         if config.kwargs.get("disable_plugin", True):
             return None
 
-        # HeatMap color list
-        color_map = LinearSegmentedColormap.from_list("red_green", ["#ff0000", "#00ff00"])
-        heatmap_color_list = [[s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]]
-
         # Parse ProteoBench results
         if config.kwargs.get("parse_proteobench", False):
 
@@ -48,19 +44,7 @@ class PMultiQC(BaseMultiqcModule):
             return None
 
         # section groups
-        self.section_group_dict = dict()
-        self.sub_sections = {
-            "experiment": [],
-            "summary": [],
-            "identification": [],
-            "search_engine": [],
-            "contaminants": [],
-            "quantification": [],
-            "ms1": [],
-            "ms2": [],
-            "mass_error": [],
-            "rt_qc": [],
-        }
+        self.sub_sections = SUB_SECTIONS
 
         # Parse MaxQuant results
         if config.kwargs.get("parse_maxquant", False):
@@ -68,8 +52,7 @@ class PMultiQC(BaseMultiqcModule):
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
             mq = MaxQuantModule(
                 self.find_log_files,
-                self.sub_sections,
-                heatmap_color_list
+                self.sub_sections
             )
 
             if mq.get_data():
@@ -77,13 +60,36 @@ class PMultiQC(BaseMultiqcModule):
 
             return None
 
-        # quantms, DIA-NN, and mzid results
-        QuantMSModule = get_module("quantms", "QuantMSModule")
-        QuantMSModule(
-            self.find_log_files,
-            self.sub_sections,
-            heatmap_color_list
-        )
+        # MzIdentML
+        if config.kwargs.get("mzid_plugin", False):
+            # Use MzIdentMLModule for mzid plugin
+            MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
+            MzIdentMLModule(
+                self.find_log_files,
+                self.sub_sections
+            )
+
+            return None
+        
+        # DIA-NN
+        if config.kwargs.get("parse_diann", False):
+            # Use DiaNNModule for regular quantms processing
+            DiaNNModule = get_module("diann", "DiaNNModule")
+            DiaNNModule(
+                self.find_log_files,
+                self.sub_sections
+            )
+
+            return None
+
+        # quantms (include quantms Dia)
+        else:
+            # Use QuantMSModule for regular quantms processing
+            QuantMSModule = get_module("quantms", "QuantMSModule")
+            QuantMSModule(
+                self.find_log_files,
+                self.sub_sections
+            )
 
 def get_module(module_name, class_name):
     module = import_module(f"..{module_name}", __package__)

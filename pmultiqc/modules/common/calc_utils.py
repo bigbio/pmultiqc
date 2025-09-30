@@ -1,12 +1,12 @@
 import numpy as np
 
 
-def qualUniform(group_df_rt):
+def QualUniform(group_df_rt):
     """
     Parameters:
     -----------
     group_df_rt: group["Retention time"] or group["retention_time"]
-    
+
     """
     x = group_df_rt / np.nansum(group_df_rt)
     n = group_df_rt.notna().sum()
@@ -16,6 +16,7 @@ def qualUniform(group_df_rt):
     result = 1.0 if worst == 0 else float((worst - sc) / worst)
 
     return result
+
 
 def cal_delta_mass_dict(df, col):
 
@@ -35,3 +36,22 @@ def cal_delta_mass_dict(df, col):
     }
 
     return delta_mass
+
+def mod_group_percentage(group):
+
+    if "Modifications" in group.columns:
+        group.rename(columns={"Modifications": "modifications"}, inplace=True)
+
+    counts = group["modifications"].str.split(",").explode().value_counts()
+    percentage_df = (counts / len(group["modifications"]) * 100).reset_index()
+    percentage_df.columns = ["modifications", "percentage"]
+
+    # Modified (Total)
+    percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"] = (
+        100 - percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"]
+    )
+    percentage_df.loc[percentage_df["modifications"] == "Unmodified", "modifications"] = (
+        "Modified (Total)"
+    )
+
+    return percentage_df

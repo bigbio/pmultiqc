@@ -121,7 +121,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip
           unzip PXD063291.zip
-          multiqc ./PXD063291 -o ./results_diann
+          multiqc --parse_diann ./PXD063291 -o ./results_diann
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results

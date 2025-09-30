@@ -3,20 +3,32 @@ from datetime import datetime
 import os
 
 from . import maxquant_utils, maxquant_io, maxquant_plots
-from ..core.section_groups import add_group_modules
-from ..common import common_plots
+from pmultiqc.modules.core.section_groups import add_group_modules
+from pmultiqc.modules.common.common_plots import (
+    HEATMAP_COLOR_LIST,
+    draw_heatmap,
+    draw_ms_ms_identified,
+    draw_potential_contaminants,
+    draw_top_n_contaminants,
+    draw_charge_state,
+    draw_modifications,
+    draw_oversampling,
+    draw_msms_missed_cleavages,
+    draw_ids_rt_count,
+    draw_delta_mass_da_ppm
+)
 
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
+
 
 class MaxQuantModule:
 
     def __init__(
             self,
             find_log_files_func,
-            sub_sections,
-            heatmap_colors
+            sub_sections
         ):
 
         self.find_log_files = find_log_files_func
@@ -24,14 +36,12 @@ class MaxQuantModule:
 
         self.maxquant_paths = None
         self.mq_results = None
-        self.heatmap_color_list = heatmap_colors
+        self.heatmap_color_list = HEATMAP_COLOR_LIST
     
     def get_mq_data(self):
 
         # Experimental Design and Metadata
-        get_parameter_dicts = {
-            "parameters_tb_dict": None
-        }
+        get_parameter_dicts = {"parameters_tb_dict": None}
 
         # SDRF
         if "sdrf" in self.maxquant_paths.keys():
@@ -43,10 +53,7 @@ class MaxQuantModule:
                 )
                 sdrf_data = maxquant_utils.read_sdrf(self.maxquant_paths["sdrf"])
                 if sdrf_data is not None:
-                    maxquant_plots.draw_exp_design(
-                        sdrf_data,
-                        self.sub_sections["experiment"]
-                    )
+                    maxquant_plots.draw_exp_design(sdrf_data, self.sub_sections["experiment"])
 
             except Exception as e:
                 log.warning(f"Error occurred while draw_exp_design: {e}")
@@ -72,7 +79,6 @@ class MaxQuantModule:
                     )
                 except Exception as e:
                     log.warning(f"Error occurred while reading parameters.txt: {e}")
-
 
         # proteinGroups.txt
         get_protegroups_dicts = {
@@ -100,16 +106,16 @@ class MaxQuantModule:
                     )
                     log.info(
                         "{}: Completed the processing of the proteinGroups file {}...".format(
-                            datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["proteinGroups"]
+                            datetime.now().strftime("%H:%M:%S"),
+                            self.maxquant_paths["proteinGroups"],
                         )
                     )
                 except Exception as e:
                     log.warning(f"Error occurred while reading proteinGroups.txt: {e}")
 
-
         # summary.txt
         ms_ms_identified = None
-        
+
         if "summary" in self.maxquant_paths.keys():
             log.info(
                 "{}: Parsing summary file {}...".format(
@@ -120,7 +126,9 @@ class MaxQuantModule:
                 log.warning("summary.txt is empty. Please check.")
             else:
                 try:
-                    ms_ms_identified = maxquant_utils.get_summary(file_path=self.maxquant_paths["summary"])
+                    ms_ms_identified = maxquant_utils.get_summary(
+                        file_path=self.maxquant_paths["summary"]
+                    )
                     log.info(
                         "{}: Completed the processing of the summary file {}...".format(
                             datetime.now().strftime("%H:%M:%S"), self.maxquant_paths["summary"]
@@ -128,7 +136,6 @@ class MaxQuantModule:
                     )
                 except Exception as e:
                     log.warning(f"Error occurred while reading summary.txt: {e}")
-
 
         # evidence.txt
         get_evidence_dicts = {
@@ -150,7 +157,7 @@ class MaxQuantModule:
             "peptides_quant_table": None,
             "protein_quant_table": None,
         }
-        
+
         if "evidence" in self.maxquant_paths.keys():
             log.info(
                 "{}: Parsing evidence file {}...".format(
@@ -171,7 +178,6 @@ class MaxQuantModule:
                     )
                 except Exception as e:
                     log.warning(f"Error occurred while reading evidence.txt: {e}")
-
 
         # msms.txt
         get_msms_dicts = {
@@ -199,7 +205,6 @@ class MaxQuantModule:
                     )
                 except Exception as e:
                     log.warning(f"Error occurred while reading msms.txt: {e}")
-
 
         # msScans.txt or msmsScans.txt
         get_msms_scans_dicts = {
@@ -231,30 +236,30 @@ class MaxQuantModule:
                     )
                     log.info(
                         "{}: Completed the processing of the msScans file {}...".format(
-                            datetime.now().strftime("%H:%M:%S"), self.maxquant_paths[msms_scans_file]
+                            datetime.now().strftime("%H:%M:%S"),
+                            self.maxquant_paths[msms_scans_file],
                         )
                     )
                 except Exception as e:
                     log.warning(f"Error occurred while reading {msms_scans_file}.txt: {e}")
 
-
         # HeatMap
         maxquant_heatmap = None
         if (
-            get_evidence_dicts.get("evidence_df") is not None and
-            get_evidence_dicts.get("oversampling") is not None and
-            get_msms_dicts.get("missed_cleavages") is not None
+            get_evidence_dicts.get("evidence_df") is not None
+            and get_evidence_dicts.get("oversampling") is not None
+            and get_msms_dicts.get("missed_cleavages") is not None
         ):
             try:
                 if (
-                    get_evidence_dicts["oversampling"].get("plot_data") is not None and
-                    get_msms_dicts["missed_cleavages"].get("plot_data") is not None
+                    get_evidence_dicts["oversampling"].get("plot_data") is not None
+                    and get_msms_dicts["missed_cleavages"].get("plot_data") is not None
                 ):
                     maxquant_heatmap = maxquant_utils.calculate_heatmap(
                         evidence_df=get_evidence_dicts["evidence_df"],
                         oversampling=get_evidence_dicts["oversampling"]["plot_data"],
-                        msms_missed_cleavages=get_msms_dicts["missed_cleavages"]["plot_data"]
-                        )
+                        msms_missed_cleavages=get_msms_dicts["missed_cleavages"]["plot_data"],
+                    )
             except Exception as e:
                 log.warning(f"Error occurred while calculating heatmap: {e}")
 
@@ -267,7 +272,7 @@ class MaxQuantModule:
             "get_msms_scans_dicts": get_msms_scans_dicts,
             "maxquant_heatmap": maxquant_heatmap,
         }
-    
+
     def get_data(self):
 
         self.maxquant_paths = maxquant_io.maxquant_file_path(self.find_log_files)
@@ -275,7 +280,7 @@ class MaxQuantModule:
 
         if self.mq_results:
             return self.mq_results
-        
+
     def draw_report_plots(self):
 
         # Parameters
@@ -283,7 +288,7 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_parameters(
                     self.sub_sections["experiment"],
-                    self.mq_results["get_parameter_dicts"]["parameters_tb_dict"]
+                    self.mq_results["get_parameter_dicts"]["parameters_tb_dict"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_parameters: {e}")
@@ -291,13 +296,13 @@ class MaxQuantModule:
         # HeatMap
         if self.mq_results["maxquant_heatmap"]:
             try:
-                common_plots.draw_heatmap(
+                draw_heatmap(
                     self.sub_sections["summary"],
                     self.heatmap_color_list,
                     self.mq_results["maxquant_heatmap"],
                     "",
                     "",
-                    True
+                    True,
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_heatmap: {e}")
@@ -307,7 +312,7 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_peptide_table(
                     self.sub_sections["quantification"],
-                    self.mq_results["get_evidence_dicts"]["peptides_quant_table"]
+                    self.mq_results["get_evidence_dicts"]["peptides_quant_table"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_peptide_table: {e}")
@@ -315,12 +320,12 @@ class MaxQuantModule:
         # Protein Quantification Table
         if self.mq_results["get_evidence_dicts"].get("protein_quant_table") is not None:
             try:
-                maxquant_plots.draw_protein_table(
+                maxquant_plots.draw_mq_protein_table(
                     self.sub_sections["quantification"],
-                    self.mq_results["get_evidence_dicts"]["protein_quant_table"]
+                    self.mq_results["get_evidence_dicts"]["protein_quant_table"],
                 )
             except Exception as e:
-                log.warning(f"Error occurred while draw_protein_table: {e}")
+                log.warning(f"Error occurred while draw_mq_protein_table: {e}")
 
         # Intensity
         if self.mq_results["get_protegroups_dicts"].get("pg_intensity_distri") is not None:
@@ -328,7 +333,7 @@ class MaxQuantModule:
                 maxquant_plots.draw_intensity_box(
                     self.sub_sections["quantification"],
                     self.mq_results["get_protegroups_dicts"]["pg_intensity_distri"]["box"],
-                    "intensity"
+                    "intensity",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_intensity_box: {e}")
@@ -337,7 +342,7 @@ class MaxQuantModule:
                 maxquant_plots.draw_intensity_box(
                     self.sub_sections["quantification"],
                     self.mq_results["get_protegroups_dicts"]["pg_lfq_intensity_distri"]["box"],
-                    "lfq_intensity"
+                    "lfq_intensity",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_intensity_box: {e}")
@@ -346,7 +351,7 @@ class MaxQuantModule:
                 maxquant_plots.draw_pg_pca(
                     self.sub_sections["quantification"],
                     self.mq_results["get_protegroups_dicts"]["raw_intensity_pca"],
-                    "raw_intensity"
+                    "raw_intensity",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_pg_pca: {e}")
@@ -355,15 +360,14 @@ class MaxQuantModule:
                 maxquant_plots.draw_pg_pca(
                     self.sub_sections["quantification"],
                     self.mq_results["get_protegroups_dicts"]["lfq_intensity_pca"],
-                    "lfq_intensity"
+                    "lfq_intensity",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_pg_pca: {e}")
         if self.mq_results["ms_ms_identified"]:
             try:
-                common_plots.draw_ms_ms_identified(
-                    self.sub_sections["identification"],
-                    self.mq_results["ms_ms_identified"]
+                draw_ms_ms_identified(
+                    self.sub_sections["identification"], self.mq_results["ms_ms_identified"]
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_ms_ms_identified: {e}")
@@ -372,7 +376,7 @@ class MaxQuantModule:
                 maxquant_plots.draw_intensity_box(
                     self.sub_sections["quantification"],
                     self.mq_results["get_evidence_dicts"]["peptide_intensity"]["box"],
-                    "peptide_intensity"
+                    "peptide_intensity",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_intensity_box: {e}")
@@ -380,37 +384,37 @@ class MaxQuantModule:
         # Contaminants
         if self.mq_results["get_protegroups_dicts"].get("pg_contaminant") is not None:
             try:
-                common_plots.draw_potential_contaminants(
+                draw_potential_contaminants(
                     self.sub_sections["contaminants"],
                     self.mq_results["get_protegroups_dicts"]["pg_contaminant"],
-                    True
+                    True,
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_potential_contaminants: {e}")
         if self.mq_results["get_evidence_dicts"].get("top_contaminants") is not None:
             try:
-                common_plots.draw_top_n_contaminants(
+                draw_top_n_contaminants(
                     self.sub_sections["contaminants"],
-                    self.mq_results["get_evidence_dicts"]["top_contaminants"]
+                    self.mq_results["get_evidence_dicts"]["top_contaminants"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_top_n_contaminants: {e}")
 
         if self.mq_results["get_evidence_dicts"].get("charge_counts") is not None:
             try:
-                common_plots.draw_charge_state(
+                draw_charge_state(
                     self.sub_sections["ms2"],
                     self.mq_results["get_evidence_dicts"]["charge_counts"],
-                    "MaxQuant"
+                    "MaxQuant",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_charge_state: {e}")
 
         if self.mq_results["get_evidence_dicts"].get("modified_percentage") is not None:
             try:
-                common_plots.draw_modifications(
+                draw_modifications(
                     self.sub_sections["identification"],
-                    self.mq_results["get_evidence_dicts"]["modified_percentage"]
+                    self.mq_results["get_evidence_dicts"]["modified_percentage"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_modifications: {e}")
@@ -419,7 +423,7 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_evidence_peptide_id_count(
                     self.sub_sections["identification"],
-                    self.mq_results["get_evidence_dicts"]["peptide_id_count"]
+                    self.mq_results["get_evidence_dicts"]["peptide_id_count"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_evidence_peptide_id_count: {e}")
@@ -428,38 +432,38 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_evidence_protein_group_count(
                     self.sub_sections["identification"],
-                    self.mq_results["get_evidence_dicts"]["protein_group_count"]
+                    self.mq_results["get_evidence_dicts"]["protein_group_count"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_evidence_protein_group_count: {e}")
 
         if self.mq_results["get_evidence_dicts"].get("oversampling") is not None:
             try:
-                common_plots.draw_oversampling(
+                draw_oversampling(
                     self.sub_sections["ms2"],
                     self.mq_results["get_evidence_dicts"]["oversampling"],
                     "",
-                    True
+                    True,
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_oversampling: {e}")
 
         if self.mq_results["get_msms_dicts"].get("missed_cleavages") is not None:
             try:
-                common_plots.draw_msms_missed_cleavages(
+                draw_msms_missed_cleavages(
                     self.sub_sections["identification"],
                     self.mq_results["get_msms_dicts"]["missed_cleavages"],
-                    True
+                    True,
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_msms_missed_cleavages: {e}")
 
         if self.mq_results["get_evidence_dicts"].get("rt_counts") is not None:
             try:
-                common_plots.draw_ids_rt_count(
+                draw_ids_rt_count(
                     self.sub_sections["rt_qc"],
                     self.mq_results["get_evidence_dicts"]["rt_counts"],
-                    "maxquant"
+                    "maxquant",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_ids_rt_count: {e}")
@@ -478,22 +482,22 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_mass_error_box(
                     self.sub_sections["mass_error"],
-                    self.mq_results["get_evidence_dicts"]["uncalibrated_mass_error"]
+                    self.mq_results["get_evidence_dicts"]["uncalibrated_mass_error"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_mass_error_box: {e}")
 
         # Summary Table
         if (
-            self.mq_results["get_msms_scans_dicts"].get("summary_msms_spectra") is not None and
-            self.mq_results["get_evidence_dicts"].get("summary_stat") is not None and
-            self.mq_results["get_protegroups_dicts"].get("protein_summary") is not None
+            self.mq_results["get_msms_scans_dicts"].get("summary_msms_spectra") is not None
+            and self.mq_results["get_evidence_dicts"].get("summary_stat") is not None
+            and self.mq_results["get_protegroups_dicts"].get("protein_summary") is not None
         ):
             summary_stat = self.mq_results["get_evidence_dicts"]["summary_stat"]
 
             if (
-                summary_stat.get("summary_identified_msms_count") is not None and
-                summary_stat.get("summary_identified_peptides") is not None
+                summary_stat.get("summary_identified_msms_count") is not None
+                and summary_stat.get("summary_identified_peptides") is not None
             ):
                 try:
                     maxquant_plots.draw_maxquant_summary_table(
@@ -511,7 +515,7 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_maxquant_num_pep_pro(
                     self.sub_sections["identification"],
-                    self.mq_results["get_protegroups_dicts"]["num_pep_per_protein_dict"]
+                    self.mq_results["get_protegroups_dicts"]["num_pep_per_protein_dict"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_maxquant_num_pep_pro: {e}")
@@ -521,7 +525,7 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_maxquant_scores(
                     self.sub_sections["search_engine"],
-                    self.mq_results["get_msms_dicts"]["search_engine_scores"]
+                    self.mq_results["get_msms_dicts"]["search_engine_scores"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_maxquant_scores: {e}")
@@ -529,10 +533,10 @@ class MaxQuantModule:
         # MaxQuant: Delta Mass [Da]
         if self.mq_results["get_evidence_dicts"].get("maxquant_delta_mass_da") is not None:
             try:
-                common_plots.draw_delta_mass_da_ppm(
+                draw_delta_mass_da_ppm(
                     self.sub_sections["mass_error"],
                     self.mq_results["get_evidence_dicts"]["maxquant_delta_mass_da"],
-                    "Mass Error [Da]"
+                    "Mass Error [Da]",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while Delta Mass [Da]: {e}")
@@ -540,10 +544,10 @@ class MaxQuantModule:
         # MaxQuant: Delta Mass [ppm]
         if self.mq_results["get_evidence_dicts"].get("calibrated_mass_error") is not None:
             try:
-                common_plots.draw_delta_mass_da_ppm(
+                draw_delta_mass_da_ppm(
                     self.sub_sections["mass_error"],
                     self.mq_results["get_evidence_dicts"]["calibrated_mass_error"],
-                    "Mass Error [ppm]"
+                    "Mass Error [ppm]",
                 )
             except Exception as e:
                 log.warning(f"Error occurred while Delta Mass [ppm]: {e}")
@@ -552,8 +556,7 @@ class MaxQuantModule:
         if self.mq_results["get_msms_scans_dicts"].get("top_n") is not None:
             try:
                 maxquant_plots.draw_msms_scans_top_n(
-                    self.sub_sections["rt_qc"],
-                    self.mq_results["get_msms_scans_dicts"]["top_n"]
+                    self.sub_sections["rt_qc"], self.mq_results["get_msms_scans_dicts"]["top_n"]
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_msms_scans_top_n: {e}")
@@ -561,7 +564,7 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_msms_scans_top_over_rt(
                     self.sub_sections["rt_qc"],
-                    self.mq_results["get_msms_scans_dicts"]["top_over_rt"]
+                    self.mq_results["get_msms_scans_dicts"]["top_over_rt"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_msms_scans_top_over_rt: {e}")
@@ -569,7 +572,7 @@ class MaxQuantModule:
             try:
                 maxquant_plots.draw_msms_scans_ion_injec_time_rt(
                     self.sub_sections["rt_qc"],
-                    self.mq_results["get_msms_scans_dicts"]["ion_injec_time_rt"]
+                    self.mq_results["get_msms_scans_dicts"]["ion_injec_time_rt"],
                 )
             except Exception as e:
                 log.warning(f"Error occurred while draw_msms_scans_ion_injec_time_rt: {e}")
