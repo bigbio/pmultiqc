@@ -229,3 +229,17 @@ def add_sub_section(sub_section, plot, order=0, description="", helptext=""):
             "helptext": helptext,
         }
     )
+
+# sub_sections Dict (quantms, DIA-NN, MaxQuant, MzIdentML)
+SUB_SECTIONS = {
+    "experiment": [],
+    "summary": [],
+    "identification": [],
+    "search_engine": [],
+    "contaminants": [],
+    "quantification": [],
+    "ms1": [],
+    "ms2": [],
+    "mass_error": [],
+    "rt_qc": [],
+}

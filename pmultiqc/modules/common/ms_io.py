@@ -17,7 +17,7 @@ import math
 import re
 
 from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.quantms.ms_functions import get_ms_qc_info
+from pmultiqc.modules.common.ms_functions import get_ms_qc_info
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -794,4 +794,4 @@ def del_openms_convert_tsv():
     for file_path in files:
         if os.path.exists(file_path):
             os.remove(file_path)
-            log.info(f"{file_path} has been deleted.")
+            log.info(f"'{file_path}' has been deleted.")
