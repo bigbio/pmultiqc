@@ -131,7 +131,7 @@ multiqc --parse_maxquant /path/to/maxquant/results -o ./report
 #### For DIA-NN results
 
 ```bash
-multiqc /path/to/diann/results -o ./report
+multiqc --parse_diann /path/to/diann/results -o ./report
 ```
 
 #### For ProteoBench files
