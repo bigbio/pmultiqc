@@ -1469,7 +1469,7 @@ def draw_ms_information(
                 * Overall pattern: Peak counts typically increase during the elution of complex mixtures and
                 decrease during column washing or re-equilibration phases.
                 * Peak density: Higher counts suggest more complex spectra, potentially indicating a greater
-                number of compounds present at that time point."
+                number of compounds present at that time point.
                 * Peak Consistency across samples: Similar profiles among replicates or related samples
                 indicate good analytical reproducibility.
                 * Sudden drops: Abrupt decreases in peak count may point to transient ionization issues,
