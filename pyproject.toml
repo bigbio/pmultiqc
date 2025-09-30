@@ -67,10 +67,11 @@ quantification_method = "pmultiqc.cli:quantification_method"
 disable_table = "pmultiqc.cli:disable_table"
 ignored_idxml = "pmultiqc.cli:ignored_idxml"
 affix_type = "pmultiqc.cli:affix_type"
+quantms_plugin = "pmultiqc.cli:quantms_plugin"
 mzid_plugin = "pmultiqc.cli:mzid_plugin"
 diann_plugin = "pmultiqc.cli:diann_plugin"
-parse_maxquant = "pmultiqc.cli:parse_maxquant"
-parse_proteobench = "pmultiqc.cli:parse_proteobench"
+maxquant_plugin = "pmultiqc.cli:maxquant_plugin"
+proteobench_plugin = "pmultiqc.cli:proteobench_plugin"
 
 [tool.poetry.plugins."multiqc.hooks.v1"]
 execution_start = "pmultiqc.main:pmultiqc_plugin_execution_start"
