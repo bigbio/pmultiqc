@@ -6,7 +6,7 @@ import os
 
 from ..common.file_utils import drop_empty_row
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from ..common.stats import qual_uniform as QualUniform
+from ..common.stats import qual_uniform
 
 
 DEFAULT_BINS = 500
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-def calculate_msms_count(df):
+def calculate_msms_counts_per_precursor(df):
     count_df = (
         df.groupby(["Run", "Stripped.Sequence", "Precursor.Charge"])["MS2.Scan"]
         .nunique()
@@ -303,7 +303,7 @@ def heatmap_cont_pep_intensity(report_df):
         rt_alignment = max(0.0, 1 - float(np.mean(np.abs(group["RT"] - group["Predicted.RT"]))))
 
         # 5. "ID rate over RT"
-        ids_rate_over_rt = QualUniform(group["RT"])
+        ids_rate_over_rt = qual_uniform(group["RT"])
 
         # 6. Normalization Factor MAD
         def mean_abs_dev(x):
