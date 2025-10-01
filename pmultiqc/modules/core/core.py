@@ -32,19 +32,19 @@ class PMultiQC(BaseMultiqcModule):
         if config.kwargs.get("disable_plugin", True):
             return None
 
+        # section groups
+        self.sub_sections = SUB_SECTIONS
+
         # Parse ProteoBench results
         if config.kwargs.get("proteobench_plugin", False):
 
             ProteoBenchModule = get_module("proteobench", "ProteoBenchModule")
-            pb = ProteoBenchModule(self.find_log_files)
+            pb = ProteoBenchModule(self.find_log_files, self.sub_sections)
 
-            if pb.get_proteobench():
-                pb.draw_report_plots()
+            if pb.get_data():
+                pb.draw_plots()
 
             return None
-
-        # section groups
-        self.sub_sections = SUB_SECTIONS
 
         # Parse MaxQuant results
         if config.kwargs.get("maxquant_plugin", False):

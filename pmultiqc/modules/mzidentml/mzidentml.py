@@ -30,6 +30,7 @@ from pmultiqc.modules.mzidentml.mzidentml_utils import (
     get_mzid_rt_id,
     get_mzid_num_data,
 )
+from pmultiqc.modules.common.base_module import BaseModule
 
 
 # Initialise the main MultiQC logger
@@ -39,18 +40,43 @@ log = logging.getLogger(__name__)
 log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
 
 
-class MzIdentMLModule:
+class MzIdentMLModule(BaseModule):
 
     def __init__(
             self,
             find_log_files_func,
             sub_sections
         ):
+        # Call parent constructor
+        super().__init__(
+            find_log_files_func=find_log_files_func,
+            sub_sections=sub_sections,
+            module_name="mzidentml"
+        )
 
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
-        self.heatmap_color_list = HEATMAP_COLOR_LIST
+        # Initialize module-specific attributes
+        self._initialize_mzidentml_data()
 
+    def _initialize_module(self):
+        """Initialize MzIdentML-specific attributes."""
+        # Discover files manually to handle multiple files per type
+        self.ms_paths = []
+        for mzml_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
+            self.ms_paths.append(os.path.join(mzml_file["root"], mzml_file["fn"]))
+        self.ms_paths.sort()
+
+        self.mgf_paths = []
+        for mgf_file in self.find_log_files("pmultiqc/mgf", filecontents=False):
+            self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
+        self.mgf_paths.sort()
+
+        self.mzid_paths = []
+        for mzid_file in self.find_log_files("pmultiqc/mzid", filecontents=False):
+            self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
+        self.mzid_paths.sort()
+
+    def _initialize_mzidentml_data(self):
+        """Initialize MzIdentML-specific data structures."""
         self.ms_with_psm = list()
         self.total_protein_identified = 0
         self.cal_num_table_data = dict()
@@ -75,97 +101,98 @@ class MzIdentMLModule:
         self.mzid_peptide_map = dict()
         self.ms_without_psm = dict()
 
-        self.ms_paths = []
-        for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
-            self.ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
-        self.ms_paths.sort()
-
-        self.mgf_paths = []
-        for mgf_file in self.find_log_files("pmultiqc/mgf", filecontents=False):
-            self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
-        self.mgf_paths.sort()
-
-        self.mzid_paths = []
-        for mzid_file in self.find_log_files("pmultiqc/mzid", filecontents=False):
-            self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
-        self.mzid_paths.sort()
-
+    def get_data(self):
+        """Extract and process MzIdentML data."""
+        # Parse mzIdentML files
         mzid_psm = self.parse_out_mzid()
 
+        # Process MGF or mzML files
         if self.mgf_paths:
-            mgf_reader = MGFReader()
-            mgf_result = mgf_reader.read(
-                file_paths=self.mgf_paths,
-                ms_with_psm=self.ms_with_psm,
-                identified_spectrum=self.identified_spectrum,
-                ms_without_psm=self.ms_without_psm
-            )
-
-            # Extract results from MGFReader
-            self.mgf_rtinseconds = mgf_result["mgf_rtinseconds"]
-            self.mgf_charge_plot = mgf_result["mgf_charge_plot"]
-            self.mgf_peak_distribution_plot = mgf_result["mgf_peak_distribution_plot"]
-            self.mgf_peaks_ms2_plot = mgf_result["mgf_peaks_ms2_plot"]
-            self.mgf_charge_plot_1 = mgf_result["mgf_charge_plot_1"]
-            self.mgf_peak_distribution_plot_1 = mgf_result["mgf_peak_distribution_plot_1"]
-            self.mgf_peaks_ms2_plot_1 = mgf_result["mgf_peaks_ms2_plot_1"]
-            self.ms_info.update(mgf_result["ms_info"])
-            self.heatmap_charge_score = mgf_result["heatmap_charge_score"]
-            self.total_ms2_spectra = mgf_result["total_ms2_spectra"]
-
-            self.mzid_cal_heat_map_score(mzid_psm)
-
+            self._process_mgf_data(mzid_psm)
         elif self.ms_paths:
+            self._process_mzml_data(mzid_psm)
 
-            (
-                mzml_table,
-                mzml_peaks_ms2_plot,
-                mzml_peak_distribution_plot,
-                self.ms_info,
-                self.total_ms2_spectra,
-                mzml_ms_df,
-                self.heatmap_charge_score,
-                self.mzml_charge_plot,
-                _,  # ms1_tic,
-                _,  # ms1_bpc,
-                _,  # ms1_peaks,
-                _,  # ms1_general_stats
-            ) = parse_mzml(
-                ms_with_psm=self.ms_with_psm,
-                identified_spectrum=self.identified_spectrum,
-                ms_paths=self.ms_paths,
-                enable_mzid=True
+        # Generate plots
+        self.draw_plots()
+
+        return self.results
+
+    def _process_mgf_data(self, mzid_psm):
+        """Process MGF files and generate related plots."""
+        mgf_reader = MGFReader()
+        mgf_result = mgf_reader.read(
+            file_paths=self.mgf_paths,
+            ms_with_psm=self.ms_with_psm,
+            identified_spectrum=self.identified_spectrum,
+            ms_without_psm=self.ms_without_psm
+        )
+
+        # Extract results from MGFReader
+        self.mgf_rtinseconds = mgf_result["mgf_rtinseconds"]
+        self.mgf_charge_plot = mgf_result["mgf_charge_plot"]
+        self.mgf_peak_distribution_plot = mgf_result["mgf_peak_distribution_plot"]
+        self.mgf_peaks_ms2_plot = mgf_result["mgf_peaks_ms2_plot"]
+        self.mgf_charge_plot_1 = mgf_result["mgf_charge_plot_1"]
+        self.mgf_peak_distribution_plot_1 = mgf_result["mgf_peak_distribution_plot_1"]
+        self.mgf_peaks_ms2_plot_1 = mgf_result["mgf_peaks_ms2_plot_1"]
+        self.ms_info.update(mgf_result["ms_info"])
+        self.heatmap_charge_score = mgf_result["heatmap_charge_score"]
+        self.total_ms2_spectra = mgf_result["total_ms2_spectra"]
+
+        self.mzid_cal_heat_map_score(mzid_psm)
+
+    def _process_mzml_data(self, mzid_psm):
+        """Process mzML files and generate related plots."""
+        (
+            self.mzml_table,
+            self.mzml_peaks_ms2_plot,
+            self.mzml_peak_distribution_plot,
+            self.ms_info,
+            self.total_ms2_spectra,
+            mzml_ms_df,
+            self.heatmap_charge_score,
+            self.mzml_charge_plot,
+            _,  # ms1_tic,
+            _,  # ms1_bpc,
+            _,  # ms1_peaks,
+            _,  # ms1_general_stats
+        ) = parse_mzml(
+            ms_with_psm=self.ms_with_psm,
+            identified_spectrum=self.identified_spectrum,
+            ms_paths=self.ms_paths,
+            enable_mzid=True
+        )
+
+        mzidentml_df = get_mzidentml_mzml_df(mzid_psm, mzml_ms_df)
+        if len(mzidentml_df) > 0:
+            draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
+
+            mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
+            draw_charge_state(
+                self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
             )
 
-            mzidentml_df = get_mzidentml_mzml_df(mzid_psm, mzml_ms_df)
-            if len(mzidentml_df) > 0:
+            mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
+            draw_ids_rt_count(
+                self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
+            )
 
-                draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
+            (self.cal_num_table_data, self.identified_msms_spectra) = get_mzid_num_data(
+                mzidentml_df
+            )
 
-                mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
-                draw_charge_state(
-                    self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
-                )
+            draw_quantms_identification(
+                self.sub_sections["identification"],
+                cal_num_table_data=self.cal_num_table_data,
+                mzml_table=self.mzml_table,
+                quantms_missed_cleavages=self.quantms_missed_cleavages,
+                identified_msms_spectra=self.identified_msms_spectra,
+            )
 
-                mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
-                draw_ids_rt_count(
-                    self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
-                )
+            self.mzid_cal_heat_map_score(mzidentml_df)
 
-                (self.cal_num_table_data, self.identified_msms_spectra) = get_mzid_num_data(
-                    mzidentml_df
-                )
-
-                draw_quantms_identification(
-                    self.sub_sections["identification"],
-                    cal_num_table_data=self.cal_num_table_data,
-                    mzml_table=mzml_table,
-                    quantms_missed_cleavages=self.quantms_missed_cleavages,
-                    identified_msms_spectra=self.identified_msms_spectra,
-                )
-
-                self.mzid_cal_heat_map_score(mzidentml_df)
-
+    def draw_plots(self):
+        """Generate plots and add them to report sections."""
         heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
         draw_heatmap(
             self.sub_sections["summary"],
@@ -197,8 +224,8 @@ class MzIdentMLModule:
             peak_distribution_plot = self.mgf_peak_distribution_plot
         else:
             charge_plot = self.mzml_charge_plot
-            peaks_ms2_plot = mzml_peaks_ms2_plot
-            peak_distribution_plot = mzml_peak_distribution_plot
+            peaks_ms2_plot = self.mzml_peaks_ms2_plot
+            peak_distribution_plot = self.mzml_peak_distribution_plot
 
         draw_precursor_charge_distribution(
             self.sub_sections["ms2"],
@@ -225,6 +252,7 @@ class MzIdentMLModule:
             False
         )
 
+        # Create section groups
         self.section_group_dict = {
             "experiment_sub_section": self.sub_sections["experiment"],
             "summary_sub_section": self.sub_sections["summary"],
@@ -800,7 +828,6 @@ class MzIdentMLModule:
                 sequence[:-1].replace("B", "").replace("D", "")
             )
         elif enzyme == "Chymotrypsin":
-            cut = "F*,W*,Y*,L*,!*P"
             miss_cleavages = len(sequence[:-1]) - len(
                 sequence[:-1].replace("F", "").replace("W", "").replace("Y", "").replace("L", "")
             )

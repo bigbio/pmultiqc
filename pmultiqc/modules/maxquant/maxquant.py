@@ -17,27 +17,49 @@ from pmultiqc.modules.common.plots import (
     draw_ids_rt_count,
     draw_delta_mass_da_ppm
 )
+from pmultiqc.modules.common.base_module import BaseModule
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-class MaxQuantModule:
+class MaxQuantModule(BaseModule):
 
     def __init__(
             self,
             find_log_files_func,
             sub_sections
         ):
+        # Call parent constructor
+        super().__init__(
+            find_log_files_func=find_log_files_func,
+            sub_sections=sub_sections,
+            module_name="maxquant"
+        )
 
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
+        # Initialize module-specific attributes
+        self._initialize_maxquant_data()
 
-        self.maxquant_paths = None
+    def _initialize_module(self):
+        """Initialize MaxQuant-specific attributes."""
+        # Discover MaxQuant files
+        self.maxquant_paths = maxquant_io.discover_maxquant_files(self.find_log_files)
+        
+        # Validate required files
+        if not self.maxquant_paths:
+            self.log.warning("No MaxQuant files found")
+            return
+
+    def _initialize_maxquant_data(self):
+        """Initialize MaxQuant-specific data structures."""
         self.mq_results = None
-        self.heatmap_color_list = HEATMAP_COLOR_LIST
-    
-    def get_mq_data(self):
+
+    def get_data(self):
+        """Extract and process MaxQuant data."""
+        return self._process_maxquant_data()
+
+    def _process_maxquant_data(self):
+        """Process MaxQuant data and generate plots."""
 
         # Experimental Design and Metadata
         get_parameter_dicts = {"parameters_tb_dict": None}
@@ -271,14 +293,6 @@ class MaxQuantModule:
             "get_msms_scans_dicts": get_msms_scans_dicts,
             "maxquant_heatmap": maxquant_heatmap,
         }
-
-    def get_data(self):
-
-        self.maxquant_paths = maxquant_io.maxquant_file_path(self.find_log_files)
-        self.mq_results = self.get_mq_data()
-
-        if self.mq_results:
-            return self.mq_results
 
     def draw_report_plots(self):
 
