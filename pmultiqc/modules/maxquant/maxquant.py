@@ -5,7 +5,6 @@ import os
 from . import maxquant_utils, maxquant_io, maxquant_plots
 from pmultiqc.modules.core.section_groups import add_group_modules
 from pmultiqc.modules.common.plots import (
-    HEATMAP_COLOR_LIST,
     draw_heatmap,
     draw_ms_ms_identified,
     draw_potential_contaminants,
