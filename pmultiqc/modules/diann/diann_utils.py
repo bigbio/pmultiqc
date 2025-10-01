@@ -27,22 +27,30 @@ log = logging.getLogger(__name__)
 
 
 def get_diann_path(find_log_files):
-    # DIA-NN report file path
-    diann_report_path = None
-    for file_type in ["pmultiqc/diann_report_tsv", "pmultiqc/diann_report_parquet"]:
-        for f in find_log_files(file_type, filecontents=False):
-            diann_report_path = os.path.join(f["root"], f["fn"])
-        if diann_report_path:
-            break
-
-    enable_dia = False
-    if diann_report_path:
-        diann_report_path = diann_report_path
-        enable_dia = True
-    else:
-        raise ValueError("DIANN report not found. Please check your data!")
+    """
+    Find and return the DIA-NN report file path.
     
-    return diann_report_path, enable_dia
+    Args:
+        find_log_files: Function to search for log files
+        
+    Returns:
+        tuple: (diann_report_path, enable_dia) where:
+            - diann_report_path: Full path to the DIA-NN report file
+            - enable_dia: Boolean indicating if DIA mode is enabled
+            
+    Raises:
+        ValueError: If no DIA-NN report file is found
+    """
+    # DIA-NN report file types to search for (in order of preference)
+    file_types = ["pmultiqc/diann_report_parquet", "pmultiqc/diann_report_tsv"]
+    
+    for file_type in file_types:
+        for file_info in find_log_files(file_type, filecontents=False):
+            diann_report_path = os.path.join(file_info["root"], file_info["fn"])
+            return diann_report_path, True
+    
+    # If no report file found, raise an error
+    raise ValueError("DIA-NN report not found. Please check your data!")
 
 def draw_dia_intensitys(sub_section, report_df):
 
