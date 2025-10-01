@@ -218,47 +218,6 @@ def draw_dia_whole_exp_charge(sub_section, df):
             """
     )
 
-# Distribution of Precursor Charges
-def draw_dia_whole_exp_charge(sub_section, df):
-    charge_df = df[["Precursor.Charge"]].copy()
-    charge_df["Precursor.Charge"] = charge_df["Precursor.Charge"].astype("str")
-
-    bar_data = {
-        "Whole Experiment": charge_df[
-            "Precursor.Charge"
-        ].value_counts().sort_index().to_dict()
-    }
-
-    bar_data = {str(k): v for k, v in bar_data.items()}
-
-    draw_config = {
-        "id": "distribution_of_precursor_charges",
-        "cpswitch": True,
-        "title": "Distribution of Precursor Charges",
-        "tt_decimals": 0,
-        "ylab": "Count",
-    }
-
-    bar_html = bargraph.plot(
-        data=bar_data,
-        pconfig=draw_config,
-    )
-
-    bar_html = remove_subtitle(bar_html)
-
-    add_sub_section(
-        sub_section=sub_section,
-        plot=bar_html,
-        order=5,
-        description="""
-            This is a bar chart representing the distribution of the precursor ion charges for a given whole experiment.
-        """,
-        helptext="""
-            [DIA-NN: main report] distribution of the precursor ion charges for a given whole experiment.
-            Precursor.Charge: the charge of the precursor.
-            """
-    )
-
 # Charge-state of Per File
 def draw_dia_ms2_charge(sub_section, df):
 

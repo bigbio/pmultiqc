@@ -12,10 +12,7 @@ from pmultiqc.modules.common.plots import (
     draw_ids_rt_count
 )
 from pmultiqc.modules.common.file_utils import drop_empty_row
-from pmultiqc.modules.quantms.quantms_utils import (
-    create_peptides_table,
-    create_protein_table
-)
+from pmultiqc.modules.quantms.quantms_utils import create_protein_table
 from pmultiqc.modules.common.utils import evidence_rt_count
 from statsmodels.nonparametric.smoothers_lowess import lowess
 

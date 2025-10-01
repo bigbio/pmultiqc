@@ -2360,6 +2360,8 @@ class QuantMSModule:
             plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [
                 x for x in plot_cats if x == "Other"
             ]
+        else:
+            plot_cats_ordered = plot_cats
 
         result_dict = dict()
         result_dict["plot_data"] = plot_dict

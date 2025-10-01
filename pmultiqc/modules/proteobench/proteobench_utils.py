@@ -7,6 +7,12 @@ import re
 from multiqc.plots import bargraph, linegraph, box, scatter
 
 from ..common.common_plots import remove_subtitle
+from pmultiqc.modules.common.stats import (
+    calculate_na_statistics,
+    calculate_line_statistics,
+    calculate_box_plot_statistics,
+    calculate_intensity_counts_per_file
+)
 
 
 logging.basicConfig(level=logging.INFO)
@@ -91,6 +97,16 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
     enable_box = False
 
     only_one_col = False
+    
+    # Initialize plot configuration variables
+    bar_plot_id = None
+    bar_plot_title = None
+    line_plot_id = None
+    line_plot_title = None
+    line_plot_xlab = None
+    box_plot_id = None
+    box_plot_title = None
+    box_plot_xlab = None
 
     if plot_type == "log_intensity_mean":
 
@@ -259,22 +275,18 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
 
 
 def statistics_na_values(df, cols):
-    from pmultiqc.modules.common.stats import calculate_na_statistics
     return calculate_na_statistics(df, cols)
 
 
 def statistics_line_values(df, cols, dict_key, only_one_col):
-    from pmultiqc.modules.common.stats import calculate_line_statistics
     return calculate_line_statistics(df, cols, dict_key, only_one_col)
 
 
 def statistics_box_values(df, cols):
-    from pmultiqc.modules.common.stats import calculate_box_plot_statistics
     return calculate_box_plot_statistics(df, cols)
 
 
 def intensity_count_per_file(df, runs_col):
-    from pmultiqc.modules.common.stats import calculate_intensity_counts_per_file
     plot_data = calculate_intensity_counts_per_file(df, runs_col)
 
     draw_bar_config = {
@@ -354,7 +366,7 @@ def draw_logintensitymean_vs_logfc(df):
 
     scatter_html = scatter.plot(data=plot_data, pconfig=draw_config)
 
-    scatter_html == remove_subtitle(scatter_html)
+    scatter_html = remove_subtitle(scatter_html)
 
     return scatter_html
 
