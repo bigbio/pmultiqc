@@ -6,7 +6,7 @@ import re
 
 from multiqc.plots import bargraph, linegraph, box, scatter
 
-from ..common.common_plots import remove_subtitle
+from ..common.plots import remove_subtitle
 from pmultiqc.modules.common.stats import (
     calculate_na_statistics,
     calculate_line_statistics,

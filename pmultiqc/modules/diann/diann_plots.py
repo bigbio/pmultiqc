@@ -2,7 +2,7 @@ import logging
 from multiqc.plots import heatmap, box, bargraph, linegraph
 import re
 
-from pmultiqc.modules.common.common_plots import remove_subtitle
+from pmultiqc.modules.common.plots import remove_subtitle
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.stats import calculate_delta_mass_distribution as cal_delta_mass_dict
 
