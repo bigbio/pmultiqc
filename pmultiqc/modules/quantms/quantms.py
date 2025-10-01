@@ -36,8 +36,8 @@ from pmultiqc.modules.common.utils import (
 )
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.stats import (
-    qual_uniform as QualUniform,
-    calculate_modification_percentage as mod_group_percentage
+    qual_uniform,
+    calculate_modification_percentage
 )
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
@@ -1127,7 +1127,7 @@ class QuantMSModule:
 
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = QualUniform(group["retention_time"])
+            self.id_rt_score[name] = qual_uniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -1393,7 +1393,7 @@ class QuantMSModule:
                 group = group[group["opt_global_cv_MS:1002217_decoy_peptide"] == 0]
 
             # Modifications
-            mod_group_processed = mod_group_percentage(
+            mod_group_processed =  calculate_modification_percentage(
                 group[["sequence", "charge", "Modifications"]].drop_duplicates()
             )
             mod_plot_dict[m] = dict(
