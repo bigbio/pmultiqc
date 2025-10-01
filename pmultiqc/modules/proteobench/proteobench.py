@@ -37,10 +37,7 @@ class ProteoBenchModule(BaseModule):
         self._validate_required_files(self.file_paths)
 
     def get_data(self):
-        
-        return self.get_proteobench()
-
-    def get_proteobench(self):
+        """Extract and process ProteoBench data."""
         
         pb_file_path = self.file_paths.get("proteobench_result")
 

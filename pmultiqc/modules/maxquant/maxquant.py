@@ -55,10 +55,6 @@ class MaxQuantModule(BaseModule):
 
     def get_data(self):
         """Extract and process MaxQuant data."""
-        return self._process_maxquant_data()
-
-    def _process_maxquant_data(self):
-        """Process MaxQuant data and generate plots."""
 
         # Experimental Design and Metadata
         get_parameter_dicts = {"parameters_tb_dict": None}
@@ -292,8 +288,7 @@ class MaxQuantModule(BaseModule):
             "get_msms_scans_dicts": get_msms_scans_dicts,
             "maxquant_heatmap": maxquant_heatmap,
         }
-
-    def draw_report_plots(self):
+    def draw_plots(self):
 
         # Parameters
         if self.mq_results["get_parameter_dicts"].get("parameters_tb_dict") is not None:

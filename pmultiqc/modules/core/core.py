@@ -56,7 +56,7 @@ class PMultiQC(BaseMultiqcModule):
             )
 
             if mq.get_data():
-                mq.draw_report_plots()
+                mq.draw_plots()
 
             return None
 
