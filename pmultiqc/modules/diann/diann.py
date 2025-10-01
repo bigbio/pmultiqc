@@ -8,8 +8,8 @@ from multiqc import config
 from pmultiqc.modules.common.histogram import Histogram
 from sdrf_pipelines.openms.openms import UnimodDatabase
 from collections import OrderedDict
-from pmultiqc.modules.common.ms_io import del_openms_convert_tsv
-from pmultiqc.modules.common.common_utils import (
+from pmultiqc.modules.common.utils import del_openms_convert_tsv
+from pmultiqc.modules.common.utils import (
     get_exp_sdrf,
     get_ms_path,
     get_msstats_path,
@@ -37,7 +37,7 @@ from pmultiqc.modules.diann.diann_utils import (
     draw_dia_rt_qc,
     draw_diann_quant_table,
 )
-from pmultiqc.modules.common.calc_utils import mod_group_percentage
+from pmultiqc.modules.common.stats import calculate_modification_percentage as mod_group_percentage
 from pmultiqc.modules.common.file_utils import file_prefix
 
 

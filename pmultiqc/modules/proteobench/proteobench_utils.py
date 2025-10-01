@@ -259,73 +259,23 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
 
 
 def statistics_na_values(df, cols):
-
-    data_dict = {
-        specie + ": " + col: {"Non-NA": group[col].notna().sum(), "NA": group[col].isna().sum()}
-        for specie, group in df.groupby("species")
-        for col in cols
-    }
-
-    return data_dict
+    from pmultiqc.modules.common.stats import calculate_na_statistics
+    return calculate_na_statistics(df, cols)
 
 
 def statistics_line_values(df, cols, dict_key, only_one_col):
-
-    data_union = df[cols].stack().reset_index(drop=True)
-    data_range_max = data_union.max()
-
-    if dict_key == "cv":
-        data_range_min = 0
-    else:
-        data_range_min = data_union.min() - (data_union.min() * 0.05)
-
-    bin_step = 1000
-    data_bins = np.arange(
-        data_range_min, data_range_max + (data_range_max * 0.05), (data_range_max / bin_step)
-    )
-    bin_mid = (data_bins[:-1] + data_bins[1:]) / 2
-
-    data_dict = dict()
-    for specie, group in df.groupby("species"):
-        for col in cols:
-
-            counts, _ = np.histogram(group[col].dropna(), bins=data_bins)
-
-            cv_counts = pd.DataFrame({"value": bin_mid, "counts": counts})
-
-            if only_one_col:
-                data_dict[specie] = dict(zip(cv_counts["value"], cv_counts["counts"]))
-            else:
-                data_dict[specie + ": " + col] = dict(zip(cv_counts["value"], cv_counts["counts"]))
-
-    return data_dict
+    from pmultiqc.modules.common.stats import calculate_line_statistics
+    return calculate_line_statistics(df, cols, dict_key, only_one_col)
 
 
 def statistics_box_values(df, cols):
-
-    boxplot_data = {
-        specie + ": " + col: group[col].dropna().tolist()
-        for specie, group in df.groupby("species")
-        for col in cols
-    }
-
-    return boxplot_data
+    from pmultiqc.modules.common.stats import calculate_box_plot_statistics
+    return calculate_box_plot_statistics(df, cols)
 
 
 def intensity_count_per_file(df, runs_col):
-
-    cols = [col for col in df.columns if runs_col in col]
-
-    non_na_dict = df[cols].notna().sum().to_dict()
-    na_dict = df[cols].isna().sum().to_dict()
-
-    plot_data = dict()
-    for k, v in non_na_dict.items():
-
-        plot_data[os.path.splitext(k)[0]] = {
-            "Non-NA": v,
-            "NA": na_dict[k],
-        }
+    from pmultiqc.modules.common.stats import calculate_intensity_counts_per_file
+    plot_data = calculate_intensity_counts_per_file(df, runs_col)
 
     draw_bar_config = {
         "id": "num_detected_features_per_run",
@@ -337,7 +287,7 @@ def intensity_count_per_file(df, runs_col):
 
     bar_html = bargraph.plot(
         data=plot_data,
-        pconfig=draw_bar_config,
+        pconfig=draw_bar_config
     )
 
     bar_html = remove_subtitle(bar_html)

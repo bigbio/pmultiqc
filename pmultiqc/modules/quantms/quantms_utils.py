@@ -6,7 +6,7 @@ import os
 
 from ..common.file_utils import drop_empty_row
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from ..common.calc_utils import QualUniform
+from ..common.stats import qual_uniform as QualUniform
 
 
 DEFAULT_BINS = 500

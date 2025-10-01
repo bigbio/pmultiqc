@@ -15,12 +15,12 @@ from pyopenms import OpenMSBuildInfo
 import os
 import numpy as np
 
-from pmultiqc.modules.common import common_plots
+from pmultiqc.modules.common.plots import *
 from pmultiqc.modules.common.id.mzid import MzIdentMLReader
 from pmultiqc.modules.common.ms.mgf import MGFReader
-from pmultiqc.modules.common.common_utils import parse_mzml
+from pmultiqc.modules.common.utils import parse_mzml
 from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.calc_utils import QualUniform
+from pmultiqc.modules.common.stats import qual_uniform
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
 from pmultiqc.modules.mzidentml.mzidentml_plots import draw_mzid_quant_table
@@ -49,7 +49,7 @@ class MzIdentMLModule:
 
         self.find_log_files = find_log_files_func
         self.sub_sections = sub_sections
-        self.heatmap_color_list = common_plots.HEATMAP_COLOR_LIST
+        self.heatmap_color_list = HEATMAP_COLOR_LIST
 
         self.ms_with_psm = list()
         self.total_protein_identified = 0
@@ -143,12 +143,12 @@ class MzIdentMLModule:
                 draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
 
                 mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
-                common_plots.draw_charge_state(
+                draw_charge_state(
                     self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
                 )
 
                 mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
-                common_plots.draw_ids_rt_count(
+                draw_ids_rt_count(
                     self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
                 )
 
@@ -156,7 +156,7 @@ class MzIdentMLModule:
                     mzidentml_df
                 )
 
-                common_plots.draw_quantms_identification(
+                draw_quantms_identification(
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
                     mzml_table=mzml_table,
@@ -167,7 +167,7 @@ class MzIdentMLModule:
                 self.mzid_cal_heat_map_score(mzidentml_df)
 
         heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
-        common_plots.draw_heatmap(
+        draw_heatmap(
             self.sub_sections["summary"],
             self.heatmap_color_list,
             heatmap_data,
@@ -176,7 +176,7 @@ class MzIdentMLModule:
             False,
         )
 
-        common_plots.draw_summary_protein_ident_table(
+        draw_summary_protein_ident_table(
             sub_sections=self.sub_sections["summary"],
             total_peptide_count=self.total_peptide_count,
             total_ms2_spectral_identified=self.total_ms2_spectral_identified,
@@ -186,7 +186,7 @@ class MzIdentMLModule:
 
         self.draw_mzid_identi_num()
 
-        common_plots.draw_num_pep_per_protein(
+        draw_num_pep_per_protein(
             self.sub_sections["identification"],
             self.pep_plot
         )
@@ -200,25 +200,25 @@ class MzIdentMLModule:
             peaks_ms2_plot = mzml_peaks_ms2_plot
             peak_distribution_plot = mzml_peak_distribution_plot
 
-        common_plots.draw_precursor_charge_distribution(
+        draw_precursor_charge_distribution(
             self.sub_sections["ms2"],
             charge_plot,
             self.ms_info
         )
 
-        common_plots.draw_peaks_per_ms2(
+        draw_peaks_per_ms2(
             self.sub_sections["ms2"],
             peaks_ms2_plot,
             self.ms_info
         )
 
-        common_plots.draw_peak_intensity_distribution(
+        draw_peak_intensity_distribution(
             self.sub_sections["ms2"],
             peak_distribution_plot,
             self.ms_info
         )
 
-        common_plots.draw_oversampling(
+        draw_oversampling(
             self.sub_sections["ms2"],
             self.oversampling,
             self.oversampling_plot.dict["cats"],
@@ -630,7 +630,7 @@ class MzIdentMLModule:
 
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = QualUniform(group["retention_time"])
+            self.id_rt_score[name] = qual_uniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -752,7 +752,7 @@ class MzIdentMLModule:
 
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = QualUniform(group["retention_time"])
+            self.id_rt_score[name] = qual_uniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -842,7 +842,7 @@ class MzIdentMLModule:
     def parse_out_mzid(self):
 
         mzid_reader = MzIdentMLReader()
-        mzid_table = mzid_reader.read_mzids(self.mzid_paths)
+        mzid_table = mzid_reader.read(self.mzid_paths)
 
         self.ms_with_psm = mzid_table["filename"].unique().tolist()
 

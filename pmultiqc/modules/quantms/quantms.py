@@ -23,10 +23,11 @@ import copy
 import json
 
 from . import sparklines
-from pmultiqc.modules.common import ms_io, common_plots
+from pmultiqc.modules.common import common_plots
+from pmultiqc.modules.common.utils import del_openms_convert_tsv
 from pmultiqc.modules.common.id.mzid import MzIdentMLReader
 from pmultiqc.modules.common.id.idxml import IDXMLReader
-from pmultiqc.modules.common.common_utils import (
+from pmultiqc.modules.common.utils import (
     get_exp_sdrf,
     get_ms_path,
     parse_mzml,
@@ -34,9 +35,9 @@ from pmultiqc.modules.common.common_utils import (
     evidence_calibrated_mass_error
 )
 from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.calc_utils import (
-    QualUniform,
-    mod_group_percentage
+from pmultiqc.modules.common.stats import (
+    qual_uniform as QualUniform,
+    calculate_modification_percentage as mod_group_percentage
 )
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
@@ -376,7 +377,7 @@ class QuantMSModule:
                 )
 
             if self.enable_sdrf:
-                ms_io.del_openms_convert_tsv()
+                del_openms_convert_tsv()
 
         if self.msstats_input_valid:
             self.parse_msstats_input()
@@ -1213,18 +1214,18 @@ class QuantMSModule:
                 return "DECOY"
 
     def parse_idxml(self, mzml_table):
-        # Use the refactored function from ms_io.py
+        # Use the refactored IDXMLReader class
         idxml_reader = IDXMLReader()
-        result = idxml_reader.parse_idxml(
-            self.idx_paths,
-            mzml_table,
-            self.xcorr_hist_range,
-            self.hyper_hist_range,
-            self.spec_evalue_hist_range,
-            self.pep_hist_range,
-            self.mL_spec_ident_final,
-            self.mzml_peptide_map,
-            config.kwargs["remove_decoy"],
+        result = idxml_reader.read(
+            file_paths=self.idx_paths,
+            mzml_table=mzml_table,
+            xcorr_hist_range=self.xcorr_hist_range,
+            hyper_hist_range=self.hyper_hist_range,
+            spec_evalue_hist_range=self.spec_evalue_hist_range,
+            pep_hist_range=self.pep_hist_range,
+            ml_spec_ident_final=self.mL_spec_ident_final,
+            mzml_peptide_map=self.mzml_peptide_map,
+            remove_decoy=config.kwargs["remove_decoy"],
         )
 
         self.search_engine, self.msgf_label, self.comet_label, self.sage_label = result
@@ -1926,7 +1927,7 @@ class QuantMSModule:
     def parse_out_mzid(self):
 
         mzid_reader = MzIdentMLReader()
-        mzid_table = mzid_reader.read_mzids(self.mzid_paths)
+        mzid_table = mzid_reader.read(self.mzid_paths)
 
         self.ms_with_psm = mzid_table["filename"].unique().tolist()
 

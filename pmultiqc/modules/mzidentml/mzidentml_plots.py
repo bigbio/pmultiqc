@@ -1,6 +1,6 @@
 # mzIdentML: Quantification Table
 from pmultiqc.modules.mzidentml import mzidentml_utils
-from pmultiqc.modules.common.common_plots import draw_peptides_table, draw_protein_table
+from pmultiqc.modules.common.plots import draw_peptides_table, draw_protein_table
 
 
 def draw_mzid_quant_table(sub_section, mzid_mzml_df):

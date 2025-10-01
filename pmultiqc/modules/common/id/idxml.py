@@ -14,32 +14,33 @@ from pyopenms import IdXMLFile
 
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
+from pmultiqc.modules.common.id.idreader import IDReader
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-class IDXMLReader:
+class IDXMLReader(IDReader):
     """Class for reading and processing IDXML files"""
-    
-    def parse_idxml(
+
+    def read(
         self,
-        idx_paths,
-        mzml_table,
-        xcorr_hist_range,
-        hyper_hist_range,
-        spec_evalue_hist_range,
-        pep_hist_range,
-        ml_spec_ident_final,
-        mzml_peptide_map,
+        file_paths=None,
+        mzml_table=None,
+        xcorr_hist_range=None,
+        hyper_hist_range=None,
+        spec_evalue_hist_range=None,
+        pep_hist_range=None,
+        ml_spec_ident_final=None,
+        mzml_peptide_map=None,
         remove_decoy=True,
     ):
         """
         Parse idXML files and extract information
 
         Args:
-            idx_paths: List of paths to idXML files
+            file_paths: List of paths to idXML files (optional, uses self.file_paths if not provided)
             mzml_table: Dictionary of mzML information
             xcorr_hist_range: Range for xcorr histogram
             hyper_hist_range: Range for hyper histogram
@@ -52,6 +53,9 @@ class IDXMLReader:
         Returns:
             tuple: (search_engine, MSGF_label, Comet_label, Sage_label)
         """
+        # Use provided file_paths or fall back to instance attribute
+        idx_paths = file_paths or self.file_paths
+
         consensus_paths = []
         for raw_id in idx_paths:
             if "consensus" in os.path.split(raw_id)[1]:

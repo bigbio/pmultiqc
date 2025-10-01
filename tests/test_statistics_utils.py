@@ -1,7 +1,7 @@
 import logging
 import pytest
 import numpy as np
-from pmultiqc.modules.common.statistics_utils import nanmedian as pm_nanmedian
+from pmultiqc.modules.common.stats import nanmedian as pm_nanmedian
 
 
 class TestStatisticsUtils:

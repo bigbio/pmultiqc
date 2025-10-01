@@ -2,7 +2,7 @@ import logging
 import os
 import pandas as pd
 
-from pmultiqc.modules.common.calc_utils import QualUniform
+from pmultiqc.modules.common.stats import qual_uniform as QualUniform
 
 import numpy as np
 from pmultiqc.modules.diann import diann_plots
@@ -16,7 +16,7 @@ from pmultiqc.modules.quantms.quantms_utils import (
     create_peptides_table,
     create_protein_table
 )
-from pmultiqc.modules.common.common_utils import evidence_rt_count
+from pmultiqc.modules.common.utils import evidence_rt_count
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
 

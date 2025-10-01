@@ -4,49 +4,57 @@ MzIdentML file reading functionality
 """
 
 from __future__ import absolute_import
-import os
 import logging
 import pandas as pd
 from datetime import datetime
 from pyteomics import mzid
 
-from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.file_utils import file_prefix, parse_location
+from pmultiqc.modules.common.id.idreader import IDReader
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-class MzIdentMLReader:
-    
+class MzIdentMLReader(IDReader):
     """Class for reading and processing MzIdentML files"""
-    def read_mzids(self, file_paths):
+
+
+    def _process_modification(self, modification):
+        """
+        Process modification information from mzIdentML
+
+        Args:
+            modification: Modification data (list or other type)
+
+        Returns:
+            str or None: Formatted modification string or None if not a list
+        """
+        if not isinstance(modification, list):
+            modifications = None
+        else:
+            modifi_list = list()
+            for i in modification:
+                if i.get("name", None) is not None:
+                    modifi_list.append(str(i.get("location")) + "-" + i.get("name", None))
+                elif i.get("cross-link receiver", None) is not None:
+                    modifi_list.append(str(i.get("location")) + "-CrossLinkReceiver")
+            modifications = ";".join(modifi_list)
+        return modifications
+
+    def read(self, file_paths=None):
         """
         Read MzIdentML files and extract information
 
         Args:
-            file_paths: List of paths to MzIdentML files
+            file_paths: List of paths to MzIdentML files (optional, uses self.file_paths if not provided)
 
         Returns:
             pandas.DataFrame: Processed MzIdentML data
         """
-        def parse_location(location):
-            if "\\" in location:
-                location = location.replace("\\", "/")
-            return os.path.basename(location)
-
-        def process_modification(modification):
-            if not isinstance(modification, list):
-                modifications = None
-            else:
-                modifi_list = list()
-                for i in modification:
-                    if i.get("name", None) is not None:
-                        modifi_list.append(str(i.get("location")) + "-" + i.get("name", None))
-                    elif i.get("cross-link receiver", None) is not None:
-                        modifi_list.append(str(i.get("location")) + "-CrossLinkReceiver")
-                modifications = ";".join(modifi_list)
-            return modifications
+        # Use provided file_paths or fall back to instance attribute
+        file_paths = file_paths or self.file_paths
 
         mzid_dicts = list()
         for file_path in file_paths:
@@ -174,7 +182,7 @@ class MzIdentMLReader:
             filtered_mzid_df["location"] = filtered_mzid_df["location"].apply(parse_location)
 
         filtered_mzid_df["Modifications"] = filtered_mzid_df["Modification"].apply(
-            lambda x: process_modification(x)
+            self._process_modification
         )
 
         filtered_mzid_df["accession_group"] = filtered_mzid_df.groupby(

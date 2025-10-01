@@ -4,7 +4,7 @@ import re
 
 from pmultiqc.modules.common.common_plots import remove_subtitle
 from pmultiqc.modules.core.section_groups import add_sub_section
-from pmultiqc.modules.common.calc_utils import cal_delta_mass_dict
+from pmultiqc.modules.common.stats import calculate_delta_mass_distribution as cal_delta_mass_dict
 
 import pandas as pd
 

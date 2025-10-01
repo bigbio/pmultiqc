@@ -9,24 +9,24 @@ import os
 from pandas._typing import ReadCsvBuffer
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from pathlib import Path
 
 from pmultiqc.modules.common.file_utils import (
     get_filename,
-    drop_empty_row
+    drop_empty_row,
+    parse_location
 )
-from pmultiqc.modules.common.calc_utils import (
-    QualUniform,
-    cal_delta_mass_dict,
-    mod_group_percentage
+from pmultiqc.modules.common.stats import (
+    qual_uniform as QualUniform,
+    calculate_delta_mass_distribution as cal_delta_mass_dict,
+    calculate_modification_percentage as mod_group_percentage
 )
-from pmultiqc.modules.common.common_utils import (
+from pmultiqc.modules.common.utils import (
     evidence_rt_count,
     evidence_calibrated_mass_error,
     recommpute_mass_error
 )
 
-from pmultiqc.modules.common.statistics_utils import nanmedian
+from pmultiqc.modules.common.stats import nanmedian
 from pmultiqc.logging import get_logger, Timer
 
 
@@ -1648,11 +1648,6 @@ def parameters_table(parameters_df):
     fasta_files = parameters_data[parameters_data["parameter"] == "Fasta file"]["value"].values[0]
     fasta_files = fasta_files.split(";")
     logger.debug(f"Found {len(fasta_files)} FASTA files")
-
-    def parse_location(location):
-        if "\\" in location:
-            location = location.replace("\\", "/")
-        return os.path.basename(location)
 
     fasta_file_list = [parse_location(fasta_file) for fasta_file in fasta_files]
     fasta_file_list = ";".join(fasta_file_list)

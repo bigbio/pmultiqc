@@ -6,11 +6,11 @@ from __future__ import absolute_import
 import os
 import logging
 import pandas as pd
+import re
 from datetime import datetime
 
 from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.common.ms_functions import get_ms_qc_info
-from pmultiqc.modules.common.ms_io import add_ms_values, spectra_ref_check
+from pmultiqc.modules.common.utils import get_ms_qc_info
 from pmultiqc.modules.common.ms.msreader import MSReader
 
 # Initialise the main MultiQC logger
@@ -20,6 +20,100 @@ log = logging.getLogger(__name__)
 
 class MSInfoReader(MSReader):
     """Class for reading and processing MS info files"""
+
+    def _spectra_ref_check(self, spectra_ref):
+        """
+        Extract scan number from spectra reference string
+        
+        Args:
+            spectra_ref: String containing spectra reference (e.g., "scan=123", "spectrum=456", or "123")
+            
+        Returns:
+            str: Extracted scan number
+            
+        Raises:
+            ValueError: If spectra_ref format is not recognized
+        """
+        match_scan = re.search(r"scan=(\d+)", spectra_ref)
+        if match_scan:
+            return match_scan.group(1)
+
+        match_spectrum = re.search(r"spectrum=(\d+)", spectra_ref)
+        if match_spectrum:
+            return match_spectrum.group(1)
+
+        try:
+            if int(spectra_ref):
+                return spectra_ref
+        except ValueError:
+            raise ValueError("Please check the 'spectra_ref' field in your mzTab file.")
+
+    def _add_ms_values(
+        self,
+        info_df,
+        ms_name,
+        ms_with_psm,
+        identified_spectrum_scan_id,
+        mzml_charge_plot,
+        mzml_peak_distribution_plot,
+        mzml_peaks_ms2_plot,
+        mzml_charge_plot_1,
+        mzml_peak_distribution_plot_1,
+        mzml_peaks_ms2_plot_1,
+        ms_without_psm,
+        enable_dia=False,
+    ):
+        """
+        Process MS values from a dataframe row and add them to the appropriate histograms
+
+        Args:
+            info_df: Series row containing MS information
+            ms_name: Name of the MS file
+            ms_with_psm: List of MS files with PSMs
+            identified_spectrum_scan_id: List of identified spectra by MS file
+            mzml_charge_plot: Histogram for charge distribution of identified spectra
+            mzml_peak_distribution_plot: Histogram for peak distribution of identified spectra
+            mzml_peaks_ms2_plot: Histogram for peaks per MS2 of identified spectra
+            mzml_charge_plot_1: Histogram for charge distribution of unidentified spectra
+            mzml_peak_distribution_plot_1: Histogram for peak distribution of unidentified spectra
+            mzml_peaks_ms2_plot_1: Histogram for peaks per MS2 of unidentified spectra
+            ms_without_psm: List of MS files without PSMs
+            enable_dia: Whether DIA mode is enabled
+        """
+        # info_df is a Pandas.Series not a DataFrame
+        # "precursor_charge" --> "Charge",
+        # "base_peak_intensity" --> "Base_Peak_Intensity",
+        # "num_peaks": --> "MS_peaks"
+
+        charge_state = (
+            int(info_df["precursor_charge"]) if pd.notna(info_df["precursor_charge"]) else None
+        )
+
+        base_peak_intensity = (
+            float(info_df["base_peak_intensity"]) if pd.notna(info_df["base_peak_intensity"]) else None
+        )
+
+        peak_per_ms2 = int(info_df["num_peaks"]) if pd.notna(info_df["num_peaks"]) else None
+
+        if enable_dia:
+            mzml_charge_plot.add_value(charge_state)
+            mzml_peak_distribution_plot.add_value(base_peak_intensity)
+            mzml_peaks_ms2_plot.add_value(peak_per_ms2)
+            return
+
+        if ms_name in ms_with_psm:
+            # only "scan" in info_df not "SpectrumID"
+            if info_df["scan"] in identified_spectrum_scan_id:
+                mzml_charge_plot.add_value(charge_state)
+                mzml_peak_distribution_plot.add_value(base_peak_intensity)
+                mzml_peaks_ms2_plot.add_value(peak_per_ms2)
+            else:
+                mzml_charge_plot_1.add_value(charge_state)
+                mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
+                mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
+        else:
+            ms_without_psm.append(ms_name)
+
     def read(
         self,
         file_paths=None,
@@ -101,12 +195,12 @@ class MSInfoReader(MSReader):
                         "ms_io: The identified_spectrum is missing. Please check your mzTab file!"
                     )
                 identified_spectrum_scan_id = [
-                    spectra_ref_check(spectrum_id) for spectrum_id in identified_spectrum[m]
+                    self._spectra_ref_check(spectrum_id) for spectrum_id in identified_spectrum[m]
                 ]
 
-            # Apply add_ms_values to each row
+            # Apply _add_ms_values to each row
             for _, row in group.iterrows():
-                add_ms_values(
+                self._add_ms_values(
                     row,
                     m,
                     ms_with_psm,
