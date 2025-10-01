@@ -15,7 +15,7 @@ from pmultiqc.modules.common.utils import (
     get_msstats_path,
     parse_mzml
 )
-from pmultiqc.modules.common.common_plots import (
+from pmultiqc.modules.common.plots import (
     HEATMAP_COLOR_LIST,
     draw_exp_design,
     draw_summary_protein_ident_table,

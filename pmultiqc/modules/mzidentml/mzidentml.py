@@ -477,7 +477,7 @@ class MzIdentMLModule:
 
         if spec_e_bar_html != "":
 
-            spec_e_bar_html = common_plots.remove_subtitle(spec_e_bar_html)
+            spec_e_bar_html = remove_subtitle(spec_e_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -492,7 +492,7 @@ class MzIdentMLModule:
 
         if xcorr_bar_html != "":
 
-            xcorr_bar_html = common_plots.remove_subtitle(xcorr_bar_html)
+            xcorr_bar_html = remove_subtitle(xcorr_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -507,7 +507,7 @@ class MzIdentMLModule:
 
         if hyper_bar_html != "":
 
-            hyper_bar_html = common_plots.remove_subtitle(hyper_bar_html)
+            hyper_bar_html = remove_subtitle(hyper_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -537,7 +537,7 @@ class MzIdentMLModule:
             list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
         )
 
-        pep_bar_html = common_plots.remove_subtitle(pep_bar_html)
+        pep_bar_html = remove_subtitle(pep_bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["search_engine"],
@@ -565,7 +565,7 @@ class MzIdentMLModule:
                 bar_cats,
                 consensus_pconfig,
             )
-            consensus_bar_html = common_plots.remove_subtitle(consensus_bar_html)
+            consensus_bar_html = remove_subtitle(consensus_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -968,7 +968,7 @@ class MzIdentMLModule:
             protein_count,
             pconfig=draw_config,
         )
-        bar_html = common_plots.remove_subtitle(bar_html)
+        bar_html = remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["identification"],
@@ -992,7 +992,7 @@ class MzIdentMLModule:
             peptide_count,
             pconfig=draw_config,
         )
-        bar_html = common_plots.remove_subtitle(bar_html)
+        bar_html = remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["identification"],
@@ -1030,7 +1030,7 @@ class MzIdentMLModule:
                 }
 
             mc_data = {"plot_data": mc_group_ratio, "cats": ["0", "1", ">=2"]}
-            common_plots.draw_msms_missed_cleavages(
+            draw_msms_missed_cleavages(
                 self.sub_sections["identification"], mc_data, False
             )
 
@@ -1046,7 +1046,7 @@ class MzIdentMLModule:
                 if all_ms2 > 0:
                     msms_identified_rate[m] = {"Identified Rate": (identified_ms2 / all_ms2) * 100}
 
-            common_plots.draw_ms_ms_identified(
+            draw_ms_ms_identified(
                 self.sub_sections["identification"], msms_identified_rate
             )
 

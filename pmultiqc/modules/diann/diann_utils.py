@@ -2,11 +2,11 @@ import logging
 import os
 import pandas as pd
 
-from pmultiqc.modules.common.stats import qual_uniform as QualUniform
+from pmultiqc.modules.common.stats import qual_uniform
 
 import numpy as np
 from pmultiqc.modules.diann import diann_plots
-from pmultiqc.modules.common.common_plots import (
+from pmultiqc.modules.common.plots import (
     draw_peptides_table,
     draw_protein_table,
     draw_ids_rt_count
@@ -221,7 +221,7 @@ def heatmap_cont_pep_intensity(report_df):
         )
 
         # 5. "ID rate over RT"
-        ids_rate_over_rt = QualUniform(group["RT"])
+        ids_rate_over_rt = qual_uniform(group["RT"])
 
         # 6. Normalization Factor MAD
         def mean_abs_dev(x):

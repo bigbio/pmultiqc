@@ -23,7 +23,7 @@ import copy
 import json
 
 from . import sparklines
-from pmultiqc.modules.common import common_plots
+from pmultiqc.modules.common.plots import *
 from pmultiqc.modules.common.utils import del_openms_convert_tsv
 from pmultiqc.modules.common.id.mzid import MzIdentMLReader
 from pmultiqc.modules.common.id.idxml import IDXMLReader
@@ -120,7 +120,7 @@ class QuantMSModule:
         # quantms (LFQ or TMT)
         else:
 
-            self.heatmap_color_list = common_plots.HEATMAP_COLOR_LIST
+            self.heatmap_color_list = HEATMAP_COLOR_LIST
 
             self.ms_with_psm = list()
             self.total_protein_identified = 0
@@ -204,7 +204,7 @@ class QuantMSModule:
                     self.exp_design_runs,
                     self.is_bruker,
                     self.is_multi_conditions
-                ) = common_plots.draw_exp_design(
+                ) = draw_exp_design(
                     self.sub_sections["experiment"],
                     self.exp_design
                 )
@@ -247,7 +247,7 @@ class QuantMSModule:
             for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
                 self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
 
-            common_plots.draw_ms_information(
+            draw_ms_information(
                 self.sub_sections["ms1"],
                 ms1_tic,
                 ms1_bpc,
@@ -260,7 +260,7 @@ class QuantMSModule:
             self.cal_heat_map_score()
 
             heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
-            common_plots.draw_heatmap(
+            draw_heatmap(
                 self.sub_sections["summary"],
                 self.heatmap_color_list,
                 heatmap_data,
@@ -269,7 +269,7 @@ class QuantMSModule:
                 False,
             )
 
-            common_plots.draw_summary_protein_ident_table(
+            draw_summary_protein_ident_table( 
                 sub_sections=self.sub_sections["summary"],
                 enable_dia=self.enable_dia,
                 total_peptide_count=self.total_peptide_count,
@@ -279,7 +279,7 @@ class QuantMSModule:
                 total_protein_identified=self.total_protein_identified
             )
 
-            common_plots.draw_quantms_identi_num(
+            draw_quantms_identi_num(
                 self.sub_sections["summary"],
                 self.enable_exp,
                 self.enable_sdrf,
@@ -289,7 +289,7 @@ class QuantMSModule:
                 self.cal_num_table_data
             )
 
-            common_plots.draw_num_pep_per_protein(
+            draw_num_pep_per_protein(
                 self.sub_sections["identification"],
                 self.pep_plot
             )
@@ -298,25 +298,25 @@ class QuantMSModule:
                 self.draw_mzml_ms()
                 self.draw_search_engine()
 
-            common_plots.draw_precursor_charge_distribution(
+            draw_precursor_charge_distribution(
                 self.sub_sections["ms2"],
                 charge_plot=self.mzml_charge_plot,
                 ms_info=self.ms_info
             )
 
             if len(self.ms_info_path) > 0 and not self.is_bruker:
-                common_plots.draw_peaks_per_ms2(
+                draw_peaks_per_ms2(
                     self.sub_sections["ms2"],
                     mzml_peaks_ms2_plot,
                     self.ms_info
                 )
-                common_plots.draw_peak_intensity_distribution(
+                draw_peak_intensity_distribution(
                     self.sub_sections["ms2"],
                     mzml_peak_distribution_plot,
                     self.ms_info
                 )
 
-            common_plots.draw_oversampling(
+            draw_oversampling(
                 self.sub_sections["ms2"],
                 self.oversampling,
                 self.oversampling_plot.dict["cats"],
@@ -324,7 +324,7 @@ class QuantMSModule:
             )
             self.draw_delta_mass()
 
-            common_plots.draw_quantms_identification(
+            draw_quantms_identification(
                 self.sub_sections["identification"],
                 cal_num_table_data=self.cal_num_table_data,
                 mzml_table=mzml_table,
@@ -905,7 +905,7 @@ class QuantMSModule:
 
         if spec_e_bar_html != "":
 
-            spec_e_bar_html = common_plots.remove_subtitle(spec_e_bar_html)
+            spec_e_bar_html = remove_subtitle(spec_e_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -920,7 +920,7 @@ class QuantMSModule:
 
         if xcorr_bar_html != "":
 
-            xcorr_bar_html = common_plots.remove_subtitle(xcorr_bar_html)
+            xcorr_bar_html = remove_subtitle(xcorr_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -935,7 +935,7 @@ class QuantMSModule:
 
         if hyper_bar_html != "":
 
-            hyper_bar_html = common_plots.remove_subtitle(hyper_bar_html)
+            hyper_bar_html = remove_subtitle(hyper_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -965,7 +965,7 @@ class QuantMSModule:
             list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
         )
 
-        pep_bar_html = common_plots.remove_subtitle(pep_bar_html)
+        pep_bar_html = remove_subtitle(pep_bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["search_engine"],
@@ -993,7 +993,7 @@ class QuantMSModule:
                 bar_cats,
                 consensus_pconfig,
             )
-            consensus_bar_html = common_plots.remove_subtitle(consensus_bar_html)
+            consensus_bar_html = remove_subtitle(consensus_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -2371,13 +2371,13 @@ class QuantMSModule:
 
         # 1.Potential Contaminants per Group
         if self.quantms_contaminant_percent:
-            common_plots.draw_potential_contaminants(
+            draw_potential_contaminants(
                 self.sub_sections["contaminants"], self.quantms_contaminant_percent, False
             )
 
         # 2.Top5 Contaminants per Raw file
         if self.quantms_top_contaminant_percent:
-            common_plots.draw_top_n_contaminants(
+            draw_top_n_contaminants(
                 self.sub_sections["contaminants"], self.quantms_top_contaminant_percent
             )
 
@@ -2394,7 +2394,7 @@ class QuantMSModule:
                 "xlab": "log2(Intensity)",
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
-            box_html = common_plots.remove_subtitle(box_html)
+            box_html = remove_subtitle(box_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["quantification"],
@@ -2411,19 +2411,19 @@ class QuantMSModule:
 
         # 1.Charge-state of Per File
         if self.mztab_charge_state:
-            common_plots.draw_charge_state(self.sub_sections["ms2"], self.mztab_charge_state, "")
+            draw_charge_state(self.sub_sections["ms2"], self.mztab_charge_state, "")
 
     def draw_quantms_time_section(self):
 
         # 1.IDs over RT
         if self.quantms_ids_over_rt:
-            common_plots.draw_ids_rt_count(
+            draw_ids_rt_count(
                 self.sub_sections["rt_qc"], self.quantms_ids_over_rt, ""
             )
 
         # 2.Delta Mass [ppm]
         if self.quantms_mass_error:
-            common_plots.draw_delta_mass_da_ppm(
+            draw_delta_mass_da_ppm(
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
 

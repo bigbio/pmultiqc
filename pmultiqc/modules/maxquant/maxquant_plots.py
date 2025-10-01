@@ -8,7 +8,7 @@ from collections import OrderedDict
 import itertools
 
 from ..core.section_groups import add_sub_section
-from ..common.common_plots import remove_subtitle
+from ..common.plots import remove_subtitle
 
 
 def draw_exp_design(sdrf_df, sub_sections):
