@@ -42,7 +42,7 @@ class MaxQuantModule(BaseModule):
     def _initialize_module(self):
         """Initialize MaxQuant-specific attributes."""
         # Discover MaxQuant files
-        self.maxquant_paths = maxquant_io.discover_maxquant_files(self.find_log_files)
+        self.maxquant_paths = maxquant_io.maxquant_file_path(self.find_log_files)
         
         # Validate required files
         if not self.maxquant_paths:
@@ -279,7 +279,7 @@ class MaxQuantModule(BaseModule):
             except Exception as e:
                 log.warning(f"Error occurred while calculating heatmap: {e}")
 
-        return {
+        self.mq_results = {
             "get_parameter_dicts": get_parameter_dicts,
             "get_protegroups_dicts": get_protegroups_dicts,
             "ms_ms_identified": ms_ms_identified,
@@ -288,6 +288,8 @@ class MaxQuantModule(BaseModule):
             "get_msms_scans_dicts": get_msms_scans_dicts,
             "maxquant_heatmap": maxquant_heatmap,
         }
+        
+        return self.mq_results
     def draw_plots(self):
 
         # Parameters
