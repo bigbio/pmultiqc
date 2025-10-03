@@ -25,8 +25,8 @@ import numpy as np
 import copy
 import json
 
-from . import sparklines
-from .ms_functions import get_ms_qc_info
+from pmultiqc.modules.quantms import sparklines
+from pmultiqc.modules.quantms.ms_functions import get_ms_qc_info
 from ..common import ms_io, common_plots
 from ..common.histogram import Histogram
 from ..common.calc_utils import qualUniform
@@ -37,7 +37,7 @@ from ..maxquant.maxquant_utils import (
     evidence_rt_count,
     evidence_calibrated_mass_error
 )
-from .quantms_plots import (
+from pmultiqc.modules.quantms.quantms_plots import (
     draw_dia_heatmap,
     draw_dia_intensitys,
     draw_dia_ms1,
@@ -46,7 +46,7 @@ from .quantms_plots import (
     draw_dia_rt_qc,
     draw_diann_quant_table,
 )
-from .quantms_utils import condition_split
+from pmultiqc.modules.quantms.quantms_utils import condition_split
 
 
 # Initialise the main MultiQC logger
@@ -55,7 +55,7 @@ log = logging.getLogger(__name__)
 
 log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
 
-class QuantMSModule:
+class DiannModule:
 
     def __init__(
             self,

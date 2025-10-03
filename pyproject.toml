@@ -56,7 +56,6 @@ LICENSE = "https://github.com/bigbio/pmultiqc/blob/main/LICENSE"
 pmultiqc = "pmultiqc.modules.core:PMultiQC"
 
 [tool.poetry.plugins."multiqc.cli_options.v1"]
-disable_plugin = "pmultiqc.cli:disable_plugin"
 pmultiqc_version = "pmultiqc.cli:pmultiqc_version"
 raw = "pmultiqc.cli:raw"
 condition = "pmultiqc.cli:condition"
@@ -68,8 +67,11 @@ disable_table = "pmultiqc.cli:disable_table"
 ignored_idxml = "pmultiqc.cli:ignored_idxml"
 affix_type = "pmultiqc.cli:affix_type"
 mzid_plugin = "pmultiqc.cli:mzid_plugin"
-parse_maxquant = "pmultiqc.cli:parse_maxquant"
-parse_proteobench = "pmultiqc.cli:parse_proteobench"
+maxquant_plugin = "pmultiqc.cli:maxquant_plugin"
+proteobench_plugin = "pmultiqc.cli:proteobench_plugin"
+diann_plugin = "pmultiqc.cli:diann_plugin"
+quantms_plugin = "pmultiqc.cli:quantms_plugin"
+
 
 [tool.poetry.plugins."multiqc.hooks.v1"]
 execution_start = "pmultiqc.main:pmultiqc_plugin_execution_start"

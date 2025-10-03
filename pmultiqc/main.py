@@ -34,10 +34,6 @@ def pmultiqc_plugin_execution_start():
     to use custom command line flags.
     """
 
-    # Halt execution if we've disabled the plugin
-    if config.kwargs.get("disable_plugin", True):
-        return None
-
     log.warning("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 
     # If a compressed file is submitted, extract it first.
