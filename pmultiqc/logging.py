@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Logging system for pmultiqc package.
 

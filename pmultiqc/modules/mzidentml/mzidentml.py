@@ -26,20 +26,16 @@ from pmultiqc.modules.quantms.mzidentml_utils import (
     get_mzidentml_mzml_df,
     get_mzidentml_charge,
     get_mzid_rt_id,
-    get_mzid_num_data
+    get_mzid_num_data,
 )
 from ..common import ms_io, common_plots
 from ..common.histogram import Histogram
 from ..common.calc_utils import qualUniform
 from ..common.file_utils import file_prefix
 from ..core.section_groups import add_group_modules, add_sub_section
-from ..maxquant.maxquant_utils import (
-    mod_group_percentage
-)
+from ..maxquant.maxquant_utils import mod_group_percentage
 
-from pmultiqc.modules.quantms.quantms_plots import (
-    draw_mzid_quant_table
-)
+from pmultiqc.modules.quantms.quantms_plots import draw_mzid_quant_table
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -47,19 +43,14 @@ log = logging.getLogger(__name__)
 
 log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
 
+
 class MzIdentMLModule:
 
-    def __init__(
-            self,
-            find_log_files_func,
-            sub_sections,
-            heatmap_colors
-        ):
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
         self.find_log_files = find_log_files_func
         self.sub_sections = sub_sections
         self.heatmap_color_list = heatmap_colors
-
 
         self.ms_with_psm = list()
         self.total_protein_identified = 0
@@ -89,7 +80,6 @@ class MzIdentMLModule:
         self.quantms_contaminant_percent = dict()
         self.quantms_top_contaminant_percent = dict()
         self.quantms_mass_error = dict()
-        
 
         self.ms_paths = []
         for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
@@ -122,29 +112,21 @@ class MzIdentMLModule:
             mzidentml_df = get_mzidentml_mzml_df(mzid_psm, self.mzml_ms_df)
             if len(mzidentml_df) > 0:
 
-                draw_mzid_quant_table(
-                    self.sub_sections["quantification"],
-                    mzidentml_df
-                )
+                draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
 
                 mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
                 common_plots.draw_charge_state(
-                    self.sub_sections["ms2"],
-                    mzid_mzml_charge_state,
-                    "mzIdentML"
+                    self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
                 )
 
                 mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
                 common_plots.draw_ids_rt_count(
-                    self.sub_sections["rt_qc"],
-                    mzid_ids_over_rt,
-                    "mzIdentML"
+                    self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
                 )
 
-                (
-                    self.cal_num_table_data,
-                    self.identified_msms_spectra
-                ) = get_mzid_num_data(mzidentml_df)
+                (self.cal_num_table_data, self.identified_msms_spectra) = get_mzid_num_data(
+                    mzidentml_df
+                )
                 self.draw_quantms_identification(mt)
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
@@ -156,7 +138,7 @@ class MzIdentMLModule:
             heatmap_data,
             heatmap_xnames,
             heatmap_ynames,
-            False
+            False,
         )
 
         self.draw_summary_protein_ident_table()
@@ -166,40 +148,35 @@ class MzIdentMLModule:
         self.draw_peaks_per_ms2()
         self.draw_peak_intensity_distribution()
         common_plots.draw_oversampling(
-            self.sub_sections["ms2"],
-            self.oversampling,
-            self.oversampling_plot.dict["cats"],
-            False
+            self.sub_sections["ms2"], self.oversampling, self.oversampling_plot.dict["cats"], False
         )
 
-
         self.section_group_dict = {
-                "experiment_sub_section": self.sub_sections["experiment"],
-                "summary_sub_section": self.sub_sections["summary"],
-                "identification_sub_section": self.sub_sections["identification"],
-                "search_engine_sub_section": self.sub_sections["search_engine"],
-                "contaminants_sub_section": self.sub_sections["contaminants"],
-                "quantification_sub_section": self.sub_sections["quantification"],
-                "ms1_sub_section": self.sub_sections["ms1"],
-                "ms2_sub_section": self.sub_sections["ms2"],
-                "mass_error_sub_section": self.sub_sections["mass_error"],
-                "rt_qc_sub_section": self.sub_sections["rt_qc"],
-            }
+            "experiment_sub_section": self.sub_sections["experiment"],
+            "summary_sub_section": self.sub_sections["summary"],
+            "identification_sub_section": self.sub_sections["identification"],
+            "search_engine_sub_section": self.sub_sections["search_engine"],
+            "contaminants_sub_section": self.sub_sections["contaminants"],
+            "quantification_sub_section": self.sub_sections["quantification"],
+            "ms1_sub_section": self.sub_sections["ms1"],
+            "ms2_sub_section": self.sub_sections["ms2"],
+            "mass_error_sub_section": self.sub_sections["mass_error"],
+            "rt_qc_sub_section": self.sub_sections["rt_qc"],
+        }
 
         add_group_modules(self.section_group_dict, "")
-        
-    
+
     def calculate_heatmap(self):
 
         heat_map_score = []
         xnames = [
-                "Charge",
-                "Missed Cleavages",
-                "Missed Cleavages Var",
-                "ID rate over RT",
-                "MS2 OverSampling",
-                "Pep Missing Values",
-            ]
+            "Charge",
+            "Missed Cleavages",
+            "Missed Cleavages Var",
+            "ID rate over RT",
+            "MS2 OverSampling",
+            "Pep Missing Values",
+        ]
         ynames = []
         for k, v in self.heatmap_charge_score.items():
             if k in self.ms_with_psm:
@@ -219,17 +196,13 @@ class MzIdentMLModule:
     def draw_summary_protein_ident_table(self):
         headers = OrderedDict()
         summary_table = {
-                self.total_ms2_spectra: {
-                    "#Identified MS2 Spectra": self.total_ms2_spectra_identified
-                }
-            }
+            self.total_ms2_spectra: {"#Identified MS2 Spectra": self.total_ms2_spectra_identified}
+        }
         coverage = self.total_ms2_spectra_identified / self.total_ms2_spectra * 100
         summary_table[self.total_ms2_spectra]["%Identified MS2 Spectra"] = coverage
+        summary_table[self.total_ms2_spectra]["#Peptides Identified"] = self.total_peptide_count
         summary_table[self.total_ms2_spectra][
-                "#Peptides Identified"
-        ] = self.total_peptide_count
-        summary_table[self.total_ms2_spectra][
-                "#Proteins Identified"
+            "#Proteins Identified"
         ] = self.total_protein_identified
 
         if not config.kwargs.get("mzid_plugin", False):
@@ -245,7 +218,7 @@ class MzIdentMLModule:
             "format": "{:,.2f}",
             "suffix": "%",
         }
-        col_header = "#MS2 Spectra"            
+        col_header = "#MS2 Spectra"
 
         # Create table plot
         pconfig = {
@@ -262,7 +235,6 @@ class MzIdentMLModule:
 
         table_html = table.plot(summary_table, headers, pconfig)
 
-        
         description_str = "This plot shows the summary statistics of the submitted data."
         # TODO: add description here @Yasset
         helptext_str = """
@@ -274,7 +246,7 @@ class MzIdentMLModule:
             plot=table_html,
             order=1,
             description=description_str,
-            helptext=helptext_str
+            helptext=helptext_str,
         )
 
     def draw_ms_information(self):
@@ -313,7 +285,7 @@ class MzIdentMLModule:
                     
                     Deviations such as shifted retention times, missing peaks, or inconsistent intensities may signal problems 
                     in sample preparation, LC conditions, or mass spectrometer performance that require further investigation.
-                    """
+                    """,
             )
 
         if self.ms1_bpc:
@@ -345,7 +317,7 @@ class MzIdentMLModule:
                     clearer peak visualization when signal-to-noise ratio is a concern. Comparing BPC patterns across
                     samples allows you to evaluate consistency in the detection of high-abundance compounds
                     and can reveal significant variations in sample composition or instrument performance.
-                    """
+                    """,
             )
 
         if self.ms1_peaks:
@@ -389,7 +361,7 @@ class MzIdentMLModule:
                     Monitoring MS1 peak counts complements total ion chromatogram (TIC) and base peak chromatogram
                     (BPC) data, offering an additional layer of quality control related to signal complexity,
                     instrument stability, and sample composition.
-                    """
+                    """,
             )
 
         if self.ms1_general_stats:
@@ -408,7 +380,7 @@ class MzIdentMLModule:
                 },
                 "log10(TotalCurrent)": {
                     "title": "log10(Total Current)",
-                    "format": "{:,.4f}", 
+                    "format": "{:,.4f}",
                 },
                 "log10(ScanCurrent)": {
                     "title": "log10(Scan Current)",
@@ -430,7 +402,7 @@ class MzIdentMLModule:
                     allowing for comparison of overall signal intensity across samples. Consistent TotalCurrent and ScanCurrent values across similar samples typically
                     indicate good reproducibility in the mass spectrometry analysis, while significant variations may suggest issues with sample preparation,
                     instrument performance, or ionization efficiency. The blue shading helps visualize the relative intensity differences between samples.
-                    """
+                    """,
             )
 
     def draw_quantms_identi_num(self):
@@ -438,7 +410,7 @@ class MzIdentMLModule:
         rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
         if self.enable_exp or self.enable_sdrf:
-                
+
             if self.is_multi_conditions:
                 for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
                     file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
@@ -446,10 +418,14 @@ class MzIdentMLModule:
                     row_data: List[InputRow] = []
 
                     sample_data = {}
-                    for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                    for k, v in condition_split(
+                        sample_df_slice["MSstats_Condition"].iloc[0]
+                    ).items():
                         sample_data["MSstats_Condition_" + str(k)] = v
-                    
-                    sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
+
+                    sample_data["MSstats_BioReplicate"] = sample_df_slice[
+                        "MSstats_BioReplicate"
+                    ].iloc[0]
                     sample_data["Fraction"] = ""
                     sample_data["Peptide_Num"] = ""
                     sample_data["Unique_Peptide_Num"] = ""
@@ -466,27 +442,37 @@ class MzIdentMLModule:
                     for _, row in file_df_sample.iterrows():
 
                         sample_data = {}
-                        for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+                        for k, _ in condition_split(
+                            sample_df_slice["MSstats_Condition"].iloc[0]
+                        ).items():
                             sample_data["MSstats_Condition_" + str(k)] = ""
 
                         sample_data["Fraction"] = row["Fraction"]
-                        sample_data["Peptide_Num"] = self.cal_num_table_data[row["Run"]]["peptide_num"]
-                        sample_data["Unique_Peptide_Num"] = self.cal_num_table_data[row["Run"]]["unique_peptide_num"]
-                        sample_data["Modified_Peptide_Num"] = self.cal_num_table_data[row["Run"]]["modified_peptide_num"]
-                        sample_data["Protein_Num"] = self.cal_num_table_data[row["Run"]]["protein_num"]
+                        sample_data["Peptide_Num"] = self.cal_num_table_data[row["Run"]][
+                            "peptide_num"
+                        ]
+                        sample_data["Unique_Peptide_Num"] = self.cal_num_table_data[row["Run"]][
+                            "unique_peptide_num"
+                        ]
+                        sample_data["Modified_Peptide_Num"] = self.cal_num_table_data[row["Run"]][
+                            "modified_peptide_num"
+                        ]
+                        sample_data["Protein_Num"] = self.cal_num_table_data[row["Run"]][
+                            "protein_num"
+                        ]
 
                         row_data.append(
                             InputRow(
                                 sample=SampleName(row["Run"]),
                                 data=sample_data,
                             )
-                        ) 
+                        )
                     group_name: SampleGroup = SampleGroup(sample)
                     rows_by_group[group_name] = row_data
-                    
+
                 headers = {}
                 for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                    headers["MSstats_Condition_" + str(k)] ={
+                    headers["MSstats_Condition_" + str(k)] = {
                         "title": "MSstats Condition: " + str(k),
                         "description": "",
                         "scale": False,
@@ -537,13 +523,21 @@ class MzIdentMLModule:
                                 data={
                                     "MSstats_Condition": "",
                                     "Fraction": row["Fraction"],
-                                    "Peptide_Num": self.cal_num_table_data[row["Run"]]["peptide_num"],
-                                    "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]]["unique_peptide_num"],
-                                    "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]]["modified_peptide_num"],
-                                    "Protein_Num": self.cal_num_table_data[row["Run"]]["protein_num"],
-                                    },
-                                )
+                                    "Peptide_Num": self.cal_num_table_data[row["Run"]][
+                                        "peptide_num"
+                                    ],
+                                    "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]][
+                                        "unique_peptide_num"
+                                    ],
+                                    "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]][
+                                        "modified_peptide_num"
+                                    ],
+                                    "Protein_Num": self.cal_num_table_data[row["Run"]][
+                                        "protein_num"
+                                    ],
+                                },
                             )
+                        )
                     group_name: SampleGroup = SampleGroup(sample)
                     rows_by_group[group_name] = row_data
 
@@ -585,7 +579,7 @@ class MzIdentMLModule:
                     "Modified_Peptide_Num": value["modified_peptide_num"],
                     "Protein_Num": value["protein_num"],
                 }
-            
+
             headers = {
                 "Peptide_Num": {
                     "title": "#Peptide IDs",
@@ -623,7 +617,7 @@ class MzIdentMLModule:
                 Including Sample Name, Possible Study Variables, identified the number of peptide in the pipeline,
                 and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained 
                 from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
-                """
+                """,
         )
 
     def draw_mzid_identi_num(self):
@@ -666,7 +660,7 @@ class MzIdentMLModule:
                 This plot shows the submitted results.
                 Including the number of identified peptides and the number of identified modified peptides in the submitted results. 
                 You can also remove the decoy with the `remove_decoy` parameter.
-                """
+                """,
         )
 
     # draw number of peptides per proteins
@@ -676,19 +670,19 @@ class MzIdentMLModule:
             data_labels = ["Frequency", "Percentage"]
         else:
             data_labels = [
-                    {
-                        "name": "Frequency",
-                        "ylab": "Frequency",
-                        "tt_suffix": "",
-                        "tt_decimals": 0,
-                    },
-                    {
-                        "name": "Percentage",
-                        "ylab": "Percentage [%]",
-                        "tt_suffix": "%",
-                        "tt_decimals": 2,
-                    },
-                ]
+                {
+                    "name": "Frequency",
+                    "ylab": "Frequency",
+                    "tt_suffix": "",
+                    "tt_decimals": 0,
+                },
+                {
+                    "name": "Percentage",
+                    "ylab": "Percentage [%]",
+                    "tt_suffix": "%",
+                    "tt_decimals": 2,
+                },
+            ]
 
         pconfig = {
             "id": "number_of_peptides_per_proteins",
@@ -717,13 +711,13 @@ class MzIdentMLModule:
                         This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
                         identifications can constitute more confident results.
                     """
-        
+
         add_sub_section(
             sub_section=self.sub_sections["identification"],
             plot=bar_html,
             order=1,
             description=description_str,
-            helptext=helptext_str
+            helptext=helptext_str,
         )
 
     def draw_mzml_ms(self):
@@ -795,7 +789,7 @@ class MzIdentMLModule:
                 * Sage: The Number of spectra identified by Sage search engine
                 * PSMs from quant. peptides: extracted from PSM table in mzTab file
                 * Peptides quantified: extracted from PSM table in mzTab file
-                """
+                """,
         )
 
     def draw_peak_intensity_distribution(self):
@@ -838,7 +832,7 @@ class MzIdentMLModule:
                 spectrum pre-processing before matching the spectra. Thus, the spectra reported are not 
                 necessarily pre-processed since the search engine may have applied the pre-processing step 
                 internally. This pre-processing is not necessarily reported in the experimental metadata.
-                """
+                """,
         )
 
     def draw_precursor_charge_distribution(self):
@@ -870,7 +864,7 @@ class MzIdentMLModule:
                 distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ 
                 charged ions. An unexpected charge distribution may furthermore be caused by specific search 
                 engine parameter settings such as limiting the search to specific ion charges.
-                """
+                """,
         )
 
     def draw_peaks_per_ms2(self):
@@ -906,21 +900,23 @@ class MzIdentMLModule:
                 or a detector fault, as opposed to a large number of peaks representing very noisy spectra. 
                 This chart is extensively dependent on the pre-processing steps performed to the spectra 
                 (centroiding, deconvolution, peak picking approach, etc).
-                """
+                """,
         )
-
-
 
     def draw_delta_mass(self):
 
         delta_mass = self.delta_mass
         delta_mass_percent = {
-            "target": {k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()}
+            "target": {
+                k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()
+            }
         }
-        
+
         if delta_mass["decoy"]:
 
-            delta_mass_percent["decoy"] = {k: v / sum(delta_mass["decoy"].values()) for k, v in delta_mass["decoy"].items()}
+            delta_mass_percent["decoy"] = {
+                k: v / sum(delta_mass["decoy"].values()) for k, v in delta_mass["decoy"].items()
+            }
 
             x_values = list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())
 
@@ -934,14 +930,24 @@ class MzIdentMLModule:
             if max(abs(x) for x in x_values) > range_abs:
 
                 delta_mass_range = dict()
-                delta_mass_range["target"] = {k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs}
-                delta_mass_range["decoy"] = {k: v for k, v in delta_mass["decoy"].items() if abs(k) <= range_abs}
+                delta_mass_range["target"] = {
+                    k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs
+                }
+                delta_mass_range["decoy"] = {
+                    k: v for k, v in delta_mass["decoy"].items() if abs(k) <= range_abs
+                }
 
                 delta_mass_percent_range = dict()
-                delta_mass_percent_range["target"] = {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs}
-                delta_mass_percent_range["decoy"] = {k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= range_abs}
-                
-                x_values_adj = list(delta_mass_range["target"].keys()) + list(delta_mass_range["decoy"].keys())
+                delta_mass_percent_range["target"] = {
+                    k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs
+                }
+                delta_mass_percent_range["decoy"] = {
+                    k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= range_abs
+                }
+
+                x_values_adj = list(delta_mass_range["target"].keys()) + list(
+                    delta_mass_range["decoy"].keys()
+                )
                 range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
 
                 data_label = [
@@ -988,13 +994,8 @@ class MzIdentMLModule:
                     "showlegend": True,
                 }
                 line_html = linegraph.plot(
-                    [
-                        delta_mass_range,
-                        delta_mass_percent_range,
-                        delta_mass,
-                        delta_mass_percent
-                    ],
-                    pconfig
+                    [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
+                    pconfig,
                 )
 
             else:
@@ -1042,11 +1043,17 @@ class MzIdentMLModule:
             if max(abs(x) for x in x_values) > range_abs:
 
                 delta_mass_range = {
-                    "target": {k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs}
+                    "target": {
+                        k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs
+                    }
                 }
 
                 delta_mass_percent_range = {
-                    "target": {k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs}
+                    "target": {
+                        k: v
+                        for k, v in delta_mass_percent["target"].items()
+                        if abs(k) <= range_abs
+                    }
                 }
 
                 x_values_adj = list(delta_mass_range["target"].keys())
@@ -1095,13 +1102,8 @@ class MzIdentMLModule:
                     "style": "lines+markers",
                 }
                 line_html = linegraph.plot(
-                    [
-                        delta_mass_range,
-                        delta_mass_percent_range,
-                        delta_mass,
-                        delta_mass_percent
-                    ],
-                    pconfig
+                    [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
+                    pconfig,
                 )
 
             else:
@@ -1147,7 +1149,7 @@ class MzIdentMLModule:
                 This plot can highlight systematic bias if not centered on zero. 
                 Other distributions can reflect modifications not being reported properly. 
                 Also it is easy to see the different between the target and the decoys identifications.
-                """
+                """,
         )
 
     def draw_search_engine(self):
@@ -1229,7 +1231,7 @@ class MzIdentMLModule:
                 helptext="""
                         This statistic is extracted from idXML files. SpecEvalue: Spectral E-values, 
                         the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
-                        """
+                        """,
             )
 
         if xcorr_bar_html != "":
@@ -1244,7 +1246,7 @@ class MzIdentMLModule:
                 helptext="""
                         This statistic is extracted from idXML files. xcorr: cross-correlation scores, 
                         the search score of Comet. The value used for plotting is xcorr.
-                        """
+                        """,
             )
 
         if hyper_bar_html != "":
@@ -1259,7 +1261,7 @@ class MzIdentMLModule:
                 helptext="""
                         This statistic is extracted from idXML files. hyperscore: Hyperscore, the search 
                         score of Sage. The value used for plotting is hyperscore.
-                        """
+                        """,
             )
 
         # Create PEPs summary plot
@@ -1286,7 +1288,7 @@ class MzIdentMLModule:
             plot=pep_bar_html,
             order=4,
             description="",
-            helptext="This statistic is extracted from idXML files."
+            helptext="This statistic is extracted from idXML files.",
         )
 
         # Create identified number plot
@@ -1326,7 +1328,7 @@ class MzIdentMLModule:
                     three search runs, peptides identified by two of them will have a "support" of 0.5.) 
                     For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide 
                     is the average similarity of the most-similar peptide from each (other) search run.
-                    """
+                    """,
             )
 
         # TODO
@@ -1443,23 +1445,32 @@ class MzIdentMLModule:
             pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
 
             # Contaminants
-            if len(pep_table[pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])]) > 0:
+            if (
+                len(
+                    pep_table[
+                        pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
+                    ]
+                )
+                > 0
+            ):
 
                 self.quantms_contaminant_percent = self.cal_quantms_contaminant_percent(
                     pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy()
                 )
 
                 self.quantms_top_contaminant_percent = self.top_n_contaminant_percent(
-                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(),
-                    5
+                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(), 5
                 )
 
             for name, group in pep_table.groupby("stand_spectra_ref"):
 
-                contaminant_sum = group[
-                    group["accession"].str.contains(
-                        config.kwargs["contaminant_affix"]
-                    )][study_variables].sum(axis=0).sum()
+                contaminant_sum = (
+                    group[group["accession"].str.contains(config.kwargs["contaminant_affix"])][
+                        study_variables
+                    ]
+                    .sum(axis=0)
+                    .sum()
+                )
                 all_sum = group[study_variables].sum(axis=0).sum()
                 self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
 
@@ -1469,7 +1480,9 @@ class MzIdentMLModule:
                             study_variables
                         ].to_numpy()
                     )
-                    self.quantms_pep_intensity[name] = group[(group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)]["average_intensity"].apply(
+                    self.quantms_pep_intensity[name] = group[
+                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
+                    ]["average_intensity"].apply(
                         lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
                     )
                 else:
@@ -1596,7 +1609,7 @@ class MzIdentMLModule:
                 return "DECOY"
 
     def parse_mzml(self):
-        
+
         self.mzml_peak_distribution_plot = Histogram(
             "Peak Intensity",
             plot_category="range",
@@ -1637,13 +1650,8 @@ class MzIdentMLModule:
             True,
         )
 
-        (
-            mzml_table,
-            heatmap_charge,
-            self.total_ms2_spectra,
-            self.mzml_ms_df
-        ) = result
-        
+        (mzml_table, heatmap_charge, self.total_ms2_spectra, self.mzml_ms_df) = result
+
         for i in self.ms_without_psm:
             log.warning("No PSM found in '{}'!".format(i))
 
@@ -1667,17 +1675,17 @@ class MzIdentMLModule:
             "identified_spectra": self.mzml_charge_plot.dict["data"],
             "unidentified_spectra": self.mzml_charge_plot_1.dict["data"],
         }
-        
+
         self.ms_info["peaks_per_ms2"] = {
             "identified_spectra": self.mzml_peaks_ms2_plot.dict["data"],
             "unidentified_spectra": self.mzml_peaks_ms2_plot_1.dict["data"],
         }
-            
+
         self.ms_info["peak_distribution"] = {
             "identified_spectra": self.mzml_peak_distribution_plot.dict["data"],
             "unidentified_spectra": self.mzml_peak_distribution_plot_1.dict["data"],
         }
-    
+
         median = np.median(list(heatmap_charge.values()))
         self.heatmap_charge_score = dict(
             zip(
@@ -1910,7 +1918,10 @@ class MzIdentMLModule:
 
         group_stats = pep_df.groupby("stand_spectra_ref").agg(
             total_intensity=("average_intensity", "sum"),
-            cont_intensity=("average_intensity", lambda x: x[pep_df["accession"].str.contains("CONT")].sum())
+            cont_intensity=(
+                "average_intensity",
+                lambda x: x[pep_df["accession"].str.contains("CONT")].sum(),
+            ),
         )
 
         group_stats["contaminant_percent"] = (
@@ -1927,13 +1938,14 @@ class MzIdentMLModule:
 
         not_cont_tag = "NOT_CONT"
         pep_df["cont_accession"] = pep_df["accession"].apply(
-            lambda x: x.replace("CONTAMINANT_", "") if x.startswith("CONTAMINANT_") else not_cont_tag
+            lambda x: (
+                x.replace("CONTAMINANT_", "") if x.startswith("CONTAMINANT_") else not_cont_tag
+            )
         )
 
         pep_contaminant_df = pep_df[pep_df["cont_accession"] != not_cont_tag].copy()
         contaminant_df = (
-            pep_contaminant_df
-            .groupby("cont_accession", as_index=False)["average_intensity"]
+            pep_contaminant_df.groupby("cont_accession", as_index=False)["average_intensity"]
             .sum()
             .sort_values(by="average_intensity", ascending=False)
         )
@@ -1942,29 +1954,34 @@ class MzIdentMLModule:
 
         plot_dict = dict()
         plot_cats = list()
-        
+
         for file_name, group in pep_df.groupby("stand_spectra_ref"):
 
             contaminant_rows = group[group["cont_accession"] != not_cont_tag].copy()
-            contaminant_rows.loc[~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"] = (
-                "Other"
-            )
+            contaminant_rows.loc[
+                ~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"
+            ] = "Other"
 
             cont_df = (
-                contaminant_rows
-                .groupby("cont_accession", as_index=False)["average_intensity"]
+                contaminant_rows.groupby("cont_accession", as_index=False)["average_intensity"]
                 .sum()
                 .sort_values(by="average_intensity", ascending=False)
                 .reset_index(drop=True)
             )
-            cont_df["contaminant_percent"] = (cont_df["average_intensity"] / group["average_intensity"].sum()) * 100
+            cont_df["contaminant_percent"] = (
+                cont_df["average_intensity"] / group["average_intensity"].sum()
+            ) * 100
 
-            plot_dict[file_name] = dict(zip(cont_df["cont_accession"], cont_df["contaminant_percent"]))
+            plot_dict[file_name] = dict(
+                zip(cont_df["cont_accession"], cont_df["contaminant_percent"])
+            )
             plot_cats.extend(cont_df["cont_accession"].tolist())
 
         plot_cats = list(set(plot_cats))
         if "Other" in plot_cats:
-            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [x for x in plot_cats if x == "Other"]
+            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [
+                x for x in plot_cats if x == "Other"
+            ]
 
         result_dict = dict()
         result_dict["plot_data"] = plot_dict
@@ -1984,8 +2001,14 @@ class MzIdentMLModule:
         }
 
         if self.cal_num_table_data:
-            protein_count = {sample: {"Count": info["protein_num"]} for sample, info in self.cal_num_table_data.items()}
-            peptide_count = {sample: {"Count": info["peptide_num"]} for sample, info in self.cal_num_table_data.items()}
+            protein_count = {
+                sample: {"Count": info["protein_num"]}
+                for sample, info in self.cal_num_table_data.items()
+            }
+            peptide_count = {
+                sample: {"Count": info["peptide_num"]}
+                for sample, info in self.cal_num_table_data.items()
+            }
         else:
             return
 
@@ -2002,7 +2025,7 @@ class MzIdentMLModule:
             description="Number of protein groups per raw file.",
             helptext="""
                 Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
-                """
+                """,
         )
 
         # 2.Peptide ID Count
@@ -2028,7 +2051,7 @@ class MzIdentMLModule:
                 """,
             helptext="""
                 Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
-                """
+                """,
         )
 
         # 3.Missed Cleavages Per Raw File
@@ -2051,25 +2074,18 @@ class MzIdentMLModule:
                     mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
                     continue
                 mc_group_ratio[sample] = {
-                    group: count / total * 100
-                    for group, count in counts.items()
+                    group: count / total * 100 for group, count in counts.items()
                 }
 
-            mc_data = {
-                "plot_data": mc_group_ratio,
-                "cats": ["0", "1", ">=2"]
-            }
+            mc_data = {"plot_data": mc_group_ratio, "cats": ["0", "1", ">=2"]}
             common_plots.draw_msms_missed_cleavages(
-                self.sub_sections["identification"],
-                mc_data,
-                False
+                self.sub_sections["identification"], mc_data, False
             )
-    
+
         # 4.Modifications Per Raw File
         if self.quantms_modified:
             common_plots.draw_modifications(
-                self.sub_sections["identification"],
-                self.quantms_modified
+                self.sub_sections["identification"], self.quantms_modified
             )
 
         # 5.MS/MS Identified per Raw File
@@ -2082,30 +2098,24 @@ class MzIdentMLModule:
                 all_ms2 = mzml_table.get(m, {}).get("MS2_Num", 0)
 
                 if all_ms2 > 0:
-                    msms_identified_rate[m] = {
-                        "Identified Rate": (identified_ms2 / all_ms2) * 100
-                    }
+                    msms_identified_rate[m] = {"Identified Rate": (identified_ms2 / all_ms2) * 100}
 
             common_plots.draw_ms_ms_identified(
-                self.sub_sections["identification"],
-                msms_identified_rate
+                self.sub_sections["identification"], msms_identified_rate
             )
-    
+
     def draw_quantms_contaminants(self):
 
         # 1.Potential Contaminants per Group
         if self.quantms_contaminant_percent:
             common_plots.draw_potential_contaminants(
-                self.sub_sections["contaminants"],
-                self.quantms_contaminant_percent,
-                False
+                self.sub_sections["contaminants"], self.quantms_contaminant_percent, False
             )
 
         # 2.Top5 Contaminants per Raw file
         if self.quantms_top_contaminant_percent:
             common_plots.draw_top_n_contaminants(
-                self.sub_sections["contaminants"],
-                self.quantms_top_contaminant_percent
+                self.sub_sections["contaminants"], self.quantms_top_contaminant_percent
             )
 
     def draw_quantms_quantification(self):
@@ -2113,12 +2123,12 @@ class MzIdentMLModule:
         # 1.Peptide Intensity Distribution
         if self.quantms_pep_intensity:
             draw_config = {
-            "id": "peptide_intensity_distribution_box",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
-            "title": "Peptide Intensity Distribution",
-            "tt_decimals": 2,
-            "xlab": "log2(Intensity)",
+                "id": "peptide_intensity_distribution_box",
+                "cpswitch": False,
+                "cpswitch_c_active": False,
+                "title": "Peptide Intensity Distribution",
+                "tt_decimals": 2,
+                "xlab": "log2(Intensity)",
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
             box_html = common_plots.remove_subtitle(box_html)
@@ -2131,33 +2141,25 @@ class MzIdentMLModule:
                 helptext="""
                     Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the 
                     peptide table in the mzTab file, and then apply a log2 transformation.
-                    """
+                    """,
             )
 
     def draw_quantms_msms_section(self):
 
         # 1.Charge-state of Per File
         if self.mztab_charge_state:
-            common_plots.draw_charge_state(
-                self.sub_sections["ms2"],
-                self.mztab_charge_state,
-                ""
-            )
+            common_plots.draw_charge_state(self.sub_sections["ms2"], self.mztab_charge_state, "")
 
     def draw_quantms_time_section(self):
 
         # 1.IDs over RT
         if self.quantms_ids_over_rt:
             common_plots.draw_ids_rt_count(
-                self.sub_sections["rt_qc"],
-                self.quantms_ids_over_rt,
-                ""
+                self.sub_sections["rt_qc"], self.quantms_ids_over_rt, ""
             )
 
         # 2.Delta Mass [ppm]
         if self.quantms_mass_error:
             common_plots.draw_delta_mass_da_ppm(
-                self.sub_sections["mass_error"],
-                self.quantms_mass_error,
-                "quantms_ppm"
+                self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )

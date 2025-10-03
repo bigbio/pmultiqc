@@ -27,10 +27,12 @@ class PMultiQC(BaseMultiqcModule):
             description="",
             content="",
         )
-        
+
         # HeatMap color list
         color_map = LinearSegmentedColormap.from_list("red_green", ["#ff0000", "#00ff00"])
-        heatmap_color_list = [[s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]]
+        heatmap_color_list = [
+            [s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]
+        ]
 
         # Parse ProteoBench results
         if config.kwargs.get("proteobench_plugin", False):
@@ -62,11 +64,7 @@ class PMultiQC(BaseMultiqcModule):
         if config.kwargs.get("maxquant_plugin", False):
 
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
-            mq = MaxQuantModule(
-                self.find_log_files,
-                self.sub_sections,
-                heatmap_color_list
-            )
+            mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list)
 
             if mq.get_data():
                 mq.draw_report_plots()
@@ -77,36 +75,24 @@ class PMultiQC(BaseMultiqcModule):
         if config.kwargs.get("mzid_plugin", False):
 
             MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
-            MzIdentMLModule(
-                self.find_log_files,
-                self.sub_sections,
-                heatmap_color_list
-            )
+            MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list)
 
             return None
 
         # Parse DIA-NN results
         if config.kwargs.get("diann_plugin", False):
             DiannModule = get_module("diann", "DiannModule")
-            DiannModule(
-                self.find_log_files,
-                self.sub_sections,
-                heatmap_color_list
-            )
+            DiannModule(self.find_log_files, self.sub_sections, heatmap_color_list)
             return None
-        
-        
+
         # quantms, DIA-NN results
         if config.kwargs.get("quantms_plugin", False):
             QuantMSModule = get_module("quantms", "QuantMSModule")
-            QuantMSModule(
-                self.find_log_files,
-                self.sub_sections,
-                heatmap_color_list
-            )
+            QuantMSModule(self.find_log_files, self.sub_sections, heatmap_color_list)
             return None
-        
+
         raise ValueError("No plugin defined")
+
 
 def get_module(module_name, class_name):
     module = import_module(f"..{module_name}", __package__)

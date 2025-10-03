@@ -13,6 +13,7 @@ import itertools
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
+
 def draw_dia_heatmap(sub_section, report_df, heatmap_color):
 
     log.info("Compute the Heatmap.")
@@ -20,11 +21,12 @@ def draw_dia_heatmap(sub_section, report_df, heatmap_color):
     dia_plots.draw_heatmap(sub_section, heatmap_color, heatmap_data)
     log.info("Heatmap calculation is done.")
 
+
 def draw_dia_intensitys(sub_section, report_df):
 
     df_sub = report_df[report_df["Precursor.Quantity"] > 0].copy()
     df_sub["log_intensity"] = np.log2(df_sub["Precursor.Quantity"])
-    
+
     dia_plots.draw_dia_intensity_dis(sub_section, df_sub)
 
     if dia_plots.can_groupby_for_std(report_df, "Run"):
@@ -40,6 +42,7 @@ def draw_dia_ms1(sub_section, df):
             df_sub["log_ms1_area"] = np.log2(df_sub["Ms1.Area"])
             dia_plots.draw_dia_ms1_area(sub_section, df_sub)
 
+
 def draw_dia_ms2s(sub_section, df):
 
     # Distribution of Precursor Charges
@@ -49,11 +52,13 @@ def draw_dia_ms2s(sub_section, df):
     # Charge-state of Per File
     dia_plots.draw_dia_ms2_charge(sub_section, df)
 
+
 def draw_dia_mass_error(sub_section, df):
 
     # Ms1.Apex.Mz.Delta: difference between observed precursor m/z and the theoretical value
     if "Ms1.Apex.Mz.Delta" in df.columns:
         dia_plots.draw_dia_delta_mass(sub_section, df)
+
 
 # DIA-NN: RT Quality Control
 def draw_dia_rt_qc(sub_section, report_df):
@@ -64,7 +69,7 @@ def draw_dia_rt_qc(sub_section, report_df):
     draw_dia_ids_rt(sub_section, df)
 
     # 1. Normalisation Factor over RT
-    #   Normalisation.Factor: normalisation factor applied to the precursor in the specific run, 
+    #   Normalisation.Factor: normalisation factor applied to the precursor in the specific run,
     #   i.e. normalised quantity = normalisation factor X non-normalised quantity
     if "Normalisation.Factor" in df.columns:
         log.info("Draw[rt_qc]: norm_factor_rt")
@@ -77,7 +82,7 @@ def draw_dia_rt_qc(sub_section, report_df):
         log.info("Draw[rt_qc]: draw_fwhm_rt")
         fwhm_rt = quantms_utils.cal_feature_avg_rt(df, "FWHM")
         dia_plots.draw_fwhm_rt(sub_section, fwhm_rt)
-    
+
     # 3. Peak Width over RT
     #   RT.Start and RT.Stop peak boundaries
     if all(col in df.columns for col in ["RT.Start", "RT.Stop"]):
@@ -100,77 +105,42 @@ def draw_dia_rt_qc(sub_section, report_df):
         if rt_irt_loess is not None:
             dia_plots.draw_loess_rt_irt(sub_section, rt_irt_loess)
 
+
 # DIA-NN: IDs over RT
 def draw_dia_ids_rt(sub_section, report_df):
 
     rt_df = report_df[["Run", "RT"]].copy()
-    rt_df.rename(
-        columns={
-            "Run": "raw file",
-            "RT": "retention time"
-        },
-        inplace=True
-    )
+    rt_df.rename(columns={"Run": "raw file", "RT": "retention time"}, inplace=True)
     ids_over_rt = evidence_rt_count(rt_df)
-    draw_ids_rt_count(
-        sub_section,
-        ids_over_rt,
-        "dia"
-    )
+    draw_ids_rt_count(sub_section, ids_over_rt, "dia")
+
 
 # DIA-NN: Quantification Table
 def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
 
     # Peptides Quantification Table
     peptides_table, peptides_headers = quantms_utils.create_peptides_table(
-        diann_report,
-        sample_df,
-        file_df
+        diann_report, sample_df, file_df
     )
-    draw_peptides_table(
-        sub_section,
-        peptides_table,
-        peptides_headers,
-        "DIA-NN"
-    )
+    draw_peptides_table(sub_section, peptides_table, peptides_headers, "DIA-NN")
 
     # Protein Quantification Table
     protein_table, protein_headers = quantms_utils.create_protein_table(
-        diann_report,
-        sample_df,
-        file_df
+        diann_report, sample_df, file_df
     )
-    draw_protein_table(
-        sub_section,
-        protein_table,
-        protein_headers,
-        "DIA-NN"
-    )
+    draw_protein_table(sub_section, protein_table, protein_headers, "DIA-NN")
+
 
 # mzIdentML: Quantification Table
 def draw_mzid_quant_table(sub_section, mzid_mzml_df):
 
     # Peptides Quantification Table
-    peptides_table, peptides_headers = mzidentml_utils.create_peptides_table(
-        mzid_mzml_df
-    )
-    draw_peptides_table(
-        sub_section,
-        peptides_table,
-        peptides_headers,
-        "mzIdentML"
-    )
+    peptides_table, peptides_headers = mzidentml_utils.create_peptides_table(mzid_mzml_df)
+    draw_peptides_table(sub_section, peptides_table, peptides_headers, "mzIdentML")
 
     # Protein Quantification Table
-    protein_table, protein_headers = mzidentml_utils.create_protein_table(
-        mzid_mzml_df
-    )
-    draw_protein_table(
-        sub_section,
-        protein_table,
-        protein_headers,
-        "mzIdentML"
-    )
+    protein_table, protein_headers = mzidentml_utils.create_protein_table(mzid_mzml_df)
+    draw_protein_table(sub_section, protein_table, protein_headers, "mzIdentML")
 
 
 # Draw: Peptides Quantification Table
@@ -230,27 +200,28 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
         plot=table_html,
         order=1,
         description=description_text,
-        helptext=helptext_text
+        helptext=helptext_text,
     )
+
 
 # Draw: Protein Quantification Table
 def draw_protein_table(sub_sections, table_data, headers, report_type):
 
     draw_config = {
-            "id": "protein_quant_result",
-            "title": "Protein Quantification Table",
-            "save_file": False,
-            "sort_rows": False,
-            "only_defined_headers": True,
-            "col1_header": "ProteinID",
-            "no_violin": True,
-        }
-    
+        "id": "protein_quant_result",
+        "title": "Protein Quantification Table",
+        "save_file": False,
+        "sort_rows": False,
+        "only_defined_headers": True,
+        "col1_header": "ProteinID",
+        "no_violin": True,
+    }
+
     display_rows = 50
     table_html = table.plot(
         dict(itertools.islice(table_data.items(), display_rows)),
         headers=headers,
-        pconfig=draw_config
+        pconfig=draw_config,
     )
 
     if report_type == "DIA-NN":
@@ -285,5 +256,5 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
         plot=table_html,
         order=2,
         description=description_text,
-        helptext=helptext_text
+        helptext=helptext_text,
     )

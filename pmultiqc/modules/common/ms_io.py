@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 Functions for reading and processing mass spectrometry data files
 """
@@ -33,18 +31,18 @@ def file_prefix(path):
 
 
 def add_ms_values(
-        info_df,
-        ms_name,
-        ms_with_psm,
-        identified_spectrum_scan_id,
-        mzml_charge_plot,
-        mzml_peak_distribution_plot,
-        mzml_peaks_ms2_plot,
-        mzml_charge_plot_1,
-        mzml_peak_distribution_plot_1,
-        mzml_peaks_ms2_plot_1,
-        ms_without_psm,
-        enable_dia=False,
+    info_df,
+    ms_name,
+    ms_with_psm,
+    identified_spectrum_scan_id,
+    mzml_charge_plot,
+    mzml_peak_distribution_plot,
+    mzml_peaks_ms2_plot,
+    mzml_charge_plot_1,
+    mzml_peak_distribution_plot_1,
+    mzml_peaks_ms2_plot_1,
+    ms_without_psm,
+    enable_dia=False,
 ):
     """
     Process MS values from a dataframe row and add them to the appropriate histograms
@@ -70,22 +68,14 @@ def add_ms_values(
     # "num_peaks": --> "MS_peaks"
 
     charge_state = (
-        int(info_df["precursor_charge"])
-        if pd.notna(info_df["precursor_charge"])
-        else None
+        int(info_df["precursor_charge"]) if pd.notna(info_df["precursor_charge"]) else None
     )
 
     base_peak_intensity = (
-        float(info_df["base_peak_intensity"])
-        if pd.notna(info_df["base_peak_intensity"])
-        else None
+        float(info_df["base_peak_intensity"]) if pd.notna(info_df["base_peak_intensity"]) else None
     )
 
-    peak_per_ms2 = (
-        int(info_df["num_peaks"])
-        if pd.notna(info_df["num_peaks"])
-        else None
-    )
+    peak_per_ms2 = int(info_df["num_peaks"]) if pd.notna(info_df["num_peaks"]) else None
 
     if enable_dia:
         mzml_charge_plot.add_value(charge_state)
@@ -108,18 +98,18 @@ def add_ms_values(
 
 
 def read_mzmls(
-        ms_paths,
-        ms_with_psm,
-        identified_spectrum,
-        mzml_charge_plot,
-        mzml_peak_distribution_plot,
-        mzml_peaks_ms2_plot,
-        mzml_charge_plot_1,
-        mzml_peak_distribution_plot_1,
-        mzml_peaks_ms2_plot_1,
-        ms_without_psm,
-        enable_dia=False,
-        enable_mzid=False,
+    ms_paths,
+    ms_with_psm,
+    identified_spectrum,
+    mzml_charge_plot,
+    mzml_peak_distribution_plot,
+    mzml_peaks_ms2_plot,
+    mzml_charge_plot_1,
+    mzml_peak_distribution_plot_1,
+    mzml_peaks_ms2_plot_1,
+    ms_without_psm,
+    enable_dia=False,
+    enable_mzid=False,
 ):
     """
     Read mzML files and extract information
@@ -223,17 +213,17 @@ def read_mzmls(
 
 
 def read_ms_info(
-        ms_info_path,
-        ms_with_psm,
-        identified_spectrum,
-        mzml_charge_plot,
-        mzml_peak_distribution_plot,
-        mzml_peaks_ms2_plot,
-        mzml_charge_plot_1,
-        mzml_peak_distribution_plot_1,
-        mzml_peaks_ms2_plot_1,
-        ms_without_psm,
-        enable_dia=False,
+    ms_info_path,
+    ms_with_psm,
+    identified_spectrum,
+    mzml_charge_plot,
+    mzml_peak_distribution_plot,
+    mzml_peaks_ms2_plot,
+    mzml_charge_plot_1,
+    mzml_peak_distribution_plot_1,
+    mzml_peaks_ms2_plot_1,
+    ms_without_psm,
+    enable_dia=False,
 ):
     """
     Read MS info files and extract information
@@ -291,15 +281,16 @@ def read_ms_info(
 
         group = mzml_df[mzml_df["ms_level"] == 2]
         del mzml_df
-        
+
         if enable_dia:
             identified_spectrum_scan_id = []
         else:
             if not identified_spectrum:
-                raise ValueError("ms_io: The identified_spectrum is missing. Please check your mzTab file!")
+                raise ValueError(
+                    "ms_io: The identified_spectrum is missing. Please check your mzTab file!"
+                )
             identified_spectrum_scan_id = [
-                spectra_ref_check(spectrum_id)
-                for spectrum_id in identified_spectrum[m]
+                spectra_ref_check(spectrum_id) for spectrum_id in identified_spectrum[m]
             ]
 
         # Apply add_ms_values to each row
@@ -343,15 +334,15 @@ def read_ms_info(
 
 
 def parse_idxml(
-        idx_paths,
-        mzml_table,
-        xcorr_hist_range,
-        hyper_hist_range,
-        spec_evalue_hist_range,
-        pep_hist_range,
-        ml_spec_ident_final,
-        mzml_peptide_map,
-        remove_decoy=True,
+    idx_paths,
+    mzml_table,
+    xcorr_hist_range,
+    hyper_hist_range,
+    spec_evalue_hist_range,
+    pep_hist_range,
+    ml_spec_ident_final,
+    mzml_peptide_map,
+    remove_decoy=True,
 ):
     """
     Parse idXML files and extract information
@@ -452,11 +443,24 @@ def parse_idxml(
         pep_breaks = list(
             np.concatenate(
                 [
-                    np.arange(pep_hist_range["start"], pep_hist_range["low_thresh"], pep_hist_range["low_step"]),
-                    np.arange(pep_hist_range["low_thresh"], pep_hist_range["high_thresh"], pep_hist_range["high_step"]),
-                    np.arange(pep_hist_range["high_thresh"], pep_hist_range["end"] + 0.01, pep_hist_range["low_step"])
+                    np.arange(
+                        pep_hist_range["start"],
+                        pep_hist_range["low_thresh"],
+                        pep_hist_range["low_step"],
+                    ),
+                    np.arange(
+                        pep_hist_range["low_thresh"],
+                        pep_hist_range["high_thresh"],
+                        pep_hist_range["high_step"],
+                    ),
+                    np.arange(
+                        pep_hist_range["high_thresh"],
+                        pep_hist_range["end"] + 0.01,
+                        pep_hist_range["low_step"],
+                    ),
                 ]
-            ).round(2))
+            ).round(2)
+        )
 
         bar_stacks = ["target", "decoy", "target+decoy"]
         cross_corr = Histogram(
@@ -583,7 +587,9 @@ def parse_idxml(
         consensus_support.to_dict()
 
         for i in consensus_support.dict["data"].keys():
-            search_engine["consensus_support"][f"{raw_id_name} ({i})"] = consensus_support.dict["data"][i]
+            search_engine["consensus_support"][f"{raw_id_name} ({i})"] = consensus_support.dict[
+                "data"
+            ][i]
 
     search_engine["data_label"] = {
         "score_label": [spec_e_label, xcorr_label, hyper_label],
@@ -627,7 +633,7 @@ def read_mzids(file_paths):
 
         if len(mzid_data) == 0:
             raise ValueError("Please check your MzIdentML", file_path)
-        
+
         log.info(
             "{}: Done parsing MzIdentML file {}.".format(
                 datetime.now().strftime("%H:%M:%S"), file_path
@@ -635,16 +641,12 @@ def read_mzids(file_paths):
         )
         m = file_prefix(file_path)
         log.info(
-            "{}: Aggregating MzIdentML file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), m
-            )
+            "{}: Aggregating MzIdentML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
         )
 
         for mzid_tmp in mzid_data:
             mzid_tmp_part = {
-                k: v
-                for k, v in mzid_tmp.items()
-                if k not in ["SpectrumIdentificationItem"]
+                k: v for k, v in mzid_tmp.items() if k not in ["SpectrumIdentificationItem"]
             }
 
             for spectrum_item in mzid_tmp.get("SpectrumIdentificationItem", []):
@@ -666,9 +668,7 @@ def read_mzids(file_paths):
                     if "name" in peptide_ref:
                         peptide_ref["PeptideEvidenceRef_name"] = peptide_ref.pop("name")
                     if "location" in peptide_ref:
-                        peptide_ref["PeptideEvidenceRef_location"] = peptide_ref.pop(
-                            "location"
-                        )
+                        peptide_ref["PeptideEvidenceRef_location"] = peptide_ref.pop("location")
                     if "FileFormat" in peptide_ref:
                         peptide_ref["PeptideEvidenceRef_FileFormat"] = peptide_ref.pop(
                             "FileFormat"
@@ -678,20 +678,28 @@ def read_mzids(file_paths):
                         **mzid_tmp_part,
                         **spectrum_item_part,
                         **peptide_ref,
-                        "mzid_file_name": m
+                        "mzid_file_name": m,
                     }
 
-                    need_keys  = [
-                        "SEQUEST:xcorr", "Mascot:score", "PEAKS:peptideScore", "xi:score", 
-                        "retention time", "location", "Modification", "spectrumID", 
-                        "isDecoy", "accession", "PeptideSequence", "experimentalMassToCharge",
-                        "calculatedMassToCharge", "chargeState", "mzid_file_name", "Andromeda:score"
+                    need_keys = [
+                        "SEQUEST:xcorr",
+                        "Mascot:score",
+                        "PEAKS:peptideScore",
+                        "xi:score",
+                        "retention time",
+                        "location",
+                        "Modification",
+                        "spectrumID",
+                        "isDecoy",
+                        "accession",
+                        "PeptideSequence",
+                        "experimentalMassToCharge",
+                        "calculatedMassToCharge",
+                        "chargeState",
+                        "mzid_file_name",
+                        "Andromeda:score",
                     ]
-                    mzid_dicts.append(
-                        {
-                            k: v for k, v in mzid_dict.items() if k in need_keys
-                        }
-                    )
+                    mzid_dicts.append({k: v for k, v in mzid_dict.items() if k in need_keys})
         log.info(
             "{}: Done aggregating MzIdentML file {}...".format(
                 datetime.now().strftime("%H:%M:%S"), m
@@ -702,8 +710,13 @@ def read_mzids(file_paths):
 
     # Check columns
     check_list = [
-        "spectrumID", "PeptideSequence", "chargeState", "accession", 
-        "Modification", "experimentalMassToCharge", "calculatedMassToCharge"
+        "spectrumID",
+        "PeptideSequence",
+        "chargeState",
+        "accession",
+        "Modification",
+        "experimentalMassToCharge",
+        "calculatedMassToCharge",
     ]
     missing_cols = [col for col in check_list if col not in mzid_df.columns]
     if missing_cols:
@@ -713,7 +726,11 @@ def read_mzids(file_paths):
     filtered_mzid_df = mzid_df[~mzid_df["accession"].str.lower().str.startswith("cont")].copy()
 
     search_engines = [
-        "SEQUEST:xcorr", "Mascot:score", "PEAKS:peptideScore", "xi:score", "Andromeda:score"
+        "SEQUEST:xcorr",
+        "Mascot:score",
+        "PEAKS:peptideScore",
+        "xi:score",
+        "Andromeda:score",
     ]
     filtered_mzid_df.rename(
         columns=lambda x: "search_engine_score" if x in search_engines else x, inplace=True
@@ -721,7 +738,7 @@ def read_mzids(file_paths):
 
     if "search_engine_score" not in filtered_mzid_df.columns:
         log.warning("Please check the 'search_engine_score' field in the mzIdentML file.")
-    
+
     if "retention time" in filtered_mzid_df.columns:
         filtered_mzid_df.rename(columns={"retention time": "retention_time"}, inplace=True)
 
@@ -732,16 +749,18 @@ def read_mzids(file_paths):
         lambda x: process_modification(x)
     )
 
-    filtered_mzid_df["accession_group"] = filtered_mzid_df.groupby(["spectrumID", "PeptideSequence"])[
-        "accession"
-    ].transform(lambda x: ";".join(x.unique()))
+    filtered_mzid_df["accession_group"] = filtered_mzid_df.groupby(
+        ["spectrumID", "PeptideSequence"]
+    )["accession"].transform(lambda x: ";".join(x.unique()))
 
     if "isDecoy" not in filtered_mzid_df.columns:
         filtered_mzid_df["isDecoy"] = False
 
     # location: path of mzML file
     if "location" in filtered_mzid_df.columns:
-        filtered_mzid_df["filename"] = filtered_mzid_df.apply(lambda x: file_prefix(x.location), axis=1)
+        filtered_mzid_df["filename"] = filtered_mzid_df.apply(
+            lambda x: file_prefix(x.location), axis=1
+        )
     else:
         filtered_mzid_df["filename"] = filtered_mzid_df["mzid_file_name"]
 
@@ -763,12 +782,13 @@ def spectra_ref_check(spectra_ref):
 
     except ValueError:
         raise ValueError("Please check the 'spectra_ref' field in your mzTab file.")
-    
+
+
 # Remove output files generated by OpenMS().openms_convert after running
 def del_openms_convert_tsv():
 
     files = ["experimental_design.tsv", "openms.tsv"]
-    
+
     for file_path in files:
         if os.path.exists(file_path):
             os.remove(file_path)

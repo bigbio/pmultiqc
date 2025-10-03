@@ -6,7 +6,7 @@ def qualUniform(group_df_rt):
     Parameters:
     -----------
     group_df_rt: group["Retention time"] or group["retention_time"]
-    
+
     """
     x = group_df_rt / np.nansum(group_df_rt)
     n = group_df_rt.notna().sum()
@@ -16,6 +16,7 @@ def qualUniform(group_df_rt):
     result = 1.0 if worst == 0 else float((worst - sc) / worst)
 
     return result
+
 
 def cal_delta_mass_dict(df, col):
 

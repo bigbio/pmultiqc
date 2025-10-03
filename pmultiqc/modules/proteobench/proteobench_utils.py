@@ -4,18 +4,14 @@ import pandas as pd
 import numpy as np
 import re
 
-from multiqc.plots import (
-    bargraph,
-    linegraph,
-    box,
-    scatter
-)
+from multiqc.plots import bargraph, linegraph, box, scatter
 
 from ..common.common_plots import remove_subtitle
 
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
+
 
 def read_file_by_extension(file_path):
 
@@ -31,6 +27,7 @@ def read_file_by_extension(file_path):
         raise ValueError(f"Unsupported file extension: {ext}")
 
     return df
+
 
 def get_pb_data(file_path):
 
@@ -49,47 +46,27 @@ def get_pb_data(file_path):
     charge_html = draw_precursor_ion_charge(pb_df)
 
     # log_Intensity_mean
-    log_mean_html = draw_logmean_std_cv(
-        df=pb_df,
-        plot_type="log_intensity_mean"
-    )
+    log_mean_html = draw_logmean_std_cv(df=pb_df, plot_type="log_intensity_mean")
 
     # log_Intensity
     log_intensity_html = draw_logmean_std_cv(
-        df=pb_df,
-        plot_type="log_intensity",
-        runs_col=runs_col
+        df=pb_df, plot_type="log_intensity", runs_col=runs_col
     )
 
     # intensity_count_per_file
-    num_inten_per_file_html = intensity_count_per_file(
-        df=pb_df,
-        runs_col=runs_col
-    )
+    num_inten_per_file_html = intensity_count_per_file(df=pb_df, runs_col=runs_col)
 
     # log_intensity_std
-    log_std_html = draw_logmean_std_cv(
-        df=pb_df,
-        plot_type="log_intensity_std"
-    )
+    log_std_html = draw_logmean_std_cv(df=pb_df, plot_type="log_intensity_std")
 
     # CV
-    cv_html = draw_logmean_std_cv(
-        df=pb_df,
-        plot_type="cv"
-    )
+    cv_html = draw_logmean_std_cv(df=pb_df, plot_type="cv")
 
     # log2_A_vs_B
-    log_vs_html = draw_logmean_std_cv(
-        df=pb_df,
-        plot_type="log2_A_vs_B"
-    )
+    log_vs_html = draw_logmean_std_cv(df=pb_df, plot_type="log2_A_vs_B")
 
     # epsilon
-    epsilon_html = draw_logmean_std_cv(
-        df=pb_df,
-        plot_type="epsilon"
-    )
+    epsilon_html = draw_logmean_std_cv(df=pb_df, plot_type="epsilon")
 
     # log2FC vs logIntensityMean
     logfc_logmean_html = draw_logintensitymean_vs_logfc(pb_df)
@@ -106,17 +83,14 @@ def get_pb_data(file_path):
         "logfc_logmean_html": logfc_logmean_html,
     }
 
-def draw_logmean_std_cv(
-        df,
-        plot_type,
-        runs_col=None
-    ):
+
+def draw_logmean_std_cv(df, plot_type, runs_col=None):
 
     enable_bar = False
     enable_line = False
     enable_box = False
 
-    only_one_col = False 
+    only_one_col = False
 
     if plot_type == "log_intensity_mean":
 
@@ -221,11 +195,11 @@ def draw_logmean_std_cv(
             data=bar_data,
             pconfig=draw_bar_config,
         )
-        
+
         bar_html = remove_subtitle(bar_html)
     else:
         bar_html = None
-    
+
     # 2. Distribution
     if enable_line:
 
@@ -247,10 +221,7 @@ def draw_logmean_std_cv(
             "showlegend": True,
         }
 
-        linegraph_html = linegraph.plot(
-            data=linegraph_data,
-            pconfig=draw_line_config
-        )
+        linegraph_html = linegraph.plot(data=linegraph_data, pconfig=draw_line_config)
 
         linegraph_html = remove_subtitle(linegraph_html)
 
@@ -259,7 +230,7 @@ def draw_logmean_std_cv(
 
     # 3. BoxPlot
     if enable_box:
-        
+
         box_data = statistics_box_values(df, cols)
 
         draw_box_config = {
@@ -286,24 +257,23 @@ def draw_logmean_std_cv(
         "box_html": box_html,
     }
 
+
 def statistics_na_values(df, cols):
 
     data_dict = {
-        specie + ": " + col: {
-            "Non-NA": group[col].notna().sum(),
-            "NA": group[col].isna().sum()
-        }
+        specie + ": " + col: {"Non-NA": group[col].notna().sum(), "NA": group[col].isna().sum()}
         for specie, group in df.groupby("species")
         for col in cols
     }
 
     return data_dict
 
+
 def statistics_line_values(df, cols, dict_key, only_one_col):
 
     data_union = df[cols].stack().reset_index(drop=True)
     data_range_max = data_union.max()
-    
+
     if dict_key == "cv":
         data_range_min = 0
     else:
@@ -311,20 +281,15 @@ def statistics_line_values(df, cols, dict_key, only_one_col):
 
     bin_step = 1000
     data_bins = np.arange(
-        data_range_min,
-        data_range_max + (data_range_max * 0.05),
-        (data_range_max / bin_step)
+        data_range_min, data_range_max + (data_range_max * 0.05), (data_range_max / bin_step)
     )
-    bin_mid = (data_bins[: -1] + data_bins[1: ]) / 2
+    bin_mid = (data_bins[:-1] + data_bins[1:]) / 2
 
     data_dict = dict()
     for specie, group in df.groupby("species"):
         for col in cols:
-            
-            counts, _ = np.histogram(
-                group[col].dropna(),
-                bins=data_bins
-            )
+
+            counts, _ = np.histogram(group[col].dropna(), bins=data_bins)
 
             cv_counts = pd.DataFrame({"value": bin_mid, "counts": counts})
 
@@ -335,6 +300,7 @@ def statistics_line_values(df, cols, dict_key, only_one_col):
 
     return data_dict
 
+
 def statistics_box_values(df, cols):
 
     boxplot_data = {
@@ -344,6 +310,7 @@ def statistics_box_values(df, cols):
     }
 
     return boxplot_data
+
 
 def intensity_count_per_file(df, runs_col):
 
@@ -377,6 +344,7 @@ def intensity_count_per_file(df, runs_col):
 
     return bar_html
 
+
 def draw_precursor_ion_charge(df):
 
     df[["modified_sequence", "charge"]] = df["precursor ion"].apply(
@@ -408,18 +376,15 @@ def draw_precursor_ion_charge(df):
 
     return bar_html
 
+
 # log2FC vs logIntensityMean
 def draw_logintensitymean_vs_logfc(df):
 
-    df["log_Intensity_mean"] = df[["log_Intensity_mean_A", "log_Intensity_mean_B"]].mean(axis=1, skipna=False)
-    df_sub = df[["species", "log_Intensity_mean", "log2_A_vs_B"]].copy().dropna()
-    df_sub.rename(
-        columns={
-            "log_Intensity_mean": "y",
-            "log2_A_vs_B": "x"
-        },
-        inplace=True
+    df["log_Intensity_mean"] = df[["log_Intensity_mean_A", "log_Intensity_mean_B"]].mean(
+        axis=1, skipna=False
     )
+    df_sub = df[["species", "log_Intensity_mean", "log2_A_vs_B"]].copy().dropna()
+    df_sub.rename(columns={"log_Intensity_mean": "y", "log2_A_vs_B": "x"}, inplace=True)
     df_sub["color"] = df_sub["species"].map({"ECOLI": "blue", "HUMAN": "green", "YEAST": "red"})
 
     plot_data = {
@@ -427,26 +392,22 @@ def draw_logintensitymean_vs_logfc(df):
         for specie, group in df_sub.groupby("species")
     }
     species_order = ["HUMAN", "YEAST", "ECOLI"]
-    plot_data = {
-        key: plot_data[key] for key in species_order if key in plot_data
-    }
+    plot_data = {key: plot_data[key] for key in species_order if key in plot_data}
 
     draw_config = {
         "id": "log2fc_vs_logintensitymean",
         "title": "log2FC vs logIntensityMean",
         "xlab": "log2FC(A:B)",
         "ylab": "logIntensityMean",
-        "showlegend": True
+        "showlegend": True,
     }
 
-    scatter_html = scatter.plot(
-        data=plot_data,
-        pconfig=draw_config
-    )
+    scatter_html = scatter.plot(data=plot_data, pconfig=draw_config)
 
     scatter_html == remove_subtitle(scatter_html)
 
     return scatter_html
+
 
 def calculate_log_intensity(df, runs_col):
 
@@ -464,6 +425,7 @@ def calculate_log_intensity(df, runs_col):
     cols = [col for col in plot_df.columns if runs_col in col]
 
     return plot_df, cols
+
 
 def parse_precursor(precursor):
     if "|" in precursor:

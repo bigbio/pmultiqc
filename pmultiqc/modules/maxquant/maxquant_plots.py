@@ -3,13 +3,7 @@ from multiqc.types import SampleGroup, SampleName
 from multiqc.plots.table_object import InputRow
 
 
-from multiqc.plots import (
-    bargraph,
-    linegraph,
-    box,
-    scatter,
-    table
-)
+from multiqc.plots import bargraph, linegraph, box, scatter, table
 from collections import OrderedDict
 import itertools
 
@@ -17,10 +11,7 @@ from ..core.section_groups import add_sub_section
 from ..common.common_plots import remove_subtitle
 
 
-def draw_exp_design(
-        sdrf_df,
-        sub_sections
-    ):
+def draw_exp_design(sdrf_df, sub_sections):
 
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
@@ -93,8 +84,9 @@ def draw_exp_design(
         helptext="""
             You can see details about it in 
             https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
-            """
+            """,
     )
+
 
 # MaxQuant parameters table
 def draw_parameters(sub_section, parameter_table):
@@ -110,16 +102,9 @@ def draw_parameters(sub_section, parameter_table):
         "no_violin": True,
     }
 
-    headers = {
-        "parameter": {"title": "Parameter"},
-        "value": {"title": "Value"}
-    }
+    headers = {"parameter": {"title": "Parameter"}, "value": {"title": "Value"}}
 
-    table_html = table.plot(
-        data=parameter_table,
-        headers=headers,
-        pconfig=draw_config
-    )
+    table_html = table.plot(data=parameter_table, headers=headers, pconfig=draw_config)
 
     add_sub_section(
         sub_section=sub_section,
@@ -131,8 +116,9 @@ def draw_parameters(sub_section, parameter_table):
             Key parameters are MaxQuant version, Re-quantify, Match-between-runs and mass search tolerances. 
             A list of protein database files is also provided, allowing to track database completeness 
             and database version information (if given in the filename).
-            """
+            """,
     )
+
 
 # Peptides Quantification Table
 def draw_peptide_table(sub_section, table_data):
@@ -185,7 +171,7 @@ def draw_peptide_table(sub_section, table_data):
 
             * BestSearchScore: maximum score (Andromeda score).
             * Average Intensity: Average intensity of each peptide sequence (0 or NA ignored).
-            """
+            """,
     )
 
 
@@ -193,14 +179,14 @@ def draw_peptide_table(sub_section, table_data):
 def draw_protein_table(sub_section, table_data):
 
     draw_config = {
-            "id": "protein_quant_result",
-            "title": "Protein Quantification Table",
-            "save_file": False,
-            "sort_rows": False,
-            "only_defined_headers": True,
-            "col1_header": "ProteinID",
-            "no_violin": True,
-        }
+        "id": "protein_quant_result",
+        "title": "Protein Quantification Table",
+        "save_file": False,
+        "sort_rows": False,
+        "only_defined_headers": True,
+        "col1_header": "ProteinID",
+        "no_violin": True,
+    }
 
     headers = {
         "ProteinName": {
@@ -243,7 +229,7 @@ def draw_protein_table(sub_section, table_data):
 
             * Peptides_Number: The number of peptides for each protein.
             * Average Intensity: Average intensity of each protein (0 or NA ignored).
-            """
+            """,
     )
 
 
@@ -268,10 +254,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "xlab": "log2(Intensity)",
         }
 
-        box_html = box.plot(
-            list_of_data_by_sample=distribution_box,
-            pconfig=draw_config
-        )
+        box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
         box_html = remove_subtitle(box_html)
 
@@ -288,7 +271,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
                 show a high and consistent amount of total protein. 
                 
                 The height of the bar correlates to the number of proteins with non-zero abundance.
-                """
+                """,
         )
 
     # 'LFQ intensity'
@@ -304,10 +287,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "xlab": "log2(Intensity)",
         }
 
-        box_html = box.plot(
-            list_of_data_by_sample=distribution_box,
-            pconfig=draw_config
-        )
+        box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
         box_html = remove_subtitle(box_html)
 
@@ -325,7 +305,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
                 not contribute to the distribution).
                 
                 The height of the bar correlates to the number of proteins with non-zero abundance.
-                """
+                """,
         )
 
     # 'peptide intensity'
@@ -341,10 +321,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "xlab": "log2(Intensity)",
         }
 
-        box_html = box.plot(
-            list_of_data_by_sample=distribution_box,
-            pconfig=draw_config
-        )
+        box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
         box_html = remove_subtitle(box_html)
 
@@ -364,8 +341,9 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
                 Failing to reach the intensity threshold is usually due to unfavorable column conditions, inadequate 
                 column loading or ionization issues. If the study is not a dilution series or pulsed SILAC experiment, 
                 we would expect every condition to have about the same median log-intensity. 
-                """
+                """,
         )
+
 
 # MaxQuant Fig 6: PCA
 def draw_pg_pca(sub_section, pca_data, fig_type):
@@ -390,10 +368,7 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
         "ylab": "PC #2",
     }
 
-    scatter_html = scatter.plot(
-        data=pca_data,
-        pconfig=draw_config
-    )
+    scatter_html = scatter.plot(data=pca_data, pconfig=draw_config)
 
     scatter_html = remove_subtitle(scatter_html)
 
@@ -412,8 +387,9 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
              
             Since experimental groups and Raw files do not necessarily correspond 1:1, 
             this plot may not reflect individual raw file performance.
-            """
+            """,
     )
+
 
 # Peptide ID Count
 def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
@@ -459,16 +435,15 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
             If MBR would be switched off, you can expect to see the number of peptides corresponding to 'Genuine (Exclusive)' + 'Genuine + Transferred'. 
             In general, if the MBR gain is low and the MBR scores are bad (see the two MBR-related metrics),
             MBR should be switched off for the Raw files which are affected (could be a few or all). 
-            """
+            """,
     )
+
 
 # ProteinGroups Count
 def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
 
     if protein_group_count_data["title_value"]:
-        fig_title = (
-            "ProteinGroups Count" + " [" + protein_group_count_data["title_value"] + "]"
-        )
+        fig_title = "ProteinGroups Count" + " [" + protein_group_count_data["title_value"] + "]"
     else:
         fig_title = "ProteinGroups Count"
 
@@ -508,8 +483,9 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
             If MBR would be switched off, you can expect to see the number of protein groups corresponding to 'Genuine (Exclusive)' + 'Genuine + Transferred'. 
             In general, if the MBR gain is low and the MBR scores are bad (see the two MBR-related metrics), 
             MBR should be switched off for the Raw files which are affected (could be a few or all).
-            """
+            """,
     )
+
 
 # Peak width over RT
 def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
@@ -526,10 +502,7 @@ def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=peak_rt_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=peak_rt_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -546,15 +519,14 @@ def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
             Ideally, all Raw files show a similar
             distribution, e.g. to allow for equal conditions during dynamic precursor exclusion, RT alignment or
             peptide quantification.
-            """
+            """,
     )
+
 
 # Mass Error [ppm] boxplot
 def draw_mass_error_box(sub_section, mass_error_data):
 
-    max_abs_mass_error = max(
-        abs(x) for values in mass_error_data.values() for x in values
-    )
+    max_abs_mass_error = max(abs(x) for values in mass_error_data.values() for x in values)
 
     if max_abs_mass_error <= 10:
         xmax_value = 10
@@ -574,10 +546,7 @@ def draw_mass_error_box(sub_section, mass_error_data):
         "xmin": xmin_value,
     }
 
-    box_html = box.plot(
-        list_of_data_by_sample=mass_error_data,
-        pconfig=draw_config
-    )
+    box_html = box.plot(list_of_data_by_sample=mass_error_data, pconfig=draw_config)
 
     box_html = remove_subtitle(box_html)
 
@@ -589,17 +558,14 @@ def draw_mass_error_box(sub_section, mass_error_data):
         helptext="""
             Mass error of the uncalibrated mass-over-charge value of the precursor ion in comparison 
             to the predicted monoisotopic mass of the identified peptide sequence. 
-            """
+            """,
     )
+
 
 # Summary Table
 def draw_maxquant_summary_table(
-        sub_section,
-        msms_spectra,
-        identified_msms,
-        identified_peptides,
-        protein_dict
-    ):
+    sub_section, msms_spectra, identified_msms, identified_peptides, protein_dict
+):
 
     coverage = (identified_msms / msms_spectra) * 100
 
@@ -614,9 +580,13 @@ def draw_maxquant_summary_table(
 
     if protein_dict:
         if protein_dict["num_proteins_identified"]:
-            summary_table[msms_spectra]["#Proteins Identified"] = protein_dict["num_proteins_identified"]
+            summary_table[msms_spectra]["#Proteins Identified"] = protein_dict[
+                "num_proteins_identified"
+            ]
         if protein_dict["num_proteins_quantified"]:
-            summary_table[msms_spectra]["#Proteins Quantified"] = protein_dict["num_proteins_quantified"]
+            summary_table[msms_spectra]["#Proteins Quantified"] = protein_dict[
+                "num_proteins_quantified"
+            ]
 
     headers = OrderedDict()
     headers = {
@@ -667,26 +637,27 @@ def draw_maxquant_summary_table(
             "#MS2 Spectra" is derived from msmsScans.txt (or msScans.txt); 
             "#Identified MS2 Spectra" and "#Peptides Identified" are derived from evidence.txt; 
             "#Proteins Identified" and "#Proteins Quantified" are derived from proteinGroups.txt.
-            """
+            """,
     )
+
 
 # Number of Peptides identified Per Protein
 def draw_maxquant_num_pep_pro(sub_section, num_pep_per_protein):
 
     data_labels = [
-            {
-                "name": "Frequency",
-                "ylab": "Frequency",
-                "tt_suffix": "",
-                "tt_decimals": 0,
-            },
-            {
-                "name": "Percentage",
-                "ylab": "Percentage [%]",
-                "tt_suffix": "%",
-                "tt_decimals": 2,
-            },
-        ]
+        {
+            "name": "Frequency",
+            "ylab": "Frequency",
+            "tt_suffix": "",
+            "tt_decimals": 0,
+        },
+        {
+            "name": "Percentage",
+            "ylab": "Percentage [%]",
+            "tt_suffix": "%",
+            "tt_decimals": 2,
+        },
+    ]
 
     pconfig = {
         "id": "number_of_peptides_per_proteins",
@@ -696,13 +667,11 @@ def draw_maxquant_num_pep_pro(sub_section, num_pep_per_protein):
     }
 
     bar_html = bargraph.plot(
-        data=num_pep_per_protein,
-        cats=["Frequency", "Percentage"],
-        pconfig=pconfig
+        data=num_pep_per_protein, cats=["Frequency", "Percentage"], pconfig=pconfig
     )
 
     bar_html = remove_subtitle(bar_html)
-    
+
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
@@ -711,7 +680,7 @@ def draw_maxquant_num_pep_pro(sub_section, num_pep_per_protein):
         helptext="""
             This statistic is extracted from the proteinGroups.txt file. Proteins supported by more peptide 
             identifications can constitute more confident results.
-            """
+            """,
     )
 
 
@@ -728,10 +697,7 @@ def draw_maxquant_scores(sub_section, maxquant_scores):
         "data_labels": maxquant_scores["data_labels"],
     }
 
-    bar_html = bargraph.plot(
-        data=maxquant_scores["plot_data"],
-        pconfig=pconfig
-    )
+    bar_html = bargraph.plot(data=maxquant_scores["plot_data"], pconfig=pconfig)
 
     bar_html = remove_subtitle(bar_html)
 
@@ -742,8 +708,9 @@ def draw_maxquant_scores(sub_section, maxquant_scores):
         description="",
         helptext="""
                 This statistic is extracted from msms.txt. Andromeda score for the best associated MS/MS spectrum.
-                """
+                """,
     )
+
 
 # TopN
 def draw_msms_scans_top_n(sub_section, top_n_data):
@@ -758,9 +725,7 @@ def draw_msms_scans_top_n(sub_section, top_n_data):
     }
 
     bar_html = bargraph.plot(
-        data=top_n_data["plot_data"],
-        cats=top_n_data["cats"],
-        pconfig=draw_config
+        data=top_n_data["plot_data"], cats=top_n_data["cats"], pconfig=draw_config
     )
 
     bar_html = remove_subtitle(bar_html)
@@ -773,8 +738,9 @@ def draw_msms_scans_top_n(sub_section, top_n_data):
         helptext="""
             Reaching TopN on a regular basis indicates that all sections of the LC gradient 
             deliver a sufficient number of peptides to keep the instrument busy. This metric somewhat summarizes "TopN over RT".
-            """
+            """,
     )
+
 
 # TopN over RT
 def draw_msms_scans_top_over_rt(sub_section, top_over_rt_data):
@@ -791,10 +757,7 @@ def draw_msms_scans_top_over_rt(sub_section, top_over_rt_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=top_over_rt_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=top_over_rt_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -807,8 +770,9 @@ def draw_msms_scans_top_over_rt(sub_section, top_over_rt_data):
             TopN over retention time. Similar to ID over RT, this metric reflects the complexity of the sample 
             at any point in time. Ideally complexity should be made roughly equal (constant) by choosing a proper (non-linear) LC gradient. 
             See [Moruz 2014, DOI: 10.1002/pmic.201400036](https://pubmed.ncbi.nlm.nih.gov/24700534/) for details.
-            """
+            """,
     )
+
 
 # Ion Injection Time over RT
 def draw_msms_scans_ion_injec_time_rt(sub_section, ion_injec_time_rt_data):
@@ -825,10 +789,7 @@ def draw_msms_scans_ion_injec_time_rt(sub_section, ion_injec_time_rt_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=ion_injec_time_rt_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=ion_injec_time_rt_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -840,5 +801,5 @@ def draw_msms_scans_ion_injec_time_rt(sub_section, ion_injec_time_rt_data):
         helptext="""
             Ion injection time score - should be as low as possible to allow fast cycles. Correlated with peptide intensity. 
             Note that this threshold needs customization depending on the instrument used (e.g., ITMS vs. FTMS).
-            """
+            """,
     )

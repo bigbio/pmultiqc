@@ -36,6 +36,7 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
             with open(local_filepath, "wb") as f, tqdm(
                 total=total_size, unit="B", unit_scale=True, desc=filename
             ) as pbar:
+
                 def callback(data):
                     f.write(data)
                     pbar.update(len(data))
@@ -48,7 +49,7 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
         except Exception as ftp_err:
             print(f"⚠️ FTP attempt {attempt} failed: {ftp_err}")
             if attempt < max_retries:
-                sleep_time = backoff_factor ** attempt
+                sleep_time = backoff_factor**attempt
                 print(f"Retrying in {sleep_time} seconds...")
                 time.sleep(sleep_time)
             else:
@@ -61,7 +62,9 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
 
             def reporthook(block_num, block_size, total_size):
                 if reporthook.pbar is None:
-                    reporthook.pbar = tqdm(total=total_size, unit="B", unit_scale=True, desc=filename)
+                    reporthook.pbar = tqdm(
+                        total=total_size, unit="B", unit_scale=True, desc=filename
+                    )
                 downloaded = block_num * block_size
                 reporthook.pbar.update(downloaded - reporthook.pbar.n)
 
@@ -72,26 +75,33 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
                 urllib.request.urlretrieve(url, local_filepath, reporthook)
             except urllib.error.URLError as ssl_err:
                 import ssl
+
                 # Check if this is specifically an SSL certificate error
-                if isinstance(ssl_err.reason, ssl.SSLError) and "CERTIFICATE_VERIFY_FAILED" in str(ssl_err.reason):
-                    print("⚠️ SSL certificate verification failed, trying with SSL context that bypasses verification...")
-                    print("🔓 WARNING: This bypasses SSL certificate verification and reduces security!")
-                    
+                if isinstance(ssl_err.reason, ssl.SSLError) and "CERTIFICATE_VERIFY_FAILED" in str(
+                    ssl_err.reason
+                ):
+                    print(
+                        "⚠️ SSL certificate verification failed, trying with SSL context that bypasses verification..."
+                    )
+                    print(
+                        "🔓 WARNING: This bypasses SSL certificate verification and reduces security!"
+                    )
+
                     # Store original opener to restore later
                     original_opener = urllib.request._opener
-                    
+
                     try:
                         # Create SSL context that bypasses certificate verification
                         ssl_context = ssl.create_default_context()
                         ssl_context.check_hostname = False
                         ssl_context.verify_mode = ssl.CERT_NONE
-                        
+
                         # Create opener with custom SSL context
                         opener = urllib.request.build_opener(
                             urllib.request.HTTPSHandler(context=ssl_context)
                         )
                         urllib.request.install_opener(opener)
-                        
+
                         # Retry with SSL context that bypasses verification
                         urllib.request.urlretrieve(url, local_filepath, reporthook)
                     finally:
@@ -110,7 +120,7 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
         except Exception as http_err:
             print(f"⚠️ HTTPS attempt {attempt} failed: {http_err}")
             if attempt < max_retries:
-                sleep_time = backoff_factor ** attempt
+                sleep_time = backoff_factor**attempt
                 print(f"Retrying in {sleep_time} seconds...")
                 time.sleep(sleep_time)
             else:

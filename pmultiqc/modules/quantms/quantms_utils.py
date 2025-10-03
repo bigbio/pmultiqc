@@ -21,15 +21,16 @@ def extract_condition_and_replicate(run_name):
 
     if match:
         condition_base = match.group(1) + match.group(2)
-        
+
         if condition_base.endswith("_"):
-            condition_base = condition_base[: -1]
+            condition_base = condition_base[:-1]
 
         replicate = int(match.group(3))
 
         return condition_base, replicate
     else:
         log.warning("Failed to identify condition groups in DIA report.tsv!")
+
 
 def calculate_dia_intensity_std(df):
 
@@ -39,8 +40,7 @@ def calculate_dia_intensity_std(df):
     )
 
     grouped_std = (
-        df_sub
-        .groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
+        df_sub.groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
         .std()
         .reset_index(name="log_intensity_std")
     )
@@ -52,28 +52,29 @@ def calculate_dia_intensity_std(df):
 
     return plot_data
 
+
 def calculate_msms_count(df):
-    count_df = df.groupby(
-        [
-            "Run",
-            "Stripped.Sequence",
-            "Precursor.Charge"
-        ]
-    )["MS2.Scan"].nunique().reset_index(name="msms_count")
+    count_df = (
+        df.groupby(["Run", "Stripped.Sequence", "Precursor.Charge"])["MS2.Scan"]
+        .nunique()
+        .reset_index(name="msms_count")
+    )
 
-    run_counts = count_df.groupby("Run")["msms_count"].value_counts().reset_index(name="msms_count_run")
+    run_counts = (
+        count_df.groupby("Run")["msms_count"].value_counts().reset_index(name="msms_count_run")
+    )
 
-    run_counts["msms_count_str"] = run_counts["msms_count"].apply(lambda x: ">=3" if x >= 3 else str(x))
+    run_counts["msms_count_str"] = run_counts["msms_count"].apply(
+        lambda x: ">=3" if x >= 3 else str(x)
+    )
     merged_df = run_counts.groupby(["Run", "msms_count_str"])["msms_count_run"].sum().reset_index()
 
     result_dict = dict()
     for run_name, group in merged_df.groupby("Run"):
         result_dict[str(run_name)] = dict(zip(group["msms_count_str"], group["msms_count_run"]))
 
-    return {
-         "plot_data": result_dict,
-         "cats": list(merged_df["msms_count_str"].unique())
-    }
+    return {"plot_data": result_dict, "cats": list(merged_df["msms_count_str"].unique())}
+
 
 # DIA-NN: Peptides Quantification Table
 def create_peptides_table(report_df, sample_df, file_df):
@@ -81,7 +82,7 @@ def create_peptides_table(report_df, sample_df, file_df):
     # Validation: remove rows with 0 or NA Precursor.Normalised values
     report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
     report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
-    
+
     report_data["BestSearchScore"] = 1 - report_data["Q.Value"]
 
     table_dict = dict()
@@ -91,9 +92,7 @@ def create_peptides_table(report_df, sample_df, file_df):
             "ProteinName": sequence_protein[1],
             "PeptideSequence": sequence_protein[0],
             "BestSearchScore": group["BestSearchScore"].min(),
-            "Average Intensity": np.log10(
-                group["Precursor.Normalised"].mean()
-            ),
+            "Average Intensity": np.log10(group["Precursor.Normalised"].mean()),
         }
 
     headers = {
@@ -116,7 +115,7 @@ def create_peptides_table(report_df, sample_df, file_df):
         sample_cond_df = pd.merge(
             sample_df[["Sample", "MSstats_Condition"]],
             file_df[["Sample", "Spectra_Filepath"]],
-            on="Sample"
+            on="Sample",
         )
         sample_cond_df["Run"] = sample_cond_df["Spectra_Filepath"].apply(
             lambda x: os.path.splitext(x)[0]
@@ -125,16 +124,16 @@ def create_peptides_table(report_df, sample_df, file_df):
         cond_report_data = pd.merge(
             report_data[["Stripped.Sequence", "Protein.Names", "Precursor.Normalised", "Run"]],
             sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
-            on="Run"
+            on="Run",
         )
 
-        for sequence_protein, group in cond_report_data.groupby(["Stripped.Sequence", "Protein.Names"]):
-            
+        for sequence_protein, group in cond_report_data.groupby(
+            ["Stripped.Sequence", "Protein.Names"]
+        ):
+
             condition_data = dict()
             for condition, sub_group in group.groupby("MSstats_Condition"):
-                condition_data[str(condition)] = np.log10(
-                    sub_group["Precursor.Normalised"].mean()
-                )
+                condition_data[str(condition)] = np.log10(sub_group["Precursor.Normalised"].mean())
 
             table_dict[sequence_protein].update(condition_data)
 
@@ -143,12 +142,13 @@ def create_peptides_table(report_df, sample_df, file_df):
             headers[str(exp_condition)] = {
                 "title": str(exp_condition),
                 "description": "MSstats Condition",
-                "format": "{:,.4f}"
+                "format": "{:,.4f}",
             }
 
     result_dict = {i: v for i, (_, v) in enumerate(table_dict.items(), start=1)}
 
     return result_dict, headers
+
 
 # DIA-NN: Protein Quantification Table
 def create_protein_table(report_df, sample_df, file_df):
@@ -163,9 +163,7 @@ def create_protein_table(report_df, sample_df, file_df):
         table_dict[protein_name] = {
             "ProteinName": protein_name,
             "Peptides_Number": group["Stripped.Sequence"].nunique(),
-            "Average Intensity": np.log10(
-                group["Precursor.Normalised"].mean()
-            ),
+            "Average Intensity": np.log10(group["Precursor.Normalised"].mean()),
         }
 
     headers = {
@@ -190,7 +188,7 @@ def create_protein_table(report_df, sample_df, file_df):
         sample_cond_df = pd.merge(
             sample_df[["Sample", "MSstats_Condition"]],
             file_df[["Sample", "Spectra_Filepath"]],
-            on="Sample"
+            on="Sample",
         )
         sample_cond_df["Run"] = sample_cond_df["Spectra_Filepath"].apply(
             lambda x: os.path.splitext(x)[0]
@@ -199,16 +197,14 @@ def create_protein_table(report_df, sample_df, file_df):
         cond_report_data = pd.merge(
             report_data[["Stripped.Sequence", "Protein.Names", "Precursor.Normalised", "Run"]],
             sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
-            on="Run"
+            on="Run",
         )
 
         for protein_name, group in cond_report_data.groupby("Protein.Names"):
-            
+
             condition_data = dict()
             for condition, sub_group in group.groupby("MSstats_Condition"):
-                condition_data[str(condition)] = np.log10(
-                    sub_group["Precursor.Normalised"].mean()
-                )
+                condition_data[str(condition)] = np.log10(sub_group["Precursor.Normalised"].mean())
 
             table_dict[protein_name].update(condition_data)
 
@@ -217,12 +213,13 @@ def create_protein_table(report_df, sample_df, file_df):
             headers[str(exp_condition)] = {
                 "title": str(exp_condition),
                 "description": "MSstats Condition",
-                "format": "{:,.4f}"
+                "format": "{:,.4f}",
             }
 
     result_dict = {i: v for i, (_, v) in enumerate(table_dict.items(), start=1)}
 
     return result_dict, headers
+
 
 def cal_feature_avg_rt(report_data, col):
 
@@ -231,11 +228,8 @@ def cal_feature_avg_rt(report_data, col):
 
     # RT bin
     sub_df["RT_bin"] = pd.cut(sub_df["RT"], bins=DEFAULT_BINS)
-    sub_df['RT_bin_mid'] = sub_df['RT_bin'].apply(lambda x: x.mid)
-    result = sub_df.groupby(
-        ["Run", "RT_bin_mid"],
-        observed=False
-    )[col].mean().reset_index()
+    sub_df["RT_bin_mid"] = sub_df["RT_bin"].apply(lambda x: x.mid)
+    result = sub_df.groupby(["Run", "RT_bin_mid"], observed=False)[col].mean().reset_index()
     result[col] = result[col].fillna(0)
 
     plot_dict = {
@@ -245,8 +239,9 @@ def cal_feature_avg_rt(report_data, col):
 
     return plot_dict
 
+
 # DIA-NN: Lowess (Loess)
-def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=DEFAULT_BINS):
+def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
 
     if len(report_df) > 1000000:
         log.warning(f"Dataset too large ({len(report_df)} rows). Skipping LOWESS computation.")
@@ -254,12 +249,12 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=DEFAULT_BINS):
 
     log.info("Start compute loess...")
     df = report_df.copy()
-    
+
     # bin
     x_min, x_max = df["iRT"].min(), df["iRT"].max()
     bins = np.linspace(x_min, x_max, data_bins)
-    
-    plot_dict = dict()    
+
+    plot_dict = dict()
     for run, group in df.groupby("Run"):
 
         group_sorted = group.sort_values("iRT")
@@ -281,8 +276,9 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int=DEFAULT_BINS):
                 binned_dict[x_bin_mean] = y_bin_mean
 
         plot_dict[run] = binned_dict
-    
+
     return plot_dict
+
 
 # DIA-NN: HeatMap
 def cal_dia_heatmap(report_df):
@@ -294,12 +290,20 @@ def cal_dia_heatmap(report_df):
 
     return pep_intensity
 
+
 def heatmap_cont_pep_intensity(report_df):
 
     df = report_df[
         [
-            "Run", "Protein.Names", "Precursor.Quantity", "RT", "Predicted.RT", 
-            "Precursor.Charge", "Normalisation.Factor", "RT.Stop", "RT.Start"
+            "Run",
+            "Protein.Names",
+            "Precursor.Quantity",
+            "RT",
+            "Predicted.RT",
+            "Precursor.Charge",
+            "Normalisation.Factor",
+            "RT.Stop",
+            "RT.Start",
         ]
     ].copy()
 
@@ -320,7 +324,7 @@ def heatmap_cont_pep_intensity(report_df):
 
     heatmap_dict = {}
     for run, group in df.groupby("Run"):
-        
+
         # 1. "Contaminants"
         cont_intensity_sum = group[group["is_contaminant"]]["Precursor.Quantity"].sum()
         if np.isnan(cont_intensity_sum) or cont_intensity_sum == 0:
@@ -333,12 +337,8 @@ def heatmap_cont_pep_intensity(report_df):
         pep_median = np.nanmedian(group["Precursor.Quantity"].to_numpy())
         pep_intensity = float(np.fmin(1.0, pep_median / (2**23)))
 
-
         # 4. "RT Alignment"
-        rt_alignment = max(
-            0.0,
-            1 - float(np.mean(np.abs(group["RT"] - group["Predicted.RT"])))
-        )
+        rt_alignment = max(0.0, 1 - float(np.mean(np.abs(group["RT"] - group["Predicted.RT"]))))
 
         # 5. "ID rate over RT"
         ids_rate_over_rt = qualUniform(group["RT"])
@@ -346,15 +346,12 @@ def heatmap_cont_pep_intensity(report_df):
         # 6. Normalization Factor MAD
         def mean_abs_dev(x):
             mean_x = x.mean()
-            return float(1- np.mean(np.abs(x - mean_x)))
+            return float(1 - np.mean(np.abs(x - mean_x)))
 
         norm_factor_mad = mean_abs_dev(group["Normalisation.Factor"])
 
         # 7. Peak Width = RT.Stop - RT.Start
-        peak_width = max(
-            0.0,
-            1 - float(np.mean(group["RT.Stop"] - group["RT.Start"]))
-        )
+        peak_width = max(0.0, 1 - float(np.mean(group["RT.Stop"] - group["RT.Start"])))
 
         # All Dict
         heatmap_dict[run] = {
@@ -369,9 +366,10 @@ def heatmap_cont_pep_intensity(report_df):
 
     return heatmap_dict
 
+
 def condition_split(conditions):
-    items = conditions.split(';')
-    key_value_pairs = [item.split('=') for item in items if '=' in item]
+    items = conditions.split(";")
+    key_value_pairs = [item.split("=") for item in items if "=" in item]
 
     result_dict = {k.strip(): v.strip() for k, v in key_value_pairs}
     return result_dict

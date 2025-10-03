@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 MultiQC command line options - we tie into the MultiQC
 core here and add some new command line parameters.
@@ -66,5 +65,9 @@ proteobench_plugin = click.option(
 maxquant_plugin = click.option(
     "--maxquant_plugin", "maxquant_plugin", is_flag=True, help="Enable MaxQuant plugin"
 )
-diann_plugin = click.option("--diann_plugin", "diann_plugin", is_flag=True, help="Enable DIA-NN plugin")
-quantms_plugin = click.option("--quantms_plugin", "quantms_plugin", is_flag=True, help="Enable quantms plugin")
+diann_plugin = click.option(
+    "--diann_plugin", "diann_plugin", is_flag=True, help="Enable DIA-NN plugin"
+)
+quantms_plugin = click.option(
+    "--quantms_plugin", "quantms_plugin", is_flag=True, help="Enable quantms plugin"
+)
