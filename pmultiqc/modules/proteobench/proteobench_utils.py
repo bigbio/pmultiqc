@@ -6,13 +6,7 @@ import re
 
 from multiqc.plots import bargraph, linegraph, box, scatter
 
-from ..common.plots import remove_subtitle
-from pmultiqc.modules.common.stats import (
-    calculate_na_statistics,
-    calculate_line_statistics,
-    calculate_box_plot_statistics,
-    calculate_intensity_counts_per_file
-)
+from ..common.common_plots import remove_subtitle
 
 
 logging.basicConfig(level=logging.INFO)
@@ -97,16 +91,6 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
     enable_box = False
 
     only_one_col = False
-    
-    # Initialize plot configuration variables
-    bar_plot_id = None
-    bar_plot_title = None
-    line_plot_id = None
-    line_plot_title = None
-    line_plot_xlab = None
-    box_plot_id = None
-    box_plot_title = None
-    box_plot_xlab = None
 
     if plot_type == "log_intensity_mean":
 
@@ -275,19 +259,73 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
 
 
 def statistics_na_values(df, cols):
-    return calculate_na_statistics(df, cols)
+
+    data_dict = {
+        specie + ": " + col: {"Non-NA": group[col].notna().sum(), "NA": group[col].isna().sum()}
+        for specie, group in df.groupby("species")
+        for col in cols
+    }
+
+    return data_dict
 
 
 def statistics_line_values(df, cols, dict_key, only_one_col):
-    return calculate_line_statistics(df, cols, dict_key, only_one_col)
+
+    data_union = df[cols].stack().reset_index(drop=True)
+    data_range_max = data_union.max()
+
+    if dict_key == "cv":
+        data_range_min = 0
+    else:
+        data_range_min = data_union.min() - (data_union.min() * 0.05)
+
+    bin_step = 1000
+    data_bins = np.arange(
+        data_range_min, data_range_max + (data_range_max * 0.05), (data_range_max / bin_step)
+    )
+    bin_mid = (data_bins[:-1] + data_bins[1:]) / 2
+
+    data_dict = dict()
+    for specie, group in df.groupby("species"):
+        for col in cols:
+
+            counts, _ = np.histogram(group[col].dropna(), bins=data_bins)
+
+            cv_counts = pd.DataFrame({"value": bin_mid, "counts": counts})
+
+            if only_one_col:
+                data_dict[specie] = dict(zip(cv_counts["value"], cv_counts["counts"]))
+            else:
+                data_dict[specie + ": " + col] = dict(zip(cv_counts["value"], cv_counts["counts"]))
+
+    return data_dict
 
 
 def statistics_box_values(df, cols):
-    return calculate_box_plot_statistics(df, cols)
+
+    boxplot_data = {
+        specie + ": " + col: group[col].dropna().tolist()
+        for specie, group in df.groupby("species")
+        for col in cols
+    }
+
+    return boxplot_data
 
 
 def intensity_count_per_file(df, runs_col):
-    plot_data = calculate_intensity_counts_per_file(df, runs_col)
+
+    cols = [col for col in df.columns if runs_col in col]
+
+    non_na_dict = df[cols].notna().sum().to_dict()
+    na_dict = df[cols].isna().sum().to_dict()
+
+    plot_data = dict()
+    for k, v in non_na_dict.items():
+
+        plot_data[os.path.splitext(k)[0]] = {
+            "Non-NA": v,
+            "NA": na_dict[k],
+        }
 
     draw_bar_config = {
         "id": "num_detected_features_per_run",
@@ -299,7 +337,7 @@ def intensity_count_per_file(df, runs_col):
 
     bar_html = bargraph.plot(
         data=plot_data,
-        pconfig=draw_bar_config
+        pconfig=draw_bar_config,
     )
 
     bar_html = remove_subtitle(bar_html)

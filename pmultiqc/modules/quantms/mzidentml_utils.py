@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
 from pmultiqc.modules.common.file_utils import drop_empty_row
-from pmultiqc.modules.common.utils import evidence_rt_count
+from pmultiqc.modules.maxquant.maxquant_utils import evidence_rt_count
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)

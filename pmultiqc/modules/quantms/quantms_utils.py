@@ -6,7 +6,7 @@ import os
 
 from ..common.file_utils import drop_empty_row
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from ..common.stats import qual_uniform
+from ..common.calc_utils import qualUniform
 
 
 DEFAULT_BINS = 500
@@ -15,7 +15,45 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-def calculate_msms_counts_per_precursor(df):
+def extract_condition_and_replicate(run_name):
+
+    match = re.search(r"^(.*?)([A-Za-z]*)(\d+)$", run_name)
+
+    if match:
+        condition_base = match.group(1) + match.group(2)
+
+        if condition_base.endswith("_"):
+            condition_base = condition_base[:-1]
+
+        replicate = int(match.group(3))
+
+        return condition_base, replicate
+    else:
+        log.warning("Failed to identify condition groups in DIA report.tsv!")
+
+
+def calculate_dia_intensity_std(df):
+
+    df_sub = df.copy()
+    df_sub[["run_condition", "run_replicate"]] = df_sub["Run"].apply(
+        lambda x: pd.Series(extract_condition_and_replicate(x))
+    )
+
+    grouped_std = (
+        df_sub.groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
+        .std()
+        .reset_index(name="log_intensity_std")
+    )
+
+    plot_data = {
+        condition: group["log_intensity_std"].dropna().tolist()
+        for condition, group in grouped_std.groupby("run_condition")
+    }
+
+    return plot_data
+
+
+def calculate_msms_count(df):
     count_df = (
         df.groupby(["Run", "Stripped.Sequence", "Precursor.Charge"])["MS2.Scan"]
         .nunique()
@@ -303,7 +341,7 @@ def heatmap_cont_pep_intensity(report_df):
         rt_alignment = max(0.0, 1 - float(np.mean(np.abs(group["RT"] - group["Predicted.RT"]))))
 
         # 5. "ID rate over RT"
-        ids_rate_over_rt = qual_uniform(group["RT"])
+        ids_rate_over_rt = qualUniform(group["RT"])
 
         # 6. Normalization Factor MAD
         def mean_abs_dev(x):
@@ -327,3 +365,11 @@ def heatmap_cont_pep_intensity(report_df):
         }
 
     return heatmap_dict
+
+
+def condition_split(conditions):
+    items = conditions.split(";")
+    key_value_pairs = [item.split("=") for item in items if "=" in item]
+
+    result_dict = {k.strip(): v.strip() for k, v in key_value_pairs}
+    return result_dict

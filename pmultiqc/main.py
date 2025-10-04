@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 MultiQC pmultiqc plugin functions
 """
@@ -33,10 +32,6 @@ def pmultiqc_plugin_execution_start():
     This setuptools hook is the earliest that will be able
     to use custom command line flags.
     """
-
-    # Halt execution if we've disabled the plugin
-    if config.kwargs.get("disable_plugin", True):
-        return None
 
     log.warning("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 

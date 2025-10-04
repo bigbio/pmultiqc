@@ -107,22 +107,6 @@ def get_clean_stem(path):
     return Path(path).stem
 
 
-def parse_location(location):
-    """
-    Parse and extract the base name from a file location path.
-    Handles cross-platform path separators by normalizing backslashes to forward slashes.
-
-    Args:
-        location: File path (may contain backslashes or forward slashes)
-
-    Returns:
-        str: Base filename without path
-    """
-    if "\\" in location:
-        location = location.replace("\\", "/")
-    return os.path.basename(location)
-
-
 def file_prefix(path):
     try:
         path = os.path.normpath(path)

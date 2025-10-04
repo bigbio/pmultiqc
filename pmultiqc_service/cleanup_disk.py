@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Disk cleanup script for PMultiQC service
 Removes old job directories and corrupted files to free up disk space

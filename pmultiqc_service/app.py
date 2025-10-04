@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 PMultiQC Service API - FastAPI Version
 A FastAPI-based web service for generating PMultiQC reports from uploaded data files.
@@ -1403,11 +1402,11 @@ def run_pmultiqc_with_progress(
         if input_type == "maxquant":
             args.extend(["--maxquant_plugin", "--ignore", "summary.txt"])
         elif input_type == "quantms":
-            args.extend(["--quantms_plugin", "--config", pmultiqc_config])
+            args.extend(["--config", pmultiqc_config])
         elif input_type == "diann":
             # DIANN files are handled automatically by pmultiqc
             # Add memory optimization arguments for large files
-            args.extend(["--diann_plugin", "--no-megaqc-upload", "--verbose"])
+            args.extend(["--no-megaqc-upload", "--verbose"])
         elif input_type == "mzidentml":
             args.extend(["--mzid_plugin"])
 
