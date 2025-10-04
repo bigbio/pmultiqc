@@ -404,7 +404,7 @@ def draw_logintensitymean_vs_logfc(df):
 
     scatter_html = scatter.plot(data=plot_data, pconfig=draw_config)
 
-    scatter_html == remove_subtitle(scatter_html)
+    scatter_html = remove_subtitle(scatter_html)
 
     return scatter_html
 
