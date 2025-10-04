@@ -160,7 +160,6 @@ class QuantMSModule:
             "end": 1,
             "low_thresh": 0.3,
             "high_thresh": 0.7,
-            "end": 1,
             "low_step": 0.03,
             "high_step": 0.08,
         }
