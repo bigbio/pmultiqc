@@ -1570,7 +1570,6 @@ class MzIdentMLModule:
                 sequence[:-1].replace("B", "").replace("D", "")
             )
         elif enzyme == "Chymotrypsin":
-            cut = "F*,W*,Y*,L*,!*P"
             miss_cleavages = len(sequence[:-1]) - len(
                 sequence[:-1].replace("F", "").replace("W", "").replace("Y", "").replace("L", "")
             )
