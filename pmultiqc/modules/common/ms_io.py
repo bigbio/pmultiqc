@@ -3,17 +3,20 @@ Functions for reading and processing mass spectrometry data files
 """
 
 from __future__ import absolute_import
-import os
+
 import logging
-import pandas as pd
-import numpy as np
-from datetime import datetime
+import os
+import re
 from collections import OrderedDict
+from datetime import datetime
+
+import math
+import numpy as np
+import pandas as pd
 from pyopenms import IdXMLFile, MzMLFile, MSExperiment
 from pyteomics import mzid
-import math
-import re
 
+from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.quantms.ms_functions import get_ms_qc_info
 
@@ -21,13 +24,6 @@ from pmultiqc.modules.quantms.ms_functions import get_ms_qc_info
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-
-def file_prefix(path):
-    """Extract the file prefix from a path"""
-    try:
-        return os.path.splitext(os.path.basename(path))[0]
-    except:
-        raise SystemExit(f"Illegal file path: {path}")
 
 
 def add_ms_values(

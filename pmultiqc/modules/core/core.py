@@ -1,6 +1,7 @@
-from multiqc import BaseMultiqcModule, config
-from matplotlib.colors import LinearSegmentedColormap, to_hex
 from importlib import import_module
+
+from matplotlib.colors import LinearSegmentedColormap, to_hex
+from multiqc import BaseMultiqcModule, config
 
 
 class PMultiQC(BaseMultiqcModule):
@@ -34,17 +35,6 @@ class PMultiQC(BaseMultiqcModule):
             [s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]
         ]
 
-        # Parse ProteoBench results
-        if config.kwargs.get("proteobench_plugin", False):
-
-            ProteoBenchModule = get_module("proteobench", "ProteoBenchModule")
-            pb = ProteoBenchModule(self.find_log_files)
-
-            if pb.get_proteobench():
-                pb.draw_report_plots()
-
-            return None
-
         # section groups
         self.section_group_dict = dict()
         self.sub_sections = {
@@ -60,8 +50,17 @@ class PMultiQC(BaseMultiqcModule):
             "rt_qc": [],
         }
 
+        # Parse ProteoBench results
+        if config.kwargs.get("proteobench_plugin", False):
+
+            ProteoBenchModule = get_module("proteobench", "ProteoBenchModule")
+            pb = ProteoBenchModule(self.find_log_files, None, None)
+
+            if pb.get_data():
+                pb.draw_plots()
+
         # Parse MaxQuant results
-        if config.kwargs.get("maxquant_plugin", False):
+        elif config.kwargs.get("maxquant_plugin", False):
 
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
             mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list)
@@ -69,29 +68,25 @@ class PMultiQC(BaseMultiqcModule):
             if mq.get_data():
                 mq.draw_report_plots()
 
-            return None
-
         # Parse mzIdentML results
-        if config.kwargs.get("mzid_plugin", False):
+        elif config.kwargs.get("mzid_plugin", False):
 
             MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
-            MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list)
-
-            return None
+            mzid = MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+            if mzid.get_data():
+                mzid.draw_plots()
 
         # Parse DIA-NN results
-        if config.kwargs.get("diann_plugin", False):
+        elif config.kwargs.get("diann_plugin", False):
             DiannModule = get_module("diann", "DiannModule")
             DiannModule(self.find_log_files, self.sub_sections, heatmap_color_list)
-            return None
 
         # quantms, DIA-NN results
-        if config.kwargs.get("quantms_plugin", False):
+        elif config.kwargs.get("quantms_plugin", False):
             QuantMSModule = get_module("quantms", "QuantMSModule")
             QuantMSModule(self.find_log_files, self.sub_sections, heatmap_color_list)
-            return None
-
-        raise ValueError("No plugin defined")
+        else:
+            raise ValueError("No plugin defined")
 
 
 def get_module(module_name, class_name):

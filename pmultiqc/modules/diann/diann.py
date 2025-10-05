@@ -8,6 +8,7 @@ from datetime import datetime
 from operator import itemgetter
 from multiqc import config
 
+from pmultiqc.modules.common.stats import qual_uniform
 from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 from multiqc.plots import table, bargraph, linegraph, box
 from multiqc.plots.table_object import InputRow
@@ -29,7 +30,6 @@ from pmultiqc.modules.quantms import sparklines
 from pmultiqc.modules.quantms.ms_functions import get_ms_qc_info
 from ..common import ms_io, common_plots
 from ..common.histogram import Histogram
-from ..common.calc_utils import qualUniform
 from ..common.file_utils import file_prefix
 from ..core.section_groups import add_group_modules, add_sub_section
 from ..maxquant.maxquant_utils import (
@@ -160,7 +160,6 @@ class DiannModule:
             "end": 1,
             "low_thresh": 0.3,
             "high_thresh": 0.7,
-            "end": 1,
             "low_step": 0.03,
             "high_step": 0.08,
         }
@@ -1784,7 +1783,7 @@ class DiannModule:
 
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = qualUniform(group["retention_time"])
+            self.id_rt_score[name] = qual_uniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(

@@ -1,42 +1,32 @@
 """ MultiQC pmultiqc plugin module """
 
 from __future__ import absolute_import
-import logging
-from collections import OrderedDict
-import itertools
-from datetime import datetime
-from operator import itemgetter
-from multiqc import config
 
-from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
+import copy
+import itertools
+import json
+import logging
+import os
+import re
+import sqlite3
+from collections import OrderedDict
+from datetime import datetime
+from functools import reduce
+from operator import itemgetter
+from typing import Dict, List
+
+import numpy as np
+import pandas as pd
+from multiqc import config
 from multiqc.plots import table, bargraph, linegraph, box
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
-from typing import Dict, List
-
-import pandas as pd
-from functools import reduce
-import re
-from pyteomics import mztab
 from pyopenms import OpenMSBuildInfo, AASequence
-import os
-import sqlite3
-import numpy as np
-import copy
-import json
+from pyteomics import mztab
+from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
 
 from . import sparklines
 from .ms_functions import get_ms_qc_info
-from ..common import ms_io, common_plots
-from ..common.histogram import Histogram
-from ..common.calc_utils import qualUniform
-from ..common.file_utils import file_prefix
-from ..core.section_groups import add_group_modules, add_sub_section
-from ..maxquant.maxquant_utils import (
-    mod_group_percentage,
-    evidence_rt_count,
-    evidence_calibrated_mass_error,
-)
 from .quantms_plots import (
     draw_dia_heatmap,
     draw_dia_intensitys,
@@ -47,7 +37,16 @@ from .quantms_plots import (
     draw_diann_quant_table,
 )
 from .quantms_utils import condition_split
-
+from ..common import ms_io, common_plots
+from ..common.file_utils import file_prefix
+from ..common.histogram import Histogram
+from ..common.stats import qual_uniform
+from ..core.section_groups import add_group_modules, add_sub_section
+from ..maxquant.maxquant_utils import (
+    mod_group_percentage,
+    evidence_rt_count,
+    evidence_calibrated_mass_error,
+)
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -60,6 +59,27 @@ class QuantMSModule:
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
+        self.exp_design_runs = None
+        self.mzml_peak_distribution_plot = None
+        self.mzml_charge_plot = None
+        self.mzml_peaks_ms2_plot = None
+        self.mzml_peak_distribution_plot_1 = None
+        self.mzml_charge_plot_1 = None
+        self.mzml_peaks_ms2_plot_1 = None
+        self.ms_without_psm = None
+        self.MSGF_label = None
+        self.Comet_label = None
+        self.Sage_label = None
+        self.prot_search_score = None
+        self.pep_plot = None
+        self.peptide_search_score = None
+        self.oversampling_plot = None
+        self.ms_without_psm = None
+        self.psm_table_html = None
+        self.protein_quantification_table_html = None
+        self.pep_plot = None
+        self.peptide_search_score = None
+        self.ms_without_psm = None
         self.find_log_files = find_log_files_func
         self.sub_sections = sub_sections
         self.heatmap_color_list = heatmap_colors
@@ -165,7 +185,7 @@ class QuantMSModule:
         }
         self.total_protein_quantified = 0
         self.out_csv_data = dict()
-        self.mL_spec_ident_final = dict()
+        self.ml_spec_ident_final = dict()
         self.heatmap_con_score = dict()
         self.heatmap_pep_intensity = {}
         self.ms1_tic = dict()
@@ -461,12 +481,11 @@ class QuantMSModule:
                     )
                 group_name: SampleGroup = SampleGroup(sample)
                 rows_by_group[group_name] = row_data
-            headers = {}
-            headers["Sample"] = {
+            headers = {"Sample": {
                 "title": "Sample [Spectra File]",
                 "description": "",
                 "scale": False,
-            }
+            }}
             for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                 headers["MSstats_Condition_" + str(k)] = {
                     "title": "MSstats Condition: " + str(k),
@@ -497,21 +516,18 @@ class QuantMSModule:
             for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
                 file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
                 sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-                row_data: List[InputRow] = []
-                row_data.append(
-                    InputRow(
-                        sample=SampleName(sample),
-                        data={
-                            "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                            "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[
-                                0
-                            ],
-                            "Fraction_Group": "",
-                            "Fraction": "",
-                            "Label": "",
-                        },
-                    )
-                )
+                row_data: List[InputRow] = [InputRow(
+                    sample=SampleName(sample),
+                    data={
+                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[
+                            0
+                        ],
+                        "Fraction_Group": "",
+                        "Fraction": "",
+                        "Label": "",
+                    },
+                )]
                 for _, row in file_df_sample.iterrows():
                     row_data.append(
                         InputRow(
@@ -900,20 +916,17 @@ class QuantMSModule:
                 for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
                     file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
                     sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-                    row_data: List[InputRow] = []
-                    row_data.append(
-                        InputRow(
-                            sample=SampleName(sample),
-                            data={
-                                "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                                "Fraction": "",
-                                "Peptide_Num": "",
-                                "Unique_Peptide_Num": "",
-                                "Modified_Peptide_Num": "",
-                                "Protein_Num": "",
-                            },
-                        )
-                    )
+                    row_data: List[InputRow] = [InputRow(
+                        sample=SampleName(sample),
+                        data={
+                            "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                            "Fraction": "",
+                            "Peptide_Num": "",
+                            "Unique_Peptide_Num": "",
+                            "Modified_Peptide_Num": "",
+                            "Protein_Num": "",
+                        },
+                    )]
                     for _, row in file_df_sample.iterrows():
                         row_data.append(
                             InputRow(
@@ -1783,7 +1796,7 @@ class QuantMSModule:
 
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = qualUniform(group["retention_time"])
+            self.id_rt_score[name] = qual_uniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -1831,7 +1844,6 @@ class QuantMSModule:
                 sequence[:-1].replace("B", "").replace("D", "")
             )
         elif enzyme == "Chymotrypsin":
-            cut = "F*,W*,Y*,L*,!*P"
             miss_cleavages = len(sequence[:-1]) - len(
                 sequence[:-1].replace("F", "").replace("W", "").replace("Y", "").replace("L", "")
             )
@@ -1890,7 +1902,7 @@ class QuantMSModule:
                         datetime.now().strftime("%H:%M:%S"), file
                     )
                 )
-            return
+            return None
 
         self.mzml_peak_distribution_plot = Histogram(
             "Peak Intensity",
@@ -1912,9 +1924,6 @@ class QuantMSModule:
         self.mzml_peaks_ms2_plot_1 = copy.deepcopy(self.mzml_peaks_ms2_plot)
 
         self.ms_without_psm = []
-
-        mzml_table = {}
-        heatmap_charge = {}
 
         # Use the refactored functions from ms_io.py
         if self.read_ms_info:
@@ -2021,7 +2030,7 @@ class QuantMSModule:
             self.hyper_hist_range,
             self.spec_evalue_hist_range,
             self.pep_hist_range,
-            self.mL_spec_ident_final,
+            self.ml_spec_ident_final,
             self.mzml_peptide_map,
             config.kwargs["remove_decoy"],
         )
@@ -2292,7 +2301,7 @@ class QuantMSModule:
             for index in decoy_bin.index:
                 decoy_bin_data[float(index.mid)] = int(decoy_bin[index])
             self.delta_mass["decoy"] = decoy_bin_data
-        except Exception as e:
+        except Exception:
             log.info(
                 "{}: No decoy peptides found -> only showing target peptides.".format(
                     datetime.now().strftime("%H:%M:%S")
@@ -2308,7 +2317,7 @@ class QuantMSModule:
         self.delta_mass["target"] = target_bin_data
 
         # extract delta mass
-        self.mL_spec_ident_final = ml_spec_ident_final
+        self.ml_spec_ident_final = ml_spec_ident_final
         if config.kwargs["remove_decoy"]:
             self.total_ms2_spectra_identified = len(
                 set(psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1]["spectra_ref"])
@@ -2925,7 +2934,6 @@ class QuantMSModule:
         def unique_count(series):
             return len(series.unique())
 
-        max_prot_intensity = 0
         agg_funs = dict.fromkeys(conditions_dists, my_dict_sum)
         agg_funs.update(dict.fromkeys(conditions_str, total_intensity))
         agg_funs["PeptideSequence"] = unique_count

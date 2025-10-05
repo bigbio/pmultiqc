@@ -46,6 +46,7 @@ lxml = "*"
 numpy = ">=1.23"
 pyarrow = "*"
 scikit-learn = ">=1.2"
+psutil = "*"
 
 [tool.poetry.urls]
 GitHub = "https://github.com/bigbio/pmultiqc"

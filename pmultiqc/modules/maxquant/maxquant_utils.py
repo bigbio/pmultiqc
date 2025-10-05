@@ -1,19 +1,17 @@
+import os
+import re
 from pathlib import Path
 from typing import List, Dict, Any, Union
 
-import pandas as pd
-import re
 import numpy as np
-import os
-
+import pandas as pd
 from pandas._typing import ReadCsvBuffer
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from pathlib import Path
 
 from ..common.file_utils import get_filename, drop_empty_row
-from ..common.calc_utils import qualUniform, cal_delta_mass_dict
-from ..common.statistics_utils import nanmedian
+from ..common.stats import nanmedian
+from ..common.stats import qual_uniform, cal_delta_mass_dict
 from ...logging import get_logger, Timer
 
 # Initialize logger for this module
@@ -622,7 +620,7 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
         heatmap_dict[raw_file] = {
             "Contaminants": contaminant,
             "Peptide Intensity": peptide_intensity,
-            "ID rate over RT": qualUniform(group["retention time"]),  # 6. ID rate over RT
+            "ID rate over RT": qual_uniform(group["retention time"]),  # 6. ID rate over RT
             "Pep Missing Values": pep_missing_values,
         }
 
@@ -805,9 +803,7 @@ def evidence_charge_distribution(evidence_data):
             zip(charge_counts_sorted["charge"], charge_counts_sorted["count"])
         )
 
-    charge_dict = {}
-    charge_dict["plot_data"] = plot_dict
-    charge_dict["cats"] = list(map(str, sorted(charge_counts["charge"].unique())))
+    charge_dict = {"plot_data": plot_dict, "cats": list(map(str, sorted(charge_counts["charge"].unique())))}
 
     return charge_dict
 
@@ -830,9 +826,8 @@ def evidence_modified(evidence_data):
         )
         modified_cats.extend(group_processed["modifications"])
 
-    modified_dict = {}
-    modified_dict["plot_data"] = plot_dict
-    modified_dict["cats"] = list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))
+    modified_dict = {"plot_data": plot_dict,
+                     "cats": list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))}
 
     return modified_dict
 
@@ -932,9 +927,7 @@ def evidence_oversampling(evidence_data):
         group["fraction"] = group["count"] / group["count"].sum() * 100
         plot_dict[raw_file] = dict(zip(group["ms/ms count"], group["fraction"]))
 
-    oversampling = {}
-    oversampling["plot_data"] = plot_dict
-    oversampling["cats"] = list(oversampling_df["ms/ms count"].unique())
+    oversampling = {"plot_data": plot_dict, "cats": list(oversampling_df["ms/ms count"].unique())}
 
     return oversampling
 
@@ -1105,14 +1098,11 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
     for raw_file, group in peptide_counts_df.groupby("raw file"):
         plot_data[raw_file] = dict(zip(group["category"], group["counts"]))
 
-    peptide_id_count = {}
-    peptide_id_count["plot_data"] = plot_data
-    peptide_id_count["cats"] = cats
-    peptide_id_count["title_value"] = (
+    peptide_id_count = {"plot_data": plot_data, "cats": cats, "title_value": (
         "MBR gain: +{}%".format(round(peptide_counts_df["MBRgain"].mean(), 2))
         if any(evid_df["is_transferred"])
         else ""
-    )
+    )}
 
     return peptide_id_count
 
@@ -1223,14 +1213,11 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
     for raw_file, group in protein_group_counts_df.groupby("raw file"):
         plot_data[raw_file] = dict(zip(group["category"], group["counts"]))
 
-    protein_group_count = {}
-    protein_group_count["plot_data"] = plot_data
-    protein_group_count["cats"] = cats
-    protein_group_count["title_value"] = (
+    protein_group_count = {"plot_data": plot_data, "cats": cats, "title_value": (
         "MBR gain: +{}%".format(round(protein_group_counts_df["MBRgain"].mean(), 2))
         if any(evid_df["is_transferred"])
         else ""
-    )
+    )}
 
     return protein_group_count
 
@@ -1397,9 +1384,8 @@ def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
             zip(missed_cleavages_df["missed cleavages"], missed_cleavages_df["percentage"])
         )
 
-    missed_cleavages_dict = {}
-    missed_cleavages_dict["plot_data"] = plot_dict
-    missed_cleavages_dict["cats"] = sorted(list(msms_not_contaminant["missed cleavages"].unique()))
+    missed_cleavages_dict = {"plot_data": plot_dict,
+                             "cats": sorted(list(msms_not_contaminant["missed cleavages"].unique()))}
 
     return missed_cleavages_dict
 
@@ -1648,11 +1634,9 @@ def msms_scans_top_n(msms_scans_df):
     for raw_file, group in file_se_count_ratio.groupby("raw file"):
         plot_dict[raw_file] = dict(zip(group["scan event number"], group["count"]))
 
-    se_count_dict = {}
-    se_count_dict["plot_data"] = plot_dict
-    se_count_dict["cats"] = [
+    se_count_dict = {"plot_data": plot_dict, "cats": [
         str(x) for x in reversed(file_se_count_ratio["scan event number"].unique())
-    ]
+    ]}
 
     return se_count_dict
 

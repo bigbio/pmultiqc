@@ -1,7 +1,7 @@
-from multiqc.types import Anchor, SectionId, Section
-from multiqc.core.special_case_modules.custom_content import MultiqcModule, CcDict
 from multiqc import report, config
+from multiqc.core.special_case_modules.custom_content import MultiqcModule, CcDict
 from multiqc.plots.plot import Plot
+from multiqc.types import Anchor, SectionId, Section
 
 
 def create_ordered_group_modules(grouped_plot_data: list[dict]):

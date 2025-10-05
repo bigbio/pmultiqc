@@ -1,4 +1,5 @@
 from multiqc.plots import bargraph, linegraph, heatmap
+
 from ..core.section_groups import add_sub_section
 
 
@@ -598,7 +599,6 @@ def remove_subtitle(plot_html):
         if "subtitle" in dataset.dconfig:
             dataset.dconfig["subtitle"] = ""
 
-        title_text = ""
         if dataset.layout and "title" in dataset.layout:
             title_text = dataset.layout["title"].get("text", "")
             if "<br><sup>" in title_text:

@@ -1,11 +1,10 @@
 import logging
-from datetime import datetime
 import os
+from datetime import datetime
 
 from . import maxquant_utils, maxquant_io, maxquant_plots
-from ..core.section_groups import add_group_modules
 from ..common import common_plots
-
+from ..core.section_groups import add_group_modules
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -15,6 +14,7 @@ class MaxQuantModule:
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
+        self.section_group_dict = None
         self.find_log_files = find_log_files_func
         self.sub_sections = sub_sections
 

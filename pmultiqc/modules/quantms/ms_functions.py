@@ -7,8 +7,8 @@
 ======================
 """
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 # The time resolution in seconds.
 # Larger values will result in smaller data files as outputs

@@ -1,13 +1,13 @@
 import logging
-import re
-import pandas as pd
-import numpy as np
 import os
+import re
+
+import numpy as np
+import pandas as pd
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 from ..common.file_utils import drop_empty_row
-from statsmodels.nonparametric.smoothers_lowess import lowess
-from ..common.calc_utils import qualUniform
-
+from ..common.stats import qual_uniform
 
 DEFAULT_BINS = 500
 
@@ -30,6 +30,7 @@ def extract_condition_and_replicate(run_name):
         return condition_base, replicate
     else:
         log.warning("Failed to identify condition groups in DIA report.tsv!")
+        return None
 
 
 def calculate_dia_intensity_std(df):
@@ -341,7 +342,7 @@ def heatmap_cont_pep_intensity(report_df):
         rt_alignment = max(0.0, 1 - float(np.mean(np.abs(group["RT"] - group["Predicted.RT"]))))
 
         # 5. "ID rate over RT"
-        ids_rate_over_rt = qualUniform(group["RT"])
+        ids_rate_over_rt = qual_uniform(group["RT"])
 
         # 6. Normalization Factor MAD
         def mean_abs_dev(x):

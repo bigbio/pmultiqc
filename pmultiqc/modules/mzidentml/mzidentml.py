@@ -1,57 +1,64 @@
 """ mzIdentML pmultiqc plugin module """
 
 from __future__ import absolute_import
-import logging
+
+import copy
+import os
 from collections import OrderedDict
 from datetime import datetime
-from multiqc import config
 
-from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
-from multiqc.plots import table, bargraph, linegraph, box
-from multiqc.plots.table_object import InputRow
-from multiqc.types import SampleGroup, SampleName
-from typing import Dict, List
-
-import pandas as pd
-from functools import reduce
-import re
-from pyteomics import mztab, mzid, mgf
-from pyopenms import OpenMSBuildInfo
-import os
 import numpy as np
-import copy
+import pandas as pd
+from multiqc import config
+from multiqc.plots import table, bargraph, linegraph
+from pyopenms import OpenMSBuildInfo
+from pyteomics import mzid, mgf
 
-from pmultiqc.modules.quantms.ms_functions import get_ms_qc_info
-from pmultiqc.modules.quantms.mzidentml_utils import (
+from pmultiqc.modules.common.mzidentml_utils import (
     get_mzidentml_mzml_df,
     get_mzidentml_charge,
     get_mzid_rt_id,
     get_mzid_num_data,
+    draw_mzid_quant_table,
 )
+from ..base import BasePMultiqcModule
 from ..common import ms_io, common_plots
-from ..common.histogram import Histogram
-from ..common.calc_utils import qualUniform
 from ..common.file_utils import file_prefix
+from ..common.histogram import Histogram
+from ..common.stats import qual_uniform
 from ..core.section_groups import add_group_modules, add_sub_section
-from ..maxquant.maxquant_utils import mod_group_percentage
-
-from pmultiqc.modules.quantms.quantms_plots import draw_mzid_quant_table
-
-# Initialise the main MultiQC logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
-
-log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
 
 
-class MzIdentMLModule:
+class MzIdentMLModule(BasePMultiqcModule):
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
-        self.heatmap_color_list = heatmap_colors
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
 
+        self.ms_without_psm = None
+        self.oversampling_plot = None
+        self.pep_plot = None
+        self.mgf_rtinseconds = None
+        self.mgf_peaks_ms2_plot_1 = None
+        self.mgf_charge_plot_1 = None
+        self.mgf_peak_distribution_plot_1 = None
+        self.mgf_peaks_ms2_plot = None
+        self.mgf_charge_plot = None
+        self.mgf_peak_distribution_plot = None
+        self.mzml_ms_df = None
+        self.ms_without_psm = None
+        self.mzml_peaks_ms2_plot_1 = None
+        self.mzml_charge_plot_1 = None
+        self.mzml_peak_distribution_plot_1 = None
+        self.mzml_peaks_ms2_plot = None
+        self.mzml_charge_plot = None
+        self.mzml_peak_distribution_plot = None
+        self.section_group_dict = None
+        self.mzid_paths = None
+        self.ms_without_psm = None
+        self.mzid_peptide_map = None
+        self.mgf_paths = None
+        self.ms_paths = None
         self.ms_with_psm = list()
         self.total_protein_identified = 0
         self.cal_num_table_data = dict()
@@ -74,26 +81,24 @@ class MzIdentMLModule:
         self.quantms_missed_cleavages = dict()
         self.quantms_modified = dict()
         self.identified_msms_spectra = dict()
-        self.mztab_charge_state = dict()
-        self.quantms_ids_over_rt = dict()
-        self.quantms_pep_intensity = dict()
-        self.quantms_contaminant_percent = dict()
-        self.quantms_top_contaminant_percent = dict()
-        self.quantms_mass_error = dict()
+
+        self.log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
+
+
+    def get_data(self) -> bool | None:
+        self.log.info("Start parsing the MzIdentML results and spectra files...")
 
         self.ms_paths = []
         for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
             self.ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
 
-        self.ms_info_path = []
-
-        self.mzid_peptide_map = dict()
-        self.ms_without_psm = dict()
-
         self.mgf_paths = []
         for mgf_file in self.find_log_files("pmultiqc/mgf", filecontents=False):
             self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
         self.mgf_paths.sort()
+
+        self.mzid_peptide_map = dict()
+        self.ms_without_psm = dict()
 
         self.mzid_paths = []
         for mzid_file in self.find_log_files("pmultiqc/mzid", filecontents=False):
@@ -130,6 +135,12 @@ class MzIdentMLModule:
                 self.draw_quantms_identification(mt)
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
+
+        return True
+
+
+    def draw_plots(self) -> None:
+        self.log.info("Start plotting the MzIdentML results...")
 
         heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
         common_plots.draw_heatmap(
@@ -247,377 +258,6 @@ class MzIdentMLModule:
             order=1,
             description=description_str,
             helptext=helptext_str,
-        )
-
-    def draw_ms_information(self):
-
-        if self.ms1_tic:
-            ms1_tic_config = {
-                "id": "ms1_tic",
-                "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
-                "title": "Total Ion Chromatograms",
-                "ylab": "Ion Count",
-                "xlab": "Retention Time (seconds)",
-                "ymin": 0,
-                "showlegend": True,
-            }
-            ms1_tic_html = linegraph.plot(self.ms1_tic, ms1_tic_config)
-
-            ms1_tic_html = common_plots.remove_subtitle(ms1_tic_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["ms1"],
-                plot=ms1_tic_html,
-                order=1,
-                description="MS1 quality control information extracted from the spectrum files.",
-                helptext="""
-                    This plot displays Total Ion Chromatograms (TICs) derived from MS1 scans across all analyzed samples. 
-                    The x-axis represents retention time, and the y-axis shows the total ion intensity at each time point. 
-                    Each colored trace corresponds to a different sample. The TIC provides a global view of the ion signal
-                    throughout the LC-MS/MS run, reflecting when compounds elute from the chromatography column. 
-                    Key aspects to assess include:
-                    
-                    * Overall intensity pattern: A consistent baseline and similar peak profiles across samples indicate good reproducibility.
-                    * Major peak alignment: Prominent peaks appearing at similar retention times suggest stable chromatographic performance.
-                    * Signal-to-noise ratio: High peaks relative to baseline noise reflect better sensitivity.
-                    * Chromatographic resolution: Sharp, well-separated peaks indicate effective separation.
-                    * Signal drift: A gradual decline in signal intensity across the run may point to source contamination or chromatography issues.
-                    
-                    Deviations such as shifted retention times, missing peaks, or inconsistent intensities may signal problems 
-                    in sample preparation, LC conditions, or mass spectrometer performance that require further investigation.
-                    """,
-            )
-
-        if self.ms1_bpc:
-
-            ms1_bpc_config = {
-                "id": "ms1_bpc",
-                "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
-                "title": "MS1 Base Peak Chromatograms",
-                "ylab": "Ion Count",
-                "xlab": "Retention Time (seconds)",
-                "ymin": 0,
-                "showlegend": True,
-            }
-
-            ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
-            ms1_bpc_html = common_plots.remove_subtitle(ms1_bpc_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["ms1"],
-                plot=ms1_bpc_html,
-                order=2,
-                description="MS1 base peak chromatograms extracted from the spectrum files.",
-                helptext="""
-                    The Base Peak Chromatogram (BPC) displays the intensity of the most abundant ion at each retention
-                    time point across your LC-MS run. Unlike the Total Ion Chromatogram (TIC) which shows the summed
-                    intensity of all ions, the BPC highlights the strongest signals, providing better visualization
-                    of compounds with high abundance while reducing baseline noise. This makes it particularly useful
-                    for identifying major components in complex samples, monitoring dominant species, and providing
-                    clearer peak visualization when signal-to-noise ratio is a concern. Comparing BPC patterns across
-                    samples allows you to evaluate consistency in the detection of high-abundance compounds
-                    and can reveal significant variations in sample composition or instrument performance.
-                    """,
-            )
-
-        if self.ms1_peaks:
-
-            ms1_peaks_config = {
-                "id": "ms1_peaks",
-                "tt_label": "<b>{point.x} Peak Count:</b> {point.y}",
-                "title": "MS1 Peaks",
-                "ylab": "Peak Count",
-                "xlab": "Retention Time (seconds)",
-                "ymin": 0,
-                "showlegend": True,
-            }
-
-            ms1_peaks_html = linegraph.plot(self.ms1_peaks, ms1_peaks_config)
-            ms1_peaks_html = common_plots.remove_subtitle(ms1_peaks_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["ms1"],
-                plot=ms1_peaks_html,
-                order=3,
-                description="MS1 Peaks from the spectrum files",
-                helptext="""
-                    This plot shows the number of peaks detected in MS1 scans over the course of each sample run.
-                    The x-axis represents retention time (in minutes), while the y-axis displays the number of
-                    distinct ion signals (peaks) identified in each MS1 scan. The MS1 peak count reflects spectral
-                    complexity and provides insight into instrument performance during the LC-MS analysis.
-                    Key aspects to consider include:
-                    
-                    * Overall pattern: Peak counts typically increase during the elution of complex mixtures and
-                    decrease during column washing or re-equilibration phases.
-                    * Peak density: Higher counts suggest more complex spectra, potentially indicating a greater
-                    number of compounds present at that time point."
-                    * Peak Consistency across samples: Similar profiles among replicates or related samples
-                    indicate good analytical reproducibility.
-                    * Sudden drops: Abrupt decreases in peak count may point to transient ionization issues,
-                    spray instability, or chromatographic disruptions.
-                    * Baseline values: The minimum peak count observed reflects the level of background noise
-                    or instrument sensitivity in the absence of eluting compounds.
-                    
-                    Monitoring MS1 peak counts complements total ion chromatogram (TIC) and base peak chromatogram
-                    (BPC) data, offering an additional layer of quality control related to signal complexity,
-                    instrument stability, and sample composition.
-                    """,
-            )
-
-        if self.ms1_general_stats:
-            tconfig = {
-                "id": "ms_general_stats",
-                "title": "General stats for MS1 information",
-                "only_defined_headers": True,
-                "col1_header": "File",
-            }
-            headers = {
-                "File": {
-                    "title": "File",
-                },
-                "AcquisitionDateTime": {
-                    "title": "Acquisition Date Time",
-                },
-                "log10(TotalCurrent)": {
-                    "title": "log10(Total Current)",
-                    "format": "{:,.4f}",
-                },
-                "log10(ScanCurrent)": {
-                    "title": "log10(Scan Current)",
-                    "format": "{:,.4f}",
-                },
-            }
-            table_html = table.plot(self.ms1_general_stats, headers=headers, pconfig=tconfig)
-
-            add_sub_section(
-                sub_section=self.sub_sections["ms1"],
-                plot=table_html,
-                order=4,
-                description="General stats for MS1 information extracted from the spectrum files.",
-                helptext="""
-                    This table presents general statistics for MS1 information extracted from mass spectrometry data files."
-                    It displays MS runs with their acquisition dates and times.
-                    For each file, the table shows two key metrics: TotalCurrent (the sum of all MS1 ion intensities throughout the run) and ScanCurrent (the sum of MS2 ion intensities).
-                    These values provide a quick overview of the total ion signals detected during both survey scans (MS1) and fragmentation scans (MS2),
-                    allowing for comparison of overall signal intensity across samples. Consistent TotalCurrent and ScanCurrent values across similar samples typically
-                    indicate good reproducibility in the mass spectrometry analysis, while significant variations may suggest issues with sample preparation,
-                    instrument performance, or ionization efficiency. The blue shading helps visualize the relative intensity differences between samples.
-                    """,
-            )
-
-    def draw_quantms_identi_num(self):
-        # Create table data
-        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
-
-        if self.enable_exp or self.enable_sdrf:
-
-            if self.is_multi_conditions:
-                for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
-                    file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-                    sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-                    row_data: List[InputRow] = []
-
-                    sample_data = {}
-                    for k, v in condition_split(
-                        sample_df_slice["MSstats_Condition"].iloc[0]
-                    ).items():
-                        sample_data["MSstats_Condition_" + str(k)] = v
-
-                    sample_data["MSstats_BioReplicate"] = sample_df_slice[
-                        "MSstats_BioReplicate"
-                    ].iloc[0]
-                    sample_data["Fraction"] = ""
-                    sample_data["Peptide_Num"] = ""
-                    sample_data["Unique_Peptide_Num"] = ""
-                    sample_data["Modified_Peptide_Num"] = ""
-                    sample_data["Protein_Num"] = ""
-
-                    row_data.append(
-                        InputRow(
-                            sample=SampleName(sample),
-                            data=sample_data,
-                        )
-                    )
-
-                    for _, row in file_df_sample.iterrows():
-
-                        sample_data = {}
-                        for k, _ in condition_split(
-                            sample_df_slice["MSstats_Condition"].iloc[0]
-                        ).items():
-                            sample_data["MSstats_Condition_" + str(k)] = ""
-
-                        sample_data["Fraction"] = row["Fraction"]
-                        sample_data["Peptide_Num"] = self.cal_num_table_data[row["Run"]][
-                            "peptide_num"
-                        ]
-                        sample_data["Unique_Peptide_Num"] = self.cal_num_table_data[row["Run"]][
-                            "unique_peptide_num"
-                        ]
-                        sample_data["Modified_Peptide_Num"] = self.cal_num_table_data[row["Run"]][
-                            "modified_peptide_num"
-                        ]
-                        sample_data["Protein_Num"] = self.cal_num_table_data[row["Run"]][
-                            "protein_num"
-                        ]
-
-                        row_data.append(
-                            InputRow(
-                                sample=SampleName(row["Run"]),
-                                data=sample_data,
-                            )
-                        )
-                    group_name: SampleGroup = SampleGroup(sample)
-                    rows_by_group[group_name] = row_data
-
-                headers = {}
-                for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                    headers["MSstats_Condition_" + str(k)] = {
-                        "title": "MSstats Condition: " + str(k),
-                        "description": "",
-                        "scale": False,
-                    }
-                headers["Fraction"] = {
-                    "title": "Fraction",
-                    "description": "Fraction Identifier",
-                    "scale": False,
-                }
-                headers["Peptide_Num"] = {
-                    "title": "#Peptide IDs",
-                    "description": "The number of identified PSMs in the pipeline",
-                }
-                headers["Unique_Peptide_Num"] = {
-                    "title": "#Unambiguous Peptide IDs",
-                    "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
-                }
-                headers["Modified_Peptide_Num"] = {
-                    "title": "#Modified Peptide IDs",
-                    "description": "Number of modified identified peptides in the pipeline",
-                }
-                headers["Protein_Num"] = {
-                    "title": "#Protein (group) IDs",
-                    "description": "The number of identified protein(group)s in the pipeline",
-                }
-            else:
-                for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
-                    file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-                    sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-                    row_data: List[InputRow] = []
-                    row_data.append(
-                        InputRow(
-                            sample=SampleName(sample),
-                            data={
-                                "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                                "Fraction": "",
-                                "Peptide_Num": "",
-                                "Unique_Peptide_Num": "",
-                                "Modified_Peptide_Num": "",
-                                "Protein_Num": "",
-                            },
-                        )
-                    )
-                    for _, row in file_df_sample.iterrows():
-                        row_data.append(
-                            InputRow(
-                                sample=SampleName(row["Run"]),
-                                data={
-                                    "MSstats_Condition": "",
-                                    "Fraction": row["Fraction"],
-                                    "Peptide_Num": self.cal_num_table_data[row["Run"]][
-                                        "peptide_num"
-                                    ],
-                                    "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]][
-                                        "unique_peptide_num"
-                                    ],
-                                    "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]][
-                                        "modified_peptide_num"
-                                    ],
-                                    "Protein_Num": self.cal_num_table_data[row["Run"]][
-                                        "protein_num"
-                                    ],
-                                },
-                            )
-                        )
-                    group_name: SampleGroup = SampleGroup(sample)
-                    rows_by_group[group_name] = row_data
-
-                headers = {
-                    "MSstats_Condition": {
-                        "title": "MSstats_Condition",
-                        "description": "MSstats Condition",
-                        "scale": False,
-                    },
-                    "Fraction": {
-                        "title": "Fraction",
-                        "description": "Fraction Identifier",
-                        "scale": False,
-                    },
-                    "Peptide_Num": {
-                        "title": "#Peptide IDs",
-                        "description": "The number of identified PSMs in the pipeline",
-                    },
-                    "Unique_Peptide_Num": {
-                        "title": "#Unambiguous Peptide IDs",
-                        "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
-                    },
-                    "Modified_Peptide_Num": {
-                        "title": "#Modified Peptide IDs",
-                        "description": "Number of modified identified peptides in the pipeline",
-                    },
-                    "Protein_Num": {
-                        "title": "#Protein (group) IDs",
-                        "description": "The number of identified protein(group)s in the pipeline",
-                    },
-                }
-
-        else:
-            rows_by_group = dict()
-            for sample, value in self.cal_num_table_data.items():
-                rows_by_group[sample] = {
-                    "Peptide_Num": value["peptide_num"],
-                    "Unique_Peptide_Num": value["unique_peptide_num"],
-                    "Modified_Peptide_Num": value["modified_peptide_num"],
-                    "Protein_Num": value["protein_num"],
-                }
-
-            headers = {
-                "Peptide_Num": {
-                    "title": "#Peptide IDs",
-                    "description": "The number of identified PSMs in the pipeline",
-                },
-                "Unique_Peptide_Num": {
-                    "title": "#Unambiguous Peptide IDs",
-                    "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
-                },
-                "Modified_Peptide_Num": {
-                    "title": "#Modified Peptide IDs",
-                    "description": "Number of modified identified peptides in the pipeline",
-                },
-                "Protein_Num": {
-                    "title": "#Protein (group) IDs",
-                    "description": "The number of identified protein(group)s in the pipeline",
-                },
-            }
-
-        # Create table plot
-        pconfig = {
-            "id": "pipeline_result_statistics",
-            "title": "Pipeline Result Statistics",
-            "save_file": False,
-            "raw_data_fn": "multiqc_pipeline_result_statistics",
-            "no_violin": True,
-        }
-        table_html = table.plot(rows_by_group, headers, pconfig)
-        add_sub_section(
-            sub_section=self.sub_sections["summary"],
-            plot=table_html,
-            order=3,
-            description="This plot shows the quantms pipeline final result.",
-            helptext="""
-                Including Sample Name, Possible Study Variables, identified the number of peptide in the pipeline,
-                and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained 
-                from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
-                """,
         )
 
     def draw_mzid_identi_num(self):
@@ -1342,7 +982,7 @@ class MzIdentMLModule:
         #     )
 
     def mzid_cal_heat_map_score(self, psm):
-        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
+        self.log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
 
         # HeatMapMissedCleavages
         global_peps = psm[["PeptideSequence", "Modifications"]].drop_duplicates()
@@ -1384,7 +1024,7 @@ class MzIdentMLModule:
 
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = qualUniform(group["retention_time"])
+            self.id_rt_score[name] = qual_uniform(group["retention_time"])
 
             #  For HeatMapOverSamplingScore
             self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
@@ -1416,143 +1056,7 @@ class MzIdentMLModule:
                 ),
             )
         )
-        log.info(
-            "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
-        )
-
-    def cal_heat_map_score(self):
-        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
-        mztab_data = mztab.MzTab(self.out_mztab_path)
-        psm = mztab_data.spectrum_match_table
-        meta_data = dict(mztab_data.metadata)
-        if self.pep_table_exists:
-            pep_table = mztab_data.peptide_table
-
-            with pd.option_context("future.no_silent_downcasting", True):
-                pep_table = pep_table.fillna(np.nan).infer_objects(copy=False).copy()
-
-            pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
-                lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-                axis=1,
-            )
-            study_variables = list(
-                filter(
-                    lambda x: re.match(r"peptide_abundance_study_variable.*?", x) is not None,
-                    pep_table.columns.tolist(),
-                )
-            )
-
-            pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
-
-            # Contaminants
-            if (
-                len(
-                    pep_table[
-                        pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
-                    ]
-                )
-                > 0
-            ):
-
-                self.quantms_contaminant_percent = self.cal_quantms_contaminant_percent(
-                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy()
-                )
-
-                self.quantms_top_contaminant_percent = self.top_n_contaminant_percent(
-                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(), 5
-                )
-
-            for name, group in pep_table.groupby("stand_spectra_ref"):
-
-                contaminant_sum = (
-                    group[group["accession"].str.contains(config.kwargs["contaminant_affix"])][
-                        study_variables
-                    ]
-                    .sum(axis=0)
-                    .sum()
-                )
-                all_sum = group[study_variables].sum(axis=0).sum()
-                self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
-
-                if config.kwargs["remove_decoy"]:
-                    pep_median = np.nanmedian(
-                        group[(group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)][
-                            study_variables
-                        ].to_numpy()
-                    )
-                    self.quantms_pep_intensity[name] = group[
-                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
-                    ]["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
-                    )
-                else:
-                    pep_median = np.nanmedian(group[study_variables].to_numpy())
-                    self.quantms_pep_intensity[name] = group["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
-                    )
-
-                self.heatmap_pep_intensity[name] = np.minimum(
-                    1.0, pep_median / (2**23)
-                )  # Threshold
-
-        #  HeatMapMissedCleavages
-        global_peps = set(psm["opt_global_cv_MS:1000889_peptidoform_sequence"])
-        global_peps_count = len(global_peps)
-        if (
-            config.kwargs["remove_decoy"]
-            and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
-        ):
-            psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
-        psm.loc[:, "stand_spectra_ref"] = psm.apply(
-            lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-            axis=1,
-        )
-
-        enzyme_list = [i for i in meta_data.values() if str(i).startswith("enzyme:")]
-        enzyme = enzyme_list[0].split(":")[1] if len(enzyme_list) == 1 else "Trypsin"
-        psm.loc[:, "missed_cleavages"] = psm.apply(
-            lambda x: self.cal_miss_cleavages(x["sequence"], enzyme), axis=1
-        )
-
-        # Calculate the ID RT Score
-        for name, group in psm.groupby("stand_spectra_ref"):
-            sc = group["missed_cleavages"].value_counts()
-
-            self.quantms_missed_cleavages[name] = sc.to_dict()
-
-            mis_0 = sc[0] if 0 in sc else 0
-            self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = qualUniform(group["retention_time"])
-
-            #  For HeatMapOverSamplingScore
-            self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
-                list(self.oversampling[name].values())
-            )
-
-            # For HeatMapPepMissingScore
-            id_fraction = (
-                len(
-                    set(group["opt_global_cv_MS:1000889_peptidoform_sequence"]).intersection(
-                        global_peps
-                    )
-                )
-                / global_peps_count
-            )
-            self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
-
-        median = np.median(list(self.missed_clevages_heatmap_score.values()))
-        self.missed_cleavages_var_score = dict(
-            zip(
-                self.missed_clevages_heatmap_score.keys(),
-                list(
-                    map(
-                        lambda v: 1 - np.abs(v - median),
-                        self.missed_clevages_heatmap_score.values(),
-                    )
-                ),
-            )
-        )
-        log.info(
+        self.log.info(
             "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
         )
 
@@ -1630,9 +1134,6 @@ class MzIdentMLModule:
 
         self.ms_without_psm = []
 
-        mzml_table = {}
-        heatmap_charge = {}
-
         # Use the refactored functions from ms_io.py
         result = ms_io.read_mzmls(
             self.ms_paths,
@@ -1652,7 +1153,7 @@ class MzIdentMLModule:
         (mzml_table, heatmap_charge, self.total_ms2_spectra, self.mzml_ms_df) = result
 
         for i in self.ms_without_psm:
-            log.warning("No PSM found in '{}'!".format(i))
+            self.log.warning("No PSM found in '{}'!".format(i))
 
         self.mzml_peaks_ms2_plot.to_dict()
         self.mzml_peak_distribution_plot.to_dict()
@@ -1695,7 +1196,7 @@ class MzIdentMLModule:
 
         return mzml_table
 
-    def parse_out_mgf(self):
+    def parse_out_mgf(self) -> None:
         def get_spectrum_id(spectrum_title, index):
             if "scan=" in spectrum_title:
                 spectrum_id = spectrum_title
@@ -1723,13 +1224,13 @@ class MzIdentMLModule:
         mgf_rtinseconds = {"spectrumID": [], "title": [], "filename": [], "retention_time": []}
 
         for m in self.mgf_paths:
-            log.info("{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+            self.log.info("{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
             mgf_data = mgf.MGF(m)
-            log.info(
+            self.log.info(
                 "{}: Done parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
             )
             m = file_prefix(m)
-            log.info(
+            self.log.info(
                 "{}: Aggregating MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
             )
 
@@ -1772,7 +1273,7 @@ class MzIdentMLModule:
 
             heatmap_charge[m] = charge_2 / ms2_number
             self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
-            log.info(
+            self.log.info(
                 "{}: Done aggregating MGF file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), m
                 )
@@ -1781,7 +1282,7 @@ class MzIdentMLModule:
         self.mgf_rtinseconds = pd.DataFrame(mgf_rtinseconds)
 
         for i in self.ms_without_psm:
-            log.warning("No PSM found in '{}'!".format(i))
+            self.log.warning("No PSM found in '{}'!".format(i))
 
         self.mgf_peaks_ms2_plot.to_dict()
         self.mgf_peak_distribution_plot.to_dict()
@@ -2101,64 +1602,4 @@ class MzIdentMLModule:
 
             common_plots.draw_ms_ms_identified(
                 self.sub_sections["identification"], msms_identified_rate
-            )
-
-    def draw_quantms_contaminants(self):
-
-        # 1.Potential Contaminants per Group
-        if self.quantms_contaminant_percent:
-            common_plots.draw_potential_contaminants(
-                self.sub_sections["contaminants"], self.quantms_contaminant_percent, False
-            )
-
-        # 2.Top5 Contaminants per Raw file
-        if self.quantms_top_contaminant_percent:
-            common_plots.draw_top_n_contaminants(
-                self.sub_sections["contaminants"], self.quantms_top_contaminant_percent
-            )
-
-    def draw_quantms_quantification(self):
-
-        # 1.Peptide Intensity Distribution
-        if self.quantms_pep_intensity:
-            draw_config = {
-                "id": "peptide_intensity_distribution_box",
-                "cpswitch": False,
-                "cpswitch_c_active": False,
-                "title": "Peptide Intensity Distribution",
-                "tt_decimals": 2,
-                "xlab": "log2(Intensity)",
-            }
-            box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
-            box_html = common_plots.remove_subtitle(box_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["quantification"],
-                plot=box_html,
-                order=5,
-                description="Peptide intensity per file from mzTab.",
-                helptext="""
-                    Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the 
-                    peptide table in the mzTab file, and then apply a log2 transformation.
-                    """,
-            )
-
-    def draw_quantms_msms_section(self):
-
-        # 1.Charge-state of Per File
-        if self.mztab_charge_state:
-            common_plots.draw_charge_state(self.sub_sections["ms2"], self.mztab_charge_state, "")
-
-    def draw_quantms_time_section(self):
-
-        # 1.IDs over RT
-        if self.quantms_ids_over_rt:
-            common_plots.draw_ids_rt_count(
-                self.sub_sections["rt_qc"], self.quantms_ids_over_rt, ""
-            )
-
-        # 2.Delta Mass [ppm]
-        if self.quantms_mass_error:
-            common_plots.draw_delta_mass_da_ppm(
-                self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )

@@ -1,14 +1,13 @@
+import itertools
+from collections import OrderedDict
 from typing import Dict, List
-from multiqc.types import SampleGroup, SampleName
-from multiqc.plots.table_object import InputRow
-
 
 from multiqc.plots import bargraph, linegraph, box, scatter, table
-from collections import OrderedDict
-import itertools
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
 
-from ..core.section_groups import add_sub_section
 from ..common.common_plots import remove_subtitle
+from ..core.section_groups import add_sub_section
 
 
 def draw_exp_design(sdrf_df, sub_sections):
@@ -16,17 +15,14 @@ def draw_exp_design(sdrf_df, sub_sections):
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
     for sample, group in sdrf_df.groupby("sample"):
-        row_data: List[InputRow] = []
-        row_data.append(
-            InputRow(
-                sample=SampleName(sample),
-                data={
-                    "BioReplicate": int(group["biological_replicate"].iloc[0]),
-                    "Fraction": "",
-                    "TecReplicate": "",
-                },
-            )
-        )
+        row_data: List[InputRow] = [InputRow(
+            sample=SampleName(sample),
+            data={
+                "BioReplicate": int(group["biological_replicate"].iloc[0]),
+                "Fraction": "",
+                "TecReplicate": "",
+            },
+        )]
 
         for _, row in group.iterrows():
             row_data.append(
@@ -588,30 +584,14 @@ def draw_maxquant_summary_table(
                 "num_proteins_quantified"
             ]
 
-    headers = OrderedDict()
-    headers = {
-        "#Identified MS2 Spectra": {
-            "title": "#Identified MS2 Spectra",
-            "description": "Total number of MS/MS spectra identified",
-            "format": "{:,.0f}",
-        },
-        "%Identified MS2 Spectra": {
-            "title": "%Identified MS2 Spectra",
-            "description": "Percentage of Identified MS/MS Spectra",
-            "suffix": "%",
-            "format": "{:,.2f}",
-        },
-    }
-
-    headers["#Identified MS2 Spectra"] = {
+    headers = {"#Identified MS2 Spectra": {
         "description": "Total number of MS/MS spectra identified",
         "format": "{:,.0f}",
-    }
-    headers["%Identified MS2 Spectra"] = {
+    }, "%Identified MS2 Spectra": {
         "description": "Percentage of Identified MS/MS Spectra",
         "format": "{:,.2f}",
         "suffix": "%",
-    }
+    }}
 
     # Create table plot
     pconfig = {

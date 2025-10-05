@@ -1,10 +1,11 @@
-from multiqc.plots import heatmap, box, bargraph, linegraph
 import re
 
-from ..common.common_plots import remove_subtitle
-from ..core.section_groups import add_sub_section
-from ..common.calc_utils import cal_delta_mass_dict
+from multiqc.plots import heatmap, box, bargraph, linegraph
+
 from .quantms_utils import calculate_dia_intensity_std
+from ..common.common_plots import remove_subtitle
+from ..common.stats import cal_delta_mass_dict
+from ..core.section_groups import add_sub_section
 
 
 # DIA-NN: HeatMap

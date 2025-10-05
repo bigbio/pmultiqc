@@ -1,13 +1,12 @@
 import logging
 import os
-import pandas as pd
-import numpy as np
 import re
 
+import numpy as np
+import pandas as pd
 from multiqc.plots import bargraph, linegraph, box, scatter
 
 from ..common.common_plots import remove_subtitle
-
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)

@@ -1,22 +1,19 @@
-import logging
 import os
 
 from .proteobench_utils import get_pb_data
+from ..base import BasePMultiqcModule
 from ..core.section_groups import add_group_modules, add_sub_section
 
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+class ProteoBenchModule(BasePMultiqcModule):
 
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-class ProteoBenchModule:
-
-    def __init__(self, find_log_files_func):
-
-        self.find_log_files = find_log_files_func
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
+        self.section_group_dict = None
         self.pb_results = None
 
-    def get_proteobench(self):
+    def get_data(self) -> bool | None:
 
         pb_file_path = []
         for pb_result in self.find_log_files("pmultiqc/proteobench_result", filecontents=False):
@@ -29,10 +26,10 @@ class ProteoBenchModule:
 
         self.pb_results = get_pb_data(pb_file_path[0])
 
-        return self.pb_results
+        return True
 
-    def draw_report_plots(self):
-        log.info("Start plotting the ProteoBench results...")
+    def draw_plots(self) -> None:
+        self.log.info("Start plotting the ProteoBench results...")
 
         # 1. precursor ion
         precursor_sub_section = list()

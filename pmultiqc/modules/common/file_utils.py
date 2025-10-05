@@ -1,14 +1,14 @@
-from typing import Union, Optional
-from pathlib import Path
-import io
-import zipfile
 import gzip
-import tarfile
+import io
+import logging
 import os
 import shutil
-import pandas as pd
+import tarfile
+import zipfile
+from pathlib import Path
+from typing import Union, Optional
 
-import logging
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
