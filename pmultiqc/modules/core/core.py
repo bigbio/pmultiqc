@@ -66,7 +66,7 @@ class PMultiQC(BaseMultiqcModule):
             mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list)
 
             if mq.get_data():
-                mq.draw_report_plots()
+                mq.draw_plots()
 
         # Parse mzIdentML results
         elif config.kwargs.get("mzid_plugin", False):
