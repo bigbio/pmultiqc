@@ -1,5 +1,4 @@
 import itertools
-from collections import OrderedDict
 from typing import Dict, List
 
 from multiqc.plots import bargraph, linegraph, box, scatter, table

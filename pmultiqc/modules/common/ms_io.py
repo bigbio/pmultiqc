@@ -18,7 +18,7 @@ from pyteomics import mzid
 
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.quantms.ms_functions import get_ms_qc_info
+from pmultiqc.modules.common.ms_functions import get_ms_qc_info
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)

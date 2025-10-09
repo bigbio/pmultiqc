@@ -9,9 +9,19 @@ from pandas._typing import ReadCsvBuffer
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-from ..common.file_utils import get_filename, drop_empty_row
-from ..common.stats import nanmedian
-from ..common.stats import qual_uniform, cal_delta_mass_dict
+from pmultiqc.modules.common.file_utils import get_filename, drop_empty_row
+from pmultiqc.modules.common.stats import nanmedian
+from pmultiqc.modules.common.stats import (
+    qual_uniform,
+    cal_delta_mass_dict
+)
+from pmultiqc.modules.common.common_utils import (
+    mod_group_percentage,
+    evidence_rt_count,
+    recommpute_mass_error,
+    evidence_calibrated_mass_error
+)
+
 from ...logging import get_logger, Timer
 
 # Initialize logger for this module
@@ -524,7 +534,7 @@ def get_evidence(file_path):
 
     # Calibrated Mass Error
     logger.debug("Calculating calibrated mass error")
-    calibrated_mass_error = evidence_calibrated_mass_error(evidence_df)
+    calibrated_mass_error = evidence_calibrated_mass_error(evidence_df, True)
 
     # Peptide ID count
     logger.debug("Counting peptide IDs")
@@ -833,34 +843,6 @@ def evidence_modified(evidence_data):
 
 
 # 3-5.evidence.txt: IDs over RT
-def evidence_rt_count(evidence_data):
-    if any(column not in evidence_data.columns for column in ["retention time", "raw file"]):
-        return None
-
-    if "potential contaminant" in evidence_data.columns:
-        evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
-
-    rt_range = [evidence_data["retention time"].min(), evidence_data["retention time"].max()]
-
-    def hist_compute(rt_list, rt_range):
-
-        if rt_range[0] < 5:
-            rt_range_min = 0
-        else:
-            rt_range_min = rt_range[0] - 5
-
-        counts, bin_edges = np.histogram(rt_list, bins=np.arange(rt_range_min, rt_range[1] + 5, 1))
-        bin_mid = (bin_edges[:-1] + bin_edges[1:]) / 2
-        rt_counts = pd.DataFrame({"retention_time": bin_mid, "counts": counts})
-
-        return dict(zip(rt_counts["retention_time"], rt_counts["counts"]))
-
-    rt_count_dict = {}
-    for raw_file, group in evidence_data.groupby("raw file"):
-        rt_count_dict[str(raw_file)] = hist_compute(group["retention time"], rt_range)
-
-    return rt_count_dict
-
 
 # 3-6.evidence.txt: Peak width over RT
 def evidence_peak_width_rt(evidence_data):
@@ -967,43 +949,7 @@ def evidence_uncalibrated_mass_error(evidence_data):
 
 
 # 3-8.evidence.txt: Calibrated mass error
-def evidence_calibrated_mass_error(evidence_data):
 
-    if "potential contaminant" in evidence_data.columns:
-        evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
-
-    evd_df = recommpute_mass_error(evidence_data)
-
-    if evd_df is None:
-        if any(column not in evidence_data.columns for column in ["mass error [ppm]", "raw file"]):
-            logger.warning(
-                "evidence_calibrated_mass_error: Required columns 'mass error [ppm]' or 'raw file' are missing in Evidence DataFrame."
-            )
-            return None
-        else:
-            logger.warning(
-                "Missing required columns. Skipping mass error recomputation and falling back to 'mass error [ppm]' and 'raw file' only."
-            )
-            evd_df = evidence_data[["mass error [ppm]", "raw file"]].copy()
-
-    evd_df.dropna(subset=["mass error [ppm]"], inplace=True)
-
-    count_bin = evd_df["mass error [ppm]"].value_counts(sort=False, bins=1000)
-    count_bin_data = dict()
-    for index in count_bin.index:
-        count_bin_data[float(index.mid)] = int(count_bin[index])
-
-    frequency_bin = evd_df["mass error [ppm]"].value_counts(sort=False, bins=1000, normalize=True)
-    frequency_bin_data = dict()
-    for index in frequency_bin.index:
-        frequency_bin_data[float(index.mid)] = float(frequency_bin[index])
-
-    result_dict = {
-        "count": count_bin_data,
-        "frequency": frequency_bin_data,
-    }
-
-    return result_dict
 
 
 # 3-9.evidence.txt: Peptide ID count
@@ -1709,27 +1655,6 @@ def parameters_table(parameters_df):
     logger.debug(f"Created parameters table with {len(parameters_dict)} entries")
     return parameters_dict
 
-
-def mod_group_percentage(group):
-
-    if "Modifications" in group.columns:
-        group.rename(columns={"Modifications": "modifications"}, inplace=True)
-
-    counts = group["modifications"].str.split(",").explode().value_counts()
-    percentage_df = (counts / len(group["modifications"]) * 100).reset_index()
-    percentage_df.columns = ["modifications", "percentage"]
-
-    # Modified (Total)
-    percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"] = (
-        100 - percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"]
-    )
-    percentage_df.loc[percentage_df["modifications"] == "Unmodified", "modifications"] = (
-        "Modified (Total)"
-    )
-
-    return percentage_df
-
-
 def read_sdrf(sdrf_path):
 
     sdrf_df = pd.read_csv(sdrf_path, sep="\t")
@@ -1762,48 +1687,3 @@ def read_sdrf(sdrf_path):
 
     else:
         return None
-
-
-# re-compute mass error
-def recommpute_mass_error(evidence_df):
-
-    required_cols = [
-        "mass error [ppm]",
-        "uncalibrated mass error [ppm]",
-        "raw file",
-        "mass",
-        "charge",
-        "m/z",
-        "uncalibrated - calibrated m/z [ppm]",
-    ]
-
-    if not all(col in evidence_df.columns for col in required_cols):
-        logger.info("Evidence is missing one or more required columns in recommpute_mass_error.")
-        return None
-
-    df = evidence_df[required_cols].copy()
-
-    decal_df = df.groupby("raw file", as_index=False).agg(
-        decal=("uncalibrated mass error [ppm]", lambda x: np.median(np.abs(x)) > 1e3)
-    )
-
-    if decal_df["decal"].any():
-
-        logger.info("Detected at least one raw file with unusually high uncalibrated mass error.")
-
-        df["theoretical_mz"] = df["mass"] / df["charge"] + 1.00726
-        df["mass_error_ppm"] = (df["theoretical_mz"] - df["m/z"]) / df["theoretical_mz"] * 1e6
-        df["uncalibrated_mass_error_ppm"] = (
-            df["mass_error_ppm"] + df["uncalibrated - calibrated m/z [ppm]"]
-        )
-
-        idx_overwrite = df["raw file"].isin(decal_df.loc[decal_df["decal"], "raw file"])
-        df.loc[idx_overwrite, "mass error [ppm]"] = df.loc[idx_overwrite, "mass_error_ppm"]
-        df.loc[idx_overwrite, "uncalibrated mass error [ppm]"] = df.loc[
-            idx_overwrite, "uncalibrated_mass_error_ppm"
-        ]
-
-    else:
-        logger.info("No raw files with unusually high uncalibrated mass error detected.")
-
-    return df[["mass error [ppm]", "uncalibrated mass error [ppm]", "raw file"]]
