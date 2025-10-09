@@ -1,12 +1,15 @@
+import logging
 import re
+import pandas as pd
 
 from multiqc.plots import heatmap, box, bargraph, linegraph
 
-from .quantms_utils import calculate_dia_intensity_std
-from ..common.common_plots import remove_subtitle
-from ..common.stats import cal_delta_mass_dict
-from ..core.section_groups import add_sub_section
+from pmultiqc.modules.common.common_plots import remove_subtitle
+from pmultiqc.modules.common.stats import cal_delta_mass_dict
+from pmultiqc.modules.core.section_groups import add_sub_section
 
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 # DIA-NN: HeatMap
 def draw_heatmap(sub_section, hm_colors, heatmap_data):
@@ -479,3 +482,40 @@ def draw_loess_rt_irt(sub_section, plot_data):
             iRT: reference RT as recorded in the spectral library.
         """,
     )
+
+def calculate_dia_intensity_std(df):
+
+    df_sub = df.copy()
+    df_sub[["run_condition", "run_replicate"]] = df_sub["Run"].apply(
+        lambda x: pd.Series(extract_condition_and_replicate(x))
+    )
+
+    grouped_std = (
+        df_sub.groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
+        .std()
+        .reset_index(name="log_intensity_std")
+    )
+
+    plot_data = {
+        condition: group["log_intensity_std"].dropna().tolist()
+        for condition, group in grouped_std.groupby("run_condition")
+    }
+
+    return plot_data
+
+def extract_condition_and_replicate(run_name):
+
+    match = re.search(r"^(.*?)([A-Za-z]*)(\d+)$", run_name)
+
+    if match:
+        condition_base = match.group(1) + match.group(2)
+
+        if condition_base.endswith("_"):
+            condition_base = condition_base[:-1]
+
+        replicate = int(match.group(3))
+
+        return condition_base, replicate
+    else:
+        log.warning("Failed to identify condition groups in DIA report.tsv!")
+        return None
