@@ -79,12 +79,18 @@ class PMultiQC(BaseMultiqcModule):
         # Parse DIA-NN results
         elif config.kwargs.get("diann_plugin", False):
             DiannModule = get_module("diann", "DiannModule")
-            DiannModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+            diann = DiannModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+
+            if diann.get_data():
+                diann.draw_plots()
 
         # quantms, DIA-NN results
         elif config.kwargs.get("quantms_plugin", False):
             QuantMSModule = get_module("quantms", "QuantMSModule")
-            QuantMSModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+            quantms = QuantMSModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+
+            if quantms.get_data():
+                quantms.draw_plots()
         else:
             raise ValueError("No plugin defined")
 

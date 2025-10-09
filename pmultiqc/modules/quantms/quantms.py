@@ -13,51 +13,47 @@ from collections import OrderedDict
 from datetime import datetime
 from functools import reduce
 from operator import itemgetter
-from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 from multiqc import config
 from multiqc.plots import table, bargraph, linegraph, box
-from multiqc.plots.table_object import InputRow
-from multiqc.types import SampleGroup, SampleName
-from pyopenms import OpenMSBuildInfo, AASequence
+from pyopenms import AASequence
 from pyteomics import mztab
-from sdrf_pipelines.openms.openms import OpenMS, UnimodDatabase
+from sdrf_pipelines.openms.openms import UnimodDatabase
 
 from . import sparklines
-from .ms_functions import get_ms_qc_info
-from .quantms_plots import (
-    draw_dia_heatmap,
-    draw_dia_intensitys,
-    draw_dia_ms1,
-    draw_dia_ms2s,
-    draw_dia_mass_error,
-    draw_dia_rt_qc,
-    draw_diann_quant_table,
-)
-from .quantms_utils import condition_split
-from ..common import ms_io, common_plots
-from ..common.file_utils import file_prefix
-from ..common.histogram import Histogram
-from ..common.stats import qual_uniform
-from ..core.section_groups import add_group_modules, add_sub_section
-from ..maxquant.maxquant_utils import (
+from ..common.ms_functions import get_ms_qc_info
+from pmultiqc.modules.common.dia_utils import parse_diann_report
+from pmultiqc.modules.common.common_utils import (
+    parse_sdrf,
+    get_ms_path,
     mod_group_percentage,
     evidence_rt_count,
     evidence_calibrated_mass_error,
+    parse_mzml
 )
+from pmultiqc.modules.common import ms_io, common_plots
+from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.histogram import Histogram
+from pmultiqc.modules.common.stats import qual_uniform
+from pmultiqc.modules.core.section_groups import (
+    add_group_modules,
+    add_sub_section
+)
+
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
-
-
 class QuantMSModule:
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
+
+        self.find_log_files = find_log_files_func
+        self.sub_sections = sub_sections
+        self.heatmap_color_list = heatmap_colors
 
         self.exp_design_runs = None
         self.mzml_peak_distribution_plot = None
@@ -80,10 +76,6 @@ class QuantMSModule:
         self.pep_plot = None
         self.peptide_search_score = None
         self.ms_without_psm = None
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
-        self.heatmap_color_list = heatmap_colors
-
         self.ms_with_psm = list()
         self.total_protein_identified = 0
         self.cal_num_table_data = dict()
@@ -117,55 +109,9 @@ class QuantMSModule:
         self.quantms_top_contaminant_percent = dict()
         self.quantms_mass_error = dict()
 
-        self.ms_paths = []
-        for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
-            self.ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
-
-        self.ms_info_path = []
-
-        if config.output_dir:
-            if os.path.exists(config.output_dir):
-                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
-            else:
-                os.makedirs(config.output_dir)
-                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
-        else:
-            self.con = sqlite3.connect("./quantms.db")
-
-        self.cur = self.con.cursor()
-        self.cur.execute("drop table if exists PROTQUANT")
-        self.con.commit()
-
-        self.cur.execute("drop table if exists PEPQUANT")
-        self.con.commit()
-
-        self.cur.execute("drop table if exists PSM")
-        self.con.commit()
-
         self.enable_exp = False
         self.enable_sdrf = False
         self.msstats_input_valid = False
-        # TODO what if multiple are found??
-        for f in self.find_log_files("pmultiqc/exp_design", filecontents=False):
-            self.exp_design = os.path.join(f["root"], f["fn"])
-            self.enable_exp = True
-
-        if not self.enable_exp:
-
-            for f in self.find_log_files("pmultiqc/sdrf", filecontents=False):
-                self.sdrf = os.path.join(f["root"], f["fn"])
-                OpenMS().openms_convert(
-                    self.sdrf,
-                    config.kwargs["raw"],
-                    False,
-                    True,
-                    False,
-                    config.kwargs["condition"],
-                )
-                # experimental_design.tsv is the default output name
-                # experimental_design.tsv will be in the folder where pmultiqc is executed.
-                self.exp_design = "experimental_design.tsv"
-                self.enable_sdrf = True
 
         self.psm_table = dict()
         self.mzml_peptide_map = dict()
@@ -196,20 +142,71 @@ class QuantMSModule:
         self.sample_df = pd.DataFrame()
         self.file_df = pd.DataFrame()
 
+
+    def get_data(self):
+
+        log.info("Starting data recognition and processing...")
+
+        if config.output_dir:
+            if os.path.exists(config.output_dir):
+                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
+            else:
+                os.makedirs(config.output_dir)
+                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
+        else:
+            self.con = sqlite3.connect("./quantms.db")
+
+        self.cur = self.con.cursor()
+        self.cur.execute("drop table if exists PROTQUANT")
+        self.con.commit()
+
+        self.cur.execute("drop table if exists PEPQUANT")
+        self.con.commit()
+
+        self.cur.execute("drop table if exists PSM")
+        self.con.commit()
+
+        # TODO what if multiple are found??
+        for f in self.find_log_files("pmultiqc/exp_design", filecontents=False):
+            self.exp_design = os.path.join(f["root"], f["fn"])
+            self.enable_exp = True
+
+        if not self.enable_exp:
+
+            for f in self.find_log_files("pmultiqc/sdrf", filecontents=False):
+                self.sdrf = os.path.join(f["root"], f["fn"])
+
+                parse_sdrf(
+                    self.sdrf,
+                    config.kwargs["raw"],
+                    config.kwargs["condition"],
+                )
+
+                # experimental_design.tsv is the default output name
+                # experimental_design.tsv will be in the folder where pmultiqc is executed.
+                self.exp_design = "experimental_design.tsv"
+                self.enable_sdrf = True
+
         # draw the experimental design
         if self.enable_exp or self.enable_sdrf:
-            self.draw_exp_design()
+            (
+                self.sample_df,
+                self.file_df,
+                self.exp_design_runs,
+                self.is_bruker,
+                self.is_multi_conditions
+            ) = common_plots.draw_exp_design(
+                self.sub_sections["experiment"],
+                self.exp_design
+            )
 
-        for ms_info in self.find_log_files("pmultiqc/ms_info", filecontents=False):
-            self.ms_info_path.append(os.path.join(ms_info["root"], ms_info["fn"]))
-        self.ms_info_path.sort()
+        (
+            self.ms_info_path,
+            self.read_ms_info,
+            self.ms_paths
+        ) = get_ms_path(self.find_log_files)
 
-        if len(self.ms_info_path) > 0:
-            self.read_ms_info = True
-            self.ms_paths = [
-                file_prefix(i).replace("_ms_info", ".mzML") for i in self.ms_info_path
-            ]
-
+        # Please note that this section covers only the DIA part of quantms. For DIANN, refer to diann.py.
         # DIA-NN report file path
         diann_report_path = None
         for file_type in ["pmultiqc/diann_report_tsv", "pmultiqc/diann_report_parquet"]:
@@ -227,7 +224,29 @@ class QuantMSModule:
                 self.out_mztab_path = os.path.join(f["root"], f["fn"])
                 self.parse_out_mztab()
 
-        mt = self.parse_mzml()
+        (
+            self.mzml_table,
+            self.mzml_peaks_ms2_plot,
+            self.mzml_peak_distribution_plot,
+            self.ms_info,
+            self.total_ms2_spectra,
+            _,  # mzml_ms_df
+            self.heatmap_charge_score,
+            self.mzml_charge_plot,
+            self.ms1_tic,
+            self.ms1_bpc,
+            self.ms1_peaks,
+            self.ms1_general_stats
+        ) = parse_mzml(
+            is_bruker=self.is_bruker,
+            read_ms_info=self.read_ms_info,
+            ms_info_path=self.ms_info_path,
+            ms_with_psm=self.ms_with_psm,
+            identified_spectrum=self.identified_spectrum,
+            enable_dia=self.enable_dia,
+            ms_paths=self.ms_paths
+        )
+
         self.idx_paths = []
         for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
             self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
@@ -236,19 +255,85 @@ class QuantMSModule:
             self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
             self.msstats_input_valid = True
 
-        self.draw_ms_information()
+        log.info("Data recognition and processing completed.")
+
+        return True
+
+
+    def draw_plots(self):
+
+        common_plots.draw_ms_information(
+            self.sub_sections["ms1"],
+            self.ms1_tic,
+            self.ms1_bpc,
+            self.ms1_peaks,
+            self.ms1_general_stats
+        )
+
+        # quantms: DIA
         if self.enable_dia:
-            self.parse_diann_report()
-            self.draw_summary_protein_ident_table()
-            self.draw_quantms_identi_num()
-            self.draw_num_pep_per_protein()
+
+            (
+                self.total_protein_quantified,
+                self.total_peptide_count,
+                self.pep_plot,
+                self.peptide_search_score,
+                self.ms_with_psm,
+                self.cal_num_table_data,
+                self.quantms_modified,
+                self.ms_without_psm
+            ) = parse_diann_report(
+                sub_sections=self.sub_sections,
+                diann_report_path=self.diann_report_path,
+                heatmap_color_list=self.heatmap_color_list,
+                sample_df=self.sample_df,
+                file_df=self.file_df,
+                ms_with_psm=self.ms_with_psm,
+                cal_num_table_data=self.cal_num_table_data,
+                quantms_modified=self.quantms_modified,
+                ms_paths=self.ms_paths,
+                msstats_input_valid=self.msstats_input_valid
+            )
+
+            common_plots.draw_summary_protein_ident_table(
+                sub_sections=self.sub_sections["summary"],
+                enable_dia=self.enable_dia,
+                total_peptide_count=self.total_peptide_count,
+                total_protein_quantified=self.total_protein_quantified
+            )
+
+            common_plots.draw_quantms_identi_num(
+                sub_sections=self.sub_sections["summary"],
+                enable_sdrf=self.enable_sdrf,
+                is_multi_conditions=self.is_multi_conditions,
+                sample_df=self.sample_df,
+                file_df=self.file_df,
+                cal_num_table_data=self.cal_num_table_data 
+            )
+
+            common_plots.draw_num_pep_per_protein(
+                self.sub_sections["identification"],
+                self.pep_plot
+            )
+
             if len(self.ms_info_path) > 0 and not self.is_bruker:
-                # self.draw_precursor_charge_distribution()
-                self.draw_peaks_per_ms2()
-                self.draw_peak_intensity_distribution()
+                common_plots.draw_peaks_per_ms2(
+                    self.sub_sections["ms2"],
+                    self.mzml_peaks_ms2_plot,
+                    self.ms_info
+                )
+
+                common_plots.draw_peak_intensity_distribution(
+                    self.sub_sections["ms2"],
+                    self.mzml_peak_distribution_plot,
+                    self.ms_info
+                )
+        
+        # quantms: LFQ or TMT
         else:
+
             if not config.kwargs["ignored_idxml"]:
-                self.parse_idxml(mt)
+                self.parse_idxml(self.mzml_table)
             self.cal_heat_map_score()
 
             heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
@@ -261,15 +346,53 @@ class QuantMSModule:
                 False,
             )
 
-            self.draw_summary_protein_ident_table()
-            self.draw_quantms_identi_num()
-            self.draw_num_pep_per_protein()
+            common_plots.draw_summary_protein_ident_table(
+                sub_sections=self.sub_sections["summary"],
+                enable_dia=self.enable_dia,
+                total_peptide_count=self.total_peptide_count,
+                total_protein_quantified=self.total_protein_quantified,
+                total_ms2_spectra_identified=self.total_ms2_spectra_identified,
+                total_ms2_spectra=self.total_ms2_spectra,
+                total_protein_identified=self.total_protein_identified
+            )
+
+            common_plots.draw_quantms_identi_num(
+                self.sub_sections["summary"],
+                self.enable_exp,
+                self.enable_sdrf,
+                self.is_multi_conditions,
+                self.sample_df,
+                self.file_df,
+                self.cal_num_table_data
+            )
+
+            common_plots.draw_num_pep_per_protein(
+                self.sub_sections["identification"],
+                self.pep_plot
+            )
+
             if not config.kwargs["ignored_idxml"]:
                 self.draw_mzml_ms()
                 self.draw_search_engine()
-            self.draw_precursor_charge_distribution()
-            self.draw_peaks_per_ms2()
-            self.draw_peak_intensity_distribution()
+
+            common_plots.draw_precursor_charge_distribution(
+                self.sub_sections["ms2"],
+                charge_plot=self.mzml_charge_plot,
+                ms_info=self.ms_info
+            )
+
+            if len(self.ms_info_path) > 0 and not self.is_bruker:
+                common_plots.draw_peaks_per_ms2(
+                    self.sub_sections["ms2"],
+                    self.mzml_peaks_ms2_plot,
+                    self.ms_info
+                )
+                common_plots.draw_peak_intensity_distribution(
+                    self.sub_sections["ms2"],
+                    self.mzml_peak_distribution_plot,
+                    self.ms_info
+                )
+
             common_plots.draw_oversampling(
                 self.sub_sections["ms2"],
                 self.oversampling,
@@ -278,7 +401,15 @@ class QuantMSModule:
             )
             self.draw_delta_mass()
 
-        self.draw_quantms_identification(mt)
+        common_plots.draw_quantms_identification(
+            self.sub_sections["identification"],
+            cal_num_table_data=self.cal_num_table_data,
+            mzml_table=self.mzml_table,
+            quantms_missed_cleavages=self.quantms_missed_cleavages,
+            quantms_modified=self.quantms_modified,
+            identified_msms_spectra=self.identified_msms_spectra,
+        )
+
         self.draw_quantms_contaminants()
         self.draw_quantms_quantification()
         self.draw_quantms_msms_section()
@@ -418,670 +549,6 @@ class QuantMSModule:
                     )
         return heat_map_score, xnames, ynames
 
-    def draw_exp_design(self):
-        # Currently this only supports the OpenMS two-table format (default in quantms pipeline)
-        # One table format would actually be even easier. You can just use pandas.read_tsv
-        self.sample_df, self.file_df = read_openms_design(self.exp_design)
-
-        self.exp_design_runs = np.unique(self.file_df["Run"].tolist())
-
-        if self.file_df["Spectra_Filepath"][0].endswith((".d", ".d.tar")):
-            self.is_bruker = True
-
-        # Create table plot
-        pattern = r"^(\w+=[^=;]+)(;\w+=[^=;]+)*$"
-        self.is_multi_conditions = all(
-            self.sample_df["MSstats_Condition"].apply(lambda x: bool(re.match(pattern, str(x))))
-        )
-
-        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
-
-        if self.is_multi_conditions:
-            for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
-                file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-                sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-                row_data: List[InputRow] = []
-
-                sample_data = {}
-                for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                    sample_data["MSstats_Condition_" + str(k)] = v
-
-                sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[
-                    0
-                ]
-                sample_data["Fraction_Group"] = ""
-                sample_data["Fraction"] = ""
-                sample_data["Label"] = ""
-
-                row_data.append(
-                    InputRow(
-                        sample=SampleName(sample),
-                        data=sample_data,
-                    )
-                )
-
-                for _, row in file_df_sample.iterrows():
-
-                    sample_data = {}
-                    for k, _ in condition_split(
-                        sample_df_slice["MSstats_Condition"].iloc[0]
-                    ).items():
-                        sample_data["MSstats_Condition_" + str(k)] = ""
-
-                    sample_data["MSstats_BioReplicate"] = ""
-                    sample_data["Fraction_Group"] = row["Fraction_Group"]
-                    sample_data["Fraction"] = row["Fraction"]
-                    sample_data["Label"] = row["Label"]
-
-                    row_data.append(
-                        InputRow(
-                            sample=SampleName(row["Run"]),
-                            data=sample_data,
-                        )
-                    )
-                group_name: SampleGroup = SampleGroup(sample)
-                rows_by_group[group_name] = row_data
-            headers = {"Sample": {
-                "title": "Sample [Spectra File]",
-                "description": "",
-                "scale": False,
-            }}
-            for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                headers["MSstats_Condition_" + str(k)] = {
-                    "title": "MSstats Condition: " + str(k),
-                    "description": "",
-                    "scale": False,
-                }
-            headers["MSstats_BioReplicate"] = {
-                "title": "MSstats BioReplicate",
-                "description": "",
-                "scale": False,
-            }
-            headers["Fraction_Group"] = {
-                "title": "Fraction Group",
-                "description": "",
-                "scale": False,
-            }
-            headers["Fraction"] = {
-                "title": "Fraction",
-                "description": "Fraction Identifier",
-                "scale": False,
-            }
-            headers["Label"] = {
-                "title": "Label",
-                "description": "",
-                "scale": False,
-            }
-        else:
-            for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
-                file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-                sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-                row_data: List[InputRow] = [InputRow(
-                    sample=SampleName(sample),
-                    data={
-                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[
-                            0
-                        ],
-                        "Fraction_Group": "",
-                        "Fraction": "",
-                        "Label": "",
-                    },
-                )]
-                for _, row in file_df_sample.iterrows():
-                    row_data.append(
-                        InputRow(
-                            sample=SampleName(row["Run"]),
-                            data={
-                                "MSstats_Condition": "",
-                                "MSstats_BioReplicate": "",
-                                "Fraction_Group": row["Fraction_Group"],
-                                "Fraction": row["Fraction"],
-                                "Label": row["Label"],
-                            },
-                        )
-                    )
-                group_name: SampleGroup = SampleGroup(sample)
-                rows_by_group[group_name] = row_data
-
-            headers = {
-                "Sample": {
-                    "title": "Sample [Spectra File]",
-                    "description": "",
-                    "scale": False,
-                },
-                "MSstats_Condition": {
-                    "title": "MSstats Condition",
-                    "description": "MSstats Condition",
-                    "scale": False,
-                },
-                "MSstats_BioReplicate": {
-                    "title": "MSstats BioReplicate",
-                    "description": "MSstats BioReplicate",
-                    "scale": False,
-                },
-                "Fraction_Group": {
-                    "title": "Fraction Group",
-                    "description": "Fraction Group",
-                    "scale": False,
-                },
-                "Fraction": {
-                    "title": "Fraction",
-                    "description": "Fraction Identifier",
-                    "scale": False,
-                },
-                "Label": {
-                    "title": "Label",
-                    "description": "Label",
-                    "scale": False,
-                },
-            }
-
-        pconfig = {
-            "id": "experimental_design",
-            "title": "Experimental Design",
-            "save_file": False,
-            "raw_data_fn": "multiqc_Experimental_Design_table",
-            "no_violin": True,
-        }
-        table_html = table.plot(rows_by_group, headers, pconfig)
-        add_sub_section(
-            sub_section=self.sub_sections["experiment"],
-            plot=table_html,
-            order=1,
-            description="""
-                This table shows the design of the experiment. I.e., which files and channels correspond to which sample/condition/fraction.
-                """,
-            helptext="""
-                You can see details about it in 
-                https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
-                """,
-        )
-
-    def draw_summary_protein_ident_table(self):
-        headers = OrderedDict()
-        if self.enable_dia:
-            summary_table = {
-                self.total_peptide_count: {"#Proteins Quantified": self.total_protein_quantified}
-            }
-            col_header = "#Peptides Quantified"
-        else:
-            summary_table = {
-                self.total_ms2_spectra: {
-                    "#Identified MS2 Spectra": self.total_ms2_spectra_identified
-                }
-            }
-            coverage = self.total_ms2_spectra_identified / self.total_ms2_spectra * 100
-            summary_table[self.total_ms2_spectra]["%Identified MS2 Spectra"] = coverage
-            summary_table[self.total_ms2_spectra][
-                "#Peptides Identified"
-            ] = self.total_peptide_count
-            summary_table[self.total_ms2_spectra][
-                "#Proteins Identified"
-            ] = self.total_protein_identified
-
-            summary_table[self.total_ms2_spectra][
-                "#Proteins Quantified"
-            ] = self.total_protein_quantified
-
-            headers["#Identified MS2 Spectra"] = {
-                "description": "Total number of MS/MS spectra identified",
-            }
-            headers["%Identified MS2 Spectra"] = {
-                "description": "Percentage of Identified MS/MS Spectra",
-                "format": "{:,.2f}",
-                "suffix": "%",
-            }
-            col_header = "#MS2 Spectra"
-
-        # Create table plot
-        pconfig = {
-            "id": "identification_summary_table",  # ID used for the table
-            "title": "Summary Table",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_summary_table_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": False,  # Only show columns that are defined in the headers config
-            "col1_header": col_header,
-            # 'format': '{:,.0f}',  # The header used for the first column
-            "scale": "Set1",
-        }
-
-        table_html = table.plot(summary_table, headers, pconfig)
-
-        description_str = "This table shows the quantms pipeline summary statistics."
-        # TODO: add description here @Yasset
-        helptext_str = """
-            This table shows the quantms pipeline summary statistics.
-            """
-
-        add_sub_section(
-            sub_section=self.sub_sections["summary"],
-            plot=table_html,
-            order=1,
-            description=description_str,
-            helptext=helptext_str,
-        )
-
-    def draw_ms_information(self):
-
-        if self.ms1_tic:
-            ms1_tic_config = {
-                "id": "ms1_tic",
-                "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
-                "title": "Total Ion Chromatograms",
-                "ylab": "Ion Count",
-                "xlab": "Retention Time (seconds)",
-                "ymin": 0,
-                "showlegend": True,
-            }
-            ms1_tic_html = linegraph.plot(self.ms1_tic, ms1_tic_config)
-
-            ms1_tic_html = common_plots.remove_subtitle(ms1_tic_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["ms1"],
-                plot=ms1_tic_html,
-                order=1,
-                description="MS1 quality control information extracted from the spectrum files.",
-                helptext="""
-                    This plot displays Total Ion Chromatograms (TICs) derived from MS1 scans across all analyzed samples. 
-                    The x-axis represents retention time, and the y-axis shows the total ion intensity at each time point. 
-                    Each colored trace corresponds to a different sample. The TIC provides a global view of the ion signal
-                    throughout the LC-MS/MS run, reflecting when compounds elute from the chromatography column. 
-                    Key aspects to assess include:
-                    
-                    * Overall intensity pattern: A consistent baseline and similar peak profiles across samples indicate good reproducibility.
-                    * Major peak alignment: Prominent peaks appearing at similar retention times suggest stable chromatographic performance.
-                    * Signal-to-noise ratio: High peaks relative to baseline noise reflect better sensitivity.
-                    * Chromatographic resolution: Sharp, well-separated peaks indicate effective separation.
-                    * Signal drift: A gradual decline in signal intensity across the run may point to source contamination or chromatography issues.
-                    
-                    Deviations such as shifted retention times, missing peaks, or inconsistent intensities may signal problems 
-                    in sample preparation, LC conditions, or mass spectrometer performance that require further investigation.
-                    """,
-            )
-
-        if self.ms1_bpc:
-
-            ms1_bpc_config = {
-                "id": "ms1_bpc",
-                "tt_label": "<b>{point.x} Ion Count:</b> {point.y}",
-                "title": "MS1 Base Peak Chromatograms",
-                "ylab": "Ion Count",
-                "xlab": "Retention Time (seconds)",
-                "ymin": 0,
-                "showlegend": True,
-            }
-
-            ms1_bpc_html = linegraph.plot(self.ms1_bpc, ms1_bpc_config)
-            ms1_bpc_html = common_plots.remove_subtitle(ms1_bpc_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["ms1"],
-                plot=ms1_bpc_html,
-                order=2,
-                description="MS1 base peak chromatograms extracted from the spectrum files.",
-                helptext="""
-                    The Base Peak Chromatogram (BPC) displays the intensity of the most abundant ion at each retention
-                    time point across your LC-MS run. Unlike the Total Ion Chromatogram (TIC) which shows the summed
-                    intensity of all ions, the BPC highlights the strongest signals, providing better visualization
-                    of compounds with high abundance while reducing baseline noise. This makes it particularly useful
-                    for identifying major components in complex samples, monitoring dominant species, and providing
-                    clearer peak visualization when signal-to-noise ratio is a concern. Comparing BPC patterns across
-                    samples allows you to evaluate consistency in the detection of high-abundance compounds
-                    and can reveal significant variations in sample composition or instrument performance.
-                    """,
-            )
-
-        if self.ms1_peaks:
-
-            ms1_peaks_config = {
-                "id": "ms1_peaks",
-                "tt_label": "<b>{point.x} Peak Count:</b> {point.y}",
-                "title": "MS1 Peaks",
-                "ylab": "Peak Count",
-                "xlab": "Retention Time (seconds)",
-                "ymin": 0,
-                "showlegend": True,
-            }
-
-            ms1_peaks_html = linegraph.plot(self.ms1_peaks, ms1_peaks_config)
-            ms1_peaks_html = common_plots.remove_subtitle(ms1_peaks_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["ms1"],
-                plot=ms1_peaks_html,
-                order=3,
-                description="MS1 Peaks from the spectrum files",
-                helptext="""
-                    This plot shows the number of peaks detected in MS1 scans over the course of each sample run.
-                    The x-axis represents retention time (in minutes), while the y-axis displays the number of
-                    distinct ion signals (peaks) identified in each MS1 scan. The MS1 peak count reflects spectral
-                    complexity and provides insight into instrument performance during the LC-MS analysis.
-                    Key aspects to consider include:
-                    
-                    * Overall pattern: Peak counts typically increase during the elution of complex mixtures and
-                    decrease during column washing or re-equilibration phases.
-                    * Peak density: Higher counts suggest more complex spectra, potentially indicating a greater
-                    number of compounds present at that time point."
-                    * Peak Consistency across samples: Similar profiles among replicates or related samples
-                    indicate good analytical reproducibility.
-                    * Sudden drops: Abrupt decreases in peak count may point to transient ionization issues,
-                    spray instability, or chromatographic disruptions.
-                    * Baseline values: The minimum peak count observed reflects the level of background noise
-                    or instrument sensitivity in the absence of eluting compounds.
-                    
-                    Monitoring MS1 peak counts complements total ion chromatogram (TIC) and base peak chromatogram
-                    (BPC) data, offering an additional layer of quality control related to signal complexity,
-                    instrument stability, and sample composition.
-                    """,
-            )
-
-        if self.ms1_general_stats:
-            tconfig = {
-                "id": "ms_general_stats",
-                "title": "General stats for MS1 information",
-                "only_defined_headers": True,
-                "col1_header": "File",
-            }
-            headers = {
-                "File": {
-                    "title": "File",
-                },
-                "AcquisitionDateTime": {
-                    "title": "Acquisition Date Time",
-                },
-                "log10(TotalCurrent)": {
-                    "title": "log10(Total Current)",
-                    "format": "{:,.4f}",
-                },
-                "log10(ScanCurrent)": {
-                    "title": "log10(Scan Current)",
-                    "format": "{:,.4f}",
-                },
-            }
-            table_html = table.plot(self.ms1_general_stats, headers=headers, pconfig=tconfig)
-
-            add_sub_section(
-                sub_section=self.sub_sections["ms1"],
-                plot=table_html,
-                order=4,
-                description="General stats for MS1 information extracted from the spectrum files.",
-                helptext="""
-                    This table presents general statistics for MS1 information extracted from mass spectrometry data files."
-                    It displays MS runs with their acquisition dates and times.
-                    For each file, the table shows two key metrics: TotalCurrent (the sum of all MS1 ion intensities throughout the run) and ScanCurrent (the sum of MS2 ion intensities).
-                    These values provide a quick overview of the total ion signals detected during both survey scans (MS1) and fragmentation scans (MS2),
-                    allowing for comparison of overall signal intensity across samples. Consistent TotalCurrent and ScanCurrent values across similar samples typically
-                    indicate good reproducibility in the mass spectrometry analysis, while significant variations may suggest issues with sample preparation,
-                    instrument performance, or ionization efficiency. The blue shading helps visualize the relative intensity differences between samples.
-                    """,
-            )
-
-    def draw_quantms_identi_num(self):
-        # Create table data
-        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
-
-        if self.enable_exp or self.enable_sdrf:
-
-            if self.is_multi_conditions:
-                for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
-                    file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-                    sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-                    row_data: List[InputRow] = []
-
-                    sample_data = {}
-                    for k, v in condition_split(
-                        sample_df_slice["MSstats_Condition"].iloc[0]
-                    ).items():
-                        sample_data["MSstats_Condition_" + str(k)] = v
-
-                    sample_data["MSstats_BioReplicate"] = sample_df_slice[
-                        "MSstats_BioReplicate"
-                    ].iloc[0]
-                    sample_data["Fraction"] = ""
-                    sample_data["Peptide_Num"] = ""
-                    sample_data["Unique_Peptide_Num"] = ""
-                    sample_data["Modified_Peptide_Num"] = ""
-                    sample_data["Protein_Num"] = ""
-
-                    row_data.append(
-                        InputRow(
-                            sample=SampleName(sample),
-                            data=sample_data,
-                        )
-                    )
-
-                    for _, row in file_df_sample.iterrows():
-
-                        sample_data = {}
-                        for k, _ in condition_split(
-                            sample_df_slice["MSstats_Condition"].iloc[0]
-                        ).items():
-                            sample_data["MSstats_Condition_" + str(k)] = ""
-
-                        sample_data["Fraction"] = row["Fraction"]
-                        sample_data["Peptide_Num"] = self.cal_num_table_data[row["Run"]][
-                            "peptide_num"
-                        ]
-                        sample_data["Unique_Peptide_Num"] = self.cal_num_table_data[row["Run"]][
-                            "unique_peptide_num"
-                        ]
-                        sample_data["Modified_Peptide_Num"] = self.cal_num_table_data[row["Run"]][
-                            "modified_peptide_num"
-                        ]
-                        sample_data["Protein_Num"] = self.cal_num_table_data[row["Run"]][
-                            "protein_num"
-                        ]
-
-                        row_data.append(
-                            InputRow(
-                                sample=SampleName(row["Run"]),
-                                data=sample_data,
-                            )
-                        )
-                    group_name: SampleGroup = SampleGroup(sample)
-                    rows_by_group[group_name] = row_data
-
-                headers = {}
-                for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                    headers["MSstats_Condition_" + str(k)] = {
-                        "title": "MSstats Condition: " + str(k),
-                        "description": "",
-                        "scale": False,
-                    }
-                headers["Fraction"] = {
-                    "title": "Fraction",
-                    "description": "Fraction Identifier",
-                    "scale": False,
-                }
-                headers["Peptide_Num"] = {
-                    "title": "#Peptide IDs",
-                    "description": "The number of identified PSMs in the pipeline",
-                }
-                headers["Unique_Peptide_Num"] = {
-                    "title": "#Unambiguous Peptide IDs",
-                    "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
-                }
-                headers["Modified_Peptide_Num"] = {
-                    "title": "#Modified Peptide IDs",
-                    "description": "Number of modified identified peptides in the pipeline",
-                }
-                headers["Protein_Num"] = {
-                    "title": "#Protein (group) IDs",
-                    "description": "The number of identified protein(group)s in the pipeline",
-                }
-            else:
-                for sample in sorted(self.sample_df["Sample"].tolist(), key=lambda x: int(x)):
-                    file_df_sample = self.file_df[self.file_df["Sample"] == sample].copy()
-                    sample_df_slice = self.sample_df[self.sample_df["Sample"] == sample].copy()
-                    row_data: List[InputRow] = [InputRow(
-                        sample=SampleName(sample),
-                        data={
-                            "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                            "Fraction": "",
-                            "Peptide_Num": "",
-                            "Unique_Peptide_Num": "",
-                            "Modified_Peptide_Num": "",
-                            "Protein_Num": "",
-                        },
-                    )]
-                    for _, row in file_df_sample.iterrows():
-                        row_data.append(
-                            InputRow(
-                                sample=SampleName(row["Run"]),
-                                data={
-                                    "MSstats_Condition": "",
-                                    "Fraction": row["Fraction"],
-                                    "Peptide_Num": self.cal_num_table_data[row["Run"]][
-                                        "peptide_num"
-                                    ],
-                                    "Unique_Peptide_Num": self.cal_num_table_data[row["Run"]][
-                                        "unique_peptide_num"
-                                    ],
-                                    "Modified_Peptide_Num": self.cal_num_table_data[row["Run"]][
-                                        "modified_peptide_num"
-                                    ],
-                                    "Protein_Num": self.cal_num_table_data[row["Run"]][
-                                        "protein_num"
-                                    ],
-                                },
-                            )
-                        )
-                    group_name: SampleGroup = SampleGroup(sample)
-                    rows_by_group[group_name] = row_data
-
-                headers = {
-                    "MSstats_Condition": {
-                        "title": "MSstats_Condition",
-                        "description": "MSstats Condition",
-                        "scale": False,
-                    },
-                    "Fraction": {
-                        "title": "Fraction",
-                        "description": "Fraction Identifier",
-                        "scale": False,
-                    },
-                    "Peptide_Num": {
-                        "title": "#Peptide IDs",
-                        "description": "The number of identified PSMs in the pipeline",
-                    },
-                    "Unique_Peptide_Num": {
-                        "title": "#Unambiguous Peptide IDs",
-                        "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
-                    },
-                    "Modified_Peptide_Num": {
-                        "title": "#Modified Peptide IDs",
-                        "description": "Number of modified identified peptides in the pipeline",
-                    },
-                    "Protein_Num": {
-                        "title": "#Protein (group) IDs",
-                        "description": "The number of identified protein(group)s in the pipeline",
-                    },
-                }
-
-        else:
-            rows_by_group = dict()
-            for sample, value in self.cal_num_table_data.items():
-                rows_by_group[sample] = {
-                    "Peptide_Num": value["peptide_num"],
-                    "Unique_Peptide_Num": value["unique_peptide_num"],
-                    "Modified_Peptide_Num": value["modified_peptide_num"],
-                    "Protein_Num": value["protein_num"],
-                }
-
-            headers = {
-                "Peptide_Num": {
-                    "title": "#Peptide IDs",
-                    "description": "The number of identified PSMs in the pipeline",
-                },
-                "Unique_Peptide_Num": {
-                    "title": "#Unambiguous Peptide IDs",
-                    "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
-                },
-                "Modified_Peptide_Num": {
-                    "title": "#Modified Peptide IDs",
-                    "description": "Number of modified identified peptides in the pipeline",
-                },
-                "Protein_Num": {
-                    "title": "#Protein (group) IDs",
-                    "description": "The number of identified protein(group)s in the pipeline",
-                },
-            }
-
-        # Create table plot
-        pconfig = {
-            "id": "pipeline_result_statistics",
-            "title": "Pipeline Result Statistics",
-            "save_file": False,
-            "raw_data_fn": "multiqc_pipeline_result_statistics",
-            "no_violin": True,
-        }
-        table_html = table.plot(rows_by_group, headers, pconfig)
-        add_sub_section(
-            sub_section=self.sub_sections["summary"],
-            plot=table_html,
-            order=3,
-            description="This plot shows the quantms pipeline final result.",
-            helptext="""
-                Including Sample Name, Possible Study Variables, identified the number of peptide in the pipeline,
-                and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained 
-                from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
-                """,
-        )
-
-    # draw number of peptides per proteins
-    def draw_num_pep_per_protein(self):
-
-        if any([len(i) >= 100 for i in self.pep_plot.dict["data"].values()]):
-            data_labels = ["Frequency", "Percentage"]
-        else:
-            data_labels = [
-                {
-                    "name": "Frequency",
-                    "ylab": "Frequency",
-                    "tt_suffix": "",
-                    "tt_decimals": 0,
-                },
-                {
-                    "name": "Percentage",
-                    "ylab": "Percentage [%]",
-                    "tt_suffix": "%",
-                    "tt_decimals": 2,
-                },
-            ]
-
-        pconfig = {
-            "id": "number_of_peptides_per_proteins",
-            "cpswitch": False,
-            "title": "Number of Peptides identified Per Protein",
-            "data_labels": data_labels,
-        }
-
-        bar_html = bargraph.plot(
-            [self.pep_plot.dict["data"]["frequency"], self.pep_plot.dict["data"]["percentage"]],
-            ["Frequency", "Percentage"],
-            pconfig,
-        )
-        bar_html = common_plots.remove_subtitle(bar_html)
-
-        description_str = (
-            "This plot shows the number of peptides per protein in quantms pipeline final result"
-        )
-        helptext_str = """
-                    This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
-                    identifications can constitute more confident results.
-                """
-
-        add_sub_section(
-            sub_section=self.sub_sections["identification"],
-            plot=bar_html,
-            order=1,
-            description=description_str,
-            helptext=helptext_str,
-        )
-
     def draw_mzml_ms(self):
 
         pconfig = {
@@ -1154,107 +621,6 @@ class QuantMSModule:
                 """,
         )
 
-    def draw_peak_intensity_distribution(self):
-        pconfig = {
-            "id": "peak_intensity_distribution",
-            "title": "Peak Intensity Distribution",
-            "cpswitch": False,
-            "stacking": "group",
-            "logswitch": True,
-            "logswitch_active": True,
-            "logswitch_label": "Log10 Scale",
-            "ylab": "Count",
-            "tt_decimals": 0,
-        }
-        cats = self.mzml_peak_distribution_plot.dict["cats"]
-
-        bar_html = bargraph.plot(self.ms_info["peak_distribution"], cats, pconfig)
-        bar_html = common_plots.remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=bar_html,
-            order=2,
-            description="""
-                This is a histogram representing the ion intensity vs.
-                the frequency for all MS2 spectra in a whole given experiment.
-                It is possible to filter the information for all, identified and unidentified spectra.
-                This plot can give a general estimation of the noise level of the spectra.
-                """,
-            helptext="""
-                Generally, one should expect to have a high number of low intensity noise peaks with a low number 
-                of high intensity signal peaks. 
-                A disproportionate number of high signal peaks may indicate heavy spectrum pre-filtering or 
-                potential experimental problems. In the case of data reuse this plot can be useful in 
-                identifying the requirement for pre-processing of the spectra prior to any downstream analysis. 
-                The quality of the identifications is not linked to this data as most search engines perform internal 
-                spectrum pre-processing before matching the spectra. Thus, the spectra reported are not 
-                necessarily pre-processed since the search engine may have applied the pre-processing step 
-                internally. This pre-processing is not necessarily reported in the experimental metadata.
-                """,
-        )
-
-    def draw_precursor_charge_distribution(self):
-        pconfig = {
-            "id": "distribution_of_precursor_charges",
-            "title": "Distribution of Precursor Charges",
-            "cpswitch": True,
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
-        cats = self.mzml_charge_plot.dict["cats"]
-
-        bar_html = bargraph.plot(self.ms_info["charge_distribution"], cats, pconfig)
-        bar_html = common_plots.remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=bar_html,
-            order=5,
-            description="""
-                This is a bar chart representing the distribution of the precursor ion charges for a given whole experiment.
-                """,
-            helptext="""
-                This information can be used to identify potential ionization problems 
-                including many 1+ charges from an ESI ionization source or an unexpected 
-                distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ 
-                charged ions. An unexpected charge distribution may furthermore be caused by specific search 
-                engine parameter settings such as limiting the search to specific ion charges.
-                """,
-        )
-
-    def draw_peaks_per_ms2(self):
-        pconfig = {
-            "id": "peaks_per_ms2",
-            "cpswitch": False,
-            "title": "Number of Peaks per MS/MS spectrum",
-            "stacking": "group",
-            "logswitch": True,
-            "logswitch_active": True,
-            "logswitch_label": "Log10 Scale",
-            "ylab": "Count",
-            "tt_decimals": 0,
-        }
-        cats = self.mzml_peaks_ms2_plot.dict["cats"]
-
-        bar_html = bargraph.plot(self.ms_info["peaks_per_ms2"], cats, pconfig)
-        bar_html = common_plots.remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=bar_html,
-            order=1,
-            description="""
-                This chart represents a histogram containing the number of peaks per MS/MS spectrum 
-                in a given experiment.
-                """,
-            helptext="""
-                This chart assumes centroid data. Too few peaks can identify poor fragmentation 
-                or a detector fault, as opposed to a large number of peaks representing very noisy spectra. 
-                This chart is extensively dependent on the pre-processing steps performed to the spectra 
-                (centroiding, deconvolution, peak picking approach, etc).
-                """,
-        )
 
     def draw_delta_mass(self):
 
@@ -2608,154 +1974,6 @@ class QuantMSModule:
 
             self.protein_quantification_table_html = table_html
 
-    def parse_diann_report(self):
-
-        log.info("Parsing {}...".format(self.diann_report_path))
-
-        # parse DIA-NN report data
-        if os.path.splitext(self.diann_report_path)[1] == ".tsv":
-            report_data = pd.read_csv(
-                self.diann_report_path, header=0, sep="\t", on_bad_lines="warn"
-            )
-        else:
-            report_data = pd.read_parquet(self.diann_report_path)
-
-        # "Decoy" appears only in DIA-NN 2.0 and later.
-        # 0 or 1 based on whether the precursor is decoy, relevant when using --report-decoys
-        if "Decoy" in report_data.columns:
-            report_data = report_data[report_data["Decoy"] == 0].copy()
-
-        # Normalisation.Factor: can be calculated as Precursor.Normalised/Precursor.Quantity
-        required_cols = ["Precursor.Normalised", "Precursor.Quantity"]
-        if "Normalisation.Factor" not in report_data.columns and all(
-            col in report_data.columns for col in required_cols
-        ):
-            report_data["Normalisation.Factor"] = (
-                report_data[required_cols[0]] / report_data[required_cols[1]]
-            )
-
-        # Draw: Standard Deviation of Intensity
-        if "Precursor.Quantity" in report_data.columns:
-            draw_dia_intensitys(self.sub_sections["quantification"], report_data)
-            draw_dia_heatmap(self.sub_sections["summary"], report_data, self.heatmap_color_list)
-
-        log.info("Draw the DIA MS1 subsection.")
-        draw_dia_ms1(self.sub_sections["ms1"], report_data)
-
-        log.info("Draw the DIA MS2 subsection.")
-        draw_dia_ms2s(self.sub_sections["ms2"], report_data)
-
-        log.info("Draw the DIA mass_error subsection.")
-        draw_dia_mass_error(self.sub_sections["mass_error"], report_data)
-
-        log.info("Draw the DIA rt_qc subsection.")
-        draw_dia_rt_qc(self.sub_sections["rt_qc"], report_data)
-
-        # Draw: Quantification Table (DIA-NN, without msstats data)
-        if not self.msstats_input_valid:
-            log.info("Draw the DIA quant table subsection.")
-            draw_diann_quant_table(
-                self.sub_sections["quantification"], report_data, self.sample_df, self.file_df
-            )
-
-        pattern = re.compile(r"\(.*?\)")
-        report_data["sequence"] = [pattern.sub("", s) for s in report_data["Modified.Sequence"]]
-
-        self.total_protein_quantified = len(set(report_data["Protein.Group"]))
-        self.total_peptide_count = len(set(report_data["sequence"]))
-
-        log.info("Processing DIA pep_plot.")
-        protein_pep_map = report_data.groupby("Protein.Group")["sequence"].agg(list).to_dict()
-        self.pep_plot = Histogram("number of peptides per proteins", plot_category="frequency")
-        for _, peps in protein_pep_map.items():
-            number = len(set(peps))
-            self.pep_plot.add_value(number)
-
-        log.info("Processing DIA peptide_search_score.")
-        self.peptide_search_score = dict()
-        pattern = re.compile(r"\((.*?)\)")
-        unimod_data = UnimodDatabase()
-        for peptide, group in report_data.groupby("Modified.Sequence"):
-            origianl_mods = re.findall(pattern, peptide)
-            for mod in set(origianl_mods):
-                name = unimod_data.get_by_accession(mod.upper()).get_name()
-                peptide = peptide.replace(mod, name)
-            if peptide.startswith("("):
-                peptide = peptide + "."
-
-            self.peptide_search_score[peptide] = np.min(group["Q.Value"])
-
-        categorys = OrderedDict()
-        categorys["Frequency"] = {
-            "name": "Frequency",
-            "description": "number of peptides per proteins",
-        }
-        self.pep_plot.to_dict(percentage=True, cats=categorys)
-
-        # Modifications Name
-        log.info("Processing DIA Modifications.")
-        mod_pattern = re.compile(r"\((.*?)\)")
-
-        def find_diann_modified(peptide):
-            if isinstance(peptide, str):
-                mods = mod_pattern.findall(peptide)
-                if mods:
-                    mod_type = [
-                        unimod_data.get_by_accession(mod.upper()).get_name() for mod in set(mods)
-                    ]
-                    return ",".join(mod_type)
-                else:
-                    return "Unmodified"
-            return None
-
-        report_data["Modifications"] = report_data["Modified.Sequence"].apply(
-            lambda x: find_diann_modified(x)
-        )
-
-        log.info("Processing DIA mod_plot_dict.")
-        mod_plot_dict = dict()
-        modified_cats = list()
-        for run_file, group in report_data.groupby("Run"):
-            run_file = str(run_file)
-            self.ms_with_psm.append(run_file)
-
-            # Modifications
-            mod_group_processed = mod_group_percentage(group.drop_duplicates())
-            mod_plot_dict[run_file] = dict(
-                zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
-            )
-            modified_cats.extend(mod_group_processed["modifications"])
-
-            self.cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Group"]))}
-            self.cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
-            peptides = set(group["Modified.Sequence"])
-            modified_pep = list(
-                filter(lambda x: re.match(r".*?\(.*?\).*?", x) is not None, peptides)
-            )
-            group_peptides = group.groupby("sequence")["Protein.Group"].apply(list).to_dict()
-            unique_peptides = [
-                pep for pep, prots in group_peptides.items() if len(set(prots)) == 1
-            ]
-            self.cal_num_table_data[run_file]["unique_peptide_num"] = len(unique_peptides)
-            self.cal_num_table_data[run_file]["modified_peptide_num"] = len(modified_pep)
-
-        self.quantms_modified["plot_data"] = mod_plot_dict
-        self.quantms_modified["cats"] = list(
-            sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
-        )
-
-        self.ms_without_psm = set([file_prefix(i) for i in self.ms_paths]) - set(self.ms_with_psm)
-        for i in self.ms_without_psm:
-            log.warning("No PSM found in '{}'!".format(i))
-
-        for i in self.ms_without_psm:
-            self.cal_num_table_data[i] = {
-                "protein_num": 0,
-                "peptide_num": 0,
-                "unique_peptide_num": 0,
-                "modified_peptide_num": 0,
-            }
-
     def parse_msstats_input(self):
         log.info(
             "{}: Parsing MSstats input file {}...".format(
@@ -3101,121 +2319,6 @@ class QuantMSModule:
         result_dict["cats"] = plot_cats_ordered
 
         return result_dict
-
-    def draw_quantms_identification(self, mzml_table):
-
-        # 1.ProteinGroups Count
-        draw_config = {
-            "id": "protein_group_count",
-            "cpswitch": False,
-            "title": "ProteinGroups Count",
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
-
-        if self.cal_num_table_data:
-            protein_count = {
-                sample: {"Count": info["protein_num"]}
-                for sample, info in self.cal_num_table_data.items()
-            }
-            peptide_count = {
-                sample: {"Count": info["peptide_num"]}
-                for sample, info in self.cal_num_table_data.items()
-            }
-        else:
-            return
-
-        bar_html = bargraph.plot(
-            protein_count,
-            pconfig=draw_config,
-        )
-        bar_html = common_plots.remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["identification"],
-            plot=bar_html,
-            order=3,
-            description="Number of protein groups per raw file.",
-            helptext="""
-                Based on statistics calculated from mzTab, or DIA-NN report files.
-                """,
-        )
-
-        # 2.Peptide ID Count
-        draw_config = {
-            "id": "peptide_id_count",
-            "cpswitch": False,
-            "title": "Peptide ID Count",
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
-        bar_html = bargraph.plot(
-            peptide_count,
-            pconfig=draw_config,
-        )
-        bar_html = common_plots.remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["identification"],
-            plot=bar_html,
-            order=4,
-            description="""
-                Number of unique (i.e. not counted twice) peptide sequences including modifications per Raw file.
-                """,
-            helptext="""
-                Based on statistics calculated from mzTab, or DIA-NN report files.
-                """,
-        )
-
-        # 3.Missed Cleavages Per Raw File
-        if self.quantms_missed_cleavages:
-            mc_group = {}
-            for sample, counts in self.quantms_missed_cleavages.items():
-                mc_group[sample] = {"0": 0, "1": 0, ">=2": 0}
-                for mc, count in counts.items():
-                    if mc == 0:
-                        mc_group[sample]["0"] += count
-                    elif mc == 1:
-                        mc_group[sample]["1"] += count
-                    else:
-                        mc_group[sample][">=2"] += count
-
-            mc_group_ratio = {}
-            for sample, counts in mc_group.items():
-                total = sum(counts.values())
-                if total == 0:
-                    mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
-                    continue
-                mc_group_ratio[sample] = {
-                    group: count / total * 100 for group, count in counts.items()
-                }
-
-            mc_data = {"plot_data": mc_group_ratio, "cats": ["0", "1", ">=2"]}
-            common_plots.draw_msms_missed_cleavages(
-                self.sub_sections["identification"], mc_data, False
-            )
-
-        # 4.Modifications Per Raw File
-        if self.quantms_modified:
-            common_plots.draw_modifications(
-                self.sub_sections["identification"], self.quantms_modified
-            )
-
-        # 5.MS/MS Identified per Raw File
-        if self.identified_msms_spectra and mzml_table:
-
-            msms_identified_rate = dict()
-
-            for m in self.identified_msms_spectra.keys():
-                identified_ms2 = self.identified_msms_spectra[m].get("Identified", 0)
-                all_ms2 = mzml_table.get(m, {}).get("MS2_Num", 0)
-
-                if all_ms2 > 0:
-                    msms_identified_rate[m] = {"Identified Rate": (identified_ms2 / all_ms2) * 100}
-
-            common_plots.draw_ms_ms_identified(
-                self.sub_sections["identification"], msms_identified_rate
-            )
 
     def draw_quantms_contaminants(self):
 

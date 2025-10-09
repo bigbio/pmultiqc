@@ -144,10 +144,10 @@ def delete_old_examples(folder_path):
 def run_pmultiqc(download_path, report_path, plugin_type):
 
     if plugin_type == "maxquant":
-        command = ["multiqc", "--parse_maxquant", download_path, "-o", report_path]
+        command = ["multiqc", "--maxquant_plugin", download_path, "-o", report_path]
 
     elif plugin_type == "proteobench":
-        command = ["multiqc", "--parse_proteobench", download_path, "-o", report_path]
+        command = ["multiqc", "--proteobench_plugin", download_path, "-o", report_path]
 
     elif plugin_type == "mzid":
         command = ["multiqc", "--mzid_plugin", download_path, "-o", report_path]
@@ -155,6 +155,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
     elif plugin_type == "dia" or plugin_type == "tmt" or plugin_type == "lfq":
         command = [
             "multiqc",
+            "--quantms_plugin",
             download_path,
             "--config",
             os.path.join(download_path, "multiqc_config.yml"),

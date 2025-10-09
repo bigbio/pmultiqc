@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 from multiqc import config
 from multiqc.plots import table, bargraph, linegraph
-from pyopenms import OpenMSBuildInfo
 from pyteomics import mzid, mgf
 
 from pmultiqc.modules.common.mzidentml_utils import (
@@ -81,8 +80,6 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.quantms_missed_cleavages = dict()
         self.quantms_modified = dict()
         self.identified_msms_spectra = dict()
-
-        self.log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
 
 
     def get_data(self) -> bool | None:
