@@ -3,34 +3,31 @@ PMultiQC Service API - FastAPI Version
 A FastAPI-based web service for generating PMultiQC reports from uploaded data files.
 """
 
-import os
-import logging
-import sys
-import uuid
-import shutil
-import time
-import zipfile
-import subprocess
-import asyncio
-import json
-import traceback
-import threading
-import requests
 import hashlib
+import json
+import logging
+import os
+import shutil
+import subprocess
+import sys
+import threading
+import time
+import traceback
+import uuid
+import zipfile
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
-
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request
-from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from fastapi.openapi.docs import get_swagger_ui_html
-import uvicorn
+from typing import Dict, Any, List, Optional
 
 import redis
-from pathlib import Path
+import requests
+import uvicorn
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 # Configuration
 # Use environment variables with fallback to current working directory subdirectories
