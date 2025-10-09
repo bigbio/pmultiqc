@@ -44,7 +44,7 @@ pmultiqc supports the following data sources:
 
 3. **[DIA-NN](https://aptila.bio)** result files:
    - `report.tsv` or `report.parquet`: DIA-NN main report
-   - `experimental_design.tsv` or `*sdrf.tsv`: Experimental design file / SDRF-Proteomics (optional)
+   - `*sdrf.tsv`: SDRF-Proteomics (optional)
    - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**) (optional)
 
 4. **[ProteoBench](https://proteobench.readthedocs.io)** file:
@@ -98,10 +98,10 @@ Where:
 
 ```bash
 # Basic usage
-multiqc /path/to/quantms/results -o ./report
+multiqc --quantms_plugin /path/to/quantms/results -o ./report
 
 # With specific options
-multiqc /path/to/quantms/results -o ./report --remove_decoy --condition factor
+multiqc --quantms_plugin /path/to/quantms/results -o ./report --remove_decoy --condition factor
 ```
 
 #### For MaxQuant results
