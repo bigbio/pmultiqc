@@ -163,7 +163,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
             report_path,
         ]
     elif plugin_type == "diann":
-        command = ["multiqc", download_path, "-o", report_path]
+        command = ["multiqc", "--diann_plugin", download_path, "-o", report_path]
 
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
