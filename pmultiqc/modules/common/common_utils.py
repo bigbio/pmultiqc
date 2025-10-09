@@ -20,10 +20,14 @@ log = logging.getLogger(__name__)
 
 def read_openms_design(desfile):
     with open(desfile, "r") as f:
+
         data = f.readlines()
         s_row = False
         f_table = []
         s_table = []
+        f_header = None
+        s_header = None
+
         for row in data:
             if row == "\n":
                 continue
@@ -37,6 +41,11 @@ def read_openms_design(desfile):
             else:
                 f_table.append(row.replace("\n", "").split("\t"))
 
+        if f_header is None:
+            raise ValueError("Cannot find 'Spectra_Filepath' header in file!")
+        if s_header is None:
+            raise ValueError("Cannot find 'MSstats_Condition' header in file!")
+    
         f_table = pd.DataFrame(f_table, columns=f_header)
         f_table["Run"] = f_table.apply(
             lambda x: file_prefix(x["Spectra_Filepath"]), axis=1

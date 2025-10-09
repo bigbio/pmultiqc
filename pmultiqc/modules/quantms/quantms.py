@@ -2380,33 +2380,6 @@ class QuantMSModule:
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
 
-
-def read_openms_design(desfile):
-    with open(desfile, "r") as f:
-        data = f.readlines()
-        s_row = False
-        f_table = []
-        s_table = []
-        for row in data:
-            if row == "\n":
-                continue
-            if "MSstats_Condition" in row:
-                s_row = True
-                s_header = row.replace("\n", "").split("\t")
-            elif s_row:
-                s_table.append(row.replace("\n", "").split("\t"))
-            elif "Spectra_Filepath" in row:
-                f_header = row.replace("\n", "").split("\t")
-            else:
-                f_table.append(row.replace("\n", "").split("\t"))
-
-        f_table = pd.DataFrame(f_table, columns=f_header)
-        f_table["Run"] = f_table.apply(lambda x: file_prefix(x["Spectra_Filepath"]), axis=1)
-        s_data_frame = pd.DataFrame(s_table, columns=s_header)
-
-    return s_data_frame, f_table
-
-
 def find_modification(peptide):
     peptide = str(peptide)
     pattern = re.compile(r"\((.*?)\)")
