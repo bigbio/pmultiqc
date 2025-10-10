@@ -18,6 +18,9 @@ from pmultiqc.modules.common.plots.id import draw_ids_rt_count
 
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from pmultiqc.modules.common.file_utils import drop_empty_row
+from pmultiqc.modules.common.logging import get_logger
+
+log = get_logger("pmultiqc.modules.common.dia_utils")
 
 
 DEFAULT_BINS = 500
@@ -62,7 +65,11 @@ def parse_diann_report(
     # Draw: Standard Deviation of Intensity
     if "Precursor.Quantity" in report_data.columns:
         draw_dia_intensitys(sub_sections["quantification"], report_data)
-        draw_dia_heatmap(sub_sections["summary"], report_data, heatmap_color_list)
+        # Inline former draw_dia_heatmap wrapper
+        log.info("Compute the Heatmap.")
+        heatmap_data = cal_dia_heatmap(report_data)
+        dia_plots.draw_heatmap(sub_sections["summary"], heatmap_color_list, heatmap_data)
+        log.info("Heatmap calculation is done.")
 
     log.info("Draw the DIA MS1 subsection.")
     draw_dia_ms1(sub_sections["ms1"], report_data)
@@ -193,12 +200,7 @@ def parse_diann_report(
         ms_without_psm
     )
 
-def draw_dia_heatmap(sub_section, report_df, heatmap_color):
-
-    log.info("Compute the Heatmap.")
-    heatmap_data = cal_dia_heatmap(report_df)
-    dia_plots.draw_heatmap(sub_section, heatmap_color, heatmap_data)
-    log.info("Heatmap calculation is done.")
+## Removed draw_dia_heatmap wrapper; call cal_dia_heatmap and dia_plots.draw_heatmap directly.
 
 
 def draw_dia_intensitys(sub_section, report_df):
