@@ -4,7 +4,7 @@ import pandas as pd
 
 from multiqc.plots import heatmap, box, bargraph, linegraph
 
-from pmultiqc.modules.common.common_plots import remove_subtitle
+from pmultiqc.modules.common.plots.general import remove_subtitle
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.core.section_groups import add_sub_section
 
@@ -94,7 +94,6 @@ def draw_dia_intensity_dis(sub_section, df):
             """,
     )
 
-
 # Ms1.Area non-normalised MS1 peak area
 def draw_dia_ms1_area(sub_section, df):
 
@@ -124,7 +123,6 @@ def draw_dia_ms1_area(sub_section, df):
             [DIA-NN: report.tsv] log2(Ms1.Area) for each Run. Ms1.Area: non-normalised MS1 peak area.
             """,
     )
-
 
 # Distribution of Precursor Charges
 def draw_dia_whole_exp_charge(sub_section, df):
@@ -519,3 +517,6 @@ def extract_condition_and_replicate(run_name):
     else:
         log.warning("Failed to identify condition groups in DIA report.tsv!")
         return None
+# re-export by moving file; contents will be identical after move.
+# We'll import from the old module path in callers changed to new path.
+

@@ -5,7 +5,7 @@ from multiqc.plots import bargraph, linegraph, box, scatter, table
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
-from ..common.common_plots import remove_subtitle
+from ..common.plots.general import remove_subtitle
 from ..core.section_groups import add_sub_section
 
 

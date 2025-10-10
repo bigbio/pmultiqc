@@ -1,5 +1,4 @@
 import itertools
-import logging
 import numpy as np
 import pandas as pd
 import os
@@ -10,17 +9,15 @@ from multiqc.plots import table
 
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.stats import qual_uniform
-from pmultiqc.modules.common import dia_plots
+from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.common.common_plots import draw_ids_rt_count
 from pmultiqc.modules.common.common_utils import evidence_rt_count, mod_group_percentage
 from pmultiqc.modules.core.section_groups import add_sub_section
+from pmultiqc.modules.common.plots.id import draw_ids_rt_count
+
 
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from ..common.file_utils import drop_empty_row
-
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from pmultiqc.modules.common.file_utils import drop_empty_row
 
 
 DEFAULT_BINS = 500

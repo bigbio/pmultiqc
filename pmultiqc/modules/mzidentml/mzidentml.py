@@ -21,7 +21,9 @@ from pmultiqc.modules.common.mzidentml_utils import (
     draw_mzid_quant_table,
 )
 from ..base import BasePMultiqcModule
-from ..common import ms_io, common_plots
+from ..common import ms_io
+from ..common.plots import id as id_plots
+from ..common.plots.general import remove_subtitle, draw_heatmap
 from ..common.file_utils import file_prefix
 from ..common.histogram import Histogram
 from ..common.stats import qual_uniform
@@ -117,12 +119,12 @@ class MzIdentMLModule(BasePMultiqcModule):
                 draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
 
                 mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
-                common_plots.draw_charge_state(
+                id_plots.draw_charge_state(
                     self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
                 )
 
                 mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
-                common_plots.draw_ids_rt_count(
+                id_plots.draw_ids_rt_count(
                     self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
                 )
 
@@ -140,7 +142,7 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.log.info("Start plotting the MzIdentML results...")
 
         heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
-        common_plots.draw_heatmap(
+        draw_heatmap(
             self.sub_sections["summary"],
             self.heatmap_color_list,
             heatmap_data,
@@ -155,7 +157,7 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.draw_precursor_charge_distribution()
         self.draw_peaks_per_ms2()
         self.draw_peak_intensity_distribution()
-        common_plots.draw_oversampling(
+        id_plots.draw_oversampling(
             self.sub_sections["ms2"], self.oversampling, self.oversampling_plot.dict["cats"], False
         )
 
@@ -333,7 +335,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             ["Frequency", "Percentage"],
             pconfig,
         )
-        bar_html = common_plots.remove_subtitle(bar_html)
+        bar_html = remove_subtitle(bar_html)
 
         if config.kwargs.get("mzid_plugin", False):
             description_str = (
@@ -447,7 +449,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             cats = self.mzml_peak_distribution_plot.dict["cats"]
 
         bar_html = bargraph.plot(self.ms_info["peak_distribution"], cats, pconfig)
-        bar_html = common_plots.remove_subtitle(bar_html)
+        bar_html = remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["ms2"],
@@ -486,7 +488,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             cats = self.mzml_charge_plot.dict["cats"]
 
         bar_html = bargraph.plot(self.ms_info["charge_distribution"], cats, pconfig)
-        bar_html = common_plots.remove_subtitle(bar_html)
+        bar_html = remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["ms2"],
@@ -522,7 +524,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             cats = self.mzml_peaks_ms2_plot.dict["cats"]
 
         bar_html = bargraph.plot(self.ms_info["peaks_per_ms2"], cats, pconfig)
-        bar_html = common_plots.remove_subtitle(bar_html)
+        bar_html = remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["ms2"],
@@ -858,7 +860,7 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         if spec_e_bar_html != "":
 
-            spec_e_bar_html = common_plots.remove_subtitle(spec_e_bar_html)
+            spec_e_bar_html = remove_subtitle(spec_e_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -873,7 +875,7 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         if xcorr_bar_html != "":
 
-            xcorr_bar_html = common_plots.remove_subtitle(xcorr_bar_html)
+            xcorr_bar_html = remove_subtitle(xcorr_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -888,7 +890,7 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         if hyper_bar_html != "":
 
-            hyper_bar_html = common_plots.remove_subtitle(hyper_bar_html)
+            hyper_bar_html = remove_subtitle(hyper_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -918,7 +920,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
         )
 
-        pep_bar_html = common_plots.remove_subtitle(pep_bar_html)
+        pep_bar_html = remove_subtitle(pep_bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["search_engine"],
@@ -946,7 +948,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                 bar_cats,
                 consensus_pconfig,
             )
-            consensus_bar_html = common_plots.remove_subtitle(consensus_bar_html)
+            consensus_bar_html = remove_subtitle(consensus_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -1513,7 +1515,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             protein_count,
             pconfig=draw_config,
         )
-        bar_html = common_plots.remove_subtitle(bar_html)
+        bar_html = remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["identification"],
@@ -1537,7 +1539,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             peptide_count,
             pconfig=draw_config,
         )
-        bar_html = common_plots.remove_subtitle(bar_html)
+        bar_html = remove_subtitle(bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["identification"],
@@ -1575,13 +1577,13 @@ class MzIdentMLModule(BasePMultiqcModule):
                 }
 
             mc_data = {"plot_data": mc_group_ratio, "cats": ["0", "1", ">=2"]}
-            common_plots.draw_msms_missed_cleavages(
+            id_plots.draw_msms_missed_cleavages(
                 self.sub_sections["identification"], mc_data, False
             )
 
         # 4.Modifications Per Raw File
         if self.quantms_modified:
-            common_plots.draw_modifications(
+            id_plots.draw_modifications(
                 self.sub_sections["identification"], self.quantms_modified
             )
 
@@ -1597,6 +1599,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                 if all_ms2 > 0:
                     msms_identified_rate[m] = {"Identified Rate": (identified_ms2 / all_ms2) * 100}
 
-            common_plots.draw_ms_ms_identified(
+            id_plots.draw_ms_ms_identified(
                 self.sub_sections["identification"], msms_identified_rate
             )

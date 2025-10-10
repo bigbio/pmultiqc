@@ -22,7 +22,7 @@ from pmultiqc.modules.common.common_utils import (
     evidence_calibrated_mass_error
 )
 
-from ...logging import get_logger, Timer
+from ..common.logging import get_logger, Timer
 
 # Initialize logger for this module
 logger = get_logger("pmultiqc.modules.maxquant")

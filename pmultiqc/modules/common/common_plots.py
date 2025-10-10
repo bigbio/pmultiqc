@@ -15,6 +15,7 @@ from multiqc import config
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import read_openms_design, condition_split
 
+# Todo: Remove all these files, all the functions here must be in the folder plots. 
 
 # MS/MS Identified Per Raw File
 def draw_ms_ms_identified(sub_section, msms_identified_percent):

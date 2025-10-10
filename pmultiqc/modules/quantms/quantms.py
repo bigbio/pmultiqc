@@ -5,7 +5,6 @@ from __future__ import absolute_import
 import copy
 import itertools
 import json
-import logging
 import os
 import re
 import sqlite3
@@ -23,7 +22,6 @@ from pyteomics import mztab
 from sdrf_pipelines.openms.openms import UnimodDatabase
 
 from . import sparklines
-from ..common.ms_functions import get_ms_qc_info
 from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
@@ -33,7 +31,27 @@ from pmultiqc.modules.common.common_utils import (
     evidence_calibrated_mass_error,
     parse_mzml
 )
-from pmultiqc.modules.common import ms_io, common_plots
+from pmultiqc.modules.common import ms_io
+from pmultiqc.modules.common.ms.msinfo import MsInfoReader
+from pmultiqc.modules.common.ms import idxml as ms_idxml
+from pmultiqc.modules.common.plots.ms import (
+    draw_ms_information,
+    draw_peak_intensity_distribution,
+    draw_precursor_charge_distribution,
+    draw_peaks_per_ms2,
+)
+from pmultiqc.modules.common.plots.id import (
+    draw_potential_contaminants,
+    draw_top_n_contaminants,
+    draw_ids_rt_count,
+    draw_delta_mass_da_ppm,
+    draw_quantms_identification,
+    draw_oversampling,
+    draw_num_pep_per_protein,
+)
+from pmultiqc.modules.common.plots.general import draw_heatmap, remove_subtitle, draw_exp_design
+from pmultiqc.modules.common.plots.id import draw_summary_protein_ident_table, draw_quantms_identi_num
+from pmultiqc.modules.common.plots.id import draw_charge_state, draw_ids_rt_count, draw_delta_mass_da_ppm
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.stats import qual_uniform
@@ -43,9 +61,8 @@ from pmultiqc.modules.core.section_groups import (
 )
 
 
-# Initialise the main MultiQC logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from pmultiqc.modules.common.logging import get_logger
+log = get_logger("pmultiqc.modules.quantms")
 
 class QuantMSModule:
 
@@ -63,9 +80,9 @@ class QuantMSModule:
         self.mzml_charge_plot_1 = None
         self.mzml_peaks_ms2_plot_1 = None
         self.ms_without_psm = None
-        self.MSGF_label = None
-        self.Comet_label = None
-        self.Sage_label = None
+        self.msgf_label = None
+        self.comet_label = None
+        self.sage_label = None
         self.prot_search_score = None
         self.pep_plot = None
         self.peptide_search_score = None
@@ -195,7 +212,7 @@ class QuantMSModule:
                 self.exp_design_runs,
                 self.is_bruker,
                 self.is_multi_conditions
-            ) = common_plots.draw_exp_design(
+            ) = draw_exp_design(
                 self.sub_sections["experiment"],
                 self.exp_design
             )
@@ -262,7 +279,7 @@ class QuantMSModule:
 
     def draw_plots(self):
 
-        common_plots.draw_ms_information(
+        draw_ms_information(
             self.sub_sections["ms1"],
             self.ms1_tic,
             self.ms1_bpc,
@@ -295,14 +312,14 @@ class QuantMSModule:
                 msstats_input_valid=self.msstats_input_valid
             )
 
-            common_plots.draw_summary_protein_ident_table(
+            draw_summary_protein_ident_table(
                 sub_sections=self.sub_sections["summary"],
                 enable_dia=self.enable_dia,
                 total_peptide_count=self.total_peptide_count,
                 total_protein_quantified=self.total_protein_quantified
             )
 
-            common_plots.draw_quantms_identi_num(
+            draw_quantms_identi_num(
                 sub_sections=self.sub_sections["summary"],
                 enable_sdrf=self.enable_sdrf,
                 is_multi_conditions=self.is_multi_conditions,
@@ -311,19 +328,19 @@ class QuantMSModule:
                 cal_num_table_data=self.cal_num_table_data 
             )
 
-            common_plots.draw_num_pep_per_protein(
+            draw_num_pep_per_protein(
                 self.sub_sections["identification"],
                 self.pep_plot
             )
 
             if len(self.ms_info_path) > 0 and not self.is_bruker:
-                common_plots.draw_peaks_per_ms2(
+                draw_peaks_per_ms2(
                     self.sub_sections["ms2"],
                     self.mzml_peaks_ms2_plot,
                     self.ms_info
                 )
 
-                common_plots.draw_peak_intensity_distribution(
+                draw_peak_intensity_distribution(
                     self.sub_sections["ms2"],
                     self.mzml_peak_distribution_plot,
                     self.ms_info
@@ -337,7 +354,7 @@ class QuantMSModule:
             self.cal_heat_map_score()
 
             heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
-            common_plots.draw_heatmap(
+            draw_heatmap(
                 self.sub_sections["summary"],
                 self.heatmap_color_list,
                 heatmap_data,
@@ -346,7 +363,7 @@ class QuantMSModule:
                 False,
             )
 
-            common_plots.draw_summary_protein_ident_table(
+            draw_summary_protein_ident_table(
                 sub_sections=self.sub_sections["summary"],
                 enable_dia=self.enable_dia,
                 total_peptide_count=self.total_peptide_count,
@@ -356,7 +373,7 @@ class QuantMSModule:
                 total_protein_identified=self.total_protein_identified
             )
 
-            common_plots.draw_quantms_identi_num(
+            draw_quantms_identi_num(
                 self.sub_sections["summary"],
                 self.enable_exp,
                 self.enable_sdrf,
@@ -366,7 +383,7 @@ class QuantMSModule:
                 self.cal_num_table_data
             )
 
-            common_plots.draw_num_pep_per_protein(
+            draw_num_pep_per_protein(
                 self.sub_sections["identification"],
                 self.pep_plot
             )
@@ -375,25 +392,25 @@ class QuantMSModule:
                 self.draw_mzml_ms()
                 self.draw_search_engine()
 
-            common_plots.draw_precursor_charge_distribution(
+            draw_precursor_charge_distribution(
                 self.sub_sections["ms2"],
                 charge_plot=self.mzml_charge_plot,
                 ms_info=self.ms_info
             )
 
             if len(self.ms_info_path) > 0 and not self.is_bruker:
-                common_plots.draw_peaks_per_ms2(
+                draw_peaks_per_ms2(
                     self.sub_sections["ms2"],
                     self.mzml_peaks_ms2_plot,
                     self.ms_info
                 )
-                common_plots.draw_peak_intensity_distribution(
+                draw_peak_intensity_distribution(
                     self.sub_sections["ms2"],
                     self.mzml_peak_distribution_plot,
                     self.ms_info
                 )
 
-            common_plots.draw_oversampling(
+            draw_oversampling(
                 self.sub_sections["ms2"],
                 self.oversampling,
                 self.oversampling_plot.dict["cats"],
@@ -401,7 +418,7 @@ class QuantMSModule:
             )
             self.draw_delta_mass()
 
-        common_plots.draw_quantms_identification(
+        draw_quantms_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
             mzml_table=self.mzml_table,
@@ -924,23 +941,23 @@ class QuantMSModule:
 
         xcorr_bar_html = (
             bargraph.plot(list(self.search_engine["xcorr"].values()), xcorr_cats, xcorr_pconfig)
-            if self.Comet_label
+            if self.comet_label
             else ""
         )
         spec_e_bar_html = (
             bargraph.plot(list(self.search_engine["SpecE"].values()), spec_e_cats, spec_e_pconfig)
-            if self.MSGF_label
+            if self.msgf_label
             else ""
         )
         hyper_bar_html = (
             bargraph.plot(list(self.search_engine["hyper"].values()), hyper_cats, hyper_pconfig)
-            if self.Sage_label
+            if self.sage_label
             else ""
         )
 
         if spec_e_bar_html != "":
 
-            spec_e_bar_html = common_plots.remove_subtitle(spec_e_bar_html)
+            spec_e_bar_html = remove_subtitle(spec_e_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -955,7 +972,7 @@ class QuantMSModule:
 
         if xcorr_bar_html != "":
 
-            xcorr_bar_html = common_plots.remove_subtitle(xcorr_bar_html)
+            xcorr_bar_html = remove_subtitle(xcorr_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -970,7 +987,7 @@ class QuantMSModule:
 
         if hyper_bar_html != "":
 
-            hyper_bar_html = common_plots.remove_subtitle(hyper_bar_html)
+            hyper_bar_html = remove_subtitle(hyper_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -1000,7 +1017,7 @@ class QuantMSModule:
             list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
         )
 
-        pep_bar_html = common_plots.remove_subtitle(pep_bar_html)
+        pep_bar_html = remove_subtitle(pep_bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["search_engine"],
@@ -1028,7 +1045,7 @@ class QuantMSModule:
                 bar_cats,
                 consensus_pconfig,
             )
-            consensus_bar_html = common_plots.remove_subtitle(consensus_bar_html)
+            consensus_bar_html = remove_subtitle(consensus_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -1261,7 +1278,7 @@ class QuantMSModule:
                     self.ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")],
                     self.ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")],
                     self.ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")],
-                ) = get_ms_qc_info(mzml_df)
+                ) = ms_io.get_ms_qc_info(mzml_df)
 
                 log.info(
                     "{}: Done aggregating ms_statistics dataframe {}...".format(
@@ -1293,28 +1310,27 @@ class QuantMSModule:
 
         # Use the refactored functions from ms_io.py
         if self.read_ms_info:
-            result = ms_io.read_ms_info(
-                self.ms_info_path,
-                self.ms_with_psm,
-                self.identified_spectrum,
-                self.mzml_charge_plot,
-                self.mzml_peak_distribution_plot,
-                self.mzml_peaks_ms2_plot,
-                self.mzml_charge_plot_1,
-                self.mzml_peak_distribution_plot_1,
-                self.mzml_peaks_ms2_plot_1,
-                self.ms_without_psm,
-                self.enable_dia,
+            msinfo_reader = MsInfoReader(
+                file_paths=self.ms_info_path,
+                ms_with_psm=self.ms_with_psm,
+                identified_spectrum=self.identified_spectrum,
+                mzml_charge_plot=self.mzml_charge_plot,
+                mzml_peak_distribution_plot=self.mzml_peak_distribution_plot,
+                mzml_peaks_ms2_plot=self.mzml_peaks_ms2_plot,
+                mzml_charge_plot_1=self.mzml_charge_plot_1,
+                mzml_peak_distribution_plot_1=self.mzml_peak_distribution_plot_1,
+                mzml_peaks_ms2_plot_1=self.mzml_peaks_ms2_plot_1,
+                ms_without_psm=self.ms_without_psm,
+                enable_dia=self.enable_dia,
             )
-            (
-                mzml_table,
-                heatmap_charge,
-                self.total_ms2_spectra,
-                self.ms1_tic,
-                self.ms1_bpc,
-                self.ms1_peaks,
-                self.ms1_general_stats,
-            ) = result
+            msinfo_reader.parse()
+            mzml_table = msinfo_reader.mzml_table
+            heatmap_charge = msinfo_reader.heatmap_charge
+            self.total_ms2_spectra = msinfo_reader.total_ms2_spectra
+            self.ms1_tic = msinfo_reader.ms1_tic
+            self.ms1_bpc = msinfo_reader.ms1_bpc
+            self.ms1_peaks = msinfo_reader.ms1_peaks
+            self.ms1_general_stats = msinfo_reader.ms1_general_stats
         else:
             result = ms_io.read_mzmls(
                 self.ms_paths,
@@ -1388,20 +1404,23 @@ class QuantMSModule:
         return mzml_table
 
     def parse_idxml(self, mzml_table):
-        # Use the refactored function from ms_io.py
-        result = ms_io.parse_idxml(
-            self.idx_paths,
-            mzml_table,
-            self.xcorr_hist_range,
-            self.hyper_hist_range,
-            self.spec_evalue_hist_range,
-            self.pep_hist_range,
-            self.ml_spec_ident_final,
-            self.mzml_peptide_map,
-            config.kwargs["remove_decoy"],
+        # Instantiate the reader directly and parse
+        reader = ms_idxml.IdXMLReader(
+            file_paths=self.idx_paths,
+            mzml_table=mzml_table,
+            xcorr_hist_range=self.xcorr_hist_range,
+            hyper_hist_range=self.hyper_hist_range,
+            spec_evalue_hist_range=self.spec_evalue_hist_range,
+            pep_hist_range=self.pep_hist_range,
+            ml_spec_ident_final=self.ml_spec_ident_final,
+            mzml_peptide_map=self.mzml_peptide_map,
+            remove_decoy=config.kwargs["remove_decoy"],
         )
-
-        self.search_engine, self.MSGF_label, self.Comet_label, self.Sage_label = result
+        reader.parse()
+        self.search_engine = reader.search_engine
+        self.msgf_label = reader.msgf_label
+        self.comet_label = reader.comet_label
+        self.sage_label = reader.sage_label
 
         # mass spectrum files sorted based on experimental file
         for spectrum_name in self.exp_design_runs:
@@ -2324,13 +2343,13 @@ class QuantMSModule:
 
         # 1.Potential Contaminants per Group
         if self.quantms_contaminant_percent:
-            common_plots.draw_potential_contaminants(
+            draw_potential_contaminants(
                 self.sub_sections["contaminants"], self.quantms_contaminant_percent, False
             )
 
         # 2.Top5 Contaminants per Raw file
         if self.quantms_top_contaminant_percent:
-            common_plots.draw_top_n_contaminants(
+            draw_top_n_contaminants(
                 self.sub_sections["contaminants"], self.quantms_top_contaminant_percent
             )
 
@@ -2347,7 +2366,7 @@ class QuantMSModule:
                 "xlab": "log2(Intensity)",
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
-            box_html = common_plots.remove_subtitle(box_html)
+            box_html = remove_subtitle(box_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["quantification"],
@@ -2364,19 +2383,19 @@ class QuantMSModule:
 
         # 1.Charge-state of Per File
         if self.mztab_charge_state:
-            common_plots.draw_charge_state(self.sub_sections["ms2"], self.mztab_charge_state, "")
+            draw_charge_state(self.sub_sections["ms2"], self.mztab_charge_state, "")
 
     def draw_quantms_time_section(self):
 
         # 1.IDs over RT
         if self.quantms_ids_over_rt:
-            common_plots.draw_ids_rt_count(
+            draw_ids_rt_count(
                 self.sub_sections["rt_qc"], self.quantms_ids_over_rt, ""
             )
 
         # 2.Delta Mass [ppm]
         if self.quantms_mass_error:
-            common_plots.draw_delta_mass_da_ppm(
+            draw_delta_mass_da_ppm(
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
 

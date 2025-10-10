@@ -1,4 +1,3 @@
-import logging
 import pandas as pd
 from datetime import datetime
 from typing import List
@@ -9,14 +8,12 @@ import numpy as np
 
 from sdrf_pipelines.openms.openms import OpenMS
 
-from pmultiqc.modules.common.ms_functions import get_ms_qc_info
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common import ms_io
+from pmultiqc.modules.common.logging import get_logger
+log = get_logger("pmultiqc.modules.common.common_utils")
 
-
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
 
 def read_openms_design(desfile):
     with open(desfile, "r") as f:
@@ -81,7 +78,6 @@ def get_ms_path(find_log_files):
 
     return ms_info_path, read_ms_info, ms_paths
 
-
 def parse_mzml(
         is_bruker: bool = False,
         read_ms_info: bool = False,
@@ -111,7 +107,7 @@ def parse_mzml(
                 ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")],
                 ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")],
                 ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")],
-            ) = get_ms_qc_info(mzml_df)
+            ) = ms_io.get_ms_qc_info(mzml_df)
 
             log.info(
                 "{}: Done aggregating ms_statistics dataframe {}...".format(
@@ -145,30 +141,30 @@ def parse_mzml(
     heatmap_charge = {}
     mzml_ms_df = None
 
-    # Use the refactored functions from ms_io.py
+    # Use the class-based MS info reader
     if read_ms_info:
-        result = ms_io.read_ms_info(
-            ms_info_path,
-            ms_with_psm,
-            identified_spectrum,
-            mzml_charge_plot,
-            mzml_peak_distribution_plot,
-            mzml_peaks_ms2_plot,
-            mzml_charge_plot_1,
-            mzml_peak_distribution_plot_1,
-            mzml_peaks_ms2_plot_1,
-            ms_without_psm,
-            enable_dia,
+        from pmultiqc.modules.common.ms.msinfo import MsInfoReader
+        msinfo_reader = MsInfoReader(
+            file_paths=ms_info_path,
+            ms_with_psm=ms_with_psm,
+            identified_spectrum=identified_spectrum,
+            mzml_charge_plot=mzml_charge_plot,
+            mzml_peak_distribution_plot=mzml_peak_distribution_plot,
+            mzml_peaks_ms2_plot=mzml_peaks_ms2_plot,
+            mzml_charge_plot_1=mzml_charge_plot_1,
+            mzml_peak_distribution_plot_1=mzml_peak_distribution_plot_1,
+            mzml_peaks_ms2_plot_1=mzml_peaks_ms2_plot_1,
+            ms_without_psm=ms_without_psm,
+            enable_dia=enable_dia,
         )
-        (
-            mzml_table,
-            heatmap_charge,
-            total_ms2_spectra,
-            ms1_tic,
-            ms1_bpc,
-            ms1_peaks,
-            ms1_general_stats,
-        ) = result
+        msinfo_reader.parse()
+        mzml_table = msinfo_reader.mzml_table
+        heatmap_charge = msinfo_reader.heatmap_charge
+        total_ms2_spectra = msinfo_reader.total_ms2_spectra
+        ms1_tic = msinfo_reader.ms1_tic
+        ms1_bpc = msinfo_reader.ms1_bpc
+        ms1_peaks = msinfo_reader.ms1_peaks
+        ms1_general_stats = msinfo_reader.ms1_general_stats
     else:
         result = ms_io.read_mzmls(
             ms_paths,
@@ -350,7 +346,6 @@ def evidence_calibrated_mass_error(evidence_data, recommpute=False):
     }
 
     return result_dict
-
 
 # re-compute mass error
 def recommpute_mass_error(evidence_df):

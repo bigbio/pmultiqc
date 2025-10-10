@@ -7,7 +7,6 @@ import os
 import shutil
 import time
 import zipfile
-from datetime import datetime, timedelta
 
 
 def cleanup_job_directories(base_dir, max_age_days=7):

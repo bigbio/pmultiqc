@@ -2,7 +2,9 @@ import os
 from datetime import datetime
 
 from . import maxquant_utils, maxquant_io, maxquant_plots
-from ..common import common_plots
+from ..common.plots import id as id_plots
+from ..common.plots.ms import draw_ms_information
+from ..common.plots.general import draw_heatmap
 from ..core.section_groups import add_group_modules
 from ..base import BasePMultiqcModule
 
@@ -273,7 +275,7 @@ class MaxQuantModule(BasePMultiqcModule):
         # HeatMap
         if self.mq_results["maxquant_heatmap"]:
             try:
-                common_plots.draw_heatmap(
+                draw_heatmap(
                     self.sub_sections["summary"],
                     self.heatmap_color_list,
                     self.mq_results["maxquant_heatmap"],
@@ -343,7 +345,7 @@ class MaxQuantModule(BasePMultiqcModule):
                 self.log.warning(f"Error occurred while draw_pg_pca: {e}")
         if self.mq_results["ms_ms_identified"]:
             try:
-                common_plots.draw_ms_ms_identified(
+                id_plots.draw_ms_ms_identified(
                     self.sub_sections["identification"], self.mq_results["ms_ms_identified"]
                 )
             except Exception as e:
@@ -361,7 +363,7 @@ class MaxQuantModule(BasePMultiqcModule):
         # Contaminants
         if self.mq_results["get_protegroups_dicts"].get("pg_contaminant") is not None:
             try:
-                common_plots.draw_potential_contaminants(
+                id_plots.draw_potential_contaminants(
                     self.sub_sections["contaminants"],
                     self.mq_results["get_protegroups_dicts"]["pg_contaminant"],
                     True,
@@ -370,7 +372,7 @@ class MaxQuantModule(BasePMultiqcModule):
                 self.log.warning(f"Error occurred while draw_potential_contaminants: {e}")
         if self.mq_results["get_evidence_dicts"].get("top_contaminants") is not None:
             try:
-                common_plots.draw_top_n_contaminants(
+                id_plots.draw_top_n_contaminants(
                     self.sub_sections["contaminants"],
                     self.mq_results["get_evidence_dicts"]["top_contaminants"],
                 )
@@ -379,7 +381,7 @@ class MaxQuantModule(BasePMultiqcModule):
 
         if self.mq_results["get_evidence_dicts"].get("charge_counts") is not None:
             try:
-                common_plots.draw_charge_state(
+                id_plots.draw_charge_state(
                     self.sub_sections["ms2"],
                     self.mq_results["get_evidence_dicts"]["charge_counts"],
                     "MaxQuant",
@@ -389,7 +391,7 @@ class MaxQuantModule(BasePMultiqcModule):
 
         if self.mq_results["get_evidence_dicts"].get("modified_percentage") is not None:
             try:
-                common_plots.draw_modifications(
+                id_plots.draw_modifications(
                     self.sub_sections["identification"],
                     self.mq_results["get_evidence_dicts"]["modified_percentage"],
                 )
@@ -416,7 +418,7 @@ class MaxQuantModule(BasePMultiqcModule):
 
         if self.mq_results["get_evidence_dicts"].get("oversampling") is not None:
             try:
-                common_plots.draw_oversampling(
+                id_plots.draw_oversampling(
                     self.sub_sections["ms2"],
                     self.mq_results["get_evidence_dicts"]["oversampling"],
                     "",
@@ -427,7 +429,7 @@ class MaxQuantModule(BasePMultiqcModule):
 
         if self.mq_results["get_msms_dicts"].get("missed_cleavages") is not None:
             try:
-                common_plots.draw_msms_missed_cleavages(
+                id_plots.draw_msms_missed_cleavages(
                     self.sub_sections["identification"],
                     self.mq_results["get_msms_dicts"]["missed_cleavages"],
                     True,
@@ -437,7 +439,7 @@ class MaxQuantModule(BasePMultiqcModule):
 
         if self.mq_results["get_evidence_dicts"].get("rt_counts") is not None:
             try:
-                common_plots.draw_ids_rt_count(
+                id_plots.draw_ids_rt_count(
                     self.sub_sections["rt_qc"],
                     self.mq_results["get_evidence_dicts"]["rt_counts"],
                     "maxquant",
@@ -510,7 +512,7 @@ class MaxQuantModule(BasePMultiqcModule):
         # MaxQuant: Delta Mass [Da]
         if self.mq_results["get_evidence_dicts"].get("maxquant_delta_mass_da") is not None:
             try:
-                common_plots.draw_delta_mass_da_ppm(
+                id_plots.draw_delta_mass_da_ppm(
                     self.sub_sections["mass_error"],
                     self.mq_results["get_evidence_dicts"]["maxquant_delta_mass_da"],
                     "Mass Error [Da]",
@@ -521,7 +523,7 @@ class MaxQuantModule(BasePMultiqcModule):
         # MaxQuant: Delta Mass [ppm]
         if self.mq_results["get_evidence_dicts"].get("calibrated_mass_error") is not None:
             try:
-                common_plots.draw_delta_mass_da_ppm(
+                id_plots.draw_delta_mass_da_ppm(
                     self.sub_sections["mass_error"],
                     self.mq_results["get_evidence_dicts"]["calibrated_mass_error"],
                     "Mass Error [ppm]",

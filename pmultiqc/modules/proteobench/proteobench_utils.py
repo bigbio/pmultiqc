@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 
@@ -6,10 +5,10 @@ import numpy as np
 import pandas as pd
 from multiqc.plots import bargraph, linegraph, box, scatter
 
-from ..common.common_plots import remove_subtitle
+from ..common.plots.general import remove_subtitle
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from pmultiqc.modules.common.logging import get_logger
+log = get_logger("pmultiqc.modules.proteobench.proteobench_utils")
 
 
 def read_file_by_extension(file_path):
@@ -88,6 +87,17 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
     enable_bar = False
     enable_line = False
     enable_box = False
+
+    # Initialize plotting identifiers to satisfy static analysis
+    bar_plot_id = None
+    bar_plot_title = None
+    line_plot_id = None
+    line_plot_title = None
+    line_plot_xlab = None
+    box_plot_id = None
+    box_plot_title = None
+    box_plot_xlab = None
+    cols = []
 
     only_one_col = False
 
