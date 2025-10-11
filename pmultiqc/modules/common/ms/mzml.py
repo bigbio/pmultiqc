@@ -1,43 +1,37 @@
+from __future__ import annotations
 
-
-"""
-MzML file reading functionality
-"""
-
-from __future__ import absolute_import
-import logging
-import pandas as pd
+from pathlib import Path
 from datetime import datetime
 from pyopenms import MzMLFile, MSExperiment
+import pandas as pd
+
+from pmultiqc.modules.common.ms.base import BaseParser
+from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.common.ms.msreader import MSReader
 
-# Initialise the main MultiQC logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
 
-class MzMLReader(MSReader):
-    """Class for reading and processing mzML files"""
-    def read(
+class MzMLReader(BaseParser):
+    def __init__(
         self,
-        file_paths=None,
-        ms_with_psm=None,
-        identified_spectrum=None,
-        mzml_charge_plot=None,
-        mzml_peak_distribution_plot=None,
-        mzml_peaks_ms2_plot=None,
-        mzml_charge_plot_1=None,
-        mzml_peak_distribution_plot_1=None,
-        mzml_peaks_ms2_plot_1=None,
-        ms_without_psm=None,
-        enable_dia=False,
-        enable_mzid=False,
-    ):
+        file_paths: list[str, Path],
+        ms_with_psm,
+        identified_spectrum,
+        mzml_charge_plot,
+        mzml_peak_distribution_plot,
+        mzml_peaks_ms2_plot,
+        mzml_charge_plot_1,
+        mzml_peak_distribution_plot_1,
+        mzml_peaks_ms2_plot_1,
+        ms_without_psm,
+        enable_dia: bool = False,
+        enable_mzid: bool = False
+    ) -> None:
+
         """
         Read mzML files and extract information
 
         Args:
-            file_paths: List of paths to mzML files (optional, uses self.file_paths if not provided)
+            ms_paths: List of paths to mzML files
             ms_with_psm: List of MS files with PSMs
             identified_spectrum: Dictionary of identified spectra by MS file
             mzml_charge_plot: Histogram for charge distribution of identified spectra
@@ -49,42 +43,69 @@ class MzMLReader(MSReader):
             ms_without_psm: List of MS files without PSMs
             enable_dia: Whether DIA mode is enabled
             enable_mzid: Whether mzid_plugin mode is enabled
-
-        Returns:
-            tuple: (mzml_table, heatmap_charge, total_ms2_spectra)
         """
-        # Use provided file_paths or fall back to instance attribute
-        ms_paths = file_paths or self.file_paths
+
+        super().__init__(file_paths)
+        self.ms_with_psm = ms_with_psm
+        self.identified_spectrum = identified_spectrum
+        self.mzml_charge_plot = mzml_charge_plot
+        self.mzml_peak_distribution_plot = mzml_peak_distribution_plot
+        self.mzml_peaks_ms2_plot = mzml_peaks_ms2_plot
+        self.mzml_charge_plot_1 = mzml_charge_plot_1
+        self.mzml_peak_distribution_plot_1 = mzml_peak_distribution_plot_1
+        self.mzml_peaks_ms2_plot_1 = mzml_peaks_ms2_plot_1
+        self.ms_without_psm = ms_without_psm
+        self.enable_dia = enable_dia
+        self.enable_mzid = enable_mzid
+
+        # Outputs populated by parse()
+        self.mzml_table: dict = {}
+        self.heatmap_charge: dict = {}
+        self.total_ms2_spectra: int = 0
+        self.ms1_tic: dict = {}
+        self.ms1_bpc: dict = {}
+        self.ms1_peaks: dict = {}
+        self.ms1_general_stats: dict = {}
+        self.mzml_ms_df: pd.DataFrame= pd.DataFrame()
+
+        self.log = get_logger("pmultiqc.modules.common.ms.mzml")
+
+    def parse(self, **kwargs) -> None:
         mzml_table = {}
         heatmap_charge = {}
-        # Reset spectrum counts for this reading session
-        self._reset_spectrum_counts()
+        total_ms2_spectra = 0
 
         mzml_ms_dicts = list()
-        for m in ms_paths:
-            file_ms1_number = 0
-            file_ms2_number = 0
-            log.info("{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+        
+        for m in self.file_paths:
+            ms1_number = 0
+            ms2_number = 0
+
+            self.log.info(
+                "{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
+            )
+
             exp = MSExperiment()
             MzMLFile().load(m, exp)
-            log.info("{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+            self.log.info(
+                "{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
+            )
+
             m_name = file_prefix(m)
-            log.info(
+            self.log.info(
                 "{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m_name)
             )
 
             charge_2 = 0
             for i in exp:
                 if i.getMSLevel() == 1:
-                    file_ms1_number += 1
-                    self._increment_ms1_count()
+                    ms1_number += 1
                 elif i.getMSLevel() == 2:
-                    file_ms2_number += 1
-                    self._increment_ms2_count()
+                    ms2_number += 1
                     charge_state = i.getPrecursors()[0].getCharge()
                     peaks_tuple = i.get_peaks()
 
-                    if enable_mzid:
+                    if self.enable_mzid:
                         # retention_time: minute
                         mzml_ms_dicts.append(
                             {
@@ -104,35 +125,38 @@ class MzMLReader(MSReader):
                     if charge_state == 2:
                         charge_2 += 1
 
-                    if enable_dia:
-                        mzml_charge_plot.add_value(charge_state)
-                        mzml_peak_distribution_plot.add_value(base_peak_intensity)
-                        mzml_peaks_ms2_plot.add_value(peak_per_ms2)
+                    if self.enable_dia:
+                        self.mzml_charge_plot.add_value(charge_state)
+                        self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
+                        self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
                         continue
 
-                    if m_name in ms_with_psm:
-                        if i.getNativeID() in identified_spectrum[m_name]:
-                            mzml_charge_plot.add_value(charge_state)
-                            mzml_peak_distribution_plot.add_value(base_peak_intensity)
-                            mzml_peaks_ms2_plot.add_value(peak_per_ms2)
+                    if m_name in self.ms_with_psm:
+                        if i.getNativeID() in self.identified_spectrum[m_name]:
+                            self.mzml_charge_plot.add_value(charge_state)
+                            self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
+                            self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
                         else:
-                            mzml_charge_plot_1.add_value(charge_state)
-                            mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
-                            mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
+                            self.mzml_charge_plot_1.add_value(charge_state)
+                            self.mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
+                            self.mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
                     else:
-                        if m_name not in ms_without_psm:
-                            ms_without_psm.append(m_name)
+                        if m_name not in self.ms_without_psm:
+                            self.ms_without_psm.append(m_name)
 
-            heatmap_charge[m_name] = charge_2 / file_ms2_number if file_ms2_number > 0 else 0
-            mzml_table[m_name] = {"MS1_Num": file_ms1_number}
-            mzml_table[m_name]["MS2_Num"] = file_ms2_number
-            log.info(
+            heatmap_charge[m_name] = charge_2 / ms2_number if ms2_number > 0 else 0
+            total_ms2_spectra += ms2_number
+            mzml_table[m_name] = {"MS1_Num": ms1_number}
+            mzml_table[m_name]["MS2_Num"] = ms2_number
+            self.log.info(
                 "{}: Done aggregating mzML file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), m_name
                 )
             )
+        
+        self.mzml_table = mzml_table
+        self.heatmap_charge = heatmap_charge
+        self.total_ms2_spectra = total_ms2_spectra
+        self.mzml_ms_df = pd.DataFrame(mzml_ms_dicts)
 
-        if enable_mzid:
-            return mzml_table, heatmap_charge, self.total_ms2_number, pd.DataFrame(mzml_ms_dicts)
-        else:
-            return mzml_table, heatmap_charge, self.total_ms2_number
+        return None

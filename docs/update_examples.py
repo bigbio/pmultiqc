@@ -1,13 +1,13 @@
-import os
 import json
-import subprocess
+import os
 import shutil
+import subprocess
 import time
 import urllib
+import urllib.request
 from ftplib import FTP
 from pathlib import Path
 from urllib.parse import urlparse
-import urllib.request
 
 from tqdm import tqdm
 

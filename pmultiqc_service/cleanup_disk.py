@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Disk cleanup script for PMultiQC service
 Removes old job directories and corrupted files to free up disk space
@@ -8,7 +7,6 @@ import os
 import shutil
 import time
 import zipfile
-from datetime import datetime, timedelta
 
 
 def cleanup_job_directories(base_dir, max_age_days=7):

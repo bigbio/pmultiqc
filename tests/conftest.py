@@ -4,11 +4,12 @@ Configuration file for pytest.
 This file contains fixtures and configuration for the pytest test suite.
 """
 
-import os
 import gzip
-import pytest
-import pandas as pd
+import os
 from pathlib import Path
+
+import pandas as pd
+import pytest
 
 # Define the path to the test data
 COMPRESSED_DATA_DIR = Path("tests/resources/maxquant/PXD003133-22min")
