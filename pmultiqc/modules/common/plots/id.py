@@ -1,14 +1,13 @@
-from collections import OrderedDict
 from typing import Dict, List
+from collections import OrderedDict
 
-from multiqc import config
 from multiqc.plots import bargraph, linegraph, table
-from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
+from multiqc.plots.table_object import InputRow
 
+from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
 from pmultiqc.modules.common.plots.general import remove_subtitle
-from pmultiqc.modules.core.section_groups import add_sub_section
 
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
@@ -201,62 +200,6 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
         order=5,
         description=description_text,
         helptext=helptext,
-    )
-
-
-def draw_ids_rt_count(sub_section, rt_count_data, report_type):
-
-    draw_config = {
-        "id": "IDs_over_RT",
-        "cpswitch": False,
-        "cpswitch_c_active": False,
-        "title": "IDs over RT",
-        "ymin": 0,
-        "tt_decimals": 3,
-        "ylab": "Count",
-        "xlab": "Retention time [min]",
-        "showlegend": True,
-    }
-
-    linegraph_html = linegraph.plot(data=rt_count_data, pconfig=draw_config)
-    linegraph_html = remove_subtitle(linegraph_html)
-
-    if report_type == "maxquant":
-        description_text = "Distribution of retention time, derived from the evidence table."
-        help_text = """
-            The uncalibrated retention time in minutes in the elution profile of the precursor ion, 
-            and does not include potential contaminants.
-            """
-    elif report_type == "dia":
-        description_text = "Distribution of retention time, derived from the main report."
-        help_text = """
-            [DIA-NN: main report] Distribution of retention time (RT) for each run.
-            """
-    elif report_type == "mzIdentML":
-        description_text = "Distribution of retention time, derived from the mzIdentML (or mzML)."
-        help_text = """
-            The uncalibrated retention time in minutes in the elution profile of the precursor ion.
-            """
-    else:
-        description_text = "Distribution of retention time, derived from the mzTab."
-        help_text = """
-            The uncalibrated retention time in minutes in the elution profile of the precursor ion.
-            """
-
-    help_text += """
-            <p>This plot allows to judge column occupancy over retention time.
-            Ideally, the LC gradient is chosen such that the number of identifications (here, after FDR filtering) is
-            uniform over time, to ensure consistent instrument duty cycles. Sharp peaks and uneven distribution of
-            identifications over time indicate potential for LC gradient optimization.
-            See [Moruz 2014, DOI: 10.1002/pmic.201400036](https://pubmed.ncbi.nlm.nih.gov/24700534/) for details.</p>
-"""
-
-    add_sub_section(
-        sub_section=sub_section,
-        plot=linegraph_html,
-        order=1,
-        description=description_text,
-        helptext=help_text,
     )
 
 
@@ -537,6 +480,7 @@ def draw_summary_protein_ident_table(
         total_ms2_spectra: int = 0,
         total_ms2_spectra_identified: int = 0,
         total_protein_identified: int = 0,
+        enable_mzid: bool = False
     ):
     headers = OrderedDict()
     if enable_dia:
@@ -555,7 +499,7 @@ def draw_summary_protein_ident_table(
         summary_table[total_ms2_spectra]["#Peptides Identified"] = total_peptide_count
         summary_table[total_ms2_spectra]["#Proteins Identified"] = total_protein_identified
 
-        if not config.kwargs.get("mzid_plugin", False):
+        if not enable_mzid:
             summary_table[total_ms2_spectra]["#Proteins Quantified"] = total_protein_quantified
 
         headers["#Identified MS2 Spectra"] = {
@@ -580,12 +524,12 @@ def draw_summary_protein_ident_table(
     }
     table_html = table.plot(summary_table, headers, pconfig)
 
-    if config.kwargs.get("mzid_plugin", False) or config.kwargs.get("diann_plugin", False):
+    if enable_mzid or enable_dia:
         description_str = "This table shows the summary statistics of the submitted data."
         helptext_str = """
             This table shows the summary statistics of the submitted data.
-            """
-    if config.kwargs.get("quantms_plugin", False):
+          """
+    else:
         description_str = "This table shows the quantms pipeline summary statistics."
         helptext_str = """
             This table shows the quantms pipeline summary statistics.
@@ -651,10 +595,10 @@ def draw_quantms_identi_num(
                             sample=SampleName(row["Run"]),
                             data=sample_data,
                         )
-                    )
+                    ) 
                 group_name: SampleGroup = SampleGroup(sample)
                 rows_by_group[group_name] = row_data
-
+                
             headers = {}
             for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                 headers["MSstats_Condition_" + str(k)] ={
@@ -687,17 +631,20 @@ def draw_quantms_identi_num(
             for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
                 sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
-                row_data: List[InputRow] = [InputRow(
-                    sample=SampleName(sample),
-                    data={
-                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                        "Fraction": "",
-                        "Peptide_Num": "",
-                        "Unique_Peptide_Num": "",
-                        "Modified_Peptide_Num": "",
-                        "Protein_Num": "",
-                    },
-                )]
+                row_data: List[InputRow] = []
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(sample),
+                        data={
+                            "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                            "Fraction": "",
+                            "Peptide_Num": "",
+                            "Unique_Peptide_Num": "",
+                            "Modified_Peptide_Num": "",
+                            "Protein_Num": "",
+                        },
+                    )
+                )
                 for _, row in file_df_sample.iterrows():
                     row_data.append(
                         InputRow(
@@ -752,7 +699,7 @@ def draw_quantms_identi_num(
                 "Modified_Peptide_Num": value["modified_peptide_num"],
                 "Protein_Num": value["protein_num"],
             }
-
+        
         headers = {
             "Peptide_Num": {
                 "title": "#Peptide IDs",
@@ -819,26 +766,26 @@ def draw_modifications(sub_section, modified_data):
             Compute an occurrence table of modifications (e.g. Oxidation (M)) for all peptides, including the unmodified (but without contaminants).
             """,
         helptext="""
-Post-translational modifications contained within the identified peptide sequence.<br>
+            Post-translational modifications contained within the identified peptide sequence.<br>
 
-<p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences (where different charge state counts as a separate peptide) per Raw file.
-The sum of frequencies may exceed 100% per Raw file, since a peptide can have multiple modifications.</p>
+            <p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences (where different charge state counts as a separate peptide) per Raw file.
+            The sum of frequencies may exceed 100% per Raw file, since a peptide can have multiple modifications.</p>
 
-E.g. given three peptides in a single Raw file                 <br>
-1. _M(Oxidation (M))LVLDEADEM(Oxidation (M))LNK_               <br>
-2. _(Acetyl (Protein N-term))M(Oxidation (M))YGLLLENLSEYIK_    <br>
-3. DPFIANGER                                                   <br>
+            E.g. given three peptides in a single Raw file                 <br>
+            1. _M(Oxidation (M))LVLDEADEM(Oxidation (M))LNK_               <br>
+            2. _(Acetyl (Protein N-term))M(Oxidation (M))YGLLLENLSEYIK_    <br>
+            3. DPFIANGER                                                   <br>
 
-<p>, the following frequencies arise:</p>
+            <p>, the following frequencies arise:</p>
 
-* 33% of 'Acetyl (Protein N-term)' <br>
-* 33% of 'Oxidation (M)'           <br>
-* 33% of '2 Oxidation (M)'         <br>
-* 33% of 'Unmodified'              <br>
+            * 33% of 'Acetyl (Protein N-term)' <br>
+            * 33% of 'Oxidation (M)'           <br>
+            * 33% of '2 Oxidation (M)'         <br>
+            * 33% of 'Unmodified'              <br>
 
-<p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once. 
-If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
-""",
+            <p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once. 
+            If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
+            """,
     )
 
 
@@ -893,7 +840,8 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
 
 def draw_num_pep_per_protein(
         sub_sections,
-        pep_plot
+        pep_plot,
+        enable_mzid: bool = False
     ):
 
     if any([len(i) >= 100 for i in pep_plot.dict["data"].values()]):
@@ -928,7 +876,7 @@ def draw_num_pep_per_protein(
     )
     bar_html = remove_subtitle(bar_html)
 
-    if config.kwargs.get("mzid_plugin", False):
+    if enable_mzid:
         description_str = (
             "This plot shows the number of peptides per protein in the submitted data"
         )
@@ -941,7 +889,7 @@ def draw_num_pep_per_protein(
                     This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
                     identifications can constitute more confident results.
                 """
-
+    
     add_sub_section(
         sub_section=sub_sections,
         plot=bar_html,
@@ -997,7 +945,7 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
             uniform over time, to ensure consistent instrument duty cycles. Sharp peaks and uneven distribution of
             identifications over time indicate potential for LC gradient optimization.
             See [Moruz 2014, DOI: 10.1002/pmic.201400036](https://pubmed.ncbi.nlm.nih.gov/24700534/) for details.</p>
-"""
+            """
 
     add_sub_section(
         sub_section=sub_section,

@@ -11,7 +11,10 @@ from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.stats import qual_uniform
 from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.common.common_utils import evidence_rt_count, mod_group_percentage
+from pmultiqc.modules.common.common_utils import (
+    evidence_rt_count,
+    mod_group_percentage
+)
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots.id import draw_ids_rt_count
 
@@ -40,13 +43,12 @@ def parse_diann_report(
 
     log.info("Parsing {}...".format(diann_report_path))
 
-    # parse DIA-NN report data
-    if os.path.splitext(diann_report_path)[1] == ".tsv":
-        report_data = pd.read_csv(
-            diann_report_path, header=0, sep="\t", on_bad_lines="warn"
-        )
-    else:
-        report_data = pd.read_parquet(diann_report_path)
+    from pmultiqc.modules.common.ms.diann import DiannReader
+    diann_reader = DiannReader(
+        file_paths=diann_report_path
+    )
+    diann_reader.parse()
+    report_data = diann_reader.report_data
 
     # "Decoy" appears only in DIA-NN 2.0 and later.
     # 0 or 1 based on whether the precursor is decoy, relevant when using --report-decoys
@@ -715,4 +717,3 @@ def create_protein_table(report_df, sample_df, file_df):
     result_dict = {i: v for i, (_, v) in enumerate(table_dict.items(), start=1)}
 
     return result_dict, headers
-

@@ -1,11 +1,15 @@
 import os
 from datetime import datetime
 
-from . import maxquant_utils, maxquant_io, maxquant_plots
-from ..base import BasePMultiqcModule
-from ..common.plots import id as id_plots
-from ..common.plots.general import draw_heatmap
-from ..core.section_groups import add_group_modules
+from pmultiqc.modules.maxquant import (
+    maxquant_utils,
+    maxquant_io,
+    maxquant_plots
+)
+from pmultiqc.modules.common.plots import id as id_plots
+from pmultiqc.modules.common.plots.general import draw_heatmap
+from pmultiqc.modules.core.section_groups import add_group_modules
+from pmultiqc.modules.base import BasePMultiqcModule
 
 
 class MaxQuantModule(BasePMultiqcModule):

@@ -19,12 +19,12 @@ from pmultiqc.modules.common.plots.id import draw_quantms_identification
 from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
     draw_quantms_identi_num,
-    draw_num_pep_per_protein,
+    draw_num_pep_per_protein
 )
 from pmultiqc.modules.common.plots.ms import (
     draw_peak_intensity_distribution,
     draw_peaks_per_ms2,
-    draw_ms_information,
+    draw_ms_information
 )
 from pmultiqc.modules.core.section_groups import add_group_modules
 
