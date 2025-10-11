@@ -137,8 +137,6 @@ def parse_mzml(
 
     ms_without_psm = []
 
-    mzml_table = {}
-    heatmap_charge = {}
     mzml_ms_df = None
 
     # Use the class-based MS info reader

@@ -115,12 +115,11 @@ def draw_exp_design(sub_sections, exp_design):
                 )
             group_name: SampleGroup = SampleGroup(sample)
             rows_by_group[group_name] = row_data
-        headers = {}
-        headers["Sample"] = {
+        headers = {"Sample": {
             "title": "Sample [Spectra File]",
             "description": "",
             "scale": False,
-        }
+        }}
         for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
             headers["MSstats_Condition_" + str(k)] ={
                 "title": "MSstats Condition: " + str(k),
