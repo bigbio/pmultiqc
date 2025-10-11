@@ -5,10 +5,11 @@ from multiqc.plots.table_object import InputRow
 from typing import Dict, List
 import numpy as np
 import re
-from collections import OrderedDict
-from multiqc import config
 
-from pmultiqc.modules.common.common_utils import read_openms_design, condition_split
+from pmultiqc.modules.common.common_utils import (
+    read_openms_design,
+    condition_split
+)
 
 
 def remove_subtitle(plot_html):
@@ -22,7 +23,14 @@ def remove_subtitle(plot_html):
     return plot_html
 
 
-def draw_heatmap(sub_sections, hm_colors, heatmap_data, heatmap_xnames, heatmap_ynames, is_maxquant):
+def draw_heatmap(
+        sub_sections,
+        hm_colors,
+        heatmap_data,
+        heatmap_xnames,
+        heatmap_ynames,
+        is_maxquant
+    ):
     pconfig = {
         "id": "heatmap",
         "title": "HeatMap",
@@ -227,5 +235,3 @@ def draw_exp_design(sub_sections, exp_design):
     )
 
     return sample_df, file_df, exp_design_runs, is_bruker, is_multi_conditions
-
-

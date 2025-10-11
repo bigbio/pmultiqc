@@ -5,8 +5,8 @@ from multiqc.plots import bargraph, linegraph, box, scatter, table
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
-from ..common.plots.general import remove_subtitle
-from ..core.section_groups import add_sub_section
+from pmultiqc.modules.common.plots.general import remove_subtitle
+from pmultiqc.modules.core.section_groups import add_sub_section
 
 
 def draw_exp_design(sdrf_df, sub_sections):
