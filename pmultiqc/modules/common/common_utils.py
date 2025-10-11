@@ -85,7 +85,7 @@ def parse_mzml(
         ms_with_psm: List[str] = None,
         identified_spectrum: List[str] = None,
         enable_dia: bool = False,
-        ms_paths: str = None,
+        ms_paths: List[str] = None,
         enable_mzid: bool = False,
     ):
 
@@ -166,25 +166,31 @@ def parse_mzml(
         ms1_peaks = msinfo_reader.ms1_peaks
         ms1_general_stats = msinfo_reader.ms1_general_stats
     else:
-        result = ms_io.read_mzmls(
-            ms_paths,
-            ms_with_psm,
-            identified_spectrum,
-            mzml_charge_plot,
-            mzml_peak_distribution_plot,
-            mzml_peaks_ms2_plot,
-            mzml_charge_plot_1,
-            mzml_peak_distribution_plot_1,
-            mzml_peaks_ms2_plot_1,
-            ms_without_psm,
-            enable_dia,
-            enable_mzid,
+        from pmultiqc.modules.common.ms.mzml import MzMLReader
+
+        mzml_reader = MzMLReader(
+            file_paths=ms_paths,
+            ms_with_psm=ms_with_psm,
+            identified_spectrum=identified_spectrum,
+            mzml_charge_plot=mzml_charge_plot,
+            mzml_peak_distribution_plot=mzml_peak_distribution_plot,
+            mzml_peaks_ms2_plot=mzml_peaks_ms2_plot,
+            mzml_charge_plot_1=mzml_charge_plot_1,
+            mzml_peak_distribution_plot_1=mzml_peak_distribution_plot_1,
+            mzml_peaks_ms2_plot_1=mzml_peaks_ms2_plot_1,
+            ms_without_psm=ms_without_psm,
+            enable_dia=enable_dia,
+            enable_mzid=enable_mzid
         )
 
+        mzml_reader.parse()
+
+        mzml_table = mzml_reader.mzml_table
+        heatmap_charge = mzml_reader.heatmap_charge
+        total_ms2_spectra = mzml_reader.total_ms2_spectra
+
         if enable_mzid:
-            (mzml_table, heatmap_charge, total_ms2_spectra, mzml_ms_df) = result
-        else:
-            mzml_table, heatmap_charge, total_ms2_spectra = result
+            mzml_ms_df = mzml_reader.mzml_ms_df
 
     for i in ms_without_psm:
         log.warning("No PSM found in '{}'!".format(i))

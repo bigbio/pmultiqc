@@ -1,11 +1,9 @@
 from typing import Dict, List
 from collections import OrderedDict
-import numpy as np
 
 from multiqc.plots import bargraph, linegraph, table
 from multiqc.types import SampleGroup, SampleName
 from multiqc.plots.table_object import InputRow
-from multiqc import config
 
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
@@ -202,62 +200,6 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
         order=5,
         description=description_text,
         helptext=helptext,
-    )
-
-
-def draw_ids_rt_count(sub_section, rt_count_data, report_type):
-
-    draw_config = {
-        "id": "IDs_over_RT",
-        "cpswitch": False,
-        "cpswitch_c_active": False,
-        "title": "IDs over RT",
-        "ymin": 0,
-        "tt_decimals": 3,
-        "ylab": "Count",
-        "xlab": "Retention time [min]",
-        "showlegend": True,
-    }
-
-    linegraph_html = linegraph.plot(data=rt_count_data, pconfig=draw_config)
-    linegraph_html = remove_subtitle(linegraph_html)
-
-    if report_type == "maxquant":
-        description_text = "Distribution of retention time, derived from the evidence table."
-        help_text = """
-            The uncalibrated retention time in minutes in the elution profile of the precursor ion, 
-            and does not include potential contaminants.
-            """
-    elif report_type == "dia":
-        description_text = "Distribution of retention time, derived from the main report."
-        help_text = """
-            [DIA-NN: main report] Distribution of retention time (RT) for each run.
-            """
-    elif report_type == "mzIdentML":
-        description_text = "Distribution of retention time, derived from the mzIdentML (or mzML)."
-        help_text = """
-            The uncalibrated retention time in minutes in the elution profile of the precursor ion.
-            """
-    else:
-        description_text = "Distribution of retention time, derived from the mzTab."
-        help_text = """
-            The uncalibrated retention time in minutes in the elution profile of the precursor ion.
-            """
-
-    help_text += """
-            <p>This plot allows to judge column occupancy over retention time.
-            Ideally, the LC gradient is chosen such that the number of identifications (here, after FDR filtering) is
-            uniform over time, to ensure consistent instrument duty cycles. Sharp peaks and uneven distribution of
-            identifications over time indicate potential for LC gradient optimization.
-            See [Moruz 2014, DOI: 10.1002/pmic.201400036](https://pubmed.ncbi.nlm.nih.gov/24700534/) for details.</p>
-"""
-
-    add_sub_section(
-        sub_section=sub_section,
-        plot=linegraph_html,
-        order=1,
-        description=description_text,
-        helptext=help_text,
     )
 
 
@@ -538,6 +480,7 @@ def draw_summary_protein_ident_table(
         total_ms2_spectra: int = 0,
         total_ms2_spectra_identified: int = 0,
         total_protein_identified: int = 0,
+        enable_mzid: bool = False
     ):
     headers = OrderedDict()
     if enable_dia:
@@ -556,7 +499,7 @@ def draw_summary_protein_ident_table(
         summary_table[total_ms2_spectra]["#Peptides Identified"] = total_peptide_count
         summary_table[total_ms2_spectra]["#Proteins Identified"] = total_protein_identified
 
-        if not config.kwargs.get("mzid_plugin", False):
+        if not enable_mzid:
             summary_table[total_ms2_spectra]["#Proteins Quantified"] = total_protein_quantified
 
         headers["#Identified MS2 Spectra"] = {
@@ -581,12 +524,12 @@ def draw_summary_protein_ident_table(
     }
     table_html = table.plot(summary_table, headers, pconfig)
 
-    if config.kwargs.get("mzid_plugin", False) or config.kwargs.get("diann_plugin", False):
+    if enable_mzid or enable_dia:
         description_str = "This table shows the summary statistics of the submitted data."
         helptext_str = """
             This table shows the summary statistics of the submitted data.
-            """
-    if config.kwargs.get("quantms_plugin", False):
+          """
+    else:
         description_str = "This table shows the quantms pipeline summary statistics."
         helptext_str = """
             This table shows the quantms pipeline summary statistics.
@@ -823,26 +766,26 @@ def draw_modifications(sub_section, modified_data):
             Compute an occurrence table of modifications (e.g. Oxidation (M)) for all peptides, including the unmodified (but without contaminants).
             """,
         helptext="""
-Post-translational modifications contained within the identified peptide sequence.<br>
+            Post-translational modifications contained within the identified peptide sequence.<br>
 
-<p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences (where different charge state counts as a separate peptide) per Raw file.
-The sum of frequencies may exceed 100% per Raw file, since a peptide can have multiple modifications.</p>
+            <p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences (where different charge state counts as a separate peptide) per Raw file.
+            The sum of frequencies may exceed 100% per Raw file, since a peptide can have multiple modifications.</p>
 
-E.g. given three peptides in a single Raw file                 <br>
-1. _M(Oxidation (M))LVLDEADEM(Oxidation (M))LNK_               <br>
-2. _(Acetyl (Protein N-term))M(Oxidation (M))YGLLLENLSEYIK_    <br>
-3. DPFIANGER                                                   <br>
+            E.g. given three peptides in a single Raw file                 <br>
+            1. _M(Oxidation (M))LVLDEADEM(Oxidation (M))LNK_               <br>
+            2. _(Acetyl (Protein N-term))M(Oxidation (M))YGLLLENLSEYIK_    <br>
+            3. DPFIANGER                                                   <br>
 
-<p>, the following frequencies arise:</p>
+            <p>, the following frequencies arise:</p>
 
-* 33% of 'Acetyl (Protein N-term)' <br>
-* 33% of 'Oxidation (M)'           <br>
-* 33% of '2 Oxidation (M)'         <br>
-* 33% of 'Unmodified'              <br>
+            * 33% of 'Acetyl (Protein N-term)' <br>
+            * 33% of 'Oxidation (M)'           <br>
+            * 33% of '2 Oxidation (M)'         <br>
+            * 33% of 'Unmodified'              <br>
 
-<p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once. 
-If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
-""",
+            <p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once. 
+            If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
+            """,
     )
 
 
@@ -897,7 +840,8 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
 
 def draw_num_pep_per_protein(
         sub_sections,
-        pep_plot
+        pep_plot,
+        enable_mzid: bool = False
     ):
 
     if any([len(i) >= 100 for i in pep_plot.dict["data"].values()]):
@@ -932,7 +876,7 @@ def draw_num_pep_per_protein(
     )
     bar_html = remove_subtitle(bar_html)
 
-    if config.kwargs.get("mzid_plugin", False):
+    if enable_mzid:
         description_str = (
             "This plot shows the number of peptides per protein in the submitted data"
         )
@@ -1001,7 +945,7 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
             uniform over time, to ensure consistent instrument duty cycles. Sharp peaks and uneven distribution of
             identifications over time indicate potential for LC gradient optimization.
             See [Moruz 2014, DOI: 10.1002/pmic.201400036](https://pubmed.ncbi.nlm.nih.gov/24700534/) for details.</p>
-"""
+            """
 
     add_sub_section(
         sub_section=sub_section,
@@ -1010,7 +954,3 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
         description=description_text,
         helptext=help_text,
     )
-
-
-
-

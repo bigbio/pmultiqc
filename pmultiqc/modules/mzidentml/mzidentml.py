@@ -20,14 +20,25 @@ from pmultiqc.modules.common.mzidentml_utils import (
     get_mzid_num_data,
     draw_mzid_quant_table,
 )
-from ..base import BasePMultiqcModule
-from ..common import ms_io
-from ..common.plots import id as id_plots
-from ..common.plots.general import remove_subtitle, draw_heatmap
-from ..common.file_utils import file_prefix
-from ..common.histogram import Histogram
-from ..common.stats import qual_uniform
-from ..core.section_groups import add_group_modules, add_sub_section
+
+from pmultiqc.modules.base import BasePMultiqcModule
+from pmultiqc.modules.common.plots import id as id_plots
+from pmultiqc.modules.common.plots.ms import (
+    draw_precursor_charge_distribution,
+    draw_peak_intensity_distribution,
+    draw_peaks_per_ms2
+)
+from pmultiqc.modules.common.plots.general import (
+    remove_subtitle,
+    draw_heatmap
+)
+from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.histogram import Histogram
+from pmultiqc.modules.common.stats import qual_uniform
+from pmultiqc.modules.core.section_groups import (
+    add_group_modules,
+    add_sub_section
+)
 
 
 class MzIdentMLModule(BasePMultiqcModule):
@@ -55,7 +66,7 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.mzml_charge_plot = None
         self.mzml_peak_distribution_plot = None
         self.section_group_dict = None
-        self.mzid_paths = None
+        self.mzid_paths = list()
         self.ms_without_psm = None
         self.mzid_peptide_map = None
         self.mgf_paths = None
@@ -99,7 +110,6 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.mzid_peptide_map = dict()
         self.ms_without_psm = dict()
 
-        self.mzid_paths = []
         for mzid_file in self.find_log_files("pmultiqc/mzid", filecontents=False):
             self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
         self.mzid_paths.sort()
@@ -131,7 +141,16 @@ class MzIdentMLModule(BasePMultiqcModule):
                 (self.cal_num_table_data, self.identified_msms_spectra) = get_mzid_num_data(
                     mzidentml_df
                 )
-                self.draw_quantms_identification(mt)
+                # self.draw_quantms_identification(mt)
+
+                id_plots.draw_quantms_identification(
+                    self.sub_sections["identification"],
+                    cal_num_table_data=self.cal_num_table_data,
+                    mzml_table=mt,
+                    quantms_missed_cleavages=self.quantms_missed_cleavages,
+                    quantms_modified=self.quantms_modified,
+                    identified_msms_spectra=self.identified_msms_spectra,
+                )
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
 
@@ -151,12 +170,60 @@ class MzIdentMLModule(BasePMultiqcModule):
             False,
         )
 
-        self.draw_summary_protein_ident_table()
+        id_plots.draw_summary_protein_ident_table(
+            sub_sections=self.sub_sections["summary"],
+            total_peptide_count=self.total_peptide_count,
+            total_ms2_spectra_identified=self.total_ms2_spectra_identified,
+            total_ms2_spectra=self.total_ms2_spectra,
+            total_protein_identified=self.total_protein_identified,
+            enable_mzid=True
+        )
+
         self.draw_mzid_identi_num()
-        self.draw_num_pep_per_protein()
-        self.draw_precursor_charge_distribution()
-        self.draw_peaks_per_ms2()
-        self.draw_peak_intensity_distribution()
+
+        id_plots.draw_num_pep_per_protein(
+            self.sub_sections["identification"],
+            self.pep_plot,
+            True
+        )
+
+        if self.mgf_paths:
+            draw_precursor_charge_distribution(
+                self.sub_sections["ms2"],
+                charge_plot=self.mgf_charge_plot,
+                ms_info=self.ms_info
+            )
+
+            draw_peaks_per_ms2(
+                self.sub_sections["ms2"],
+                self.mgf_peaks_ms2_plot,
+                self.ms_info
+            )
+
+            draw_peak_intensity_distribution(
+                self.sub_sections["ms2"],
+                self.mgf_peak_distribution_plot,
+                self.ms_info
+            )
+        else:
+            draw_precursor_charge_distribution(
+                self.sub_sections["ms2"],
+                charge_plot=self.mzml_charge_plot,
+                ms_info=self.ms_info
+            )
+
+            draw_peaks_per_ms2(
+                self.sub_sections["ms2"],
+                self.mzml_peaks_ms2_plot,
+                self.ms_info
+            )
+
+            draw_peak_intensity_distribution(
+                self.sub_sections["ms2"],
+                self.mzml_peak_distribution_plot,
+                self.ms_info
+            )
+
         id_plots.draw_oversampling(
             self.sub_sections["ms2"], self.oversampling, self.oversampling_plot.dict["cats"], False
         )
@@ -203,62 +270,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                 )
         return heat_map_score, xnames, ynames
 
-    def draw_summary_protein_ident_table(self):
-        headers = OrderedDict()
-        summary_table = {
-            self.total_ms2_spectra: {"#Identified MS2 Spectra": self.total_ms2_spectra_identified}
-        }
-        coverage = self.total_ms2_spectra_identified / self.total_ms2_spectra * 100
-        summary_table[self.total_ms2_spectra]["%Identified MS2 Spectra"] = coverage
-        summary_table[self.total_ms2_spectra]["#Peptides Identified"] = self.total_peptide_count
-        summary_table[self.total_ms2_spectra][
-            "#Proteins Identified"
-        ] = self.total_protein_identified
-
-        if not config.kwargs.get("mzid_plugin", False):
-            summary_table[self.total_ms2_spectra][
-                "#Proteins Quantified"
-            ] = self.total_protein_quantified
-
-        headers["#Identified MS2 Spectra"] = {
-            "description": "Total number of MS/MS spectra identified",
-        }
-        headers["%Identified MS2 Spectra"] = {
-            "description": "Percentage of Identified MS/MS Spectra",
-            "format": "{:,.2f}",
-            "suffix": "%",
-        }
-        col_header = "#MS2 Spectra"
-
-        # Create table plot
-        pconfig = {
-            "id": "identification_summary_table",  # ID used for the table
-            "title": "Summary Table",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_summary_table_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": False,  # Only show columns that are defined in the headers config
-            "col1_header": col_header,
-            # 'format': '{:,.0f}',  # The header used for the first column
-            "scale": "Set1",
-        }
-
-        table_html = table.plot(summary_table, headers, pconfig)
-
-        description_str = "This plot shows the summary statistics of the submitted data."
-        # TODO: add description here @Yasset
-        helptext_str = """
-            This plot shows the summary statistics of the submitted data.
-        """
-
-        add_sub_section(
-            sub_section=self.sub_sections["summary"],
-            plot=table_html,
-            order=1,
-            description=description_str,
-            helptext=helptext_str,
-        )
-
     def draw_mzid_identi_num(self):
         pconfig = {
             "id": "result statistics",  # ID used for the table
@@ -300,63 +311,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                 Including the number of identified peptides and the number of identified modified peptides in the submitted results. 
                 You can also remove the decoy with the `remove_decoy` parameter.
                 """,
-        )
-
-    # draw number of peptides per proteins
-    def draw_num_pep_per_protein(self):
-
-        if any([len(i) >= 100 for i in self.pep_plot.dict["data"].values()]):
-            data_labels = ["Frequency", "Percentage"]
-        else:
-            data_labels = [
-                {
-                    "name": "Frequency",
-                    "ylab": "Frequency",
-                    "tt_suffix": "",
-                    "tt_decimals": 0,
-                },
-                {
-                    "name": "Percentage",
-                    "ylab": "Percentage [%]",
-                    "tt_suffix": "%",
-                    "tt_decimals": 2,
-                },
-            ]
-
-        pconfig = {
-            "id": "number_of_peptides_per_proteins",
-            "cpswitch": False,
-            "title": "Number of Peptides identified Per Protein",
-            "data_labels": data_labels,
-        }
-
-        bar_html = bargraph.plot(
-            [self.pep_plot.dict["data"]["frequency"], self.pep_plot.dict["data"]["percentage"]],
-            ["Frequency", "Percentage"],
-            pconfig,
-        )
-        bar_html = remove_subtitle(bar_html)
-
-        if config.kwargs.get("mzid_plugin", False):
-            description_str = (
-                "This plot shows the number of peptides per protein in the submitted data"
-            )
-            helptext_str = """
-                        Proteins supported by more peptide identifications can constitute more confident results.
-                    """
-        else:
-            description_str = "This plot shows the number of peptides per protein in quantms pipeline final result"
-            helptext_str = """
-                        This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
-                        identifications can constitute more confident results.
-                    """
-
-        add_sub_section(
-            sub_section=self.sub_sections["identification"],
-            plot=bar_html,
-            order=1,
-            description=description_str,
-            helptext=helptext_str,
         )
 
     def draw_mzml_ms(self):
@@ -428,117 +382,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                 * Sage: The Number of spectra identified by Sage search engine
                 * PSMs from quant. peptides: extracted from PSM table in mzTab file
                 * Peptides quantified: extracted from PSM table in mzTab file
-                """,
-        )
-
-    def draw_peak_intensity_distribution(self):
-        pconfig = {
-            "id": "peak_intensity_distribution",
-            "title": "Peak Intensity Distribution",
-            "cpswitch": False,
-            "stacking": "group",
-            "logswitch": True,
-            "logswitch_active": True,
-            "logswitch_label": "Log10 Scale",
-            "ylab": "Count",
-            "tt_decimals": 0,
-        }
-        if config.kwargs.get("mzid_plugin", False) and self.mgf_paths:
-            cats = self.mgf_peak_distribution_plot.dict["cats"]
-        else:
-            cats = self.mzml_peak_distribution_plot.dict["cats"]
-
-        bar_html = bargraph.plot(self.ms_info["peak_distribution"], cats, pconfig)
-        bar_html = remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=bar_html,
-            order=2,
-            description="""
-                This is a histogram representing the ion intensity vs.
-                the frequency for all MS2 spectra in a whole given experiment.
-                It is possible to filter the information for all, identified and unidentified spectra.
-                This plot can give a general estimation of the noise level of the spectra.
-                """,
-            helptext="""
-                Generally, one should expect to have a high number of low intensity noise peaks with a low number 
-                of high intensity signal peaks. 
-                A disproportionate number of high signal peaks may indicate heavy spectrum pre-filtering or 
-                potential experimental problems. In the case of data reuse this plot can be useful in 
-                identifying the requirement for pre-processing of the spectra prior to any downstream analysis. 
-                The quality of the identifications is not linked to this data as most search engines perform internal 
-                spectrum pre-processing before matching the spectra. Thus, the spectra reported are not 
-                necessarily pre-processed since the search engine may have applied the pre-processing step 
-                internally. This pre-processing is not necessarily reported in the experimental metadata.
-                """,
-        )
-
-    def draw_precursor_charge_distribution(self):
-        pconfig = {
-            "id": "distribution_of_precursor_charges",
-            "title": "Distribution of Precursor Charges",
-            "cpswitch": True,
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
-        if config.kwargs.get("mzid_plugin", False) and self.mgf_paths:
-            cats = self.mgf_charge_plot.dict["cats"]
-        else:
-            cats = self.mzml_charge_plot.dict["cats"]
-
-        bar_html = bargraph.plot(self.ms_info["charge_distribution"], cats, pconfig)
-        bar_html = remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=bar_html,
-            order=5,
-            description="""
-                This is a bar chart representing the distribution of the precursor ion charges for a given whole experiment.
-                """,
-            helptext="""
-                This information can be used to identify potential ionization problems 
-                including many 1+ charges from an ESI ionization source or an unexpected 
-                distribution of charges. MALDI experiments are expected to contain almost exclusively 1+ 
-                charged ions. An unexpected charge distribution may furthermore be caused by specific search 
-                engine parameter settings such as limiting the search to specific ion charges.
-                """,
-        )
-
-    def draw_peaks_per_ms2(self):
-        pconfig = {
-            "id": "peaks_per_ms2",
-            "cpswitch": False,
-            "title": "Number of Peaks per MS/MS spectrum",
-            "stacking": "group",
-            "logswitch": True,
-            "logswitch_active": True,
-            "logswitch_label": "Log10 Scale",
-            "ylab": "Count",
-            "tt_decimals": 0,
-        }
-        if config.kwargs.get("mzid_plugin", False) and self.mgf_paths:
-            cats = self.mgf_peaks_ms2_plot.dict["cats"]
-        else:
-            cats = self.mzml_peaks_ms2_plot.dict["cats"]
-
-        bar_html = bargraph.plot(self.ms_info["peaks_per_ms2"], cats, pconfig)
-        bar_html = remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=bar_html,
-            order=1,
-            description="""
-                This chart represents a histogram containing the number of peaks per MS/MS spectrum 
-                in a given experiment.
-                """,
-            helptext="""
-                This chart assumes centroid data. Too few peaks can identify poor fragmentation 
-                or a detector fault, as opposed to a large number of peaks representing very noisy spectra. 
-                This chart is extensively dependent on the pre-processing steps performed to the spectra 
-                (centroiding, deconvolution, peak picking approach, etc).
                 """,
         )
 
@@ -1133,23 +976,30 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         self.ms_without_psm = []
 
-        # Use the refactored functions from ms_io.py
-        result = ms_io.read_mzmls(
-            self.ms_paths,
-            self.ms_with_psm,
-            self.identified_spectrum,
-            self.mzml_charge_plot,
-            self.mzml_peak_distribution_plot,
-            self.mzml_peaks_ms2_plot,
-            self.mzml_charge_plot_1,
-            self.mzml_peak_distribution_plot_1,
-            self.mzml_peaks_ms2_plot_1,
-            self.ms_without_psm,
-            False,
-            True,
+        # Use the refactored class from ms/mzml.py
+        from pmultiqc.modules.common.ms.mzml import MzMLReader
+
+        mzml_reader = MzMLReader(
+            file_paths=self.ms_paths,
+            ms_with_psm=self.ms_with_psm,
+            identified_spectrum=self.identified_spectrum,
+            mzml_charge_plot=self.mzml_charge_plot,
+            mzml_peak_distribution_plot=self.mzml_peak_distribution_plot,
+            mzml_peaks_ms2_plot=self.mzml_peaks_ms2_plot,
+            mzml_charge_plot_1=self.mzml_charge_plot_1,
+            mzml_peak_distribution_plot_1=self.mzml_peak_distribution_plot_1,
+            mzml_peaks_ms2_plot_1=self.mzml_peaks_ms2_plot_1,
+            ms_without_psm=self.ms_without_psm,
+            enable_dia=False,
+            enable_mzid=True
         )
 
-        (mzml_table, heatmap_charge, self.total_ms2_spectra, self.mzml_ms_df) = result
+        mzml_reader.parse()
+
+        mzml_table = mzml_reader.mzml_table
+        heatmap_charge = mzml_reader.heatmap_charge
+        self.total_ms2_spectra = mzml_reader.total_ms2_spectra
+        self.mzml_ms_df = mzml_reader.mzml_ms_df
 
         for i in self.ms_without_psm:
             self.log.warning("No PSM found in '{}'!".format(i))
@@ -1320,7 +1170,12 @@ class MzIdentMLModule(BasePMultiqcModule):
 
     def parse_out_mzid(self):
 
-        mzid_table = ms_io.read_mzids(self.mzid_paths)
+        # Use the class-based MzID reader
+        from pmultiqc.modules.common.ms.mzid import MzidReader
+
+        mzid_reader = MzidReader(self.mzid_paths)
+        mzid_reader.parse()
+        mzid_table = mzid_reader.filtered_mzid_df
 
         self.ms_with_psm = mzid_table["filename"].unique().tolist()
 
@@ -1487,118 +1342,3 @@ class MzIdentMLModule(BasePMultiqcModule):
         result_dict["cats"] = plot_cats_ordered
 
         return result_dict
-
-    def draw_quantms_identification(self, mzml_table):
-
-        # 1.ProteinGroups Count
-        draw_config = {
-            "id": "protein_group_count",
-            "cpswitch": False,
-            "title": "ProteinGroups Count",
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
-
-        if self.cal_num_table_data:
-            protein_count = {
-                sample: {"Count": info["protein_num"]}
-                for sample, info in self.cal_num_table_data.items()
-            }
-            peptide_count = {
-                sample: {"Count": info["peptide_num"]}
-                for sample, info in self.cal_num_table_data.items()
-            }
-        else:
-            return
-
-        bar_html = bargraph.plot(
-            protein_count,
-            pconfig=draw_config,
-        )
-        bar_html = remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["identification"],
-            plot=bar_html,
-            order=3,
-            description="Number of protein groups per raw file.",
-            helptext="""
-                Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
-                """,
-        )
-
-        # 2.Peptide ID Count
-        draw_config = {
-            "id": "peptide_id_count",
-            "cpswitch": False,
-            "title": "Peptide ID Count",
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
-        bar_html = bargraph.plot(
-            peptide_count,
-            pconfig=draw_config,
-        )
-        bar_html = remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["identification"],
-            plot=bar_html,
-            order=4,
-            description="""
-                Number of unique (i.e. not counted twice) peptide sequences including modifications per Raw file.
-                """,
-            helptext="""
-                Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
-                """,
-        )
-
-        # 3.Missed Cleavages Per Raw File
-        if self.quantms_missed_cleavages:
-            mc_group = {}
-            for sample, counts in self.quantms_missed_cleavages.items():
-                mc_group[sample] = {"0": 0, "1": 0, ">=2": 0}
-                for mc, count in counts.items():
-                    if mc == 0:
-                        mc_group[sample]["0"] += count
-                    elif mc == 1:
-                        mc_group[sample]["1"] += count
-                    else:
-                        mc_group[sample][">=2"] += count
-
-            mc_group_ratio = {}
-            for sample, counts in mc_group.items():
-                total = sum(counts.values())
-                if total == 0:
-                    mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
-                    continue
-                mc_group_ratio[sample] = {
-                    group: count / total * 100 for group, count in counts.items()
-                }
-
-            mc_data = {"plot_data": mc_group_ratio, "cats": ["0", "1", ">=2"]}
-            id_plots.draw_msms_missed_cleavages(
-                self.sub_sections["identification"], mc_data, False
-            )
-
-        # 4.Modifications Per Raw File
-        if self.quantms_modified:
-            id_plots.draw_modifications(
-                self.sub_sections["identification"], self.quantms_modified
-            )
-
-        # 5.MS/MS Identified per Raw File
-        if self.identified_msms_spectra and mzml_table:
-
-            msms_identified_rate = dict()
-
-            for m in self.identified_msms_spectra.keys():
-                identified_ms2 = self.identified_msms_spectra[m].get("Identified", 0)
-                all_ms2 = mzml_table.get(m, {}).get("MS2_Num", 0)
-
-                if all_ms2 > 0:
-                    msms_identified_rate[m] = {"Identified Rate": (identified_ms2 / all_ms2) * 100}
-
-            id_plots.draw_ms_ms_identified(
-                self.sub_sections["identification"], msms_identified_rate
-            )

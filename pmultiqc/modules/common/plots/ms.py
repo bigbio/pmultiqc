@@ -106,7 +106,11 @@ def draw_ms_information(
         )
 
 
-def draw_peak_intensity_distribution(sub_sections, peak_distribution_plot, ms_info):
+def draw_peak_intensity_distribution(
+        sub_sections,
+        peak_distribution_plot,
+        ms_info,
+    ):
     pconfig = {
         "id": "peak_intensity_distribution",
         "title": "Peak Intensity Distribution",
@@ -176,5 +180,3 @@ def draw_peaks_per_ms2(sub_sections, peaks_ms2_plot, ms_info):
         description="Histogram of number of peaks per MS/MS spectrum.",
         helptext="Too few peaks may indicate poor fragmentation; many peaks could indicate noisy spectra.",
     )
-
-

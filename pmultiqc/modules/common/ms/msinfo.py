@@ -141,5 +141,3 @@ class MsInfoReader(BaseParser):
         self.ms1_peaks = ms1_peaks
         self.ms1_general_stats = ms1_general_stats
         return None
-
-

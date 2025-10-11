@@ -172,5 +172,3 @@ def configure_package_logging(level=None, log_file=None, detailed=False):
     log_system_info(root_logger)
 
     return root_logger
-
-
