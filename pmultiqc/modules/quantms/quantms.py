@@ -21,8 +21,7 @@ from pyopenms import AASequence
 from pyteomics import mztab
 from sdrf_pipelines.openms.openms import UnimodDatabase
 
-from . import sparklines
-from pmultiqc.modules.common.dia_utils import parse_diann_report
+from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
     get_ms_path,
@@ -31,37 +30,35 @@ from pmultiqc.modules.common.common_utils import (
     evidence_calibrated_mass_error,
     parse_mzml
 )
-from pmultiqc.modules.common import ms_io
-from pmultiqc.modules.common.ms.msinfo import MsInfoReader
+from pmultiqc.modules.common.dia_utils import parse_diann_report
+from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.histogram import Histogram
+from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.ms import idxml as ms_idxml
+from pmultiqc.modules.common.ms.msinfo import MsInfoReader
+from pmultiqc.modules.common.plots.general import draw_heatmap, remove_subtitle, draw_exp_design
+from pmultiqc.modules.common.plots.id import draw_charge_state, draw_ids_rt_count, draw_delta_mass_da_ppm
+from pmultiqc.modules.common.plots.id import (
+    draw_potential_contaminants,
+    draw_top_n_contaminants,
+    draw_quantms_identification,
+    draw_oversampling,
+    draw_num_pep_per_protein,
+)
+from pmultiqc.modules.common.plots.id import draw_summary_protein_ident_table, draw_quantms_identi_num
 from pmultiqc.modules.common.plots.ms import (
     draw_ms_information,
     draw_peak_intensity_distribution,
     draw_precursor_charge_distribution,
     draw_peaks_per_ms2,
 )
-from pmultiqc.modules.common.plots.id import (
-    draw_potential_contaminants,
-    draw_top_n_contaminants,
-    draw_ids_rt_count,
-    draw_delta_mass_da_ppm,
-    draw_quantms_identification,
-    draw_oversampling,
-    draw_num_pep_per_protein,
-)
-from pmultiqc.modules.common.plots.general import draw_heatmap, remove_subtitle, draw_exp_design
-from pmultiqc.modules.common.plots.id import draw_summary_protein_ident_table, draw_quantms_identi_num
-from pmultiqc.modules.common.plots.id import draw_charge_state, draw_ids_rt_count, draw_delta_mass_da_ppm
-from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.stats import qual_uniform
 from pmultiqc.modules.core.section_groups import (
     add_group_modules,
     add_sub_section
 )
+from . import sparklines
 
-
-from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.quantms")
 
 class QuantMSModule:
@@ -325,7 +322,7 @@ class QuantMSModule:
                 is_multi_conditions=self.is_multi_conditions,
                 sample_df=self.sample_df,
                 file_df=self.file_df,
-                cal_num_table_data=self.cal_num_table_data 
+                cal_num_table_data=self.cal_num_table_data
             )
 
             draw_num_pep_per_protein(
@@ -345,7 +342,7 @@ class QuantMSModule:
                     self.mzml_peak_distribution_plot,
                     self.ms_info
                 )
-        
+
         # quantms: LFQ or TMT
         else:
 

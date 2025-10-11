@@ -15,7 +15,7 @@ from multiqc import config
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import read_openms_design, condition_split
 
-# Todo: Remove all these files, all the functions here must be in the folder plots. 
+# Todo: Remove all these files, all the functions here must be in the folder plots.
 
 # MS/MS Identified Per Raw File
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
@@ -648,7 +648,7 @@ def draw_exp_design(sub_sections, exp_design):
             sample_data = {}
             for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                 sample_data["MSstats_Condition_" + str(k)] = v
-            
+
             sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
             sample_data["Fraction_Group"] = ""
             sample_data["Fraction"] = ""
@@ -687,7 +687,7 @@ def draw_exp_design(sub_sections, exp_design):
             "scale": False,
         }
         for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-            headers["MSstats_Condition_" + str(k)] ={
+            headers["MSstats_Condition_" + str(k)] = {
                 "title": "MSstats Condition: " + str(k),
                 "description": "",
                 "scale": False,
@@ -716,19 +716,16 @@ def draw_exp_design(sub_sections, exp_design):
         for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
-            row_data: List[InputRow] = []
-            row_data.append(
-                InputRow(
-                    sample=SampleName(sample),
-                    data={
-                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
-                        "Fraction_Group": "",
-                        "Fraction": "",
-                        "Label": "",
-                    },
-                )
-            )
+            row_data: List[InputRow] = [InputRow(
+                sample=SampleName(sample),
+                data={
+                    "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                    "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
+                    "Fraction_Group": "",
+                    "Fraction": "",
+                    "Label": "",
+                },
+            )]
             for _, row in file_df_sample.iterrows():
                 row_data.append(
                     InputRow(
@@ -1062,7 +1059,7 @@ def draw_quantms_identi_num(
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
     if enable_exp or enable_sdrf:
-            
+
         if is_multi_conditions:
             for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
@@ -1072,7 +1069,7 @@ def draw_quantms_identi_num(
                 sample_data = {}
                 for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                     sample_data["MSstats_Condition_" + str(k)] = v
-                
+
                 sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
                 sample_data["Fraction"] = ""
                 sample_data["Peptide_Num"] = ""
@@ -1104,10 +1101,10 @@ def draw_quantms_identi_num(
                             sample=SampleName(row["Run"]),
                             data=sample_data,
                         )
-                    ) 
+                    )
                 group_name: SampleGroup = SampleGroup(sample)
                 rows_by_group[group_name] = row_data
-                
+
             headers = {}
             for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                 headers["MSstats_Condition_" + str(k)] ={
@@ -1209,7 +1206,7 @@ def draw_quantms_identi_num(
                 "Modified_Peptide_Num": value["modified_peptide_num"],
                 "Protein_Num": value["protein_num"],
             }
-        
+
         headers = {
             "Peptide_Num": {
                 "title": "#Peptide IDs",
@@ -1301,7 +1298,7 @@ def draw_num_pep_per_protein(
                     This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
                     identifications can constitute more confident results.
                 """
-    
+
     add_sub_section(
         sub_section=sub_sections,
         plot=bar_html,

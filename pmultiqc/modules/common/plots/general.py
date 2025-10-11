@@ -1,14 +1,13 @@
-from multiqc.plots import heatmap, table
-from pmultiqc.modules.core.section_groups import add_sub_section
-from multiqc.types import SampleGroup, SampleName
-from multiqc.plots.table_object import InputRow
-from typing import Dict, List
-import numpy as np
 import re
-from collections import OrderedDict
-from multiqc import config
+from typing import Dict, List
+
+import numpy as np
+from multiqc.plots import heatmap, table
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
 
 from pmultiqc.modules.common.common_utils import read_openms_design, condition_split
+from pmultiqc.modules.core.section_groups import add_sub_section
 
 
 def remove_subtitle(plot_html):
@@ -143,19 +142,16 @@ def draw_exp_design(sub_sections, exp_design):
         for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
-            row_data: List[InputRow] = []
-            row_data.append(
-                InputRow(
-                    sample=SampleName(sample),
-                    data={
-                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
-                        "Fraction_Group": "",
-                        "Fraction": "",
-                        "Label": "",
-                    },
-                )
-            )
+            row_data: List[InputRow] = [InputRow(
+                sample=SampleName(sample),
+                data={
+                    "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                    "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
+                    "Fraction_Group": "",
+                    "Fraction": "",
+                    "Label": "",
+                },
+            )]
             for _, row in file_df_sample.iterrows():
                 row_data.append(
                     InputRow(
@@ -227,5 +223,3 @@ def draw_exp_design(sub_sections, exp_design):
     )
 
     return sample_df, file_df, exp_design_runs, is_bruker, is_multi_conditions
-
-

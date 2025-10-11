@@ -19,7 +19,7 @@ from pmultiqc.modules.common.ms_io import (
 class MsInfoReader(BaseParser):
     def __init__(
         self,
-        file_paths: list[str, Path],
+        file_paths: list[str | Path],
         ms_with_psm,
         identified_spectrum,
         mzml_charge_plot,
@@ -141,5 +141,3 @@ class MsInfoReader(BaseParser):
         self.ms1_peaks = ms1_peaks
         self.ms1_general_stats = ms1_general_stats
         return None
-
-

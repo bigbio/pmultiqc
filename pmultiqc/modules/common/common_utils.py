@@ -42,7 +42,7 @@ def read_openms_design(desfile):
             raise ValueError("Cannot find 'Spectra_Filepath' header in file!")
         if s_header is None:
             raise ValueError("Cannot find 'MSstats_Condition' header in file!")
-    
+
         f_table = pd.DataFrame(f_table, columns=f_header)
         f_table["Run"] = f_table.apply(
             lambda x: file_prefix(x["Spectra_Filepath"]), axis=1
@@ -68,7 +68,7 @@ def get_ms_path(find_log_files):
     for ms_info in find_log_files("pmultiqc/ms_info", filecontents=False):
         ms_info_path.append(os.path.join(ms_info["root"], ms_info["fn"]))
         ms_info_path.sort()
-    
+
     read_ms_info = False
     if len(ms_info_path) > 0:
         read_ms_info = True
@@ -114,7 +114,7 @@ def parse_mzml(
                     datetime.now().strftime("%H:%M:%S"), file
                 )
             )
-        return
+        return None
 
     mzml_peak_distribution_plot = Histogram(
         "Peak Intensity",
@@ -196,7 +196,7 @@ def parse_mzml(
     ms_info["charge_distribution"] = dict()
     ms_info["peaks_per_ms2"] = dict()
     ms_info["peak_distribution"] = dict()
-    
+
     # Construct compound dictionaries to apply to drawing functions.
     if enable_dia:
         mzml_charge_plot.to_dict()

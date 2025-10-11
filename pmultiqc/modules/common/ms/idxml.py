@@ -17,10 +17,10 @@ from pmultiqc.modules.common.ms.base import BaseParser
 from pathlib import Path
 
 class IdXMLReader(BaseParser):
-    
+
     def __init__(
         self,
-        file_paths: list[str, Path],
+        file_paths: list[str | Path],
         mzml_table,
         xcorr_hist_range,
         hyper_hist_range,

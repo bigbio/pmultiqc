@@ -1,19 +1,21 @@
 """ MultiQC pmultiqc plugin module """
 
 from __future__ import absolute_import
+
 import logging
-import pandas as pd
 import os
 
+import pandas as pd
+
 from pmultiqc.modules.common import ms_io
-from pmultiqc.modules.core.section_groups import add_group_modules
-from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
     get_ms_path,
     parse_mzml
 )
+from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.plots.general import draw_exp_design
+from pmultiqc.modules.common.plots.id import draw_quantms_identification
 from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
     draw_quantms_identi_num,
@@ -21,12 +23,10 @@ from pmultiqc.modules.common.plots.id import (
 )
 from pmultiqc.modules.common.plots.ms import (
     draw_peak_intensity_distribution,
-    draw_precursor_charge_distribution,
     draw_peaks_per_ms2,
     draw_ms_information,
 )
-from pmultiqc.modules.common.plots.id import draw_quantms_identification
-
+from pmultiqc.modules.core.section_groups import add_group_modules
 
 # Initialise the main MultiQC logger
 logging.basicConfig(level=logging.INFO)
@@ -170,7 +170,7 @@ class DiannModule:
             is_multi_conditions=self.is_multi_conditions,
             sample_df=self.sample_df,
             file_df=self.file_df,
-            cal_num_table_data=self.cal_num_table_data 
+            cal_num_table_data=self.cal_num_table_data
         )
 
         draw_num_pep_per_protein(
