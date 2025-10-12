@@ -9,8 +9,8 @@ from pmultiqc.modules.common.file_utils import drop_empty_row
 from pmultiqc.modules.maxquant.maxquant_utils import evidence_rt_count
 from ..core.section_groups import add_sub_section
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from pmultiqc.modules.common.logging import get_logger
+log = get_logger("pmultiqc.modules.common.mzidentml_utils")
 
 
 def get_mzidentml_mzml_df(mzid_psm, mzml_ms_df):

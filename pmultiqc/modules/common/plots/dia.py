@@ -8,8 +8,9 @@ from pmultiqc.modules.common.plots.general import remove_subtitle
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.core.section_groups import add_sub_section
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from pmultiqc.modules.common.logging import get_logger
+
+log = get_logger("pmultiqc.modules.common.plots.dia")
 
 # DIA-NN: HeatMap
 def draw_heatmap(sub_section, hm_colors, heatmap_data):

@@ -28,9 +28,10 @@ from pmultiqc.modules.common.plots.ms import (
 )
 from pmultiqc.modules.core.section_groups import add_group_modules
 
-# Initialise the main MultiQC logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from pmultiqc.modules.common.logging import get_logger
+
+# Initialise the module logger via centralized logger
+log = get_logger("pmultiqc.modules.diann.diann")
 
 
 class DiannModule:

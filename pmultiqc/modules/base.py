@@ -10,9 +10,9 @@ class BasePMultiqcModule(ABC):
         self.sub_sections = sub_sections
         self.heatmap_color_list = heatmap_colors
 
-        # Initialize logging for this module
-        logging.basicConfig(level=logging.INFO)
-        self.log = logging.getLogger(self.__class__.__module__)
+        # Initialize logging for this module via centralized logger
+        from pmultiqc.modules.common.logging import get_logger
+        self.log = get_logger(self.__class__.__module__)
 
     @abstractmethod
     def get_data(self) -> bool | None:
