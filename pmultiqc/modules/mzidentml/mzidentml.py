@@ -493,7 +493,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                     {
                         "name": "Relative Frequency (All Data)",
                         "ylab": "Relative Frequency",
-                        "tt_label": "{point.x} Mass delta elative frequency: {point.y}",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
                         "xmax": max(abs(x) for x in x_values) + range_step,
                         "xmin": -(max(abs(x) for x in x_values) + range_step),
                         "ymin": 0,
