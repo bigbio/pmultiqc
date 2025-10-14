@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 MultiQC pmultiqc plugin functions
 """
@@ -11,6 +10,7 @@ from importlib import metadata
 from pathlib import Path
 
 from multiqc import config
+from pmultiqc.modules.common.logging import configure_package_logging
 
 from pmultiqc.modules.common.file_utils import (
     extract_archive_file,
@@ -34,9 +34,8 @@ def pmultiqc_plugin_execution_start():
     to use custom command line flags.
     """
 
-    # Halt execution if we've disabled the plugin
-    if config.kwargs.get("disable_plugin", True):
-        return None
+    # Configure centralized package logging once
+    configure_package_logging()
 
     log.warning("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 

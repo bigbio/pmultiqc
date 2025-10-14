@@ -1,14 +1,15 @@
 """ MultiQC functions to plot a table """
 
-from collections import defaultdict, OrderedDict
 import logging
 import textwrap
+from collections import defaultdict, OrderedDict
+from typing import Dict
+
 from multiqc import config, report
-from multiqc.utils import mqc_colour
 from multiqc.plots import table_object, violin
 from multiqc.plots.table_object import TableConfig
 from multiqc.plots.table_object import ValueT
-from typing import Dict
+from multiqc.utils import mqc_colour
 
 logger = logging.getLogger(__name__)
 

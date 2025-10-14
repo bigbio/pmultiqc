@@ -1,9 +1,11 @@
+import gzip
 import logging
 import os
-import gzip
-import pytest
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import pytest
+
 from pmultiqc.modules.maxquant.maxquant_utils import get_parameters
 
 

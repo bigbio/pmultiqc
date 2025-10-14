@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Logging system for pmultiqc package.
 
@@ -11,6 +10,7 @@ import os
 import sys
 import time
 from datetime import datetime
+import psutil
 
 # Define log levels
 LOG_LEVELS = {
@@ -139,8 +139,6 @@ def log_system_info(logger):
     logger.info(f"Python: {platform.python_version()}")
     logger.info(f"CPU cores: {multiprocessing.cpu_count()}")
     try:
-        import psutil
-
         memory = psutil.virtual_memory()
         logger.info(
             f"Memory: {memory.total / (1024**3):.1f} GB total, {memory.available / (1024**3):.1f} GB available"

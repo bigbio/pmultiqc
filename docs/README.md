@@ -62,7 +62,7 @@ pmultiqc supports the following data sources:
 
 ### 3. **[DIA-NN](https://aptila.bio)** result files:
    - `report.tsv` or `report.parquet`: DIA-NN main report
-   - `experimental_design.tsv` or `*sdrf.tsv`: Experimental design file / SDRF-Proteomics (optional)
+   - `*sdrf.tsv`: SDRF-Proteomics (optional)
    - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**) (optional)
 
 ### 4. **[ProteoBench](https://proteobench.readthedocs.io)** file:
@@ -160,8 +160,8 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--quantification_method` | Quantification method for LFQ experiment | `feature_intensity` |
 | `--disable_table` | Disable protein/peptide table plots for large datasets | `False` |
 | `--ignored_idxml` | Ignore idXML files for faster processing | `False` |
-| `--quantms_plugin` | Generate reports based on quantms results | `False` |
-| `--diann_plugin` | Generate reports based on DIA-NN results | `False` |
+| `--quantms_plugin` | Generate reports based on Quantms results | `False` |
+| `--diann_plugin` | Generate reports based on DIANN results | `False` |
 | `--maxquant_plugin` | Generate reports based on MaxQuant results | `False` |
 | `--proteobench_plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |

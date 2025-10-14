@@ -1,14 +1,14 @@
-from typing import Union, Optional
-from pathlib import Path
-import io
-import zipfile
 import gzip
-import tarfile
+import io
+import logging
 import os
 import shutil
-import pandas as pd
+import tarfile
+import zipfile
+from pathlib import Path
+from typing import Union, Optional
 
-import logging
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -105,22 +105,6 @@ def get_clean_stem(path):
         if name.endswith(ext):
             return name[: -len(ext)]
     return Path(path).stem
-
-
-def parse_location(location):
-    """
-    Parse and extract the base name from a file location path.
-    Handles cross-platform path separators by normalizing backslashes to forward slashes.
-
-    Args:
-        location: File path (may contain backslashes or forward slashes)
-
-    Returns:
-        str: Base filename without path
-    """
-    if "\\" in location:
-        location = location.replace("\\", "/")
-    return os.path.basename(location)
 
 
 def file_prefix(path):

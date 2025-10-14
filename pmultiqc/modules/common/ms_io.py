@@ -1,0 +1,151 @@
+"""
+Functions for reading and processing mass spectrometry data files
+"""
+
+from __future__ import absolute_import
+import os
+import re
+
+import numpy as np
+import pandas as pd
+
+# Initialise the module logger via central logging
+from pmultiqc.modules.common.logging import get_logger
+log = get_logger("pmultiqc.modules.common.ms_io")
+
+# The time resolution in seconds. Larger values produce smaller outputs and slight smoothing.
+SECOND_RESOLUTION = 5
+
+def get_ms_qc_info(ms_info: pd.DataFrame):
+    """
+    Compute MS QC summary data structures from MS info DataFrame.
+
+    Note: Use min instead of mean to better expose major fluctuations (low intensity scans).
+
+    Returns:
+        (tic_data, bpc_data, ms1_peaks, general_stats)
+    """
+    ms1_info = ms_info[ms_info["ms_level"] == 1].copy()
+    ms2_info = ms_info[ms_info["ms_level"] == 2].copy()
+    ms1_info["rt_normalize"] = (ms1_info.sort_values(by="rt")["rt"] / SECOND_RESOLUTION).astype(int)
+
+    tic_data = ms1_info.groupby("rt_normalize")[
+        ["rt", "summed_peak_intensities"]
+    ].min()
+    tic_data = dict(zip(tic_data["rt"], tic_data["summed_peak_intensities"]))
+
+    bpc_data = dict(
+        zip(
+            ms1_info.groupby("rt_normalize")["rt"].min(),
+            ms1_info.groupby("rt_normalize")["summed_peak_intensities"].max(),
+        )
+    )
+
+    ms1_peaks = dict(
+        zip(
+            ms1_info.groupby("rt_normalize")["rt"].min(),
+            ms1_info.groupby("rt_normalize")["num_peaks"].mean(),
+        )
+    )
+
+    general_stats = {
+        "AcquisitionDateTime": ms1_info["acquisition_datetime"][0],
+        "log10(TotalCurrent)": np.log10(ms1_info["summed_peak_intensities"].sum()),
+        "log10(ScanCurrent)": np.log10(ms2_info["summed_peak_intensities"].sum()),
+    }
+
+    return tic_data, bpc_data, ms1_peaks, general_stats
+
+
+def add_ms_values(
+    info_df,
+    ms_name,
+    ms_with_psm,
+    identified_spectrum_scan_id,
+    mzml_charge_plot,
+    mzml_peak_distribution_plot,
+    mzml_peaks_ms2_plot,
+    mzml_charge_plot_1,
+    mzml_peak_distribution_plot_1,
+    mzml_peaks_ms2_plot_1,
+    ms_without_psm,
+    enable_dia=False,
+):
+    """
+    Process MS values from a dataframe row and add them to the appropriate histograms
+
+    Args:
+        info_df: Series row containing MS information
+        ms_name: Name of the MS file
+        ms_with_psm: List of MS files with PSMs
+        identified_spectrum_scan_id: List of identified spectra by MS file
+        # identified_spectrum: Dictionary of identified spectra by MS file
+        mzml_charge_plot: Histogram for charge distribution of identified spectra
+        mzml_peak_distribution_plot: Histogram for peak distribution of identified spectra
+        mzml_peaks_ms2_plot: Histogram for peaks per MS2 of identified spectra
+        mzml_charge_plot_1: Histogram for charge distribution of unidentified spectra
+        mzml_peak_distribution_plot_1: Histogram for peak distribution of unidentified spectra
+        mzml_peaks_ms2_plot_1: Histogram for peaks per MS2 of unidentified spectra
+        ms_without_psm: List of MS files without PSMs
+        enable_dia: Whether DIA mode is enabled
+    """
+    # info_df is a Pandas.Seires not a DataFrame
+    # "precursor_charge" --> "Charge",
+    # "base_peak_intensity" --> "Base_Peak_Intensity",
+    # "num_peaks": --> "MS_peaks"
+
+    charge_state = (
+        int(info_df["precursor_charge"]) if pd.notna(info_df["precursor_charge"]) else None
+    )
+
+    base_peak_intensity = (
+        float(info_df["base_peak_intensity"]) if pd.notna(info_df["base_peak_intensity"]) else None
+    )
+
+    peak_per_ms2 = int(info_df["num_peaks"]) if pd.notna(info_df["num_peaks"]) else None
+
+    if enable_dia:
+        mzml_charge_plot.add_value(charge_state)
+        mzml_peak_distribution_plot.add_value(base_peak_intensity)
+        mzml_peaks_ms2_plot.add_value(peak_per_ms2)
+        return
+
+    if ms_name in ms_with_psm:
+        # only "scan" in info_df not "SpectrumID"
+        if info_df["scan"] in identified_spectrum_scan_id:
+            mzml_charge_plot.add_value(charge_state)
+            mzml_peak_distribution_plot.add_value(base_peak_intensity)
+            mzml_peaks_ms2_plot.add_value(peak_per_ms2)
+        else:
+            mzml_charge_plot_1.add_value(charge_state)
+            mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
+            mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
+    else:
+        ms_without_psm.append(ms_name)
+
+def spectra_ref_check(spectra_ref):
+    match_scan = re.search(r"scan=(\d+)", spectra_ref)
+    if match_scan:
+        return match_scan.group(1)
+
+    match_spectrum = re.search(r"spectrum=(\d+)", spectra_ref)
+    if match_spectrum:
+        return match_spectrum.group(1)
+
+    try:
+        if int(spectra_ref):
+            return spectra_ref
+
+    except ValueError:
+        raise ValueError("Please check the 'spectra_ref' field in your mzTab file.")
+
+
+# Remove output files generated by OpenMS().openms_convert after running
+def del_openms_convert_tsv():
+
+    files = ["experimental_design.tsv", "openms.tsv"]
+
+    for file_path in files:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            log.info(f"{file_path} has been deleted.")

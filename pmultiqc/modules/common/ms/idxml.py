@@ -1,60 +1,69 @@
-
 """
-IDXML file reading functionality
+Class-based parser for idXML search results, migrated from ms_io.parse_idxml.
 """
 
-from __future__ import absolute_import
 import os
-import logging
-import numpy as np
 import math
-from datetime import datetime
 from collections import OrderedDict
+from datetime import datetime
+
+import numpy as np
 from pyopenms import IdXMLFile
 
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.id.idreader import IDReader
+from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.ms.base import BaseParser
+from pathlib import Path
 
-# Initialise the main MultiQC logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+class IdXMLReader(BaseParser):
 
-
-class IDXMLReader(IDReader):
-    """Class for reading and processing IDXML files"""
-
-    def read(
+    def __init__(
         self,
-        file_paths=None,
-        mzml_table=None,
-        xcorr_hist_range=None,
-        hyper_hist_range=None,
-        spec_evalue_hist_range=None,
-        pep_hist_range=None,
-        ml_spec_ident_final=None,
-        mzml_peptide_map=None,
-        remove_decoy=True,
+        file_paths: list[str | Path],
+        mzml_table,
+        xcorr_hist_range,
+        hyper_hist_range,
+        spec_evalue_hist_range,
+        pep_hist_range,
+        ml_spec_ident_final,
+        mzml_peptide_map,
+        remove_decoy: bool = True,
     ):
-        """
-        Parse idXML files and extract information
+        super().__init__(file_paths)
+        self.mzml_table = mzml_table
+        self.xcorr_hist_range = xcorr_hist_range
+        self.hyper_hist_range = hyper_hist_range
+        self.spec_evalue_hist_range = spec_evalue_hist_range
+        self.pep_hist_range = pep_hist_range
+        self.ml_spec_ident_final = ml_spec_ident_final
+        self.mzml_peptide_map = mzml_peptide_map
+        self.remove_decoy = remove_decoy
+        self.log = get_logger("pmultiqc.modules.common.ms.idxml")
+        # Outputs populated by parse()
+        self.search_engine = {
+            "SpecE": OrderedDict(),
+            "xcorr": OrderedDict(),
+            "hyper": OrderedDict(),
+            "PEPs": OrderedDict(),
+            "consensus_support": OrderedDict(),
+            "data_label": OrderedDict(),
+        }
+        self.msgf_label = False
+        self.comet_label = False
+        self.sage_label = False
 
-        Args:
-            file_paths: List of paths to idXML files (optional, uses self.file_paths if not provided)
-            mzml_table: Dictionary of mzML information
-            xcorr_hist_range: Range for xcorr histogram
-            hyper_hist_range: Range for hyper histogram
-            spec_evalue_hist_range: Range for spec_evalue histogram
-            pep_hist_range: Range for PEP histogram
-            ml_spec_ident_final: Dictionary of identified spectra counts
-            mzml_peptide_map: Dictionary of peptide maps
-            remove_decoy: Whether to remove decoy hits
-
-        Returns:
-            tuple: (search_engine, MSGF_label, Comet_label, Sage_label)
-        """
-        # Use provided file_paths or fall back to instance attribute
-        idx_paths = file_paths or self.file_paths
+    def parse(self, **kwargs) -> None:
+        # Reuse the previously implemented logic (kept below)
+        idx_paths = list(self.file_paths or [])
+        mzml_table = self.mzml_table
+        xcorr_hist_range = self.xcorr_hist_range
+        hyper_hist_range = self.hyper_hist_range
+        spec_evalue_hist_range = self.spec_evalue_hist_range
+        pep_hist_range = self.pep_hist_range
+        ml_spec_ident_final = self.ml_spec_ident_final
+        mzml_peptide_map = self.mzml_peptide_map
+        remove_decoy = self.remove_decoy
 
         consensus_paths = []
         for raw_id in idx_paths:
@@ -66,18 +75,11 @@ class IDXMLReader(IDReader):
                 idx_paths.remove(raw_id)
 
         msgf_label, comet_label, sage_label = False, False, False
-        search_engine = {
-            "SpecE": OrderedDict(),
-            "xcorr": OrderedDict(),
-            "hyper": OrderedDict(),
-            "PEPs": OrderedDict(),
-            "consensus_support": OrderedDict(),
-            "data_label": OrderedDict(),
-        }
+        search_engine = self.search_engine
         spec_e_label, xcorr_label, hyper_label, peps_label, consensus_label = [], [], [], [], []
 
         for raw_id in idx_paths:
-            log.info(
+            self.log.info(
                 "{}: Parsing search result file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), raw_id
                 )
@@ -259,7 +261,7 @@ class IDXMLReader(IDReader):
             )
 
         for raw_id in consensus_paths:
-            log.info(
+            self.log.info(
                 "{}: Parsing consensus file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), format(raw_id)
                 )
@@ -291,5 +293,8 @@ class IDXMLReader(IDReader):
             "peps_label": peps_label,
             "consensus_label": consensus_label,
         }
-
-        return search_engine, msgf_label, comet_label, sage_label
+        # Persist flags
+        self.msgf_label = msgf_label
+        self.comet_label = comet_label
+        self.sage_label = sage_label
+        return None

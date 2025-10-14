@@ -1,1 +1,1 @@
-from .diann import DiaNNModule
+from .diann import DiannModule

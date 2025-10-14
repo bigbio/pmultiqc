@@ -1,65 +1,173 @@
-""" MultiQC pmultiqc plugin module """
-
 from __future__ import absolute_import
-import logging
-from collections import OrderedDict
-import itertools
-from datetime import datetime
-from operator import itemgetter
-from multiqc import config
 
-from sdrf_pipelines.openms.openms import UnimodDatabase
-from multiqc.plots import table, bargraph, linegraph, box
-
-import pandas as pd
-from functools import reduce
-import re
-from pyteomics import mztab, mgf
-from pyopenms import OpenMSBuildInfo, AASequence
-import os
-import sqlite3
-import numpy as np
 import copy
+import itertools
 import json
+import os
+import re
+import sqlite3
+from collections import OrderedDict
+from datetime import datetime
+from functools import reduce
+from operator import itemgetter
+
+import numpy as np
+import pandas as pd
+from multiqc import config
+from multiqc.plots import (
+    table,
+    bargraph,
+    linegraph,
+    box
+)
+from pyopenms import AASequence
+from sdrf_pipelines.openms.openms import UnimodDatabase
 
 from . import sparklines
-from pmultiqc.modules.common.plots import *
-from pmultiqc.modules.common.utils import del_openms_convert_tsv
-from pmultiqc.modules.common.id.mzid import MzIdentMLReader
-from pmultiqc.modules.common.id.idxml import IDXMLReader
-from pmultiqc.modules.common.utils import (
-    get_exp_sdrf,
+from pmultiqc.modules.common.dia_utils import parse_diann_report
+from pmultiqc.modules.common.common_utils import (
+    parse_sdrf,
     get_ms_path,
-    parse_mzml,
+    mod_group_percentage,
     evidence_rt_count,
-    evidence_calibrated_mass_error
+    evidence_calibrated_mass_error,
+    parse_mzml
 )
-from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.stats import (
-    qual_uniform,
-    calculate_modification_percentage
+from pmultiqc.modules.common import ms_io
+from pmultiqc.modules.common.ms import idxml as ms_idxml
+from pmultiqc.modules.common.plots.ms import (
+    draw_ms_information,
+    draw_peak_intensity_distribution,
+    draw_precursor_charge_distribution,
+    draw_peaks_per_ms2,
+)
+from pmultiqc.modules.common.plots.id import (
+    draw_potential_contaminants,
+    draw_top_n_contaminants,
+    draw_ids_rt_count,
+    draw_delta_mass_da_ppm,
+    draw_quantms_identification,
+    draw_oversampling,
+    draw_num_pep_per_protein,
+    draw_charge_state,
+    draw_summary_protein_ident_table,
+    draw_quantms_identi_num
+)
+from pmultiqc.modules.common.plots.general import (
+    draw_heatmap,
+    remove_subtitle,
+    draw_exp_design
 )
 from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
+from pmultiqc.modules.common.histogram import Histogram
+from pmultiqc.modules.common.stats import qual_uniform
+from pmultiqc.modules.core.section_groups import (
+    add_group_modules,
+    add_sub_section
+)
+from pmultiqc.modules.common.logging import get_logger
 
 
-# Initialise the main MultiQC logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
-
-log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
-
+log = get_logger("pmultiqc.modules.quantms")
 
 class QuantMSModule:
 
-    def __init__(
-            self,
-            find_log_files_func,
-            sub_sections
-        ):
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
         self.find_log_files = find_log_files_func
         self.sub_sections = sub_sections
+        self.heatmap_color_list = heatmap_colors
+
+        self.exp_design_runs = None
+        self.mzml_peak_distribution_plot = None
+        self.mzml_charge_plot = None
+        self.mzml_peaks_ms2_plot = None
+        self.mzml_peak_distribution_plot_1 = None
+        self.mzml_charge_plot_1 = None
+        self.mzml_peaks_ms2_plot_1 = None
+        self.ms_without_psm = None
+        self.msgf_label = None
+        self.comet_label = None
+        self.sage_label = None
+        self.prot_search_score = None
+        self.pep_plot = None
+        self.peptide_search_score = None
+        self.oversampling_plot = None
+        self.ms_without_psm = None
+        self.psm_table_html = None
+        self.protein_quantification_table_html = None
+        self.pep_plot = None
+        self.peptide_search_score = None
+        self.ms_without_psm = None
+        self.ms_with_psm = list()
+        self.total_protein_identified = 0
+        self.cal_num_table_data = dict()
+        self.oversampling = dict()
+        self.identified_spectrum = dict()
+        self.total_ms2_spectra_identified = 0
+        self.total_peptide_count = 0
+        self.total_ms2_spectra = 0
+        self.enable_dia = False
+        self.is_bruker = False
+        self.read_ms_info = False
+        self.heatmap_charge_score = dict()
+        self.missed_clevages_heatmap_score = dict()
+        self.id_rt_score = dict()
+        self.heatmap_over_sampling_score = dict()
+        self.heatmap_pep_missing_score = dict()
+        self.missed_cleavages_var_score = dict()
+        self.pep_table_exists = False
+        self.ms_info = dict()
+        self.ms_info["charge_distribution"] = dict()
+        self.ms_info["peaks_per_ms2"] = dict()
+        self.ms_info["peak_distribution"] = dict()
+        self.quantms_missed_cleavages = dict()
+        self.quantms_modified = dict()
+        self.identified_msms_spectra = dict()
+        self.mztab_charge_state = dict()
+        self.quantms_ids_over_rt = dict()
+        self.quantms_pep_intensity = dict()
+        self.quantms_contaminant_percent = dict()
+        self.quantms_top_contaminant_percent = dict()
+        self.quantms_mass_error = dict()
+
+        self.enable_exp = False
+        self.enable_sdrf = False
+        self.msstats_input_valid = False
+
+        self.psm_table = dict()
+        self.mzml_peptide_map = dict()
+        self.pep_quant_table = dict()
+        self.mzml_table = OrderedDict()
+        self.search_engine = OrderedDict()
+        self.xcorr_hist_range = {"start": 0, "end": 5, "step": 0.1}
+        self.hyper_hist_range = {"start": 0, "end": 5, "step": 0.1}
+        self.spec_evalue_hist_range = {"start": 0, "end": 20, "step": 0.4}
+        self.pep_hist_range = {
+            "start": 0,
+            "end": 1,
+            "low_thresh": 0.3,
+            "high_thresh": 0.7,
+            "low_step": 0.03,
+            "high_step": 0.08,
+        }
+        self.total_protein_quantified = 0
+        self.out_csv_data = dict()
+        self.ml_spec_ident_final = dict()
+        self.heatmap_con_score = dict()
+        self.heatmap_pep_intensity = {}
+        self.ms1_tic = dict()
+        self.ms1_bpc = dict()
+        self.ms1_peaks = dict()
+        self.ms1_general_stats = dict()
+        self.is_multi_conditions = False
+        self.sample_df = pd.DataFrame()
+        self.file_df = pd.DataFrame()
+
+
+    def get_data(self):
+
+        log.info("Starting data recognition and processing...")
 
         if config.output_dir:
             if os.path.exists(config.output_dir):
@@ -80,183 +188,175 @@ class QuantMSModule:
         self.cur.execute("drop table if exists PSM")
         self.con.commit()
 
+        # TODO what if multiple are found??
+        for f in self.find_log_files("pmultiqc/exp_design", filecontents=False):
+            self.exp_design = os.path.join(f["root"], f["fn"])
+            self.enable_exp = True
 
-        # Check if it is quantms DIA
-        self.enable_dia = False
+        if not self.enable_exp:
+
+            for f in self.find_log_files("pmultiqc/sdrf", filecontents=False):
+                self.sdrf = os.path.join(f["root"], f["fn"])
+
+                parse_sdrf(
+                    self.sdrf,
+                    config.kwargs["raw"],
+                    config.kwargs["condition"],
+                )
+
+                # experimental_design.tsv is the default output name
+                # experimental_design.tsv will be in the folder where pmultiqc is executed.
+                self.exp_design = "experimental_design.tsv"
+                self.enable_sdrf = True
+
+        # draw the experimental design
+        if self.enable_exp or self.enable_sdrf:
+            (
+                self.sample_df,
+                self.file_df,
+                self.exp_design_runs,
+                self.is_bruker,
+                self.is_multi_conditions
+            ) = draw_exp_design(
+                self.sub_sections["experiment"],
+                self.exp_design
+            )
+
+        (
+            self.ms_info_path,
+            self.read_ms_info,
+            self.ms_paths
+        ) = get_ms_path(self.find_log_files)
+
+        # Please note that this section covers only the DIA part of quantms. For DIANN, refer to diann.py.
+        # DIA-NN report file path
         diann_report_path = None
         for file_type in ["pmultiqc/diann_report_tsv", "pmultiqc/diann_report_parquet"]:
             for f in self.find_log_files(file_type, filecontents=False):
                 diann_report_path = os.path.join(f["root"], f["fn"])
             if diann_report_path:
-                self.enable_dia = True
                 break
 
-        self.msstats_input_valid = False
+        if diann_report_path:
+            self.diann_report_path = diann_report_path
+            self.enable_dia = True
+
+        if not self.enable_dia:
+            for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
+                self.out_mztab_path = os.path.join(f["root"], f["fn"])
+                self.parse_out_mztab()
+
+        (
+            self.mzml_table,
+            self.mzml_peaks_ms2_plot,
+            self.mzml_peak_distribution_plot,
+            self.ms_info,
+            self.total_ms2_spectra,
+            _,  # mzml_ms_df
+            self.heatmap_charge_score,
+            self.mzml_charge_plot,
+            self.ms1_tic,
+            self.ms1_bpc,
+            self.ms1_peaks,
+            self.ms1_general_stats
+        ) = parse_mzml(
+            is_bruker=self.is_bruker,
+            read_ms_info=self.read_ms_info,
+            ms_info_path=self.ms_info_path,
+            ms_with_psm=self.ms_with_psm,
+            identified_spectrum=self.identified_spectrum,
+            enable_dia=self.enable_dia,
+            ms_paths=self.ms_paths
+        )
+
+        self.idx_paths = []
+        for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
+            self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
+
         for msstats_input in self.find_log_files("pmultiqc/msstats", filecontents=False):
             self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
             self.msstats_input_valid = True
 
-        # quantms DIA
+        log.info("Data recognition and processing completed.")
+
+        return True
+
+
+    def draw_plots(self):
+
+        draw_ms_information(
+            self.sub_sections["ms1"],
+            self.ms1_tic,
+            self.ms1_bpc,
+            self.ms1_peaks,
+            self.ms1_general_stats
+        )
+
+        # quantms: DIA
         if self.enable_dia:
-            from pmultiqc.modules.diann import DiaNNModule
-            dia_module = DiaNNModule(
-                self.find_log_files,
-                self.sub_sections
+
+            (
+                self.total_protein_quantified,
+                self.total_peptide_count,
+                self.pep_plot,
+                self.peptide_search_score,
+                self.ms_with_psm,
+                self.cal_num_table_data,
+                self.quantms_modified,
+                self.ms_without_psm
+            ) = parse_diann_report(
+                sub_sections=self.sub_sections,
+                diann_report_path=self.diann_report_path,
+                heatmap_color_list=self.heatmap_color_list,
+                sample_df=self.sample_df,
+                file_df=self.file_df,
+                ms_with_psm=self.ms_with_psm,
+                cal_num_table_data=self.cal_num_table_data,
+                quantms_modified=self.quantms_modified,
+                ms_paths=self.ms_paths,
+                msstats_input_valid=self.msstats_input_valid
             )
 
-            (
-                self.peptide_search_score,
-                self.sample_df,
-                self.sub_sections["experiment"],
-                self.sub_sections["summary"],
+            draw_summary_protein_ident_table(
+                sub_sections=self.sub_sections["summary"],
+                enable_dia=self.enable_dia,
+                total_peptide_count=self.total_peptide_count,
+                total_protein_quantified=self.total_protein_quantified
+            )
+
+            draw_quantms_identi_num(
+                sub_sections=self.sub_sections["summary"],
+                enable_exp=self.enable_exp,
+                enable_sdrf=self.enable_sdrf,
+                is_multi_conditions=self.is_multi_conditions,
+                sample_df=self.sample_df,
+                file_df=self.file_df,
+                cal_num_table_data=self.cal_num_table_data
+            )
+
+            draw_num_pep_per_protein(
                 self.sub_sections["identification"],
-                self.sub_sections["quantification"],
-                self.sub_sections["ms1"],
-                self.sub_sections["ms2"],
-                self.sub_sections["mass_error"],
-                self.sub_sections["rt_qc"]
-            ) = dia_module.get_data_from_diann()
+                self.pep_plot
+            )
 
-        # quantms (LFQ or TMT)
-        else:
-
-            self.heatmap_color_list = HEATMAP_COLOR_LIST
-
-            self.ms_with_psm = list()
-            self.total_protein_identified = 0
-            self.cal_num_table_data = dict()
-            self.oversampling = dict()
-            self.identified_spectrum = dict()
-            self.delta_mass = dict()
-            self.total_ms2_spectral_identified = 0
-            self.total_peptide_count = 0
-            self.total_ms2_spectra = 0
-            self.is_bruker = False
-            self.read_ms_info = False
-            self.heatmap_charge_score = dict()
-            self.missed_clevages_heatmap_score = dict()
-            self.id_rt_score = dict()
-            self.heatmap_over_sampling_score = dict()
-            self.heatmap_pep_missing_score = dict()
-            self.missed_cleavages_var_score = dict()
-            self.pep_table_exists = False
-            self.ms_info = dict()
-            self.ms_info["charge_distribution"] = dict()
-            self.ms_info["peaks_per_ms2"] = dict()
-            self.ms_info["peak_distribution"] = dict()
-            self.quantms_missed_cleavages = dict()
-            self.quantms_modified = dict()
-            self.identified_msms_spectra = dict()
-            self.mztab_charge_state = dict()
-            self.quantms_ids_over_rt = dict()
-            self.quantms_pep_intensity = dict()
-            self.quantms_contaminant_percent = dict()
-            self.quantms_top_contaminant_percent = dict()
-            self.quantms_mass_error = dict()
-
-            self.ms_info_path = []
-            self.enable_mzid = False
-
-            self.ms_paths = []
-            for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
-                self.ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
-
-            (
-                self.exp_design,
-                self.enable_exp,
-                self.enable_sdrf
-            ) = get_exp_sdrf(self.find_log_files)
-
-            self.psm_table = dict()
-            self.mzml_peptide_map = dict()
-            self.pep_quant_table = dict()
-            self.mzml_table = OrderedDict()
-            self.search_engine = OrderedDict()
-            self.xcorr_hist_range = {"start": 0, "end": 5, "step": 0.1}
-            self.hyper_hist_range = {"start": 0, "end": 5, "step": 0.1}
-            self.spec_evalue_hist_range = {"start": 0, "end": 20, "step": 0.4}
-            self.pep_hist_range = {
-                "start": 0,
-                "end": 1,
-                "low_thresh": 0.3,
-                "high_thresh": 0.7,
-                "low_step": 0.03,
-                "high_step": 0.08,
-            }
-            self.total_protein_quantified = 0
-            self.out_csv_data = dict()
-            self.mL_spec_ident_final = dict()
-            self.heatmap_con_score = dict()
-            self.heatmap_pep_intensity = {}
-            self.ms1_tic = dict()
-            self.ms1_bpc = dict()
-            self.ms1_peaks = dict()
-            self.ms1_general_stats = dict()
-            self.is_multi_conditions = False
-            self.sample_df = pd.DataFrame()
-            self.file_df = pd.DataFrame()
-
-            # draw the experimental design
-            if self.enable_exp or self.enable_sdrf:
-                (
-                    self.sample_df,
-                    self.file_df,
-                    self.exp_design_runs,
-                    self.is_bruker,
-                    self.is_multi_conditions
-                ) = draw_exp_design(
-                    self.sub_sections["experiment"],
-                    self.exp_design
+            if len(self.ms_info_path) > 0 and not self.is_bruker:
+                draw_peaks_per_ms2(
+                    self.sub_sections["ms2"],
+                    self.mzml_peaks_ms2_plot,
+                    self.ms_info
                 )
 
-            (
-                self.ms_info_path,
-                self.read_ms_info,
-                self.ms_paths
-            ) = get_ms_path(self.find_log_files)
-
-            if not self.enable_dia:
-                for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
-                    self.out_mztab_path = os.path.join(f["root"], f["fn"])
-                    self.parse_out_mztab()
-
-            (
-                mzml_table,
-                mzml_peaks_ms2_plot,
-                mzml_peak_distribution_plot,
-                self.ms_info,
-                total_ms2_spectra,
-                _,  # mzml_ms_df
-                self.heatmap_charge_score,
-                self.mzml_charge_plot,
-                ms1_tic,
-                ms1_bpc,
-                ms1_peaks,
-                ms1_general_stats
-            ) = parse_mzml(
-                is_bruker=self.is_bruker,
-                read_ms_info=self.read_ms_info,
-                ms_info_path=self.ms_info_path,
-                ms_with_psm=self.ms_with_psm,
-                identified_spectrum=self.identified_spectrum,
-                enable_dia=self.enable_dia,
-                ms_paths=self.ms_paths
-            )
-
-            self.idx_paths = []
-            for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
-                self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
-
-            draw_ms_information(
-                self.sub_sections["ms1"],
-                ms1_tic,
-                ms1_bpc,
-                ms1_peaks,
-                ms1_general_stats
-            )
+                draw_peak_intensity_distribution(
+                    self.sub_sections["ms2"],
+                    self.mzml_peak_distribution_plot,
+                    self.ms_info
+                )
+        
+        # quantms: LFQ or TMT
+        else:
 
             if not config.kwargs["ignored_idxml"]:
-                self.parse_idxml(mzml_table)
+                self.parse_idxml(self.mzml_table)
             self.cal_heat_map_score()
 
             heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
@@ -269,13 +369,13 @@ class QuantMSModule:
                 False,
             )
 
-            draw_summary_protein_ident_table( 
+            draw_summary_protein_ident_table(
                 sub_sections=self.sub_sections["summary"],
                 enable_dia=self.enable_dia,
                 total_peptide_count=self.total_peptide_count,
                 total_protein_quantified=self.total_protein_quantified,
-                total_ms2_spectral_identified=self.total_ms2_spectral_identified,
-                total_ms2_spectra=total_ms2_spectra,
+                total_ms2_spectra_identified=self.total_ms2_spectra_identified,
+                total_ms2_spectra=self.total_ms2_spectra,
                 total_protein_identified=self.total_protein_identified
             )
 
@@ -307,12 +407,12 @@ class QuantMSModule:
             if len(self.ms_info_path) > 0 and not self.is_bruker:
                 draw_peaks_per_ms2(
                     self.sub_sections["ms2"],
-                    mzml_peaks_ms2_plot,
+                    self.mzml_peaks_ms2_plot,
                     self.ms_info
                 )
                 draw_peak_intensity_distribution(
                     self.sub_sections["ms2"],
-                    mzml_peak_distribution_plot,
+                    self.mzml_peak_distribution_plot,
                     self.ms_info
                 )
 
@@ -324,63 +424,63 @@ class QuantMSModule:
             )
             self.draw_delta_mass()
 
-            draw_quantms_identification(
-                self.sub_sections["identification"],
-                cal_num_table_data=self.cal_num_table_data,
-                mzml_table=mzml_table,
-                quantms_missed_cleavages=self.quantms_missed_cleavages,
-                quantms_modified=self.quantms_modified,
-                identified_msms_spectra=self.identified_msms_spectra,
-            )
+        draw_quantms_identification(
+            self.sub_sections["identification"],
+            cal_num_table_data=self.cal_num_table_data,
+            mzml_table=self.mzml_table,
+            quantms_missed_cleavages=self.quantms_missed_cleavages,
+            quantms_modified=self.quantms_modified,
+            identified_msms_spectra=self.identified_msms_spectra,
+        )
 
-            self.draw_quantms_contaminants()
-            self.draw_quantms_quantification()
-            self.draw_quantms_msms_section()
-            self.draw_quantms_time_section()
-
-            if config.kwargs["quantification_method"] == "spectral_counting":
-                # Add a report section with psm table plot from mzTab for spectral counting
-                add_sub_section(
-                    sub_section=self.sub_sections["identification"],
-                    plot=self.psm_table_html,
-                    order=2,
-                    description="This plot shows the information of peptide spectrum matches",
-                    helptext="""
-                            This table shows the information of peptide spectrum matches from mzTab PSM section.
-                            """,
-                )
-
-            # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
-            # currently only draw protein tabel for spectral counting
-            if (
-                not self.msstats_input_valid
-                and config.kwargs["quantification_method"] == "spectral_counting"
-            ):
-                log.warning("MSstats input file not found!")
-                add_sub_section(
-                    sub_section=self.sub_sections["quantification"],
-                    plot=self.protein_quantification_table_html,
-                    order=2,
-                    description="""
-                        This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
-                        """,
-                    helptext="""
-                        The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
-                        The table shows the quantitative level and distribution of proteins in different study variables and run.
-
-                        * Peptides_Number: The number of peptides for each protein.
-                        * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
-                        * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
-
-                        Click `Show replicates` to switch to bar plots of counting in each replicate.
-                        """,
-                )
-
-            if self.enable_sdrf:
-                del_openms_convert_tsv()
+        self.draw_quantms_contaminants()
+        self.draw_quantms_quantification()
+        self.draw_quantms_msms_section()
+        self.draw_quantms_time_section()
 
         if self.msstats_input_valid:
             self.parse_msstats_input()
+
+        if config.kwargs["quantification_method"] == "spectral_counting":
+            # Add a report section with psm table plot from mzTab for spectral counting
+            add_sub_section(
+                sub_section=self.sub_sections["identification"],
+                plot=self.psm_table_html,
+                order=2,
+                description="This plot shows the information of peptide spectrum matches",
+                helptext="""
+                        This table shows the information of peptide spectrum matches from mzTab PSM section.
+                        """,
+            )
+
+        if self.enable_sdrf:
+            ms_io.del_openms_convert_tsv()
+
+        # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
+        # currently only draw protein tabel for spectral counting
+        if (
+            not self.msstats_input_valid
+            and config.kwargs["quantification_method"] == "spectral_counting"
+        ):
+            log.warning("MSstats input file not found!")
+            add_sub_section(
+                sub_section=self.sub_sections["quantification"],
+                plot=self.protein_quantification_table_html,
+                order=2,
+                description="""
+                    This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
+                    """,
+                helptext="""
+                    The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
+                    The table shows the quantitative level and distribution of proteins in different study variables and run.
+
+                    * Peptides_Number: The number of peptides for each protein.
+                    * Average Spectral Counting: Average spectral counting of each protein across all conditions with NA=0 or NA ignored.
+                    * Spectral Counting in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Average spectral counting of replicates.
+
+                    Click `Show replicates` to switch to bar plots of counting in each replicate.
+                    """,
+            )
 
         self.section_group_dict = {
             "experiment_sub_section": self.sub_sections["experiment"],
@@ -472,49 +572,6 @@ class QuantMSModule:
                     )
         return heat_map_score, xnames, ynames
 
-    def draw_mzid_identi_num(self):
-        pconfig = {
-            "id": "result statistics",  # ID used for the table
-            "title": "Pipeline Result Statistics",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_result statistics_table",  # File basename to use for raw data file
-            "sort_rows": True,  # Whether to sort rows alphabetically
-            "only_defined_headers": False,  # Only show columns that are defined in the headers config
-            "col1_header": "Spectra File",
-            "no_violin": True,
-            # 'format': '{:,.0f}'  # The header used for the first column
-        }
-        headers = {
-            "peptide_num": {
-                "title": "#Peptide IDs",
-                "description": "The number of identified PSMs in the pipeline",
-            },
-            "unique_peptide_num": {
-                "title": "#Unambiguous Peptide IDs",
-                "description": "The number of unique peptides in the pipeline. Those that match only one protein in the provided database",
-            },
-            "modified_peptide_num": {
-                "title": "#Modified Peptide IDs",
-                "description": "Number of modified identified peptides in the pipeline",
-            },
-            "protein_num": {
-                "title": "#Protein (group) IDs",
-                "description": "The number of identified protein(group)s in the pipeline",
-            },
-        }
-        table_html = table.plot(self.cal_num_table_data, headers, pconfig)
-        add_sub_section(
-            sub_section=self.sub_sections["summary"],
-            plot=table_html,
-            order=3,
-            description="This plot shows the submitted results",
-            helptext="""
-                This plot shows the submitted results.
-                Including the number of identified peptides and the number of identified modified peptides in the submitted results. 
-                You can also remove the decoy with the `remove_decoy` parameter.
-                """,
-        )
-
     def draw_mzml_ms(self):
 
         pconfig = {
@@ -586,6 +643,7 @@ class QuantMSModule:
                 * Peptides quantified: extracted from PSM table in mzTab file
                 """,
         )
+
 
     def draw_delta_mass(self):
 
@@ -1027,11 +1085,11 @@ class QuantMSModule:
 
     def cal_heat_map_score(self):
         log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
-        mztab_data = mztab.MzTab(self.out_mztab_path)
-        psm = mztab_data.spectrum_match_table
-        meta_data = dict(mztab_data.metadata)
+        # mztab_data = mztab.MzTab(self.out_mztab_path)
+        psm = self.mztab_data.spectrum_match_table
+        meta_data = dict(self.mztab_data.metadata)
         if self.pep_table_exists:
-            pep_table = mztab_data.peptide_table
+            pep_table = self.mztab_data.peptide_table
 
             with pd.option_context("future.no_silent_downcasting", True):
                 pep_table = pep_table.fillna(np.nan).infer_objects(copy=False).copy()
@@ -1175,7 +1233,6 @@ class QuantMSModule:
                 sequence[:-1].replace("B", "").replace("D", "")
             )
         elif enzyme == "Chymotrypsin":
-            cut = "F*,W*,Y*,L*,!*P"
             miss_cleavages = len(sequence[:-1]) - len(
                 sequence[:-1].replace("F", "").replace("W", "").replace("Y", "").replace("L", "")
             )
@@ -1187,144 +1244,47 @@ class QuantMSModule:
             )
         return miss_cleavages
 
-    @staticmethod
-    def dis_decoy(protein_name):
-        if config.kwargs["decoy_affix"] not in protein_name:
-            return "TARGET"
-        elif protein_name.split(";") == 1:
-            return "DECOY"
-        else:
-            if config.kwargs["affix_type"] == "prefix":
-                if list(
-                    filter(
-                        lambda x: lambda x: not x.startswith(config.kwargs["decoy_affix"]),
-                        protein_name.split(";"),
-                    )
-                ):
-                    return "TARGET"
-                return "DECOY"
-            else:
-                if list(
-                    filter(
-                        lambda x: not x.endswith(config.kwargs["decoy_affix"]),
-                        protein_name.split(";"),
-                    )
-                ):
-                    return "TARGET"
-                return "DECOY"
-
     def parse_idxml(self, mzml_table):
-        # Use the refactored IDXMLReader class
-        idxml_reader = IDXMLReader()
-        result = idxml_reader.read(
+        # Instantiate the reader directly and parse
+        reader = ms_idxml.IdXMLReader(
             file_paths=self.idx_paths,
             mzml_table=mzml_table,
             xcorr_hist_range=self.xcorr_hist_range,
             hyper_hist_range=self.hyper_hist_range,
             spec_evalue_hist_range=self.spec_evalue_hist_range,
             pep_hist_range=self.pep_hist_range,
-            ml_spec_ident_final=self.mL_spec_ident_final,
+            ml_spec_ident_final=self.ml_spec_ident_final,
             mzml_peptide_map=self.mzml_peptide_map,
             remove_decoy=config.kwargs["remove_decoy"],
         )
-
-        self.search_engine, self.msgf_label, self.comet_label, self.sage_label = result
+        reader.parse()
+        self.search_engine = reader.search_engine
+        self.msgf_label = reader.msgf_label
+        self.comet_label = reader.comet_label
+        self.sage_label = reader.sage_label
 
         # mass spectrum files sorted based on experimental file
         for spectrum_name in self.exp_design_runs:
             self.mzml_table[spectrum_name] = mzml_table[spectrum_name]
 
     def parse_out_mztab(self):
-        log.info(
-            "{}: Parsing mzTab file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
-            )
+
+        from pmultiqc.modules.common.ms.mztab import MzTabReader
+
+        mztab_reader = MzTabReader(
+            file_paths=self.out_mztab_path
         )
-        mztab_data = mztab.MzTab(self.out_mztab_path)
-        log.info(
-            "{}: Done parsing mzTab file {}.".format(
-                datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
-            )
-        )
-        log.info(
-            "{}: Aggregating mzTab file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
-            )
-        )
-        pep_table = mztab_data.peptide_table
-        meta_data = dict(mztab_data.metadata)
-
-        self.delta_mass["target"] = dict()
-        self.delta_mass["decoy"] = dict()
-
-        # PSM table data
-        psm = mztab_data.spectrum_match_table
-        if len(psm) == 0:
-            raise ValueError("The PSM section of mzTab is missing, please check your mzTab!")
-
-        # Generate "opt_global_cv_MS: 1002217_DECOY_peptide" column if this column is not contained in the PSM subtable
-        if "opt_global_cv_MS:1002217_decoy_peptide" not in psm.columns.values:
-            psm["opt_global_cv_MS:1002217_decoy_peptide"] = psm.apply(
-                lambda x: 1 if self.dis_decoy(x["accession"]) == "DECOY" else 0, axis=1
-            )
-        # map to spectrum file name in experimental design file
-        psm["stand_spectra_ref"] = psm.apply(
-            lambda x: os.path.basename(meta_data[x.spectra_ref.split(":")[0] + "-location"])
-            + ":"
-            + x.spectra_ref.split(":")[1],
-            axis=1,
-        )
-        psm["filename"] = psm.apply(
-            lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-            axis=1,
-        )
-        self.ms_with_psm = psm["filename"].unique().tolist()
-
-        prot = mztab_data.protein_table
-        self.prot_search_score = dict()
-
-        prot_abundance_cols = list(
-            filter(
-                lambda x: re.match(r"protein_abundance_assay.*?", x) is not None,
-                prot.columns.tolist(),
-            )
-        )
-        opt_cols = list(filter(lambda x: x.startswith("opt_"), prot.columns.tolist()))
-        score_cols = list(
-            filter(lambda x: x.startswith("best_search_engine_score"), prot.columns.tolist())
-        )
-        # TODO in theory we do not need accession since the index is the accession
-        fixed_cols = [
-            "accession",
-            "description",
-            "taxid",
-            "species",
-            "database",
-            "database_version",
-            "search_engine",
-            "ambiguity_members",
-            "modifications",
-            "protein_coverage",
-        ]
-
-        prot = prot[fixed_cols + score_cols + prot_abundance_cols + opt_cols]
-
-        # We only need the overall protein (group) scores and abundances. Currently we do not care about details of single proteins (length, description,...)
-        prot = prot[prot["opt_global_result_type"] != "protein_details"].copy()
-
-        if config.kwargs["remove_decoy"]:
-            psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1].copy()
-            # TODO do we really want to remove groups that contain a single decoy? I would say ALL members need to be decoy.
-            prot = prot[~prot["accession"].str.contains(config.kwargs["decoy_affix"])]
-
-        prot.dropna(subset=["ambiguity_members"], inplace=True)
-
-        prot["protein_group"] = prot["ambiguity_members"].apply(lambda x: x.replace(",", ";"))
-
-        self.total_protein_identified = len(prot.index)
-
-        prot.dropna(how="all", subset=prot_abundance_cols, inplace=True)
-        self.total_protein_quantified = len(prot.index)
+        mztab_reader.parse()
+        self.mztab_data = mztab_reader.mztab_data
+        psm = mztab_reader.psm
+        pep_table = mztab_reader.pep_table
+        self.delta_mass = mztab_reader.delta_mass
+        prot = mztab_reader.prot
+        prot_abundance_cols = mztab_reader.prot_abundance_cols
+        meta_data = mztab_reader.meta_data
+        self.ms_with_psm = mztab_reader.ms_with_psm
+        self.total_protein_identified = mztab_reader.total_protein_identified
+        self.total_protein_quantified = mztab_reader.total_protein_quantified
 
         self.pep_plot = Histogram("Number of peptides per proteins", plot_category="frequency")
 
@@ -1393,7 +1353,7 @@ class QuantMSModule:
                 group = group[group["opt_global_cv_MS:1002217_decoy_peptide"] == 0]
 
             # Modifications
-            mod_group_processed =  calculate_modification_percentage(
+            mod_group_processed = mod_group_percentage(
                 group[["sequence", "charge", "Modifications"]].drop_duplicates()
             )
             mod_plot_dict[m] = dict(
@@ -1494,7 +1454,7 @@ class QuantMSModule:
             for index in decoy_bin.index:
                 decoy_bin_data[float(index.mid)] = int(decoy_bin[index])
             self.delta_mass["decoy"] = decoy_bin_data
-        except Exception as e:
+        except Exception:
             log.info(
                 "{}: No decoy peptides found -> only showing target peptides.".format(
                     datetime.now().strftime("%H:%M:%S")
@@ -1510,16 +1470,16 @@ class QuantMSModule:
         self.delta_mass["target"] = target_bin_data
 
         # extract delta mass
-        self.mL_spec_ident_final = ml_spec_ident_final
+        self.ml_spec_ident_final = ml_spec_ident_final
         if config.kwargs["remove_decoy"]:
-            self.total_ms2_spectral_identified = len(
+            self.total_ms2_spectra_identified = len(
                 set(psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1]["spectra_ref"])
             )
             self.total_peptide_count = len(
                 set(psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1]["sequence"])
             )
         else:
-            self.total_ms2_spectral_identified = len(set(psm["spectra_ref"]))
+            self.total_ms2_spectra_identified = len(set(psm["spectra_ref"]))
             self.total_peptide_count = len(set(psm["sequence"]))
 
         # draw PSMs table for spectral counting
@@ -1801,225 +1761,6 @@ class QuantMSModule:
 
             self.protein_quantification_table_html = table_html
 
-    def parse_out_mgf(self):
-        def get_spectrum_id(spectrum_title, index):
-            if "scan=" in spectrum_title:
-                spectrum_id = spectrum_title
-            else:
-                spectrum_id = "index=" + str(index)
-            return spectrum_id
-
-        self.mgf_peak_distribution_plot = Histogram(
-            "Peak Intensity",
-            plot_category="range",
-            breaks=[0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000],
-        )
-        self.mgf_charge_plot = Histogram("Precursor Charge", plot_category="frequency")
-        self.mgf_peaks_ms2_plot = Histogram(
-            "#Peaks per MS/MS spectrum",
-            plot_category="range",
-            breaks=[i for i in range(0, 1001, 100)],
-        )
-
-        self.mgf_peak_distribution_plot_1 = copy.deepcopy(self.mgf_peak_distribution_plot)
-        self.mgf_charge_plot_1 = copy.deepcopy(self.mgf_charge_plot)
-        self.mgf_peaks_ms2_plot_1 = copy.deepcopy(self.mgf_peaks_ms2_plot)
-
-        heatmap_charge = dict()
-        mgf_rtinseconds = {"spectrumID": [], "title": [], "filename": [], "retention_time": []}
-
-        for m in self.mgf_paths:
-            log.info("{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
-            mgf_data = mgf.MGF(m)
-            log.info(
-                "{}: Done parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
-            )
-            m = file_prefix(m)
-            log.info(
-                "{}: Aggregating MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
-            )
-
-            charge_2 = 0
-
-            for i, spectrum in enumerate(mgf_data):
-                charge_state = int(spectrum.get("params", {}).get("charge", [])[0])
-                if charge_state == 2:
-                    charge_2 += 1
-
-                peak_per_ms2 = len(spectrum["m/z array"])
-                base_peak_intensity = (
-                    max(spectrum["intensity array"])
-                    if len(spectrum["intensity array"]) > 0
-                    else None
-                )
-
-                raw_title = spectrum.get("params", {}).get("title", [])
-                mgf_rtinseconds["title"].append(raw_title)
-                title = get_spectrum_id(raw_title, i)
-                mgf_rtinseconds["spectrumID"].append(title)
-                mgf_rtinseconds["filename"].append(m)
-
-                rtinseconds = float(spectrum.get("params", {}).get("rtinseconds", None))
-                mgf_rtinseconds["retention_time"].append(rtinseconds)
-
-                if m in self.ms_with_psm:
-                    if title in self.identified_spectrum[m]:
-                        self.mgf_charge_plot.add_value(charge_state)
-                        self.mgf_peak_distribution_plot.add_value(base_peak_intensity)
-                        self.mgf_peaks_ms2_plot.add_value(peak_per_ms2)
-                    else:
-                        self.mgf_charge_plot_1.add_value(charge_state)
-                        self.mgf_peak_distribution_plot_1.add_value(base_peak_intensity)
-                        self.mgf_peaks_ms2_plot_1.add_value(peak_per_ms2)
-                else:
-                    if m not in self.ms_without_psm:
-                        self.ms_without_psm.append(m)
-            ms2_number = i + 1
-
-            heatmap_charge[m] = charge_2 / ms2_number
-            self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
-            log.info(
-                "{}: Done aggregating MGF file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), m
-                )
-            )
-
-        self.mgf_rtinseconds = pd.DataFrame(mgf_rtinseconds)
-
-        for i in self.ms_without_psm:
-            log.warning("No PSM found in '{}'!".format(i))
-
-        self.mgf_peaks_ms2_plot.to_dict()
-        self.mgf_peak_distribution_plot.to_dict()
-        self.mgf_peaks_ms2_plot_1.to_dict()
-        self.mgf_peak_distribution_plot_1.to_dict()
-        self.mgf_charge_plot.to_dict()
-        self.mgf_charge_plot_1.to_dict()
-
-        self.mgf_charge_plot.dict["cats"].update(self.mgf_charge_plot_1.dict["cats"])
-        charge_cats_keys = [int(i) for i in self.mgf_charge_plot.dict["cats"]]
-        charge_cats_keys.sort()
-        self.mgf_charge_plot.dict["cats"] = OrderedDict(
-            {str(i): self.mgf_charge_plot.dict["cats"][str(i)] for i in charge_cats_keys}
-        )
-
-        self.ms_info["charge_distribution"] = {
-            "identified_spectra": self.mgf_charge_plot.dict["data"],
-            "unidentified_spectra": self.mgf_charge_plot_1.dict["data"],
-        }
-        self.ms_info["peaks_per_ms2"] = {
-            "identified_spectra": self.mgf_peaks_ms2_plot.dict["data"],
-            "unidentified_spectra": self.mgf_peaks_ms2_plot_1.dict["data"],
-        }
-        self.ms_info["peak_distribution"] = {
-            "identified_spectra": self.mgf_peak_distribution_plot.dict["data"],
-            "unidentified_spectra": self.mgf_peak_distribution_plot_1.dict["data"],
-        }
-
-        median = np.median(list(heatmap_charge.values()))
-        self.heatmap_charge_score = dict(
-            zip(
-                heatmap_charge.keys(),
-                list(map(lambda v: 1 - np.abs(v - median), heatmap_charge.values())),
-            )
-        )
-
-    def parse_out_mzid(self):
-
-        mzid_reader = MzIdentMLReader()
-        mzid_table = mzid_reader.read(self.mzid_paths)
-
-        self.ms_with_psm = mzid_table["filename"].unique().tolist()
-
-        # TODO remove_decoy
-        if config.kwargs["remove_decoy"]:
-            mzid_table = mzid_table[~mzid_table["isDecoy"]]
-
-        self.total_protein_identified = mzid_table["accession_group"].nunique()
-
-        self.pep_plot = Histogram("Number of peptides per proteins", plot_category="frequency")
-
-        counts_per_acc = (
-            mzid_table[["PeptideSequence", "accession"]]
-            .drop_duplicates()["accession"]
-            .value_counts()
-        )
-        counts_per_acc.apply(self.pep_plot.add_value)
-
-        categories = OrderedDict()
-        categories["Frequency"] = {
-            "name": "Frequency",
-            "description": "Number of identified peptides per protein.",
-        }
-        self.pep_plot.to_dict(percentage=True, cats=categories)
-
-        psm_cols = [
-            "spectrumID",
-            "PeptideSequence",
-            "chargeState",
-            "Modifications",
-            "accession_group",
-            "experimentalMassToCharge",
-            "calculatedMassToCharge",
-            "search_engine_score",
-            "filename",
-            "retention_time",
-        ]
-
-        if "retention_time" not in mzid_table.columns:
-            psm_cols.remove("retention_time")
-
-        psm = mzid_table[psm_cols].drop_duplicates().reset_index(drop=True)
-
-        for m, group in psm.groupby("filename"):
-            self.oversampling_plot = Histogram(
-                "MS/MS counts per 3D-peak", plot_category="frequency", breaks=[1, 2, 3]
-            )
-            for _, j in group.groupby(["PeptideSequence", "chargeState", "Modifications"]):
-                self.oversampling_plot.add_value(j["spectrumID"].nunique())
-
-            self.oversampling_plot.to_dict()
-            self.oversampling[m] = self.oversampling_plot.dict["data"]
-
-            proteins = set(group["accession_group"])
-            peptides = group[["PeptideSequence", "Modifications"]].drop_duplicates()
-
-            unique_peptides = group[["PeptideSequence", "Modifications"]].drop_duplicates()
-
-            self.identified_spectrum[m] = group["spectrumID"].drop_duplicates().tolist()
-            self.mzid_peptide_map[m] = list(set(group["PeptideSequence"].tolist()))
-
-            if None in proteins:
-                proteins.remove(None)
-
-            self.cal_num_table_data[m] = {"protein_num": len(proteins)}
-            self.cal_num_table_data[m]["peptide_num"] = len(peptides)
-            self.cal_num_table_data[m]["unique_peptide_num"] = len(unique_peptides)
-
-            modified_pep = peptides.dropna(subset=["Modifications"])
-            self.cal_num_table_data[m]["modified_peptide_num"] = len(modified_pep)
-
-        if self.mgf_paths:
-            self.ms_without_psm = set([file_prefix(i) for i in self.mgf_paths]) - set(
-                self.ms_with_psm
-            )
-        elif self.ms_paths:
-            self.ms_without_psm = set([file_prefix(i) for i in self.ms_paths]) - set(
-                self.ms_with_psm
-            )
-        for i in self.ms_without_psm:
-            self.cal_num_table_data[file_prefix(i)] = {
-                "protein_num": 0,
-                "peptide_num": 0,
-                "unique_peptide_num": 0,
-                "modified_peptide_num": 0,
-            }
-
-        self.total_ms2_spectral_identified = psm["spectrumID"].nunique()
-        self.total_peptide_count = psm["PeptideSequence"].nunique()
-
-        return psm
-
     def parse_msstats_input(self):
         log.info(
             "{}: Parsing MSstats input file {}...".format(
@@ -2198,7 +1939,6 @@ class QuantMSModule:
         def unique_count(series):
             return len(series.unique())
 
-        max_prot_intensity = 0
         agg_funs = dict.fromkeys(conditions_dists, my_dict_sum)
         agg_funs.update(dict.fromkeys(conditions_str, total_intensity))
         agg_funs["PeptideSequence"] = unique_count
@@ -2360,8 +2100,6 @@ class QuantMSModule:
             plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [
                 x for x in plot_cats if x == "Other"
             ]
-        else:
-            plot_cats_ordered = plot_cats
 
         result_dict = dict()
         result_dict["plot_data"] = plot_dict

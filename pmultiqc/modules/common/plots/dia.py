@@ -1,92 +1,16 @@
 import logging
-from multiqc.plots import heatmap, box, bargraph, linegraph
 import re
-
-from pmultiqc.modules.common.plots import remove_subtitle
-from pmultiqc.modules.core.section_groups import add_sub_section
-from pmultiqc.modules.common.stats import calculate_delta_mass_distribution as cal_delta_mass_dict
-
 import pandas as pd
 
+from multiqc.plots import heatmap, box, bargraph, linegraph
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from pmultiqc.modules.common.plots.general import remove_subtitle
+from pmultiqc.modules.common.stats import cal_delta_mass_dict
+from pmultiqc.modules.core.section_groups import add_sub_section
 
-def draw_dia_intensity_dis(sub_section, df):
+from pmultiqc.modules.common.logging import get_logger
 
-    box_data = {
-        str(run): group["log_intensity"].dropna().tolist()
-        for run, group in df.groupby("Run")
-    }
-
-    draw_config = {
-        "id": "intensity_distribution_box",
-        "cpswitch": False,
-        "cpswitch_c_active": False,
-        "title": "Intensity Distribution",
-        "tt_decimals": 5,
-        "xlab": "log2(Precursor.Quantity)",
-    }
-
-    box_html = box.plot(
-        list_of_data_by_sample=box_data,
-        pconfig=draw_config
-    )
-
-    box_html = remove_subtitle(box_html)
-
-    add_sub_section(
-        sub_section=sub_section,
-        plot=box_html,
-        order=3,
-        description="log2(Precursor.Quantity) for each Run.",
-        helptext="""
-            [DIA-NN: main report] log2(Precursor.Quantity) for each Run.
-            """
-    )
-
-# DIA: Standard Deviation of Intensity
-def can_groupby_for_std(df, col):
-    unique_vals = df[col].drop_duplicates()
-    
-    regex = re.compile(r"^(.*?)([A-Za-z]*)(\d+)$")
-    unmatched = [val for val in unique_vals if not regex.match(str(val))]
-    
-    if len(unmatched) > 0:
-        return False
-    else:
-        return True
-    
-def draw_dia_intensity_std(sub_section, df):
-
-    box_data = calculate_dia_intensity_std(df)
-
-    draw_box_config = {
-        "id": "dia_std_intensity_box",
-        "title": "Standard Deviation of Intensity",
-        "cpswitch": False,
-        "tt_decimals": 5,
-        "xlab": "Standard Deviation of log2(Precursor.Quantity)",
-    }
-    
-    box_html = box.plot(
-        list_of_data_by_sample=box_data,
-        pconfig=draw_box_config,
-    )
-
-    box_html = remove_subtitle(box_html)
-
-    add_sub_section(
-        sub_section=sub_section,
-        plot=box_html,
-        order=6,
-        description="Standard deviation of intensity under different experimental conditions.",
-        helptext="""
-            [DIA-NN: report.tsv] First, identify the experimental conditions from the "Run" name. 
-            Then, group the data by experimental condition and Modified.Sequence, and calculate 
-            the standard deviation of log2(Precursor.Quantity).
-            """
-    )
+log = get_logger("pmultiqc.modules.common.plots.dia")
 
 # DIA-NN: HeatMap
 def draw_heatmap(sub_section, hm_colors, heatmap_data):
@@ -104,10 +28,7 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
         "colstops": hm_colors,
     }
 
-    hm_html = heatmap.plot(
-        data=heatmap_data,
-        pconfig=pconfig
-    )
+    hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
 
     hm_html = remove_subtitle(hm_html)
 
@@ -143,12 +64,42 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
         """,
     )
 
+
+# Intensity Distribution
+def draw_dia_intensity_dis(sub_section, df):
+
+    box_data = {
+        str(run): group["log_intensity"].dropna().tolist() for run, group in df.groupby("Run")
+    }
+
+    draw_config = {
+        "id": "intensity_distribution_box",
+        "cpswitch": False,
+        "cpswitch_c_active": False,
+        "title": "Intensity Distribution",
+        "tt_decimals": 5,
+        "xlab": "log2(Precursor.Quantity)",
+    }
+
+    box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
+
+    box_html = remove_subtitle(box_html)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=box_html,
+        order=3,
+        description="log2(Precursor.Quantity) for each Run.",
+        helptext="""
+            [DIA-NN: main report] log2(Precursor.Quantity) for each Run.
+            """,
+    )
+
 # Ms1.Area non-normalised MS1 peak area
 def draw_dia_ms1_area(sub_section, df):
 
     box_data = {
-        str(run): group["log_ms1_area"].dropna().tolist()
-        for run, group in df.groupby("Run")
+        str(run): group["log_ms1_area"].dropna().tolist() for run, group in df.groupby("Run")
     }
 
     draw_config = {
@@ -160,10 +111,7 @@ def draw_dia_ms1_area(sub_section, df):
         "xlab": "log2(Ms1.Area)",
     }
 
-    box_html = box.plot(
-        list_of_data_by_sample=box_data,
-        pconfig=draw_config
-    )
+    box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
     box_html = remove_subtitle(box_html)
 
@@ -174,7 +122,7 @@ def draw_dia_ms1_area(sub_section, df):
         description="log2(Ms1.Area) for each Run.",
         helptext="""
             [DIA-NN: report.tsv] log2(Ms1.Area) for each Run. Ms1.Area: non-normalised MS1 peak area.
-            """
+            """,
     )
 
 # Distribution of Precursor Charges
@@ -183,9 +131,7 @@ def draw_dia_whole_exp_charge(sub_section, df):
     charge_df["Precursor.Charge"] = charge_df["Precursor.Charge"].astype("str")
 
     bar_data = {
-        "Whole Experiment": charge_df[
-            "Precursor.Charge"
-        ].value_counts().sort_index().to_dict()
+        "Whole Experiment": charge_df["Precursor.Charge"].value_counts().sort_index().to_dict()
     }
 
     bar_data = {str(k): v for k, v in bar_data.items()}
@@ -215,8 +161,9 @@ def draw_dia_whole_exp_charge(sub_section, df):
         helptext="""
             [DIA-NN: main report] distribution of the precursor ion charges for a given whole experiment.
             Precursor.Charge: the charge of the precursor.
-            """
+            """,
     )
+
 
 # Charge-state of Per File
 def draw_dia_ms2_charge(sub_section, df):
@@ -256,8 +203,54 @@ def draw_dia_ms2_charge(sub_section, df):
         description="The distribution of the charge-state of the precursor ion.",
         helptext="""
             [DIA-NN: main report] The distribution of the charge-state of the precursor ion (Precursor.Charge).
-            """
+            """,
     )
+
+
+# DIA: Standard Deviation of Intensity
+def can_groupby_for_std(df, col):
+    unique_vals = df[col].drop_duplicates()
+
+    regex = re.compile(r"^(.*?)([A-Za-z]*)(\d+)$")
+    unmatched = [val for val in unique_vals if not regex.match(str(val))]
+
+    if len(unmatched) > 0:
+        return False
+    else:
+        return True
+
+
+def draw_dia_intensity_std(sub_section, df):
+
+    box_data = calculate_dia_intensity_std(df)
+
+    draw_box_config = {
+        "id": "dia_std_intensity_box",
+        "title": "Standard Deviation of Intensity",
+        "cpswitch": False,
+        "tt_decimals": 5,
+        "xlab": "Standard Deviation of log2(Precursor.Quantity)",
+    }
+
+    box_html = box.plot(
+        list_of_data_by_sample=box_data,
+        pconfig=draw_box_config,
+    )
+
+    box_html = remove_subtitle(box_html)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=box_html,
+        order=6,
+        description="Standard deviation of intensity under different experimental conditions.",
+        helptext="""
+            [DIA-NN: report.tsv] First, identify the experimental conditions from the "Run" name. 
+            Then, group the data by experimental condition and Modified.Sequence, and calculate 
+            the standard deviation of log2(Precursor.Quantity).
+            """,
+    )
+
 
 # DIA-NN: Delta Mass
 def draw_dia_delta_mass(sub_section, df):
@@ -297,11 +290,7 @@ def draw_dia_delta_mass(sub_section, df):
     }
 
     line_html = linegraph.plot(
-        [
-            {"count": delta_mass["count"]},
-            {"relative_frequency": delta_mass["frequency"]}
-        ],
-        pconfig
+        [{"count": delta_mass["count"]}, {"relative_frequency": delta_mass["frequency"]}], pconfig
     )
 
     add_sub_section(
@@ -314,8 +303,9 @@ def draw_dia_delta_mass(sub_section, df):
         helptext="""
             [DIA-NN: main report] 
             Ms1.Apex.Mz.Delta: difference between observed precursor m/z and the theoretical value.
-        """
+        """,
     )
+
 
 # DIA-NN: Normalisation Factor over RT
 # Normalisation.Factor average ~ RT bin
@@ -333,10 +323,7 @@ def draw_norm_factor_rt(sub_section, plot_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=plot_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -355,6 +342,7 @@ def draw_norm_factor_rt(sub_section, plot_data):
         """,
     )
 
+
 # DIA-NN: FWHM over RT
 def draw_fwhm_rt(sub_section, plot_data):
 
@@ -370,10 +358,7 @@ def draw_fwhm_rt(sub_section, plot_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=plot_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -395,6 +380,7 @@ def draw_fwhm_rt(sub_section, plot_data):
         """,
     )
 
+
 # DIA-NN: Peak Width over RT
 def draw_peak_width_rt(sub_section, plot_data):
 
@@ -410,10 +396,7 @@ def draw_peak_width_rt(sub_section, plot_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=plot_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -431,6 +414,7 @@ def draw_peak_width_rt(sub_section, plot_data):
         """,
     )
 
+
 # DIA-NN: Absolute RT Error over RT
 def draw_rt_error_rt(sub_section, plot_data):
 
@@ -446,10 +430,7 @@ def draw_rt_error_rt(sub_section, plot_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=plot_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -467,6 +448,7 @@ def draw_rt_error_rt(sub_section, plot_data):
         """,
     )
 
+
 # DIA-NN: LOESS RT ~ iRT
 def draw_loess_rt_irt(sub_section, plot_data):
 
@@ -482,10 +464,7 @@ def draw_loess_rt_irt(sub_section, plot_data):
         "showlegend": True,
     }
 
-    linegraph_html = linegraph.plot(
-        data=plot_data,
-        pconfig=draw_config
-    )
+    linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
     linegraph_html = remove_subtitle(linegraph_html)
 
@@ -503,22 +482,6 @@ def draw_loess_rt_irt(sub_section, plot_data):
         """,
     )
 
-def extract_condition_and_replicate(run_name):
-
-    match = re.search(r"^(.*?)([A-Za-z]*)(\d+)$", run_name)
-
-    if match:
-        condition_base = match.group(1) + match.group(2)
-        
-        if condition_base.endswith("_"):
-            condition_base = condition_base[: -1]
-
-        replicate = int(match.group(3))
-
-        return condition_base, replicate
-    else:
-        log.warning("Failed to identify condition groups in DIA report.tsv!")
-
 def calculate_dia_intensity_std(df):
 
     df_sub = df.copy()
@@ -527,8 +490,7 @@ def calculate_dia_intensity_std(df):
     )
 
     grouped_std = (
-        df_sub
-        .groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
+        df_sub.groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
         .std()
         .reset_index(name="log_intensity_std")
     )
@@ -539,3 +501,23 @@ def calculate_dia_intensity_std(df):
     }
 
     return plot_data
+
+def extract_condition_and_replicate(run_name):
+
+    match = re.search(r"^(.*?)([A-Za-z]*)(\d+)$", run_name)
+
+    if match:
+        condition_base = match.group(1) + match.group(2)
+
+        if condition_base.endswith("_"):
+            condition_base = condition_base[:-1]
+
+        replicate = int(match.group(3))
+
+        return condition_base, replicate
+    else:
+        log.warning("Failed to identify condition groups in DIA report.tsv!")
+        return None
+# re-export by moving file; contents will be identical after move.
+# We'll import from the old module path in callers changed to new path.
+

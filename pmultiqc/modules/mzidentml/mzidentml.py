@@ -1,88 +1,83 @@
-""" MultiQC mzIdentML plugin module """
+""" mzIdentML pmultiqc plugin module """
 
 from __future__ import absolute_import
-import logging
+
+import copy
+import os
 from collections import OrderedDict
 from datetime import datetime
-from multiqc import config
 
-from multiqc.plots import table, bargraph
-
-import pandas as pd
-import re
-from pyteomics import mztab, mzid
-from pyopenms import OpenMSBuildInfo
-import os
 import numpy as np
+import pandas as pd
+from multiqc import config
+from multiqc.plots import table, bargraph, linegraph
+from pyteomics import mzid, mgf
 
-from pmultiqc.modules.common.plots import *
-from pmultiqc.modules.common.id.mzid import MzIdentMLReader
-from pmultiqc.modules.common.ms.mgf import MGFReader
-from pmultiqc.modules.common.utils import parse_mzml
-from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.stats import qual_uniform
-from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
-from pmultiqc.modules.mzidentml.mzidentml_plots import draw_mzid_quant_table
-from pmultiqc.modules.mzidentml.mzidentml_utils import (
+from pmultiqc.modules.common.mzidentml_utils import (
     get_mzidentml_mzml_df,
     get_mzidentml_charge,
     get_mzid_rt_id,
     get_mzid_num_data,
+    draw_mzid_quant_table,
 )
-from pmultiqc.modules.common.base_module import BaseModule
+
+from pmultiqc.modules.base import BasePMultiqcModule
+from pmultiqc.modules.common.plots import id as id_plots
+from pmultiqc.modules.common.plots.ms import (
+    draw_precursor_charge_distribution,
+    draw_peak_intensity_distribution,
+    draw_peaks_per_ms2
+)
+from pmultiqc.modules.common.plots.general import (
+    remove_subtitle,
+    draw_heatmap
+)
+from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.histogram import Histogram
+from pmultiqc.modules.common.stats import qual_uniform
+from pmultiqc.modules.core.section_groups import (
+    add_group_modules,
+    add_sub_section
+)
 
 
-# Initialise the main MultiQC logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+class MzIdentMLModule(BasePMultiqcModule):
 
-log.info("pyopenms has: " + str(OpenMSBuildInfo().getOpenMPMaxNumThreads()) + " threads.")
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
 
-class MzIdentMLModule(BaseModule):
-
-    def __init__(
-            self,
-            find_log_files_func,
-            sub_sections
-        ):
-        # Call parent constructor
-        super().__init__(
-            find_log_files_func=find_log_files_func,
-            sub_sections=sub_sections,
-            module_name="mzidentml"
-        )
-
-        # Initialize module-specific attributes
-        self._initialize_mzidentml_data()
-
-    def _initialize_module(self):
-        """Initialize MzIdentML-specific attributes."""
-        # Discover files manually to handle multiple files per type
-        self.ms_paths = []
-        for mzml_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
-            self.ms_paths.append(os.path.join(mzml_file["root"], mzml_file["fn"]))
-        self.ms_paths.sort()
-
-        self.mgf_paths = []
-        for mgf_file in self.find_log_files("pmultiqc/mgf", filecontents=False):
-            self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
-        self.mgf_paths.sort()
-
-        self.mzid_paths = []
-        for mzid_file in self.find_log_files("pmultiqc/mzid", filecontents=False):
-            self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
-        self.mzid_paths.sort()
-
-    def _initialize_mzidentml_data(self):
-        """Initialize MzIdentML-specific data structures."""
+        self.ms_without_psm = None
+        self.oversampling_plot = None
+        self.pep_plot = None
+        self.mgf_rtinseconds = None
+        self.mgf_peaks_ms2_plot_1 = None
+        self.mgf_charge_plot_1 = None
+        self.mgf_peak_distribution_plot_1 = None
+        self.mgf_peaks_ms2_plot = None
+        self.mgf_charge_plot = None
+        self.mgf_peak_distribution_plot = None
+        self.mzml_ms_df = None
+        self.ms_without_psm = None
+        self.mzml_peaks_ms2_plot_1 = None
+        self.mzml_charge_plot_1 = None
+        self.mzml_peak_distribution_plot_1 = None
+        self.mzml_peaks_ms2_plot = None
+        self.mzml_charge_plot = None
+        self.mzml_peak_distribution_plot = None
+        self.section_group_dict = None
+        self.mzid_paths = list()
+        self.ms_without_psm = None
+        self.mzid_peptide_map = None
+        self.mgf_paths = None
+        self.ms_paths = None
         self.ms_with_psm = list()
         self.total_protein_identified = 0
         self.cal_num_table_data = dict()
         self.oversampling = dict()
         self.identified_spectrum = dict()
-        self.total_ms2_spectral_identified = 0
+        self.delta_mass = dict()
+        self.total_ms2_spectra_identified = 0
         self.total_peptide_count = 0
         self.total_ms2_spectra = 0
         self.heatmap_charge_score = dict()
@@ -91,108 +86,80 @@ class MzIdentMLModule(BaseModule):
         self.heatmap_over_sampling_score = dict()
         self.heatmap_pep_missing_score = dict()
         self.missed_cleavages_var_score = dict()
-        self.pep_table_exists = False
         self.ms_info = dict()
         self.ms_info["charge_distribution"] = dict()
         self.ms_info["peaks_per_ms2"] = dict()
         self.ms_info["peak_distribution"] = dict()
         self.quantms_missed_cleavages = dict()
+        self.quantms_modified = dict()
         self.identified_msms_spectra = dict()
+
+
+    def get_data(self) -> bool | None:
+        self.log.info("Start parsing the MzIdentML results and spectra files...")
+
+        self.ms_paths = []
+        for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
+            self.ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
+
+        self.mgf_paths = []
+        for mgf_file in self.find_log_files("pmultiqc/mgf", filecontents=False):
+            self.mgf_paths.append(os.path.join(mgf_file["root"], mgf_file["fn"]))
+        self.mgf_paths.sort()
+
         self.mzid_peptide_map = dict()
         self.ms_without_psm = dict()
 
-    def get_data(self):
-        """Extract and process MzIdentML data."""
-        # Parse mzIdentML files
+        for mzid_file in self.find_log_files("pmultiqc/mzid", filecontents=False):
+            self.mzid_paths.append(os.path.join(mzid_file["root"], mzid_file["fn"]))
+        self.mzid_paths.sort()
+
         mzid_psm = self.parse_out_mzid()
 
-        # Process MGF or mzML files
         if self.mgf_paths:
-            self._process_mgf_data(mzid_psm)
+            self.parse_out_mgf()
+            self.mzid_cal_heat_map_score(mzid_psm)
+
         elif self.ms_paths:
-            self._process_mzml_data(mzid_psm)
+            mt = self.parse_mzml()
 
-        # Generate plots
-        self.draw_plots()
+            mzidentml_df = get_mzidentml_mzml_df(mzid_psm, self.mzml_ms_df)
+            if len(mzidentml_df) > 0:
 
-        return self.results
+                draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
 
-    def _process_mgf_data(self, mzid_psm):
-        """Process MGF files and generate related plots."""
-        mgf_reader = MGFReader()
-        mgf_result = mgf_reader.read(
-            file_paths=self.mgf_paths,
-            ms_with_psm=self.ms_with_psm,
-            identified_spectrum=self.identified_spectrum,
-            ms_without_psm=self.ms_without_psm
-        )
+                mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
+                id_plots.draw_charge_state(
+                    self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
+                )
 
-        # Extract results from MGFReader
-        self.mgf_rtinseconds = mgf_result["mgf_rtinseconds"]
-        self.mgf_charge_plot = mgf_result["mgf_charge_plot"]
-        self.mgf_peak_distribution_plot = mgf_result["mgf_peak_distribution_plot"]
-        self.mgf_peaks_ms2_plot = mgf_result["mgf_peaks_ms2_plot"]
-        self.mgf_charge_plot_1 = mgf_result["mgf_charge_plot_1"]
-        self.mgf_peak_distribution_plot_1 = mgf_result["mgf_peak_distribution_plot_1"]
-        self.mgf_peaks_ms2_plot_1 = mgf_result["mgf_peaks_ms2_plot_1"]
-        self.ms_info.update(mgf_result["ms_info"])
-        self.heatmap_charge_score = mgf_result["heatmap_charge_score"]
-        self.total_ms2_spectra = mgf_result["total_ms2_spectra"]
+                mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
+                id_plots.draw_ids_rt_count(
+                    self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
+                )
 
-        self.mzid_cal_heat_map_score(mzid_psm)
+                (self.cal_num_table_data, self.identified_msms_spectra) = get_mzid_num_data(
+                    mzidentml_df
+                )
+                # self.draw_quantms_identification(mt)
 
-    def _process_mzml_data(self, mzid_psm):
-        """Process mzML files and generate related plots."""
-        (
-            self.mzml_table,
-            self.mzml_peaks_ms2_plot,
-            self.mzml_peak_distribution_plot,
-            self.ms_info,
-            self.total_ms2_spectra,
-            mzml_ms_df,
-            self.heatmap_charge_score,
-            self.mzml_charge_plot,
-            _,  # ms1_tic,
-            _,  # ms1_bpc,
-            _,  # ms1_peaks,
-            _,  # ms1_general_stats
-        ) = parse_mzml(
-            ms_with_psm=self.ms_with_psm,
-            identified_spectrum=self.identified_spectrum,
-            ms_paths=self.ms_paths,
-            enable_mzid=True
-        )
+                id_plots.draw_quantms_identification(
+                    self.sub_sections["identification"],
+                    cal_num_table_data=self.cal_num_table_data,
+                    mzml_table=mt,
+                    quantms_missed_cleavages=self.quantms_missed_cleavages,
+                    quantms_modified=self.quantms_modified,
+                    identified_msms_spectra=self.identified_msms_spectra,
+                )
 
-        mzidentml_df = get_mzidentml_mzml_df(mzid_psm, mzml_ms_df)
-        if len(mzidentml_df) > 0:
-            draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
+                self.mzid_cal_heat_map_score(mzidentml_df)
 
-            mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
-            draw_charge_state(
-                self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
-            )
+        return True
 
-            mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
-            draw_ids_rt_count(
-                self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
-            )
 
-            (self.cal_num_table_data, self.identified_msms_spectra) = get_mzid_num_data(
-                mzidentml_df
-            )
+    def draw_plots(self) -> None:
+        self.log.info("Start plotting the MzIdentML results...")
 
-            draw_quantms_identification(
-                self.sub_sections["identification"],
-                cal_num_table_data=self.cal_num_table_data,
-                mzml_table=self.mzml_table,
-                quantms_missed_cleavages=self.quantms_missed_cleavages,
-                identified_msms_spectra=self.identified_msms_spectra,
-            )
-
-            self.mzid_cal_heat_map_score(mzidentml_df)
-
-    def draw_plots(self):
-        """Generate plots and add them to report sections."""
         heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
         draw_heatmap(
             self.sub_sections["summary"],
@@ -203,60 +170,70 @@ class MzIdentMLModule(BaseModule):
             False,
         )
 
-        draw_summary_protein_ident_table(
+        id_plots.draw_summary_protein_ident_table(
             sub_sections=self.sub_sections["summary"],
             total_peptide_count=self.total_peptide_count,
-            total_ms2_spectral_identified=self.total_ms2_spectral_identified,
+            total_ms2_spectra_identified=self.total_ms2_spectra_identified,
             total_ms2_spectra=self.total_ms2_spectra,
-            total_protein_identified=self.total_protein_identified
+            total_protein_identified=self.total_protein_identified,
+            enable_mzid=True
         )
 
         self.draw_mzid_identi_num()
 
-        draw_num_pep_per_protein(
+        id_plots.draw_num_pep_per_protein(
             self.sub_sections["identification"],
-            self.pep_plot
+            self.pep_plot,
+            True
         )
 
         if self.mgf_paths:
-            charge_plot = self.mgf_charge_plot
-            peaks_ms2_plot = self.mgf_peaks_ms2_plot
-            peak_distribution_plot = self.mgf_peak_distribution_plot
+            draw_precursor_charge_distribution(
+                self.sub_sections["ms2"],
+                charge_plot=self.mgf_charge_plot,
+                ms_info=self.ms_info
+            )
+
+            draw_peaks_per_ms2(
+                self.sub_sections["ms2"],
+                self.mgf_peaks_ms2_plot,
+                self.ms_info
+            )
+
+            draw_peak_intensity_distribution(
+                self.sub_sections["ms2"],
+                self.mgf_peak_distribution_plot,
+                self.ms_info
+            )
         else:
-            charge_plot = self.mzml_charge_plot
-            peaks_ms2_plot = self.mzml_peaks_ms2_plot
-            peak_distribution_plot = self.mzml_peak_distribution_plot
+            draw_precursor_charge_distribution(
+                self.sub_sections["ms2"],
+                charge_plot=self.mzml_charge_plot,
+                ms_info=self.ms_info
+            )
 
-        draw_precursor_charge_distribution(
-            self.sub_sections["ms2"],
-            charge_plot,
-            self.ms_info
+            draw_peaks_per_ms2(
+                self.sub_sections["ms2"],
+                self.mzml_peaks_ms2_plot,
+                self.ms_info
+            )
+
+            draw_peak_intensity_distribution(
+                self.sub_sections["ms2"],
+                self.mzml_peak_distribution_plot,
+                self.ms_info
+            )
+
+        id_plots.draw_oversampling(
+            self.sub_sections["ms2"], self.oversampling, self.oversampling_plot.dict["cats"], False
         )
 
-        draw_peaks_per_ms2(
-            self.sub_sections["ms2"],
-            peaks_ms2_plot,
-            self.ms_info
-        )
-
-        draw_peak_intensity_distribution(
-            self.sub_sections["ms2"],
-            peak_distribution_plot,
-            self.ms_info
-        )
-
-        draw_oversampling(
-            self.sub_sections["ms2"],
-            self.oversampling,
-            self.oversampling_plot.dict["cats"],
-            False
-        )
-
-        # Create section groups
         self.section_group_dict = {
             "experiment_sub_section": self.sub_sections["experiment"],
             "summary_sub_section": self.sub_sections["summary"],
             "identification_sub_section": self.sub_sections["identification"],
+            "search_engine_sub_section": self.sub_sections["search_engine"],
+            "contaminants_sub_section": self.sub_sections["contaminants"],
             "quantification_sub_section": self.sub_sections["quantification"],
             "ms1_sub_section": self.sub_sections["ms1"],
             "ms2_sub_section": self.sub_sections["ms2"],
@@ -269,56 +246,28 @@ class MzIdentMLModule(BaseModule):
     def calculate_heatmap(self):
 
         heat_map_score = []
-        if self.pep_table_exists:
-            xnames = [
-                "Contaminants",
-                "Peptide Intensity",
-                "Charge",
-                "Missed Cleavages",
-                "Missed Cleavages Var",
-                "ID rate over RT",
-                "MS2 OverSampling",
-                "Pep Missing Values",
-            ]
-            ynames = []
-            for k, v in self.heatmap_con_score.items():
-                if k in self.ms_with_psm:
-                    ynames.append(k)
-                    heat_map_score.append(
-                        [
-                            v,
-                            self.heatmap_pep_intensity[k],
-                            self.heatmap_charge_score[k],
-                            self.missed_clevages_heatmap_score[k],
-                            self.missed_cleavages_var_score[k],
-                            self.id_rt_score[k],
-                            self.heatmap_over_sampling_score[k],
-                            self.heatmap_pep_missing_score[k],
-                        ]
-                    )
-        else:
-            xnames = [
-                "Charge",
-                "Missed Cleavages",
-                "Missed Cleavages Var",
-                "ID rate over RT",
-                "MS2 OverSampling",
-                "Pep Missing Values",
-            ]
-            ynames = []
-            for k, v in self.heatmap_charge_score.items():
-                if k in self.ms_with_psm:
-                    ynames.append(k)
-                    heat_map_score.append(
-                        [
-                            self.heatmap_charge_score[k],
-                            self.missed_clevages_heatmap_score[k],
-                            self.missed_cleavages_var_score[k],
-                            self.id_rt_score[k],
-                            self.heatmap_over_sampling_score[k],
-                            self.heatmap_pep_missing_score[k],
-                        ]
-                    )
+        xnames = [
+            "Charge",
+            "Missed Cleavages",
+            "Missed Cleavages Var",
+            "ID rate over RT",
+            "MS2 OverSampling",
+            "Pep Missing Values",
+        ]
+        ynames = []
+        for k, v in self.heatmap_charge_score.items():
+            if k in self.ms_with_psm:
+                ynames.append(k)
+                heat_map_score.append(
+                    [
+                        self.heatmap_charge_score[k],
+                        self.missed_clevages_heatmap_score[k],
+                        self.missed_cleavages_var_score[k],
+                        self.id_rt_score[k],
+                        self.heatmap_over_sampling_score[k],
+                        self.heatmap_pep_missing_score[k],
+                    ]
+                )
         return heat_map_score, xnames, ynames
 
     def draw_mzid_identi_num(self):
@@ -436,6 +385,255 @@ class MzIdentMLModule(BaseModule):
                 """,
         )
 
+    def draw_delta_mass(self):
+
+        delta_mass = self.delta_mass
+        delta_mass_percent = {
+            "target": {
+                k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()
+            }
+        }
+
+        if delta_mass["decoy"]:
+
+            delta_mass_percent["decoy"] = {
+                k: v / sum(delta_mass["decoy"].values()) for k, v in delta_mass["decoy"].items()
+            }
+
+            x_values = list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())
+
+            range_threshold = 10
+            if max(abs(x) for x in x_values) > range_threshold:
+                range_abs = range_threshold
+            else:
+                range_abs = 1
+            range_step = (max(x_values) - min(x_values)) * 0.05
+
+            if max(abs(x) for x in x_values) > range_abs:
+
+                delta_mass_range = dict()
+                delta_mass_range["target"] = {
+                    k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs
+                }
+                delta_mass_range["decoy"] = {
+                    k: v for k, v in delta_mass["decoy"].items() if abs(k) <= range_abs
+                }
+
+                delta_mass_percent_range = dict()
+                delta_mass_percent_range["target"] = {
+                    k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs
+                }
+                delta_mass_percent_range["decoy"] = {
+                    k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= range_abs
+                }
+
+                x_values_adj = list(delta_mass_range["target"].keys()) + list(
+                    delta_mass_range["decoy"].keys()
+                )
+                range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
+
+                data_label = [
+                    {
+                        "name": f"Count (range: -{range_abs} to {range_abs})",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
+                        "ymin": 0,
+                    },
+                    {
+                        "name": f"Relative Frequency (range: -{range_abs} to {range_abs})",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Count (All Data)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (All Data)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
+                        "ymin": 0,
+                    },
+                ]
+                pconfig = {
+                    "id": "delta_mass",
+                    "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
+                    "title": "Delta m/z",
+                    "xlab": "Experimental m/z - Theoretical m/z",
+                    "data_labels": data_label,
+                    "style": "lines+markers",
+                    "showlegend": True,
+                }
+                line_html = linegraph.plot(
+                    [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
+                    pconfig,
+                )
+
+            else:
+                data_label = [
+                    {
+                        "name": "Count (All Data)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (All Data)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
+                        "ymin": 0,
+                    },
+                ]
+                pconfig = {
+                    "id": "delta_mass",
+                    "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
+                    "title": "Delta m/z",
+                    "xlab": "Experimental m/z - Theoretical m/z",
+                    "data_labels": data_label,
+                    "style": "lines+markers",
+                    "showlegend": True,
+                }
+                line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
+        # no decoy
+        else:
+            delta_mass = {k: v for k, v in delta_mass.items() if k not in ["decoy"]}
+
+            x_values = list(delta_mass["target"].keys())
+
+            range_threshold = 10
+            if max(abs(x) for x in x_values) > range_threshold:
+                range_abs = range_threshold
+            else:
+                range_abs = 1
+            range_step = (max(x_values) - min(x_values)) * 0.05
+
+            if max(abs(x) for x in x_values) > range_abs:
+
+                delta_mass_range = {
+                    "target": {
+                        k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs
+                    }
+                }
+
+                delta_mass_percent_range = {
+                    "target": {
+                        k: v
+                        for k, v in delta_mass_percent["target"].items()
+                        if abs(k) <= range_abs
+                    }
+                }
+
+                x_values_adj = list(delta_mass_range["target"].keys())
+                range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
+
+                data_label = [
+                    {
+                        "name": f"Count (range: -{range_abs} to {range_abs})",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
+                        "ymin": 0,
+                    },
+                    {
+                        "name": f"Relative Frequency (range: -{range_abs} to {range_abs})",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
+                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Count (All Data)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (All Data)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
+                        "ymin": 0,
+                    },
+                ]
+                pconfig = {
+                    "id": "delta_mass_da",
+                    "colors": {"target": "#b2df8a"},
+                    "title": "Delta Mass [Da]",
+                    "xlab": "Experimental m/z - Theoretical m/z",
+                    "data_labels": data_label,
+                    "style": "lines+markers",
+                }
+                line_html = linegraph.plot(
+                    [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
+                    pconfig,
+                )
+
+            else:
+                data_label = [
+                    {
+                        "name": "Count (All Data)",
+                        "ylab": "Count",
+                        "tt_label": "{point.x} Mass delta counts: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
+                        "ymin": 0,
+                    },
+                    {
+                        "name": "Relative Frequency (All Data)",
+                        "ylab": "Relative Frequency",
+                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
+                        "xmax": max(abs(x) for x in x_values) + range_step,
+                        "xmin": -(max(abs(x) for x in x_values) + range_step),
+                        "ymin": 0,
+                    },
+                ]
+                pconfig = {
+                    "id": "delta_mass_da",
+                    "colors": {"target": "#b2df8a"},
+                    "title": "Delta Mass [Da]",
+                    "xlab": "Experimental m/z - Theoretical m/z",
+                    "data_labels": data_label,
+                    "style": "lines+markers",
+                }
+                line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
+
+        add_sub_section(
+            sub_section=self.sub_sections["mass_error"],
+            plot=line_html,
+            order=1,
+            description="""
+                This chart represents the distribution of the relative frequency of experimental 
+                precursor ion mass (m/z) - theoretical precursor ion mass (m/z).
+                """,
+            helptext="""
+                Mass deltas close to zero reflect more accurate identifications and also 
+                that the reporting of the amino acid modifications and charges have been done accurately. 
+                This plot can highlight systematic bias if not centered on zero. 
+                Other distributions can reflect modifications not being reported properly. 
+                Also it is easy to see the different between the target and the decoys identifications.
+                """,
+        )
+
     def draw_search_engine(self):
 
         # Create scores summary plot
@@ -489,17 +687,17 @@ class MzIdentMLModule(BaseModule):
 
         xcorr_bar_html = (
             bargraph.plot(list(self.search_engine["xcorr"].values()), xcorr_cats, xcorr_pconfig)
-            if self.comet_label
+            if self.Comet_label
             else ""
         )
         spec_e_bar_html = (
             bargraph.plot(list(self.search_engine["SpecE"].values()), spec_e_cats, spec_e_pconfig)
-            if self.msgf_label
+            if self.MSGF_label
             else ""
         )
         hyper_bar_html = (
             bargraph.plot(list(self.search_engine["hyper"].values()), hyper_cats, hyper_pconfig)
-            if self.sage_label
+            if self.Sage_label
             else ""
         )
 
@@ -615,8 +813,18 @@ class MzIdentMLModule(BaseModule):
                     """,
             )
 
+        # TODO
+        # else:
+        #     self.add_section(
+        #         name="Summary of consensus PSMs",
+        #         anchor="summary_of_consensus_PSMs",
+        #         description="""#### Summary of consensus PSMs
+        #         No Consensus PSMs data because of single search engine!
+        #         """,
+        #     )
+
     def mzid_cal_heat_map_score(self, psm):
-        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
+        self.log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
 
         # HeatMapMissedCleavages
         global_peps = psm[["PeptideSequence", "Modifications"]].drop_duplicates()
@@ -690,127 +898,7 @@ class MzIdentMLModule(BaseModule):
                 ),
             )
         )
-        log.info(
-            "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
-        )
-
-    def cal_heat_map_score(self):
-        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
-        mztab_data = mztab.MzTab(self.out_mztab_path)
-        psm = mztab_data.spectrum_match_table
-        meta_data = dict(mztab_data.metadata)
-        if self.pep_table_exists:
-            pep_table = mztab_data.peptide_table
-
-            with pd.option_context("future.no_silent_downcasting", True):
-                pep_table = pep_table.fillna(np.nan).infer_objects(copy=False).copy()
-
-            pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
-                lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-                axis=1,
-            )
-            study_variables = list(
-                filter(
-                    lambda x: re.match(r"peptide_abundance_study_variable.*?", x) is not None,
-                    pep_table.columns.tolist(),
-                )
-            )
-
-            pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
-
-            # Contaminants
-            if (
-                len(
-                    pep_table[
-                        pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
-                    ]
-                )
-                > 0
-            ):
-                pass
-
-            for name, group in pep_table.groupby("stand_spectra_ref"):
-
-                contaminant_sum = (
-                    group[group["accession"].str.contains(config.kwargs["contaminant_affix"])][
-                        study_variables
-                    ]
-                    .sum(axis=0)
-                    .sum()
-                )
-                all_sum = group[study_variables].sum(axis=0).sum()
-                self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
-
-                if config.kwargs["remove_decoy"]:
-                    pep_median = np.nanmedian(
-                        group[(group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)][
-                            study_variables
-                        ].to_numpy()
-                    )
-                pep_median = np.nanmedian(group[study_variables].to_numpy())
-
-                self.heatmap_pep_intensity[name] = np.minimum(
-                    1.0, pep_median / (2**23)
-                )  # Threshold
-
-        #  HeatMapMissedCleavages
-        global_peps = set(psm["opt_global_cv_MS:1000889_peptidoform_sequence"])
-        global_peps_count = len(global_peps)
-        if (
-            config.kwargs["remove_decoy"]
-            and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
-        ):
-            psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
-        psm.loc[:, "stand_spectra_ref"] = psm.apply(
-            lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-            axis=1,
-        )
-
-        enzyme_list = [i for i in meta_data.values() if str(i).startswith("enzyme:")]
-        enzyme = enzyme_list[0].split(":")[1] if len(enzyme_list) == 1 else "Trypsin"
-        psm.loc[:, "missed_cleavages"] = psm.apply(
-            lambda x: self.cal_miss_cleavages(x["sequence"], enzyme), axis=1
-        )
-
-        # Calculate the ID RT Score
-        for name, group in psm.groupby("stand_spectra_ref"):
-            sc = group["missed_cleavages"].value_counts()
-
-            self.quantms_missed_cleavages[name] = sc.to_dict()
-
-            mis_0 = sc[0] if 0 in sc else 0
-            self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
-            self.id_rt_score[name] = qual_uniform(group["retention_time"])
-
-            #  For HeatMapOverSamplingScore
-            self.heatmap_over_sampling_score[name] = self.oversampling[name]["1"] / np.sum(
-                list(self.oversampling[name].values())
-            )
-
-            # For HeatMapPepMissingScore
-            id_fraction = (
-                len(
-                    set(group["opt_global_cv_MS:1000889_peptidoform_sequence"]).intersection(
-                        global_peps
-                    )
-                )
-                / global_peps_count
-            )
-            self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
-
-        median = np.median(list(self.missed_clevages_heatmap_score.values()))
-        self.missed_cleavages_var_score = dict(
-            zip(
-                self.missed_clevages_heatmap_score.keys(),
-                list(
-                    map(
-                        lambda v: 1 - np.abs(v - median),
-                        self.missed_clevages_heatmap_score.values(),
-                    )
-                ),
-            )
-        )
-        log.info(
+        self.log.info(
             "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
         )
 
@@ -865,11 +953,229 @@ class MzIdentMLModule(BaseModule):
                     return "TARGET"
                 return "DECOY"
 
+    def parse_mzml(self):
+
+        self.mzml_peak_distribution_plot = Histogram(
+            "Peak Intensity",
+            plot_category="range",
+            breaks=[0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000],
+        )
+
+        self.mzml_charge_plot = Histogram("Precursor Charge", plot_category="frequency")
+
+        self.mzml_peaks_ms2_plot = Histogram(
+            "#Peaks per MS/MS spectrum",
+            plot_category="range",
+            breaks=[i for i in range(0, 1001, 100)],
+        )
+
+        # New instances are used for dictionary construction.
+        self.mzml_peak_distribution_plot_1 = copy.deepcopy(self.mzml_peak_distribution_plot)
+        self.mzml_charge_plot_1 = copy.deepcopy(self.mzml_charge_plot)
+        self.mzml_peaks_ms2_plot_1 = copy.deepcopy(self.mzml_peaks_ms2_plot)
+
+        self.ms_without_psm = []
+
+        # Use the refactored class from ms/mzml.py
+        from pmultiqc.modules.common.ms.mzml import MzMLReader
+
+        mzml_reader = MzMLReader(
+            file_paths=self.ms_paths,
+            ms_with_psm=self.ms_with_psm,
+            identified_spectrum=self.identified_spectrum,
+            mzml_charge_plot=self.mzml_charge_plot,
+            mzml_peak_distribution_plot=self.mzml_peak_distribution_plot,
+            mzml_peaks_ms2_plot=self.mzml_peaks_ms2_plot,
+            mzml_charge_plot_1=self.mzml_charge_plot_1,
+            mzml_peak_distribution_plot_1=self.mzml_peak_distribution_plot_1,
+            mzml_peaks_ms2_plot_1=self.mzml_peaks_ms2_plot_1,
+            ms_without_psm=self.ms_without_psm,
+            enable_dia=False,
+            enable_mzid=True
+        )
+
+        mzml_reader.parse()
+
+        mzml_table = mzml_reader.mzml_table
+        heatmap_charge = mzml_reader.heatmap_charge
+        self.total_ms2_spectra = mzml_reader.total_ms2_spectra
+        self.mzml_ms_df = mzml_reader.mzml_ms_df
+
+        for i in self.ms_without_psm:
+            self.log.warning("No PSM found in '{}'!".format(i))
+
+        self.mzml_peaks_ms2_plot.to_dict()
+        self.mzml_peak_distribution_plot.to_dict()
+        # Construct compound dictionaries to apply to drawing functions.
+
+        self.mzml_peaks_ms2_plot_1.to_dict()
+        self.mzml_peak_distribution_plot_1.to_dict()
+        self.mzml_charge_plot.to_dict()
+        self.mzml_charge_plot_1.to_dict()
+
+        self.mzml_charge_plot.dict["cats"].update(self.mzml_charge_plot_1.dict["cats"])
+        charge_cats_keys = [int(i) for i in self.mzml_charge_plot.dict["cats"]]
+        charge_cats_keys.sort()
+        self.mzml_charge_plot.dict["cats"] = OrderedDict(
+            {str(i): self.mzml_charge_plot.dict["cats"][str(i)] for i in charge_cats_keys}
+        )
+
+        self.ms_info["charge_distribution"] = {
+            "identified_spectra": self.mzml_charge_plot.dict["data"],
+            "unidentified_spectra": self.mzml_charge_plot_1.dict["data"],
+        }
+
+        self.ms_info["peaks_per_ms2"] = {
+            "identified_spectra": self.mzml_peaks_ms2_plot.dict["data"],
+            "unidentified_spectra": self.mzml_peaks_ms2_plot_1.dict["data"],
+        }
+
+        self.ms_info["peak_distribution"] = {
+            "identified_spectra": self.mzml_peak_distribution_plot.dict["data"],
+            "unidentified_spectra": self.mzml_peak_distribution_plot_1.dict["data"],
+        }
+
+        median = np.median(list(heatmap_charge.values()))
+        self.heatmap_charge_score = dict(
+            zip(
+                heatmap_charge.keys(),
+                list(map(lambda v: 1 - np.abs(v - median), heatmap_charge.values())),
+            )
+        )
+
+        return mzml_table
+
+    def parse_out_mgf(self) -> None:
+        def get_spectrum_id(spectrum_title, index):
+            if "scan=" in spectrum_title:
+                spectrum_id = spectrum_title
+            else:
+                spectrum_id = "index=" + str(index)
+            return spectrum_id
+
+        self.mgf_peak_distribution_plot = Histogram(
+            "Peak Intensity",
+            plot_category="range",
+            breaks=[0, 10, 100, 300, 500, 700, 900, 1000, 3000, 6000, 10000],
+        )
+        self.mgf_charge_plot = Histogram("Precursor Charge", plot_category="frequency")
+        self.mgf_peaks_ms2_plot = Histogram(
+            "#Peaks per MS/MS spectrum",
+            plot_category="range",
+            breaks=[i for i in range(0, 1001, 100)],
+        )
+
+        self.mgf_peak_distribution_plot_1 = copy.deepcopy(self.mgf_peak_distribution_plot)
+        self.mgf_charge_plot_1 = copy.deepcopy(self.mgf_charge_plot)
+        self.mgf_peaks_ms2_plot_1 = copy.deepcopy(self.mgf_peaks_ms2_plot)
+
+        heatmap_charge = dict()
+        mgf_rtinseconds = {"spectrumID": [], "title": [], "filename": [], "retention_time": []}
+
+        for m in self.mgf_paths:
+            self.log.info("{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+            mgf_data = mgf.MGF(m)
+            self.log.info(
+                "{}: Done parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
+            )
+            m = file_prefix(m)
+            self.log.info(
+                "{}: Aggregating MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
+            )
+
+            charge_2 = 0
+
+            for i, spectrum in enumerate(mgf_data):
+                charge_state = int(spectrum.get("params", {}).get("charge", [])[0])
+                if charge_state == 2:
+                    charge_2 += 1
+
+                peak_per_ms2 = len(spectrum["m/z array"])
+                base_peak_intensity = (
+                    max(spectrum["intensity array"])
+                    if len(spectrum["intensity array"]) > 0
+                    else None
+                )
+
+                raw_title = spectrum.get("params", {}).get("title", [])
+                mgf_rtinseconds["title"].append(raw_title)
+                title = get_spectrum_id(raw_title, i)
+                mgf_rtinseconds["spectrumID"].append(title)
+                mgf_rtinseconds["filename"].append(m)
+
+                rtinseconds = float(spectrum.get("params", {}).get("rtinseconds", None))
+                mgf_rtinseconds["retention_time"].append(rtinseconds)
+
+                if m in self.ms_with_psm:
+                    if title in self.identified_spectrum[m]:
+                        self.mgf_charge_plot.add_value(charge_state)
+                        self.mgf_peak_distribution_plot.add_value(base_peak_intensity)
+                        self.mgf_peaks_ms2_plot.add_value(peak_per_ms2)
+                    else:
+                        self.mgf_charge_plot_1.add_value(charge_state)
+                        self.mgf_peak_distribution_plot_1.add_value(base_peak_intensity)
+                        self.mgf_peaks_ms2_plot_1.add_value(peak_per_ms2)
+                else:
+                    if m not in self.ms_without_psm:
+                        self.ms_without_psm.append(m)
+            ms2_number = i + 1
+
+            heatmap_charge[m] = charge_2 / ms2_number
+            self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
+            self.log.info(
+                "{}: Done aggregating MGF file {}...".format(
+                    datetime.now().strftime("%H:%M:%S"), m
+                )
+            )
+
+        self.mgf_rtinseconds = pd.DataFrame(mgf_rtinseconds)
+
+        for i in self.ms_without_psm:
+            self.log.warning("No PSM found in '{}'!".format(i))
+
+        self.mgf_peaks_ms2_plot.to_dict()
+        self.mgf_peak_distribution_plot.to_dict()
+        self.mgf_peaks_ms2_plot_1.to_dict()
+        self.mgf_peak_distribution_plot_1.to_dict()
+        self.mgf_charge_plot.to_dict()
+        self.mgf_charge_plot_1.to_dict()
+
+        self.mgf_charge_plot.dict["cats"].update(self.mgf_charge_plot_1.dict["cats"])
+        charge_cats_keys = [int(i) for i in self.mgf_charge_plot.dict["cats"]]
+        charge_cats_keys.sort()
+        self.mgf_charge_plot.dict["cats"] = OrderedDict(
+            {str(i): self.mgf_charge_plot.dict["cats"][str(i)] for i in charge_cats_keys}
+        )
+
+        self.ms_info["charge_distribution"] = {
+            "identified_spectra": self.mgf_charge_plot.dict["data"],
+            "unidentified_spectra": self.mgf_charge_plot_1.dict["data"],
+        }
+        self.ms_info["peaks_per_ms2"] = {
+            "identified_spectra": self.mgf_peaks_ms2_plot.dict["data"],
+            "unidentified_spectra": self.mgf_peaks_ms2_plot_1.dict["data"],
+        }
+        self.ms_info["peak_distribution"] = {
+            "identified_spectra": self.mgf_peak_distribution_plot.dict["data"],
+            "unidentified_spectra": self.mgf_peak_distribution_plot_1.dict["data"],
+        }
+
+        median = np.median(list(heatmap_charge.values()))
+        self.heatmap_charge_score = dict(
+            zip(
+                heatmap_charge.keys(),
+                list(map(lambda v: 1 - np.abs(v - median), heatmap_charge.values())),
+            )
+        )
 
     def parse_out_mzid(self):
 
-        mzid_reader = MzIdentMLReader()
-        mzid_table = mzid_reader.read(self.mzid_paths)
+        # Use the class-based MzID reader
+        from pmultiqc.modules.common.ms.mzid import MzidReader
+
+        mzid_reader = MzidReader(self.mzid_paths)
+        mzid_reader.parse()
+        mzid_table = mzid_reader.filtered_mzid_df
 
         self.ms_with_psm = mzid_table["filename"].unique().tolist()
 
@@ -957,132 +1263,82 @@ class MzIdentMLModule(BaseModule):
                 "modified_peptide_num": 0,
             }
 
-        self.total_ms2_spectral_identified = psm["spectrumID"].nunique()
+        self.total_ms2_spectra_identified = psm["spectrumID"].nunique()
         self.total_peptide_count = psm["PeptideSequence"].nunique()
 
         return psm
 
     def cal_quantms_contaminant_percent(self, pep_df):
-        pass
+
+        group_stats = pep_df.groupby("stand_spectra_ref").agg(
+            total_intensity=("average_intensity", "sum"),
+            cont_intensity=(
+                "average_intensity",
+                lambda x: x[pep_df["accession"].str.contains("CONT")].sum(),
+            ),
+        )
+
+        group_stats["contaminant_percent"] = (
+            group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
+        )
+
+        result_dict = dict()
+        for k, v in dict(zip(group_stats.index, group_stats["contaminant_percent"])).items():
+            result_dict[k] = {"Potential Contaminants": v}
+
+        return result_dict
 
     def top_n_contaminant_percent(self, pep_df, top_n):
-        pass
 
-    def draw_quantms_identification(self, mzml_table):
-
-        # 1.ProteinGroups Count
-        draw_config = {
-            "id": "protein_group_count",
-            "cpswitch": False,
-            "title": "ProteinGroups Count",
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
-
-        if self.cal_num_table_data:
-            protein_count = {
-                sample: {"Count": info["protein_num"]}
-                for sample, info in self.cal_num_table_data.items()
-            }
-            peptide_count = {
-                sample: {"Count": info["peptide_num"]}
-                for sample, info in self.cal_num_table_data.items()
-            }
-        else:
-            return
-
-        bar_html = bargraph.plot(
-            protein_count,
-            pconfig=draw_config,
-        )
-        bar_html = remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["identification"],
-            plot=bar_html,
-            order=3,
-            description="Number of protein groups per raw file.",
-            helptext="""
-                Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
-                """,
-        )
-
-        # 2.Peptide ID Count
-        draw_config = {
-            "id": "peptide_id_count",
-            "cpswitch": False,
-            "title": "Peptide ID Count",
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
-        bar_html = bargraph.plot(
-            peptide_count,
-            pconfig=draw_config,
-        )
-        bar_html = remove_subtitle(bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["identification"],
-            plot=bar_html,
-            order=4,
-            description="""
-                Number of unique (i.e. not counted twice) peptide sequences including modifications per Raw file.
-                """,
-            helptext="""
-                Based on statistics calculated from mzTab, mzIdentML (mzid), or DIA-NN report files.
-                """,
-        )
-
-        # 3.Missed Cleavages Per Raw File
-        if self.quantms_missed_cleavages:
-            mc_group = {}
-            for sample, counts in self.quantms_missed_cleavages.items():
-                mc_group[sample] = {"0": 0, "1": 0, ">=2": 0}
-                for mc, count in counts.items():
-                    if mc == 0:
-                        mc_group[sample]["0"] += count
-                    elif mc == 1:
-                        mc_group[sample]["1"] += count
-                    else:
-                        mc_group[sample][">=2"] += count
-
-            mc_group_ratio = {}
-            for sample, counts in mc_group.items():
-                total = sum(counts.values())
-                if total == 0:
-                    mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
-                    continue
-                mc_group_ratio[sample] = {
-                    group: count / total * 100 for group, count in counts.items()
-                }
-
-            mc_data = {"plot_data": mc_group_ratio, "cats": ["0", "1", ">=2"]}
-            draw_msms_missed_cleavages(
-                self.sub_sections["identification"], mc_data, False
+        not_cont_tag = "NOT_CONT"
+        pep_df["cont_accession"] = pep_df["accession"].apply(
+            lambda x: (
+                x.replace("CONTAMINANT_", "") if x.startswith("CONTAMINANT_") else not_cont_tag
             )
+        )
 
-        # 5.MS/MS Identified per Raw File
-        if self.identified_msms_spectra and mzml_table:
+        pep_contaminant_df = pep_df[pep_df["cont_accession"] != not_cont_tag].copy()
+        contaminant_df = (
+            pep_contaminant_df.groupby("cont_accession", as_index=False)["average_intensity"]
+            .sum()
+            .sort_values(by="average_intensity", ascending=False)
+        )
 
-            msms_identified_rate = dict()
+        top_contaminants = list(contaminant_df.head(top_n).cont_accession)
 
-            for m in self.identified_msms_spectra.keys():
-                identified_ms2 = self.identified_msms_spectra[m].get("Identified", 0)
-                all_ms2 = mzml_table.get(m, {}).get("MS2_Num", 0)
+        plot_dict = dict()
+        plot_cats = list()
 
-                if all_ms2 > 0:
-                    msms_identified_rate[m] = {"Identified Rate": (identified_ms2 / all_ms2) * 100}
+        for file_name, group in pep_df.groupby("stand_spectra_ref"):
 
-            draw_ms_ms_identified(
-                self.sub_sections["identification"], msms_identified_rate
+            contaminant_rows = group[group["cont_accession"] != not_cont_tag].copy()
+            contaminant_rows.loc[
+                ~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"
+            ] = "Other"
+
+            cont_df = (
+                contaminant_rows.groupby("cont_accession", as_index=False)["average_intensity"]
+                .sum()
+                .sort_values(by="average_intensity", ascending=False)
+                .reset_index(drop=True)
             )
+            cont_df["contaminant_percent"] = (
+                cont_df["average_intensity"] / group["average_intensity"].sum()
+            ) * 100
 
-    def draw_quantms_quantification(self):
-        pass
+            plot_dict[file_name] = dict(
+                zip(cont_df["cont_accession"], cont_df["contaminant_percent"])
+            )
+            plot_cats.extend(cont_df["cont_accession"].tolist())
 
-    def draw_quantms_msms_section(self):
-        # 1.Charge-state of Per File
-        pass
+        plot_cats = list(set(plot_cats))
+        if "Other" in plot_cats:
+            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [
+                x for x in plot_cats if x == "Other"
+            ]
 
-    def draw_quantms_time_section(self):
-        pass
+        result_dict = dict()
+        result_dict["plot_data"] = plot_dict
+        result_dict["cats"] = plot_cats_ordered
+
+        return result_dict

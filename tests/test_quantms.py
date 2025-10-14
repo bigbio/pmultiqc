@@ -1,8 +1,6 @@
 import logging
 import os
 
-from pmultiqc.modules.quantms import QuantMSModule
-
 TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), "resources")
 
 

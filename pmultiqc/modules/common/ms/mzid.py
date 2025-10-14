@@ -1,65 +1,35 @@
+from __future__ import annotations
 
-"""
-MzIdentML file reading functionality
-"""
-
-from __future__ import absolute_import
-import logging
+import os
+from pathlib import Path
 import pandas as pd
 from datetime import datetime
 from pyteomics import mzid
 
-from pmultiqc.modules.common.file_utils import file_prefix, parse_location
-from pmultiqc.modules.common.id.idreader import IDReader
-
-# Initialise the main MultiQC logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from pmultiqc.modules.common.ms.base import BaseParser
+from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.file_utils import file_prefix
 
 
-class MzIdentMLReader(IDReader):
-    """Class for reading and processing MzIdentML files"""
+class MzidReader(BaseParser):
+    def __init__(
+        self,
+        file_paths: list[str, Path],
+    ) -> None:
+        
+        super().__init__(file_paths)
 
+        # Outputs populated by parse()
+        self.filtered_mzid_df: pd.DataFrame = pd.DataFrame()
 
-    def _process_modification(self, modification):
-        """
-        Process modification information from mzIdentML
+        self.log = get_logger("pmultiqc.modules.common.ms.mzid")
 
-        Args:
-            modification: Modification data (list or other type)
-
-        Returns:
-            str or None: Formatted modification string or None if not a list
-        """
-        if not isinstance(modification, list):
-            modifications = None
-        else:
-            modifi_list = list()
-            for i in modification:
-                if i.get("name", None) is not None:
-                    modifi_list.append(str(i.get("location")) + "-" + i.get("name", None))
-                elif i.get("cross-link receiver", None) is not None:
-                    modifi_list.append(str(i.get("location")) + "-CrossLinkReceiver")
-            modifications = ";".join(modifi_list)
-        return modifications
-
-    def read(self, file_paths=None):
-        """
-        Read MzIdentML files and extract information
-
-        Args:
-            file_paths: List of paths to MzIdentML files (optional, uses self.file_paths if not provided)
-
-        Returns:
-            pandas.DataFrame: Processed MzIdentML data
-        """
-        # Use provided file_paths or fall back to instance attribute
-        file_paths = file_paths or self.file_paths
+    def parse(self, **kwargs) -> None:
 
         mzid_dicts = list()
-        for file_path in file_paths:
+        for file_path in self.file_paths:
 
-            log.info(
+            self.log.info(
                 "{}: Parsing MzIdentML file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), file_path
                 )
@@ -70,13 +40,13 @@ class MzIdentMLReader(IDReader):
             if len(mzid_data) == 0:
                 raise ValueError("Please check your MzIdentML", file_path)
 
-            log.info(
+            self.log.info(
                 "{}: Done parsing MzIdentML file {}.".format(
                     datetime.now().strftime("%H:%M:%S"), file_path
                 )
             )
             m = file_prefix(file_path)
-            log.info(
+            self.log.info(
                 "{}: Aggregating MzIdentML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
             )
 
@@ -136,7 +106,7 @@ class MzIdentMLReader(IDReader):
                             "Andromeda:score",
                         ]
                         mzid_dicts.append({k: v for k, v in mzid_dict.items() if k in need_keys})
-            log.info(
+            self.log.info(
                 "{}: Done aggregating MzIdentML file {}...".format(
                     datetime.now().strftime("%H:%M:%S"), m
                 )
@@ -156,7 +126,7 @@ class MzIdentMLReader(IDReader):
         ]
         missing_cols = [col for col in check_list if col not in mzid_df.columns]
         if missing_cols:
-            log.warning(f"MzIdentML file is missing required fields: {missing_cols}")
+            self.log.warning(f"MzIdentML file is missing required fields: {missing_cols}")
 
         # Filter out contaminants: "Cont"
         filtered_mzid_df = mzid_df[~mzid_df["accession"].str.lower().str.startswith("cont")].copy()
@@ -173,16 +143,18 @@ class MzIdentMLReader(IDReader):
         )
 
         if "search_engine_score" not in filtered_mzid_df.columns:
-            log.warning("Please check the 'search_engine_score' field in the mzIdentML file.")
+            self.log.warning(
+                "Please check the 'search_engine_score' field in the mzIdentML file."
+            )
 
         if "retention time" in filtered_mzid_df.columns:
             filtered_mzid_df.rename(columns={"retention time": "retention_time"}, inplace=True)
 
         if "location" in filtered_mzid_df.columns:
-            filtered_mzid_df["location"] = filtered_mzid_df["location"].apply(parse_location)
+            filtered_mzid_df["location"] = filtered_mzid_df["location"].apply(self.parse_location)
 
         filtered_mzid_df["Modifications"] = filtered_mzid_df["Modification"].apply(
-            self._process_modification
+            lambda x: self.process_modification(x)
         )
 
         filtered_mzid_df["accession_group"] = filtered_mzid_df.groupby(
@@ -200,4 +172,26 @@ class MzIdentMLReader(IDReader):
         else:
             filtered_mzid_df["filename"] = filtered_mzid_df["mzid_file_name"]
 
-        return filtered_mzid_df
+        self.filtered_mzid_df = filtered_mzid_df
+
+        return None
+
+    @staticmethod
+    def parse_location(location):
+        if "\\" in location:
+            location = location.replace("\\", "/")
+        return os.path.basename(location)
+
+    @staticmethod
+    def process_modification(modification):
+        if not isinstance(modification, list):
+            modifications = None
+        else:
+            modifi_list = list()
+            for i in modification:
+                if i.get("name", None) is not None:
+                    modifi_list.append(str(i.get("location")) + "-" + i.get("name", None))
+                elif i.get("cross-link receiver", None) is not None:
+                    modifi_list.append(str(i.get("location")) + "-CrossLinkReceiver")
+            modifications = ";".join(modifi_list)
+        return modifications

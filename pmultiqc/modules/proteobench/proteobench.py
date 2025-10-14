@@ -1,56 +1,34 @@
-import logging
+import os
 
 from .proteobench_utils import get_pb_data
+from ..base import BasePMultiqcModule
 from ..core.section_groups import add_group_modules, add_sub_section
-from ..common.base_module import BaseModule
 
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+class ProteoBenchModule(BasePMultiqcModule):
 
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-class ProteoBenchModule(BaseModule):
-
-    def __init__(self, find_log_files_func, sub_sections):
-        
-        # Define file patterns for this module
-        self.file_patterns = {
-            "proteobench_result": "pmultiqc/proteobench_result"
-        }
-
-        # Call parent constructor
-        super().__init__(
-            find_log_files_func=find_log_files_func,
-            sub_sections=sub_sections,
-            module_name="proteobench"
-        )
-
-        # Initialize module-specific attributes
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
+        self.section_group_dict = None
         self.pb_results = None
 
-    def _initialize_module(self):
-        
-        # Discover required files
-        self.file_paths = self._discover_files(self.file_patterns)
+    def get_data(self) -> bool | None:
 
-        # Validate required files
-        self._validate_required_files(self.file_paths)
+        pb_file_path = []
+        for pb_result in self.find_log_files("pmultiqc/proteobench_result", filecontents=False):
+            pb_file_path.append(os.path.join(pb_result["root"], pb_result["fn"]))
 
-    def get_data(self):
-        """Extract and process ProteoBench data."""
-        
-        pb_file_path = self.file_paths.get("proteobench_result")
+        if len(pb_file_path) != 1:
+            raise ValueError(
+                f"Multiple ProteoBench result files found ({len(pb_file_path)}): {', '.join(pb_file_path)}. Please ensure only one result file is present."
+            )
 
-        if not pb_file_path:
-            raise ValueError("ProteoBench result file not found")
+        self.pb_results = get_pb_data(pb_file_path[0])
 
-        self.pb_results = get_pb_data(pb_file_path)
-        self.results = self.pb_results
+        return True
 
-        return self.pb_results
-
-    def draw_plots(self):
-        
+    def draw_plots(self) -> None:
         self.log.info("Start plotting the ProteoBench results...")
 
         # 1. precursor ion
@@ -214,7 +192,6 @@ class ProteoBenchModule(BaseModule):
                 """,
         )
 
-        # Create section groups manually (legacy approach for now)
         self.section_group_dict = {
             "precursor_sub_section": precursor_sub_section,
             "log_mean_sub_section": log_mean_sub_section,
