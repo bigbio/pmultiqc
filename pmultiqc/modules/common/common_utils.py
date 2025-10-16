@@ -186,6 +186,10 @@ def parse_mzml(
         mzml_table = mzml_reader.mzml_table
         heatmap_charge = mzml_reader.heatmap_charge
         total_ms2_spectra = mzml_reader.total_ms2_spectra
+        ms1_tic = mzml_reader.ms1_tic
+        ms1_bpc = mzml_reader.ms1_bpc
+        ms1_peaks = mzml_reader.ms1_peaks
+        ms1_general_stats = mzml_reader.ms1_general_stats
 
         if enable_mzid:
             mzml_ms_df = mzml_reader.mzml_ms_df

@@ -104,6 +104,8 @@ class MzidReader(BaseParser):
                             "chargeState",
                             "mzid_file_name",
                             "Andromeda:score",
+                            "Proteome Discoverer Delta Score",
+                            "MS-GF:SpecEValue",
                         ]
                         mzid_dicts.append({k: v for k, v in mzid_dict.items() if k in need_keys})
             self.log.info(
@@ -137,6 +139,8 @@ class MzidReader(BaseParser):
             "PEAKS:peptideScore",
             "xi:score",
             "Andromeda:score",
+            "Proteome Discoverer Delta Score",
+            "MS-GF:SpecEValue",
         ]
         filtered_mzid_df.rename(
             columns=lambda x: "search_engine_score" if x in search_engines else x, inplace=True
