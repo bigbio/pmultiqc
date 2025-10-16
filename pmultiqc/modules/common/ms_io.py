@@ -18,7 +18,7 @@ SECOND_RESOLUTION = 5
 
 def get_ms_qc_info(ms_info: pd.DataFrame):
     """
-    Compute MS QC summary data structures from MS info DataFrame.
+    Compute MS QC summary data structures from MS info DataFrame (or from mzML DataFrame).
 
     Note: Use min instead of mean to better expose major fluctuations (low intensity scans).
 
@@ -27,6 +27,12 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
     """
     ms1_info = ms_info[ms_info["ms_level"] == 1].copy()
     ms2_info = ms_info[ms_info["ms_level"] == 2].copy()
+
+    if ms1_info.empty:
+        log.warning("MS1 MS info DataFrame is empty. 'MS1 analysis' cannot be generated.")
+
+        return None, None, None, None
+
     ms1_info["rt_normalize"] = (ms1_info.sort_values(by="rt")["rt"] / SECOND_RESOLUTION).astype(int)
 
     tic_data = ms1_info.groupby("rt_normalize")[

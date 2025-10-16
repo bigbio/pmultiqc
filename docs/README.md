@@ -215,7 +215,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | MaxQuant | MaxQuant results | [MaxQuant Example](https://bigbio.github.io/pmultiqc/PXD003133/multiqc_report.html) |
 | MaxQuant DIA | MaxQuant DIA results | [MaxQuant DIA Example](https://bigbio.github.io/pmultiqc/MaxDIA/multiqc_report.html) |
 | ProteoBench | ProteoBench results | [ProteoBench Example](https://bigbio.github.io/pmultiqc/ProteoBench/multiqc_report.html) |
-| mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://bigbio.github.io/pmultiqc/PXD051187/multiqc_report.html) |
+| mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://bigbio.github.io/pmultiqc/PXD053068/multiqc_report.html) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://bigbio.github.io/pmultiqc/PXD054720/multiqc_report.html) |
 
 ## 👥 Contributing
