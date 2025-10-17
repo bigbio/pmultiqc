@@ -77,11 +77,7 @@
                 "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Q00745.mzML",
                 "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Q00745.mzid.gz",
                 "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzML",
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzid.gz",
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-1.mzML",
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-1.mzid.gz",
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-2.mzML",
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-2.mzid.gz"
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzid.gz"
             ],
             "path": "docs/PXD053068",
             "file_type": "mzid"
