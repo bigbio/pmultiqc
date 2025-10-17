@@ -149,10 +149,10 @@ jobs:
           wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Q00745.mzid.gz
           wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzML
           wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzid.gz
-          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-1.mzML
-          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-1.mzid.gz
-          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-2.mzML
-          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-2.mzid.gz
+          # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-1.mzML
+          # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-1.mzid.gz
+          # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-2.mzML
+          # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-2.mzid.gz
           gunzip ~/mzid_mzML/*.mzid.gz
           multiqc --mzid_plugin ~/mzid_mzML -o ./results_mzid_mzML
       - uses: actions/upload-artifact@v4
