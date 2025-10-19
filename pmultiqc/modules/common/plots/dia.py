@@ -519,5 +519,4 @@ def extract_condition_and_replicate(run_name):
         log.warning("Failed to identify condition groups in DIA report.tsv!")
         return None
 # re-export by moving file; contents will be identical after move.
-# We'll import from the old module path in callers changed to new path.
 
