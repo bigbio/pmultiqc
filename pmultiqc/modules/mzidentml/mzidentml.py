@@ -26,7 +26,8 @@ from pmultiqc.modules.common.plots import id as id_plots
 from pmultiqc.modules.common.plots.ms import (
     draw_precursor_charge_distribution,
     draw_peak_intensity_distribution,
-    draw_peaks_per_ms2
+    draw_peaks_per_ms2,
+    draw_ms_information,
 )
 from pmultiqc.modules.common.plots.general import (
     remove_subtitle,
@@ -93,7 +94,10 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.quantms_missed_cleavages = dict()
         self.quantms_modified = dict()
         self.identified_msms_spectra = dict()
-
+        self.ms1_tic: dict = {}
+        self.ms1_bpc: dict = {}
+        self.ms1_peaks: dict = {}
+        self.ms1_general_stats: dict = {}
 
     def get_data(self) -> bool | None:
         self.log.info("Start parsing the MzIdentML results and spectra files...")
@@ -168,6 +172,14 @@ class MzIdentMLModule(BasePMultiqcModule):
             heatmap_xnames,
             heatmap_ynames,
             False,
+        )
+
+        draw_ms_information(
+            self.sub_sections["ms1"],
+            self.ms1_tic,
+            self.ms1_bpc,
+            self.ms1_peaks,
+            self.ms1_general_stats
         )
 
         id_plots.draw_summary_protein_ident_table(
@@ -1000,6 +1012,10 @@ class MzIdentMLModule(BasePMultiqcModule):
         heatmap_charge = mzml_reader.heatmap_charge
         self.total_ms2_spectra = mzml_reader.total_ms2_spectra
         self.mzml_ms_df = mzml_reader.mzml_ms_df
+        self.ms1_tic = mzml_reader.ms1_tic
+        self.ms1_bpc = mzml_reader.ms1_bpc
+        self.ms1_peaks = mzml_reader.ms1_peaks
+        self.ms1_general_stats = mzml_reader.ms1_general_stats
 
         for i in self.ms_without_psm:
             self.log.warning("No PSM found in '{}'!".format(i))

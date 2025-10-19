@@ -143,9 +143,17 @@ jobs:
       - name: Test mzid & mzML file
         run: |
           mkdir -p ~/mzid_mzML
-          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzML
-          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzid.gz
-          gunzip ~/mzid_mzML/33060_Control_vs_Infection_JMI.mzid.gz
+          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/F10854.mzML
+          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/F10854.mzid.gz
+          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Q00745.mzML
+          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Q00745.mzid.gz
+          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzML
+          wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzid.gz
+          # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-1.mzML
+          # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-1.mzid.gz
+          # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-2.mzML
+          # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-2.mzid.gz
+          gunzip ~/mzid_mzML/*.mzid.gz
           multiqc --mzid_plugin ~/mzid_mzML -o ./results_mzid_mzML
       - uses: actions/upload-artifact@v4
         if: always()

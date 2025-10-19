@@ -4,10 +4,12 @@ from pathlib import Path
 from datetime import datetime
 from pyopenms import MzMLFile, MSExperiment
 import pandas as pd
+import numpy as np
 
 from pmultiqc.modules.common.ms.base import BaseParser
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.ms_io import get_ms_qc_info
 
 
 class MzMLReader(BaseParser):
@@ -76,51 +78,89 @@ class MzMLReader(BaseParser):
         total_ms2_spectra = 0
 
         mzml_ms_dicts = list()
-        
-        for m in self.file_paths:
+        ms1_tic = dict()
+        ms1_bpc = dict()
+        ms1_peaks = dict()
+        ms1_general_stats = dict()
+
+        for file_name in self.file_paths:
             ms1_number = 0
             ms2_number = 0
 
             self.log.info(
-                "{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
+                "{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), file_name)
             )
 
-            exp = MSExperiment()
-            MzMLFile().load(m, exp)
+            mzml_exp = MSExperiment()
+            MzMLFile().load(file_name, mzml_exp)
             self.log.info(
-                "{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
+                "{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), file_name)
             )
 
-            m_name = file_prefix(m)
+            m_name = file_prefix(file_name)
             self.log.info(
                 "{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m_name)
             )
 
+            spectrums_data = list()
+
+            if mzml_exp.getMetaValue("acquisition_date_time"):
+                acquisition_datetime = str(mzml_exp.getMetaValue("acquisition_date_time"))
+            elif mzml_exp.getDateTime().get():
+                acquisition_datetime = str(mzml_exp.getDateTime().get())
+            else:
+                acquisition_datetime = ""
+
             charge_2 = 0
-            for i in exp:
-                if i.getMSLevel() == 1:
+            for spectrum in mzml_exp:
+
+                mz_array, intensity_array = spectrum.get_peaks()
+                num_peaks = len(mz_array)
+
+                if num_peaks == 0:
+                    continue
+
+                summed_peak_intensities = float(np.sum(intensity_array))
+
+                ms_level = spectrum.getMSLevel()
+                rt = spectrum.getRT()
+                scan_id = spectrum.getNativeID()
+
+                spectrums_data.append(
+                    {
+                        "scan_id": scan_id,
+                        "ms_level": ms_level,
+                        "summed_peak_intensities": summed_peak_intensities,
+                        "rt": rt,
+                        "num_peaks": num_peaks,
+                        "acquisition_datetime": acquisition_datetime,
+                    }
+                )
+
+                if ms_level == 1:
                     ms1_number += 1
-                elif i.getMSLevel() == 2:
+
+                elif ms_level == 2:
                     ms2_number += 1
-                    charge_state = i.getPrecursors()[0].getCharge()
-                    peaks_tuple = i.get_peaks()
+
+                    charge_state = spectrum.getPrecursors()[0].getCharge()
 
                     if self.enable_mzid:
                         # retention_time: minute
                         mzml_ms_dicts.append(
                             {
-                                "spectrumID": i.getNativeID(),
-                                "intensity": float(peaks_tuple[1].max()),
-                                "retention_time": i.getRT() / 60,
+                                "spectrumID": scan_id,
+                                "intensity": float(intensity_array.max()),
+                                "retention_time": rt / 60,
                                 "filename": m_name,
                             }
                         )
 
-                    peak_per_ms2 = len(peaks_tuple[0])
-                    if i.getMetaValue("base peak intensity"):
-                        base_peak_intensity = i.getMetaValue("base peak intensity")
+                    peak_per_ms2 = len(mz_array)
+                    if spectrum.getMetaValue("base peak intensity"):
+                        base_peak_intensity = spectrum.getMetaValue("base peak intensity")
                     else:
-                        base_peak_intensity = max(peaks_tuple[1]) if len(peaks_tuple[1]) > 0 else None
+                        base_peak_intensity = max(intensity_array) if len(intensity_array) > 0 else None
 
                     if charge_state == 2:
                         charge_2 += 1
@@ -132,7 +172,7 @@ class MzMLReader(BaseParser):
                         continue
 
                     if m_name in self.ms_with_psm:
-                        if i.getNativeID() in self.identified_spectrum[m_name]:
+                        if scan_id in self.identified_spectrum[m_name]:
                             self.mzml_charge_plot.add_value(charge_state)
                             self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
                             self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
@@ -153,10 +193,29 @@ class MzMLReader(BaseParser):
                     datetime.now().strftime("%H:%M:%S"), m_name
                 )
             )
-        
+
+            spectrums_df = pd.DataFrame(spectrums_data)
+
+            (
+                ms1_tic[m_name],
+                ms1_bpc[m_name],
+                ms1_peaks[m_name],
+                ms1_general_stats[m_name],
+            ) = get_ms_qc_info(spectrums_df)
+
         self.mzml_table = mzml_table
         self.heatmap_charge = heatmap_charge
         self.total_ms2_spectra = total_ms2_spectra
         self.mzml_ms_df = pd.DataFrame(mzml_ms_dicts)
+
+        ms1_tic = {k: v for k, v in ms1_tic.items() if v is not None}
+        ms1_bpc = {k: v for k, v in ms1_bpc.items() if v is not None}
+        ms1_peaks = {k: v for k, v in ms1_peaks.items() if v is not None}
+        ms1_general_stats = {k: v for k, v in ms1_general_stats.items() if v is not None}
+
+        self.ms1_tic = ms1_tic
+        self.ms1_bpc = ms1_bpc
+        self.ms1_peaks = ms1_peaks
+        self.ms1_general_stats = ms1_general_stats
 
         return None
