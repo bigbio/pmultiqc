@@ -131,7 +131,13 @@ multiqc --maxquant_plugin /path/to/maxquant/results -o ./report
 #### For DIA-NN results
 
 ```bash
+# Discover report inside a results folder
 multiqc --diann_plugin /path/to/diann/results -o ./report
+
+# Directly pass a DIA-NN report file (TSV or Parquet)
+# Note: MultiQC requires an analysis directory argument; use '.' as a placeholder
+multiqc --diann_plugin --diann_report /path/to/report.tsv . -o ./report
+multiqc --diann_plugin --diann_report /path/to/report.parquet . -o ./report
 ```
 
 #### For ProteoBench files
@@ -162,6 +168,7 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--ignored_idxml` | Ignore idXML files for faster processing | `False` |
 | `--quantms_plugin` | Generate reports based on Quantms results | `False` |
 | `--diann_plugin` | Generate reports based on DIANN results | `False` |
+| `--diann_report` | Path to DIA-NN main report (.tsv or .parquet). When provided with `--diann_plugin`, you can use `.` as the analysis directory placeholder. | - |
 | `--maxquant_plugin` | Generate reports based on MaxQuant results | `False` |
 | `--proteobench_plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
