@@ -574,14 +574,12 @@ def draw_maxquant_summary_table(
         summary_table[msms_spectra]["#Peptides Identified"] = identified_peptides
 
     if protein_dict:
-        if protein_dict["num_proteins_identified"]:
-            summary_table[msms_spectra]["#Proteins Identified"] = protein_dict[
-                "num_proteins_identified"
-            ]
-        if protein_dict["num_proteins_quantified"]:
-            summary_table[msms_spectra]["#Proteins Quantified"] = protein_dict[
-                "num_proteins_quantified"
-            ]
+        n_id = protein_dict.get("num_proteins_identified")
+        if n_id:
+            summary_table[msms_spectra]["#Proteins Identified"] = n_id
+        n_q = protein_dict.get("num_proteins_quantified")
+        if n_q:
+            summary_table[msms_spectra]["#Proteins Quantified"] = n_q
 
     headers = {"#Identified MS2 Spectra": {
         "description": "Total number of MS/MS spectra identified",

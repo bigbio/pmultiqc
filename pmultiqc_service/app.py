@@ -1180,7 +1180,6 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
         logger.info(f"Starting HTML report processing for PRIDE job {job_id}")
 
         # Copy HTML report to public directory for online viewing
-        html_urls = None
         try:
             logger.info(
                 f"Starting HTML report copying for PRIDE job {job_id}, output_dir: {output_dir}"
@@ -1964,7 +1963,6 @@ async def index(request: Request):
 
     Parameters:
         request: Request object
-        config: Configuration object
 
     Returns:
         HTMLResponse: index.html template with upload interface and PRIDE submission page
@@ -1980,7 +1978,6 @@ async def submit_pride(request: Request):
 
     Parameters:
         request: Request object
-        config: Configuration object
 
     Returns:
         HTMLResponse: submit.html template with PRIDE submission page
@@ -2017,7 +2014,6 @@ async def view_results(request: Request):
 
     Parameters:
         request: Request object
-        job (query param): Job ID
 
     Returns:
         HTMLResponse: results.html template with results page
@@ -2683,7 +2679,6 @@ async def job_status_api(job_id: str):
                 return response_data
 
             # Return a proper JSON response with not_found status instead of 404
-            base_url = BASE_URL.rstrip("/")
             return {
                 "job_id": job_id,
                 "status": "not_found",

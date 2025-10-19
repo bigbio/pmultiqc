@@ -943,16 +943,11 @@ class MzIdentMLModule(BasePMultiqcModule):
     def dis_decoy(protein_name):
         if config.kwargs["decoy_affix"] not in protein_name:
             return "TARGET"
-        elif protein_name.split(";") == 1:
+        elif len(protein_name.split(";")) == 1:
             return "DECOY"
         else:
             if config.kwargs["affix_type"] == "prefix":
-                if list(
-                    filter(
-                        lambda x: lambda x: not x.startswith(config.kwargs["decoy_affix"]),
-                        protein_name.split(";"),
-                    )
-                ):
+                if any(not name.startswith(config.kwargs["decoy_affix"]) for name in protein_name.split(";")):
                     return "TARGET"
                 return "DECOY"
             else:
@@ -1348,10 +1343,9 @@ class MzIdentMLModule(BasePMultiqcModule):
             plot_cats.extend(cont_df["cont_accession"].tolist())
 
         plot_cats = list(set(plot_cats))
+        plot_cats_ordered = plot_cats
         if "Other" in plot_cats:
-            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [
-                x for x in plot_cats if x == "Other"
-            ]
+            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + ["Other"]
 
         result_dict = dict()
         result_dict["plot_data"] = plot_dict
