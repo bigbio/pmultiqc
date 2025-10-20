@@ -241,7 +241,7 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
             linegraph_html = linegraph.plot(data=linegraph_data, pconfig=draw_line_config)
 
             linegraph_html = remove_subtitle(linegraph_html)
-        
+
         else:
             linegraph_html = None
 
