@@ -48,7 +48,6 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         super().__init__(find_log_files_func, sub_sections, heatmap_colors)
 
-        self.ms_without_psm = None
         self.oversampling_plot = None
         self.pep_plot = None
         self.mgf_rtinseconds = None
@@ -59,7 +58,6 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.mgf_charge_plot = None
         self.mgf_peak_distribution_plot = None
         self.mzml_ms_df = None
-        self.ms_without_psm = None
         self.mzml_peaks_ms2_plot_1 = None
         self.mzml_charge_plot_1 = None
         self.mzml_peak_distribution_plot_1 = None
@@ -267,7 +265,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             "Pep Missing Values",
         ]
         ynames = []
-        for k, v in self.heatmap_charge_score.items():
+        for k, _ in self.heatmap_charge_score.items():
             if k in self.ms_with_psm:
                 ynames.append(k)
                 heat_map_score.append(
@@ -284,10 +282,10 @@ class MzIdentMLModule(BasePMultiqcModule):
 
     def draw_mzid_identi_num(self):
         pconfig = {
-            "id": "result statistics",  # ID used for the table
+            "id": "result_statistics",  # ID used for the table
             "title": "Pipeline Result Statistics",  # Title of the table. Used in the column config modal
             "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_result statistics_table",  # File basename to use for raw data file
+            "raw_data_fn": "multiqc_result_statistics_table",  # File basename to use for raw data file
             "sort_rows": True,  # Whether to sort rows alphabetically
             "only_defined_headers": False,  # Only show columns that are defined in the headers config
             "col1_header": "Spectra File",
@@ -848,7 +846,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                 enzyme_iter = mzid.MzIdentML(mzid_path).iterfind("Enzyme")
                 enzyme = next(enzyme_iter).get("EnzymeName", None)
                 if enzyme:
-                    enzyme_name = list(enzyme.keys())[0]
+                    enzyme_name = next(iter(enzyme.keys()))
                 else:
                     enzyme_name = "Trypsin"
                 enzyme_list.append(enzyme_name)
@@ -908,6 +906,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                         self.missed_clevages_heatmap_score.values(),
                     )
                 ),
+                strict=True
             )
         )
         self.log.info(
@@ -938,27 +937,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                 sequence[:-1].replace("K", "").replace("R", "")
             )
         return miss_cleavages
-
-    @staticmethod
-    def dis_decoy(protein_name):
-        if config.kwargs["decoy_affix"] not in protein_name:
-            return "TARGET"
-        elif len(protein_name.split(";")) == 1:
-            return "DECOY"
-        else:
-            if config.kwargs["affix_type"] == "prefix":
-                if any(not name.startswith(config.kwargs["decoy_affix"]) for name in protein_name.split(";")):
-                    return "TARGET"
-                return "DECOY"
-            else:
-                if list(
-                    filter(
-                        lambda x: not x.endswith(config.kwargs["decoy_affix"]),
-                        protein_name.split(";"),
-                    )
-                ):
-                    return "TARGET"
-                return "DECOY"
 
     def parse_mzml(self):
 
@@ -1095,7 +1073,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             )
 
             charge_2 = 0
-
+            ms2_number = 0
             for i, spectrum in enumerate(mgf_data):
                 charge_state = int(spectrum.get("params", {}).get("charge", [])[0])
                 if charge_state == 2:
@@ -1129,7 +1107,8 @@ class MzIdentMLModule(BasePMultiqcModule):
                 else:
                     if m not in self.ms_without_psm:
                         self.ms_without_psm.append(m)
-            ms2_number = i + 1
+                
+                ms2_number = i + 1
 
             heatmap_charge[m] = charge_2 / ms2_number
             self.total_ms2_spectra = self.total_ms2_spectra + ms2_number

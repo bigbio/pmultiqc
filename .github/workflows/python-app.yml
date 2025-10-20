@@ -226,8 +226,9 @@ jobs:
       - name: Test MaxQuant DIA file
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/maxquant/MaxDIA_txt.zip
-          unzip MaxDIA_txt.zip
-          multiqc --maxquant_plugin ./MaxDIA_txt -o ./results_maxquant_dia
+          mkdir -p ./maxdia
+          unzip -d ./maxdia MaxDIA_txt.zip
+          multiqc --maxquant_plugin ./maxdia -o ./results_maxquant_dia
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results

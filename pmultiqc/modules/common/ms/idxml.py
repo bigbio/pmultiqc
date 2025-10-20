@@ -53,7 +53,7 @@ class IdXMLReader(BaseParser):
         self.comet_label = False
         self.sage_label = False
 
-    def parse(self, **kwargs) -> None:
+    def parse(self, **_kwargs) -> None:
         # Reuse the previously implemented logic (kept below)
         idx_paths = list(self.file_paths or [])
         mzml_table = self.mzml_table
@@ -253,12 +253,8 @@ class IdXMLReader(BaseParser):
             else:
                 mzml_table[ms_name][search_engine_name] = identified_num
 
-            mzml_table[ms_name]["num_quant_psms"] = (
-                ml_spec_ident_final[ms_name] if ms_name in ml_spec_ident_final.keys() else 0
-            )
-            mzml_table[ms_name]["num_quant_peps"] = (
-                len(mzml_peptide_map[ms_name]) if ms_name in ml_spec_ident_final.keys() else 0
-            )
+            mzml_table[ms_name]["num_quant_psms"] = ml_spec_ident_final.get(ms_name, 0)
+            mzml_table[ms_name]["num_quant_peps"] = len(mzml_peptide_map.get(ms_name, []))
 
         for raw_id in consensus_paths:
             self.log.info(

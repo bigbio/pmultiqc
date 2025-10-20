@@ -61,7 +61,13 @@ def read(
     }
 
     file_name = get_filename(file)
-    with Timer(logger, f"Reading file {os.path.basename(file_name)}"):
+    if isinstance(file_name, str):
+        display_name = os.path.basename(file_name)
+    elif isinstance(file, (str, Path)):
+        display_name = os.path.basename(str(file))
+    else:
+        display_name = "buffer"
+    with Timer(logger, f"Reading file {display_name}"):
 
         if file_type in needed_cols_map:
 
@@ -411,11 +417,11 @@ def peptide_per_protein(pg_data):
     result = [
         {
             str(k): {"Frequency": v}
-            for k, v in zip(final_count_df["peptide_count"], final_count_df["frequency"])
+            for k, v in zip(final_count_df["peptide_count"], final_count_df["frequency"], strict=True)
         },
         {
             str(k): {"Percentage": v}
-            for k, v in zip(final_count_df["peptide_count"], final_count_df["percentage"])
+            for k, v in zip(final_count_df["peptide_count"], final_count_df["percentage"], strict=True)
         },
     ]
 
@@ -589,6 +595,7 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
             "raw file",
             "retention time",
             "charge",
+            "modified sequence",
         ]
     ):
         return None
@@ -654,7 +661,8 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
     for raw_file, group in evidence_data.loc[
         ~evidence_data["is_transferred"], ["charge", "raw file"]
     ].groupby("raw file"):
-        charge[raw_file] = group["charge"].value_counts()[2] / len(group)
+        c_counts = group["charge"].value_counts()
+        charge[raw_file] = c_counts.get(2, 0) / len(group)
     charge_median = np.median(list(charge.values()))
     heatmap_charge = dict(
         zip(
@@ -1359,7 +1367,7 @@ def search_engine_scores(msms_df):
         score_dist = group["score_bin"].value_counts().sort_index().reset_index()
 
         plot_data.append(
-            {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"])}
+            {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)}
         )
         data_labels.append({"name": name, "ylab": "Counts"})
 
@@ -1629,8 +1637,10 @@ def parameters_table(parameters_df):
     parameters_data = parameters_df[~parameters_df["parameter"].str.startswith("AIF")]
 
     logger.debug("Processing FASTA file paths")
-    fasta_files = parameters_data[parameters_data["parameter"] == "Fasta file"]["value"].values[0]
-    fasta_files = fasta_files.split(";")
+
+    fasta_values = parameters_data.loc[parameters_data["parameter"] == "Fasta file", "value"]
+    fasta_files = fasta_values.iloc[0].split(";") if not fasta_values.empty else []
+
     logger.debug(f"Found {len(fasta_files)} FASTA files")
 
     def parse_location(location):
@@ -1638,15 +1648,17 @@ def parameters_table(parameters_df):
             location = location.replace("\\", "/")
         return os.path.basename(location)
 
-    fasta_file_list = [parse_location(fasta_file) for fasta_file in fasta_files]
-    fasta_file_list = ";".join(fasta_file_list)
-    logger.debug(f"Processed FASTA file paths: {fasta_file_list}")
-
     logger.debug("Creating parameters table")
     table_data = parameters_data.drop_duplicates(subset="parameter", keep="first").reset_index(
         drop=True
     )
-    table_data.loc[table_data["parameter"] == "Fasta file", "value"] = fasta_file_list
+
+    if fasta_files:
+        fasta_file_list = [parse_location(fasta_file) for fasta_file in fasta_files]
+        fasta_file_list = ";".join(fasta_file_list)
+        logger.debug(f"Processed FASTA file paths: {fasta_file_list}")
+
+        table_data.loc[table_data["parameter"] == "Fasta file", "value"] = fasta_file_list
 
     parameters_dict = {}
     for index, row in table_data.iterrows():
@@ -1668,7 +1680,7 @@ def read_sdrf(sdrf_path):
         "characteristics[biological replicate]",
     ]
 
-    if any(col in sdrf_df.columns for col in required_cols):
+    if all(col in sdrf_df.columns for col in required_cols):
 
         sdrf_df = sdrf_df[required_cols].copy()
         sdrf_df.rename(

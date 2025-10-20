@@ -15,9 +15,12 @@ from pmultiqc.modules.common.file_utils import file_prefix
 class MzTabReader(BaseParser):
     def __init__(
         self,
-        file_paths: Path
+        file_path: Path | str
     ) -> None:
-        super().__init__(file_paths)
+        super().__init__([file_path])
+
+        self.file_path = file_path
+
         self.pep_table: pd.DataFrame = pd.DataFrame()
         self.delta_mass: dict = dict()
         self.psm: pd.DataFrame = pd.DataFrame()
@@ -31,22 +34,22 @@ class MzTabReader(BaseParser):
 
         self.log = get_logger("pmultiqc.modules.common.ms.mztab")
 
-    def parse(self, **kwargs) -> None:
+    def parse(self, **_kwargs) -> None:
 
         self.log.info(
             "{}: Parsing mzTab file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.file_paths
+                datetime.now().strftime("%H:%M:%S"), self.file_path
             )
         )
-        mztab_data = mztab.MzTab(self.file_paths)
+        mztab_data = mztab.MzTab(self.file_path)
         self.log.info(
             "{}: Done parsing mzTab file {}.".format(
-                datetime.now().strftime("%H:%M:%S"), self.file_paths
+                datetime.now().strftime("%H:%M:%S"), self.file_path
             )
         )
         self.log.info(
             "{}: Aggregating mzTab file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.file_paths
+                datetime.now().strftime("%H:%M:%S"), self.file_path
             )
         )
         pep_table = mztab_data.peptide_table
@@ -105,15 +108,21 @@ class MzTabReader(BaseParser):
             "protein_coverage",
         ]
 
-        prot = prot[fixed_cols + score_cols + prot_abundance_cols + opt_cols]
+        keep_cols = [
+            c
+            for c in (fixed_cols + score_cols + prot_abundance_cols + opt_cols)
+            if c in prot.columns
+        ]
+        prot = prot[keep_cols].copy()
 
         # We only need the overall protein (group) scores and abundances. Currently we do not care about details of single proteins (length, description,...)
-        prot = prot[prot["opt_global_result_type"] != "protein_details"].copy()
+        if "opt_global_result_type" in prot.columns:
+            prot = prot[prot["opt_global_result_type"] != "protein_details"].copy()
 
         if config.kwargs["remove_decoy"]:
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1].copy()
             # TODO do we really want to remove groups that contain a single decoy? I would say ALL members need to be decoy.
-            prot = prot[~prot["accession"].str.contains(config.kwargs["decoy_affix"])]
+            prot = prot[~prot["accession"].str.contains(config.kwargs["decoy_affix"], regex=False)]
 
         prot.dropna(subset=["ambiguity_members"], inplace=True)
 
@@ -121,7 +130,9 @@ class MzTabReader(BaseParser):
 
         self.total_protein_identified = len(prot.index)
 
-        prot.dropna(how="all", subset=prot_abundance_cols, inplace=True)
+        if prot_abundance_cols:
+            prot.dropna(how="all", subset=prot_abundance_cols, inplace=True)
+
         self.total_protein_quantified = len(prot.index)
 
         self.mztab_data = mztab_data
@@ -135,26 +146,22 @@ class MzTabReader(BaseParser):
 
     @staticmethod
     def dis_decoy(protein_name):
-        if config.kwargs["decoy_affix"] not in protein_name:
+
+        decoy_affix = config.kwargs["decoy_affix"]
+        affix_type = config.kwargs["affix_type"]
+
+        name_list = protein_name.split(";")
+
+        if not any(
+            (n.startswith(decoy_affix) if affix_type == "prefix" else n.endswith(decoy_affix))
+            for n in name_list
+        ):
             return "TARGET"
-        elif protein_name.split(";") == 1:
+
+        if all(
+            (n.startswith(decoy_affix) if affix_type == "prefix" else n.endswith(decoy_affix))
+            for n in name_list
+        ):
             return "DECOY"
-        else:
-            if config.kwargs["affix_type"] == "prefix":
-                if list(
-                    filter(
-                        lambda x: lambda x: not x.startswith(config.kwargs["decoy_affix"]),
-                        protein_name.split(";"),
-                    )
-                ):
-                    return "TARGET"
-                return "DECOY"
-            else:
-                if list(
-                    filter(
-                        lambda x: not x.endswith(config.kwargs["decoy_affix"]),
-                        protein_name.split(";"),
-                    )
-                ):
-                    return "TARGET"
-                return "DECOY"
+
+        return "TARGET"

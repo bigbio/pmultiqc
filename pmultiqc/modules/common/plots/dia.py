@@ -507,16 +507,12 @@ def extract_condition_and_replicate(run_name):
     match = re.search(r"^(.*?)([A-Za-z]*)(\d+)$", run_name)
 
     if match:
-        condition_base = match.group(1) + match.group(2)
-
-        if condition_base.endswith("_"):
-            condition_base = condition_base[:-1]
-
+        condition_base = (match.group(1) + match.group(2)).rstrip("_")
         replicate = int(match.group(3))
-
         return condition_base, replicate
     else:
-        log.warning("Failed to identify condition groups in DIA report.tsv!")
-        return None
-# re-export by moving file; contents will be identical after move.
+        log.warning("Failed to parse condition/replicate from Run='%s' in DIA report.tsv", run_name)
+        # Fallback: keep full run name as condition, unknown replicate
+        return run_name, None
 
+# re-export by moving file; contents will be identical after move.

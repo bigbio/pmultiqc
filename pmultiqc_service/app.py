@@ -1398,7 +1398,10 @@ def run_pmultiqc_with_progress(
         if input_type == "maxquant":
             args.extend(["--maxquant_plugin", "--ignore", "summary.txt"])
         elif input_type == "quantms":
-            args.extend(["--quantms_plugin", "--config", pmultiqc_config])
+            if pmultiqc_config:
+                args.extend(["--quantms_plugin", "--config", pmultiqc_config])
+            else:
+                logger.error("The function 'run_pmultiqc_with_progress' is missing the parameter: pmultiqc_config")
         elif input_type == "diann":
             # DIANN files are handled automatically by pmultiqc
             # Add memory optimization arguments for large files
@@ -1421,7 +1424,6 @@ def run_pmultiqc_with_progress(
             logger.error(f"Error checking pmultiqc plugin: {e}")
 
         # Add timeout for large datasets (30 minutes)
-        import threading
         import time
 
         # Check if we have a large file and set timeout accordingly
@@ -1645,6 +1647,7 @@ def run_pmultiqc_with_progress(
                 logger.info("Starting MultiQC with timeout handling for large file")
 
             # Run the multiqc command with real-time output
+            env = os.environ.copy()
             process = subprocess.Popen(
                 args,
                 stdout=subprocess.PIPE,
@@ -1652,6 +1655,7 @@ def run_pmultiqc_with_progress(
                 text=True,
                 bufsize=1,
                 universal_newlines=True,
+                env=env,
             )
 
             # Stream output in real-time

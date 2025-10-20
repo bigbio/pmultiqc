@@ -69,8 +69,9 @@ def draw_exp_design(sub_sections, exp_design):
     exp_design_runs = np.unique(file_df["Run"].tolist())
 
     is_bruker = False
-    if file_df["Spectra_Filepath"][0].endswith((".d", ".d.tar")):
-        is_bruker = True
+    if not file_df.empty:
+        first_path = str(file_df["Spectra_Filepath"].iloc[0])
+        is_bruker = first_path.endswith((".d", ".d.tar"))
 
     pattern = r'^(\w+=[^=;]+)(;\w+=[^=;]+)*$'
     is_multi_conditions = all(sample_df["MSstats_Condition"].apply(lambda x: bool(re.match(pattern, str(x)))))
@@ -78,7 +79,10 @@ def draw_exp_design(sub_sections, exp_design):
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
     if is_multi_conditions:
-        for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
+        for sample in sorted(
+            sample_df["Sample"].tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+        ):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
             row_data: List[InputRow] = []
@@ -147,7 +151,10 @@ def draw_exp_design(sub_sections, exp_design):
             "scale": False,
         }
     else:
-        for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
+        for sample in sorted(
+            sample_df["Sample"].tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+        ):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
             row_data: List[InputRow] = []

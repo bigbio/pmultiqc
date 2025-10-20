@@ -10,7 +10,6 @@ import os
 import sys
 import time
 from datetime import datetime
-import psutil
 
 # Define log levels
 LOG_LEVELS = {
@@ -132,6 +131,7 @@ def log_system_info(logger):
     """
     import platform
     import multiprocessing
+    import psutil
 
     logger.info("=" * 50)
     logger.info(f"pmultiqc execution started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

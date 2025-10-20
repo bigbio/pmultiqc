@@ -139,6 +139,10 @@ def draw_peak_intensity_distribution(
 
 
 def draw_precursor_charge_distribution(sub_sections, charge_plot=None, ms_info=None):
+
+    if not charge_plot or not ms_info or "charge_distribution" not in ms_info:
+        return
+
     pconfig = {
         "id": "distribution_of_precursor_charges",
         "title": "Distribution of Precursor Charges",

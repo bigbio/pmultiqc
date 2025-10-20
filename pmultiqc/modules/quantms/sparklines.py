@@ -325,7 +325,7 @@ def make_table(dt, max_value):
                                 )
                             )
                         else:
-                            valstr.replace(",", "&#44;")
+                            valstr = valstr.replace(",", "&#44;")
                             # valstring = ", ".join(valstring.split(" ;")[0].split(" ")) + " ;" + str(valstring.split(" ;")[1])
                             t_rows[s_name][rid] = (
                                 "<td class=\"data-sparkline col-condition-sparkline\" data-sparkline='{v}'></td>".format(
@@ -367,7 +367,7 @@ def make_table(dt, max_value):
 
         # Remove header if we don't have any filled cells for it
         if sum([len(rows) for rows in t_rows.values()]) == 0:
-            if header.get("hidden", False) is True:
+            if header.hidden:
                 hidden_cols -= 1
             t_headers.pop(rid, None)
             t_modal_headers.pop(rid, None)

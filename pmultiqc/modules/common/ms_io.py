@@ -38,12 +38,19 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
     tic_data = ms1_info.groupby("rt_normalize")[
         ["rt", "summed_peak_intensities"]
     ].min()
-    tic_data = dict(zip(tic_data["rt"], tic_data["summed_peak_intensities"]))
+    tic_data = dict(
+        zip(
+            tic_data["rt"],
+            tic_data["summed_peak_intensities"],
+            strict=True
+        )
+    )
 
     bpc_data = dict(
         zip(
             ms1_info.groupby("rt_normalize")["rt"].min(),
             ms1_info.groupby("rt_normalize")["summed_peak_intensities"].max(),
+            strict=True
         )
     )
 
@@ -51,13 +58,16 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
         zip(
             ms1_info.groupby("rt_normalize")["rt"].min(),
             ms1_info.groupby("rt_normalize")["num_peaks"].mean(),
+            strict=True
         )
     )
 
+    total_curr = float(ms1_info["summed_peak_intensities"].sum())
+    scan_curr = float(ms2_info["summed_peak_intensities"].sum())
     general_stats = {
-        "AcquisitionDateTime": ms1_info["acquisition_datetime"][0],
-        "log10(TotalCurrent)": np.log10(ms1_info["summed_peak_intensities"].sum()),
-        "log10(ScanCurrent)": np.log10(ms2_info["summed_peak_intensities"].sum()),
+        "AcquisitionDateTime": ms1_info["acquisition_datetime"].iloc[0],
+        "log10(TotalCurrent)": np.log10(max(total_curr, 1e-12)),
+        "log10(ScanCurrent)": np.log10(max(scan_curr, 1e-12)),
     }
 
     return tic_data, bpc_data, ms1_peaks, general_stats
@@ -127,7 +137,8 @@ def add_ms_values(
             mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
             mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
     else:
-        ms_without_psm.append(ms_name)
+        if ms_name not in ms_without_psm:
+            ms_without_psm.append(ms_name)
 
 def spectra_ref_check(spectra_ref):
     match_scan = re.search(r"scan=(\d+)", spectra_ref)
