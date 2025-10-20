@@ -1502,26 +1502,47 @@ def _validate_subprocess_args(args: List[str]) -> None:
     if not args:
         raise ValueError("Subprocess arguments cannot be empty")
 
-    # Define allowed commands and their expected arguments
+    # Define allowed commands and their expected arguments with strict validation
     allowed_commands = {
-        'multiqc': ['-o', '--force', '--maxquant_plugin', '--quantms_plugin',
-                   '--diann_plugin', '--mzid_plugin', '--config', '--ignore',
-                   '--no-megaqc-upload', '--verbose']
+        'multiqc': {
+            'allowed_flags': ['-o', '--force', '--maxquant_plugin', '--quantms_plugin',
+                             '--diann_plugin', '--mzid_plugin', '--config', '--ignore',
+                             '--no-megaqc-upload', '--verbose'],
+            'max_args': 20,  # Reasonable limit on number of arguments
+            'require_paths': True  # MultiQC requires input/output paths
+        }
     }
 
     # Check if the first argument is a known command
     if args[0] not in allowed_commands:
-        raise ValueError(f"Unknown command: {args[0]}")
+        raise ValueError(f"Unknown command: {args[0]}. Only allowed commands: {list(allowed_commands.keys())}")
 
-    # Validate each argument
+    command_config = allowed_commands[args[0]]
+
+    # Check argument count limit
+    if len(args) > command_config['max_args']:
+        raise ValueError(f"Too many arguments: {len(args)} (max: {command_config['max_args']})")
+
+    # Validate each argument with enhanced security checks
     for i, arg in enumerate(args):
         if not isinstance(arg, str):
             raise ValueError(f"Argument {i} must be a string: {arg}")
 
-        # Check for dangerous characters that could be used for injection
-        dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r', '\\']
+        # Check argument length to prevent buffer overflow attempts
+        if len(arg) > 1000:  # Reasonable limit for command arguments
+            raise ValueError(f"Argument {i} too long: {len(arg)} characters (max: 1000)")
+
+        # Enhanced dangerous character detection
+        dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r', '\\',
+                          '!', '@', '#', '%', '^', '*', '+', '=', '[', ']', '{', '}',
+                          '?', '~', '"', "'"]
         if any(char in arg for char in dangerous_chars):
             raise ValueError(f"Argument {i} contains dangerous characters: {arg}")
+
+        # For flag arguments, ensure they're in the allowed list
+        if arg.startswith('-') and i > 0:
+            if arg not in command_config['allowed_flags']:
+                raise ValueError(f"Unknown flag: {arg}. Allowed flags: {command_config['allowed_flags']}")
 
         # For non-flag arguments (not starting with -), validate as paths
         if not arg.startswith('-') and i > 0:
@@ -1534,7 +1555,84 @@ def _validate_subprocess_args(args: List[str]) -> None:
                 if any(char in arg for char in ['..', '/', '\\']):
                     raise ValueError(f"Invalid path in argument {i}: {e}")
 
+    # Additional security: ensure we have required paths for MultiQC
+    if command_config.get('require_paths', False):
+        has_input_path = any(not arg.startswith('-') for arg in args[1:])
+        if not has_input_path:
+            raise ValueError("MultiQC requires at least one input path argument")
+
     logger.info(f"Subprocess arguments validated successfully: {args}")
+
+
+def _create_safe_environment() -> Dict[str, str]:
+    """Create a restricted environment for subprocess execution."""
+    # Start with a minimal environment
+    safe_env = {
+        'PATH': '/usr/bin:/bin:/usr/local/bin',  # Restricted PATH
+        'HOME': os.path.expanduser('~'),
+        'USER': os.getenv('USER', 'unknown'),
+        'LANG': 'C.UTF-8',
+        'LC_ALL': 'C.UTF-8',
+    }
+
+    # Only include essential environment variables
+    essential_vars = ['PYTHONPATH', 'CONDA_PREFIX', 'VIRTUAL_ENV']
+    for var in essential_vars:
+        if var in os.environ:
+            safe_env[var] = os.environ[var]
+    
+    return safe_env
+
+
+def _secure_subprocess_execution(args: List[str], job_id: str, timeout_seconds: int, safe_env: Dict[str, str]) -> subprocess.Popen:
+    """Execute subprocess with enhanced security measures."""
+    try:
+        # Final validation before execution
+        if not args or len(args) == 0:
+            raise ValueError("No arguments provided for subprocess execution")
+
+        # Ensure the command is in the restricted PATH
+        if not _is_command_in_safe_path(args[0]):
+            raise ValueError(f"Command not in safe PATH: {args[0]}")
+
+        # Create subprocess with maximum security settings
+        process = subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            universal_newlines=True,
+            env=safe_env,
+            shell=False,  # Critical: Never use shell
+            cwd=os.getcwd(),  # Use current working directory
+            preexec_fn=None,  # Don't allow pre-execution functions
+            close_fds=True,  # Close file descriptors
+            start_new_session=False,  # Don't start new session
+        )
+
+        logger.info(f"Secure subprocess started for job {job_id} with args: {args}")
+        return process
+
+    except Exception as e:
+        logger.error(f"Failed to start secure subprocess: {e}")
+        raise
+
+
+def _is_command_in_safe_path(command: str) -> bool:
+    """Check if command exists in safe PATH locations."""
+    safe_paths = ['/usr/bin', '/bin', '/usr/local/bin']
+
+    for path_dir in safe_paths:
+        command_path = os.path.join(path_dir, command)
+        if os.path.isfile(command_path) and os.access(command_path, os.X_OK):
+            return True
+
+    # Also check if it's a full path and exists
+    if os.path.isfile(command) and os.access(command, os.X_OK):
+        return True
+
+    return False
 
 
 def _check_pmultiqc_plugin_availability():
@@ -1770,17 +1868,15 @@ def _run_multiqc_process(args: List[str], job_id: str, timeout_seconds: int) -> 
         # Validate all arguments to prevent command injection
         _validate_subprocess_args(args)
 
-        # Run the multiqc command with real-time output
-        env = os.environ.copy()
-        process = subprocess.Popen(
+        # Additional security: Create a restricted environment
+        safe_env = _create_safe_environment()
+
+        # Run the multiqc command with real-time output using secure execution
+        process = _secure_subprocess_execution(
             args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            universal_newlines=True,
-            env=env,
-            shell=False,  # Explicitly disable shell to prevent injection
+            job_id,
+            timeout_seconds,
+            safe_env
         )
 
         # Stream output in real-time
