@@ -13,10 +13,10 @@ from pmultiqc.modules.common.file_utils import file_prefix
 
 class MzidReader(BaseParser):
     def __init__(
-        self,
-        file_paths: list[str | Path],
+            self,
+            file_paths: list[str | Path],
     ) -> None:
-        
+
         super().__init__(file_paths)
 
         # Outputs populated by parse()
@@ -39,7 +39,6 @@ class MzidReader(BaseParser):
 
                 if len(mzid_data) == 0:
                     raise ValueError(f"Please check your MzIdentML: {file_path}")
-
 
                 self.log.info(
                     "{}: Done parsing MzIdentML file {}.".format(
@@ -164,7 +163,7 @@ class MzidReader(BaseParser):
 
         if "Modification" in filtered_mzid_df.columns:
             filtered_mzid_df["Modifications"] = filtered_mzid_df["Modification"].apply(
-                lambda x: self.process_modification(x)
+                self.process_modification
             )
         else:
             filtered_mzid_df["Modifications"] = None

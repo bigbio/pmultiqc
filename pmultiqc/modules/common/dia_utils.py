@@ -23,8 +23,8 @@ from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.common.dia_utils")
 
-
 DEFAULT_BINS = 500
+
 
 def parse_diann_report(
         sub_sections,
@@ -37,8 +37,7 @@ def parse_diann_report(
         quantms_modified,
         ms_paths,
         msstats_input_valid=False
-    ):
-
+):
     log.info("Parsing {}...".format(diann_report_path))
 
     from pmultiqc.modules.common.ms.diann import DiannReader
@@ -56,7 +55,7 @@ def parse_diann_report(
     # Normalisation.Factor: can be calculated as Precursor.Normalised/Precursor.Quantity
     required_cols = ["Precursor.Normalised", "Precursor.Quantity"]
     if "Normalisation.Factor" not in report_data.columns and all(
-        col in report_data.columns for col in required_cols
+            col in report_data.columns for col in required_cols
     ):
         report_data["Normalisation.Factor"] = np.divide(
             report_data[required_cols[0]],
@@ -206,11 +205,11 @@ def parse_diann_report(
         ms_without_psm
     )
 
+
 ## Removed draw_dia_heatmap wrapper; call cal_dia_heatmap and dia_plots.draw_heatmap directly.
 
 
 def draw_dia_intensitys(sub_section, report_df):
-
     df_sub = report_df[report_df["Precursor.Quantity"] > 0].copy()
     df_sub["log_intensity"] = np.log2(df_sub["Precursor.Quantity"])
 
@@ -221,7 +220,6 @@ def draw_dia_intensitys(sub_section, report_df):
 
 
 def draw_dia_ms1(sub_section, df):
-
     # Ms1.Area: non-normalised MS1 peak area
     if "Ms1.Area" in df.columns:
         df_sub = df[df["Ms1.Area"] > 0][["Ms1.Area", "Run"]].copy()
@@ -231,7 +229,6 @@ def draw_dia_ms1(sub_section, df):
 
 
 def draw_dia_ms2s(sub_section, df):
-
     # Distribution of Precursor Charges
     if "Precursor.Charge" in df.columns:
         dia_plots.draw_dia_whole_exp_charge(sub_section, df)
@@ -241,7 +238,6 @@ def draw_dia_ms2s(sub_section, df):
 
 
 def draw_dia_mass_error(sub_section, df):
-
     # Ms1.Apex.Mz.Delta: difference between observed precursor m/z and the theoretical value
     if "Ms1.Apex.Mz.Delta" in df.columns:
         dia_plots.draw_dia_delta_mass(sub_section, df)
@@ -249,7 +245,6 @@ def draw_dia_mass_error(sub_section, df):
 
 # DIA-NN: RT Quality Control
 def draw_dia_rt_qc(sub_section, report_df):
-
     df = report_df.copy()
 
     # IDs over RT
@@ -304,7 +299,6 @@ def draw_dia_rt_qc(sub_section, report_df):
 
 # DIA-NN: IDs over RT
 def draw_dia_ids_rt(sub_section, report_df):
-
     rt_df = report_df[["Run", "RT"]].copy()
     rt_df.rename(columns={"Run": "raw file", "RT": "retention time"}, inplace=True)
     ids_over_rt = evidence_rt_count(rt_df)
@@ -313,7 +307,6 @@ def draw_dia_ids_rt(sub_section, report_df):
 
 # DIA-NN: Quantification Table
 def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
-
     # Peptides Quantification Table
     peptides_table, peptides_headers = create_peptides_table(
         diann_report, sample_df, file_df
@@ -329,7 +322,6 @@ def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
 
 # Draw: Peptides Quantification Table
 def draw_peptides_table(sub_section, table_data, headers, report_type):
-
     draw_config = {
         "id": "peptides_quantification_table",
         "title": "Peptides Quantification Table",
@@ -390,7 +382,6 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
 
 # Draw: Protein Quantification Table
 def draw_protein_table(sub_sections, table_data, headers, report_type):
-
     draw_config = {
         "id": "protein_quant_result",
         "title": "Protein Quantification Table",
@@ -443,9 +434,9 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
         helptext=helptext_text,
     )
 
+
 # DIA-NN: HeatMap
 def cal_dia_heatmap(report_df):
-
     # "Contaminants" & "Peptide Intensity"
     pep_intensity = heatmap_cont_pep_intensity(report_df)
 
@@ -455,7 +446,6 @@ def cal_dia_heatmap(report_df):
 
 
 def heatmap_cont_pep_intensity(report_df):
-
     require_cols = [
         "Run",
         "Protein.Names",
@@ -500,7 +490,7 @@ def heatmap_cont_pep_intensity(report_df):
 
         # 2. "Peptide Intensity"
         pep_median = np.nanmedian(group["Precursor.Quantity"].to_numpy())
-        pep_intensity = float(np.fmin(1.0, pep_median / (2**23)))
+        pep_intensity = float(np.fmin(1.0, pep_median / (2 ** 23)))
 
         # 4. "RT Alignment"
         rt_alignment = max(0.0, 1 - float(np.mean(np.abs(group["RT"] - group["Predicted.RT"]))))
@@ -531,8 +521,8 @@ def heatmap_cont_pep_intensity(report_df):
 
     return heatmap_dict
 
-def cal_feature_avg_rt(report_data, col):
 
+def cal_feature_avg_rt(report_data, col):
     # RT: the retention time (RT) of the PSM in minutes
     sub_df = report_data[[col, "Run", "RT"]].copy()
 
@@ -562,7 +552,6 @@ def cal_feature_avg_rt(report_data, col):
 
 # DIA-NN: Lowess (Loess)
 def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
-
     if len(report_df) > 1000000:
         log.warning(f"Dataset too large ({len(report_df)} rows). Skipping LOWESS computation.")
         return None
@@ -607,9 +596,9 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
 
     return plot_dict
 
+
 # DIA-NN: Peptides Quantification Table
 def create_peptides_table(report_df, sample_df, file_df):
-
     # Validation: remove rows with 0 or NA Precursor.Normalised values
     report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
     report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
@@ -618,7 +607,6 @@ def create_peptides_table(report_df, sample_df, file_df):
 
     table_dict = dict()
     for sequence_protein, group in report_data.groupby(["Stripped.Sequence", "Protein.Names"]):
-
         table_dict[sequence_protein] = {
             "ProteinName": sequence_protein[1],
             "PeptideSequence": sequence_protein[0],
@@ -659,7 +647,7 @@ def create_peptides_table(report_df, sample_df, file_df):
         )
 
         for sequence_protein, group in cond_report_data.groupby(
-            ["Stripped.Sequence", "Protein.Names"]
+                ["Stripped.Sequence", "Protein.Names"]
         ):
 
             condition_data = dict()
@@ -669,7 +657,6 @@ def create_peptides_table(report_df, sample_df, file_df):
             table_dict[sequence_protein].update(condition_data)
 
         for exp_condition in sample_df["MSstats_Condition"].drop_duplicates():
-
             headers[str(exp_condition)] = {
                 "title": str(exp_condition),
                 "description": "MSstats Condition",
@@ -683,14 +670,12 @@ def create_peptides_table(report_df, sample_df, file_df):
 
 # DIA-NN: Protein Quantification Table
 def create_protein_table(report_df, sample_df, file_df):
-
     # Validation: remove rows with 0 or NA Precursor.Normalised values
     report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
     report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
 
     table_dict = dict()
     for protein_name, group in report_data.groupby("Protein.Names"):
-
         table_dict[protein_name] = {
             "ProteinName": protein_name,
             "Peptides_Number": group["Stripped.Sequence"].nunique(),
@@ -740,7 +725,6 @@ def create_protein_table(report_df, sample_df, file_df):
             table_dict[protein_name].update(condition_data)
 
         for exp_condition in sample_df["MSstats_Condition"].drop_duplicates():
-
             headers[str(exp_condition)] = {
                 "title": str(exp_condition),
                 "description": "MSstats Condition",

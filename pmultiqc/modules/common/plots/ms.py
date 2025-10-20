@@ -10,8 +10,7 @@ def draw_ms_information(
         ms1_bpc=None,
         ms1_peaks=None,
         ms1_general_stats=None
-    ):
-
+):
     if ms1_tic:
         ms1_tic_config = {
             "id": "ms1_tic",
@@ -110,7 +109,7 @@ def draw_peak_intensity_distribution(
         sub_sections,
         peak_distribution_plot,
         ms_info,
-    ):
+):
     pconfig = {
         "id": "peak_intensity_distribution",
         "title": "Peak Intensity Distribution",
@@ -139,7 +138,6 @@ def draw_peak_intensity_distribution(
 
 
 def draw_precursor_charge_distribution(sub_sections, charge_plot=None, ms_info=None):
-
     if not charge_plot or not ms_info or "charge_distribution" not in ms_info:
         return
 

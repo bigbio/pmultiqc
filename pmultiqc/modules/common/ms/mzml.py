@@ -14,19 +14,19 @@ from pmultiqc.modules.common.ms_io import get_ms_qc_info
 
 class MzMLReader(BaseParser):
     def __init__(
-        self,
-        file_paths: list[str | Path],
-        ms_with_psm,
-        identified_spectrum,
-        mzml_charge_plot,
-        mzml_peak_distribution_plot,
-        mzml_peaks_ms2_plot,
-        mzml_charge_plot_1,
-        mzml_peak_distribution_plot_1,
-        mzml_peaks_ms2_plot_1,
-        ms_without_psm,
-        enable_dia: bool = False,
-        enable_mzid: bool = False
+            self,
+            file_paths: list[str | Path],
+            ms_with_psm,
+            identified_spectrum,
+            mzml_charge_plot,
+            mzml_peak_distribution_plot,
+            mzml_peaks_ms2_plot,
+            mzml_charge_plot_1,
+            mzml_peak_distribution_plot_1,
+            mzml_peaks_ms2_plot_1,
+            ms_without_psm,
+            enable_dia: bool = False,
+            enable_mzid: bool = False
     ) -> None:
 
         """
@@ -68,7 +68,7 @@ class MzMLReader(BaseParser):
         self.ms1_bpc: dict = {}
         self.ms1_peaks: dict = {}
         self.ms1_general_stats: dict = {}
-        self.mzml_ms_df: pd.DataFrame= pd.DataFrame()
+        self.mzml_ms_df: pd.DataFrame = pd.DataFrame()
 
         self.log = get_logger("pmultiqc.modules.common.ms.mzml")
 

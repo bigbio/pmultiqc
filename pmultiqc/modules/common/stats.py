@@ -1,6 +1,3 @@
-## statistic functions
-
-
 import numpy as np
 
 

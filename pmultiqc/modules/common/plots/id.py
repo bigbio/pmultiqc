@@ -11,7 +11,6 @@ from pmultiqc.modules.common.plots.general import remove_subtitle
 
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
-
     draw_config = {
         "id": "msms_identified_per_raw_file",
         "cpswitch": False,
@@ -34,7 +33,6 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
 
 
 def draw_potential_contaminants(sub_section, contaminant_percent, is_maxquant):
-
     draw_config = {
         "id": "potential_contaminants_per_group",
         "cpswitch": False,
@@ -76,7 +74,6 @@ def draw_potential_contaminants(sub_section, contaminant_percent, is_maxquant):
 
 
 def draw_charge_state(sub_section, charge_data, report_type):
-
     draw_config = {
         "id": "charge_state_of_per_raw_file",
         "cpswitch": True,
@@ -119,7 +116,6 @@ def draw_charge_state(sub_section, charge_data, report_type):
 
 
 def draw_top_n_contaminants(sub_section, top_contaminants_data):
-
     draw_config = {
         "id": "top_contaminants_per_raw_file",
         "cpswitch": False,
@@ -155,7 +151,6 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
 
 
 def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
-
     draw_config = {
         "id": "missed_cleavages_per_raw_file",
         "cpswitch": False,
@@ -204,7 +199,6 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
 
 
 def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
-
     if delta_mass_type == "Mass Error [Da]":
         plot_id = "delta_mass_da"
         plot_title = "Delta Mass [Da]"
@@ -369,8 +363,7 @@ def draw_quantms_identification(
         quantms_missed_cleavages=None,
         quantms_modified=None,
         identified_msms_spectra=None
-    ):
-
+):
     draw_config = {
         "id": "protein_group_count",
         "cpswitch": False,
@@ -481,7 +474,7 @@ def draw_summary_protein_ident_table(
         total_ms2_spectra_identified: int = 0,
         total_protein_identified: int = 0,
         enable_mzid: bool = False
-    ):
+):
     headers = OrderedDict()
     if enable_dia:
         summary_table = {
@@ -552,15 +545,14 @@ def draw_quantms_identi_num(
         sample_df=None,
         file_df=None,
         cal_num_table_data=None
-    ):
-
+):
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
     if enable_exp or enable_sdrf:
         if is_multi_conditions:
             for sample in sorted(
-                sample_df["Sample"].tolist(),
-                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+                    sample_df["Sample"].tolist(),
+                    key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
             ):
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
                 sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
@@ -603,7 +595,7 @@ def draw_quantms_identi_num(
                 rows_by_group[group_name] = row_data
             headers = {}
             for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                headers["MSstats_Condition_" + str(k)] ={
+                headers["MSstats_Condition_" + str(k)] = {
                     "title": "MSstats Condition: " + str(k),
                     "description": "",
                     "scale": False,
@@ -631,8 +623,8 @@ def draw_quantms_identi_num(
             }
         else:
             for sample in sorted(
-                sample_df["Sample"].tolist(),
-                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+                    sample_df["Sample"].tolist(),
+                    key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
             ):
 
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
@@ -662,9 +654,9 @@ def draw_quantms_identi_num(
                                 "Unique_Peptide_Num": cal_num_table_data[row["Run"]]["unique_peptide_num"],
                                 "Modified_Peptide_Num": cal_num_table_data[row["Run"]]["modified_peptide_num"],
                                 "Protein_Num": cal_num_table_data[row["Run"]]["protein_num"],
-                                },
-                            )
+                            },
                         )
+                    )
                 group_name: SampleGroup = SampleGroup(sample)
                 rows_by_group[group_name] = row_data
 
@@ -745,9 +737,7 @@ def draw_quantms_identi_num(
     )
 
 
-
 def draw_modifications(sub_section, modified_data):
-
     draw_config = {
         "id": "modifications_per_raw_file",
         "cpswitch": False,
@@ -797,7 +787,6 @@ def draw_modifications(sub_section, modified_data):
 
 
 def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant):
-
     if is_maxquant:
         draw_config = {
             "id": "oversampling_distribution",
@@ -849,25 +838,24 @@ def draw_num_pep_per_protein(
         sub_sections,
         pep_plot,
         enable_mzid: bool = False
-    ):
-
+):
     if any([len(i) >= 100 for i in pep_plot.dict["data"].values()]):
         data_labels = ["Frequency", "Percentage"]
     else:
         data_labels = [
-                {
-                    "name": "Frequency",
-                    "ylab": "Frequency",
-                    "tt_suffix": "",
-                    "tt_decimals": 0,
-                },
-                {
-                    "name": "Percentage",
-                    "ylab": "Percentage [%]",
-                    "tt_suffix": "%",
-                    "tt_decimals": 2,
-                },
-            ]
+            {
+                "name": "Frequency",
+                "ylab": "Frequency",
+                "tt_suffix": "",
+                "tt_decimals": 0,
+            },
+            {
+                "name": "Percentage",
+                "ylab": "Percentage [%]",
+                "tt_suffix": "%",
+                "tt_decimals": 2,
+            },
+        ]
 
     pconfig = {
         "id": "number_of_peptides_per_proteins",
@@ -904,9 +892,9 @@ def draw_num_pep_per_protein(
         helptext=helptext_str
     )
 
+
 # IDs over RT
 def draw_ids_rt_count(sub_section, rt_count_data, report_type):
-
     draw_config = {
         "id": "IDs_over_RT",
         "cpswitch": False,

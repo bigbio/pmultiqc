@@ -127,7 +127,6 @@ class MzIdentMLModule(BasePMultiqcModule):
 
             mzidentml_df = get_mzidentml_mzml_df(mzid_psm, self.mzml_ms_df)
             if len(mzidentml_df) > 0:
-
                 draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
 
                 mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
@@ -157,7 +156,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                 self.mzid_cal_heat_map_score(mzidentml_df)
 
         return True
-
 
     def draw_plots(self) -> None:
         self.log.info("Start plotting the MzIdentML results...")
@@ -712,7 +710,6 @@ class MzIdentMLModule(BasePMultiqcModule):
         )
 
         if spec_e_bar_html != "":
-
             spec_e_bar_html = remove_subtitle(spec_e_bar_html)
 
             add_sub_section(
@@ -727,7 +724,6 @@ class MzIdentMLModule(BasePMultiqcModule):
             )
 
         if xcorr_bar_html != "":
-
             xcorr_bar_html = remove_subtitle(xcorr_bar_html)
 
             add_sub_section(
@@ -742,7 +738,6 @@ class MzIdentMLModule(BasePMultiqcModule):
             )
 
         if hyper_bar_html != "":
-
             hyper_bar_html = remove_subtitle(hyper_bar_html)
 
             add_sub_section(
@@ -785,7 +780,6 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         # Create identified number plot
         if len(self.search_engine["data_label"]["consensus_label"]) != 0:
-
             consensus_pconfig = {
                 "id": "consensus_summary",
                 "cpswitch": True,
@@ -885,14 +879,14 @@ class MzIdentMLModule(BasePMultiqcModule):
 
             # For HeatMapPepMissingScore
             id_fraction = (
-                len(
-                    pd.merge(
-                        global_peps,
-                        group[["PeptideSequence", "Modifications"]].drop_duplicates(),
-                        on=["PeptideSequence", "Modifications"],
-                    ).drop_duplicates()
-                )
-                / global_peps_count
+                    len(
+                        pd.merge(
+                            global_peps,
+                            group[["PeptideSequence", "Modifications"]].drop_duplicates(),
+                            on=["PeptideSequence", "Modifications"],
+                        ).drop_duplicates()
+                    )
+                    / global_peps_count
             )
             self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
 
@@ -1273,7 +1267,7 @@ class MzIdentMLModule(BasePMultiqcModule):
         )
 
         group_stats["contaminant_percent"] = (
-            group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
+                group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
         )
 
         result_dict = dict()
@@ -1304,7 +1298,6 @@ class MzIdentMLModule(BasePMultiqcModule):
         plot_cats = list()
 
         for file_name, group in pep_df.groupby("stand_spectra_ref"):
-
             contaminant_rows = group[group["cont_accession"] != not_cont_tag].copy()
             contaminant_rows.loc[
                 ~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"
@@ -1317,8 +1310,8 @@ class MzIdentMLModule(BasePMultiqcModule):
                 .reset_index(drop=True)
             )
             cont_df["contaminant_percent"] = (
-                cont_df["average_intensity"] / group["average_intensity"].sum()
-            ) * 100
+                                                     cont_df["average_intensity"] / group["average_intensity"].sum()
+                                             ) * 100
 
             plot_dict[file_name] = dict(
                 zip(cont_df["cont_accession"], cont_df["contaminant_percent"])

@@ -29,7 +29,6 @@ logger = get_logger("pmultiqc.modules.maxquant")
 
 
 def find_needed_cols(file, needed_cols):
-
     cols = pd.read_csv(file, sep="\t", nrows=0).columns
     needed_cols_lower = [c.lower() for c in needed_cols]
 
@@ -39,9 +38,9 @@ def find_needed_cols(file, needed_cols):
 
 
 def read(
-    file: Path | ReadCsvBuffer[bytes] | ReadCsvBuffer[str] | str,
-    file_type: str = None,
-    filter_type: str = None,
+        file: Path | ReadCsvBuffer[bytes] | ReadCsvBuffer[str] | str,
+        file_type: str = None,
+        filter_type: str = None,
 ):
     """
     Read MaxQuant output files and perform initial processing.
@@ -289,7 +288,7 @@ def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> dict[An
 
         result_df = pd.merge(df1, df2, on="group", how="inner")
         result_df["contaminant_percent"] = (
-            result_df["contaminant_total_intensity"] / result_df["total_intensity"] * 100.00
+                result_df["contaminant_total_intensity"] / result_df["total_intensity"] * 100.00
         )
 
         result_dict = dict()
@@ -302,7 +301,6 @@ def pg_contaminants(mq_data: pd.DataFrame, intensity_cols: List[str]) -> dict[An
 
 # 1-2. PG: ~Intensity distribution
 def pg_intensity_distr(mq_data, intensity_cols):
-
     if any(column not in mq_data.columns for column in intensity_cols):
         return None
 
@@ -340,7 +338,6 @@ def pg_intensity_distr(mq_data, intensity_cols):
 
 # 1-3.proteinGroups.txt: PCA
 def pg_pca(pg_data: pd.DataFrame, cols_name: List[str]):
-
     if any(column not in pg_data.columns for column in cols_name):
         return None
 
@@ -367,7 +364,6 @@ def pg_pca(pg_data: pd.DataFrame, cols_name: List[str]):
 
 # 1-4.proteinGroups.txt: Summary Table
 def pg_summary_table(pg_data, lfq_intensity, intensity):
-
     if "potential contaminant" in pg_data.columns:
         pg_data = pg_data[pg_data["potential contaminant"] != "+"].copy()
 
@@ -386,7 +382,6 @@ def pg_summary_table(pg_data, lfq_intensity, intensity):
 
 # 1-5.proteinGroups.txt: Number of Peptides identified Per Protein
 def peptide_per_protein(pg_data):
-
     if "peptide counts (all)" not in pg_data.columns:
         return None
 
@@ -411,8 +406,8 @@ def peptide_per_protein(pg_data):
         final_count_df = count_df.copy()
 
     final_count_df["percentage"] = (
-        final_count_df["frequency"] / final_count_df["frequency"].sum()
-    ) * 100
+                                           final_count_df["frequency"] / final_count_df["frequency"].sum()
+                                   ) * 100
 
     result = [
         {
@@ -583,20 +578,19 @@ def get_evidence(file_path):
 
 # HeatMap
 def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
-
     if any(x is None for x in (evidence_df, oversampling, msms_missed_cleavages)):
         return None
 
     if any(
-        column not in evidence_df.columns
-        for column in [
-            "potential contaminant",
-            "intensity",
-            "raw file",
-            "retention time",
-            "charge",
-            "modified sequence",
-        ]
+            column not in evidence_df.columns
+            for column in [
+                "potential contaminant",
+                "intensity",
+                "raw file",
+                "retention time",
+                "charge",
+                "modified sequence",
+            ]
     ):
         return None
 
@@ -623,10 +617,10 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
             contaminant = 1 - intensity_contaminant / intensity_all
 
         # 2. Peptide Intensity
-        median_int = nanmedian(group["intensity"], 0)  ## if everything is NaN, use 0
+        median_int = nanmedian(group["intensity"], 0)  # if everything is NaN, use 0
         peptide_intensity = np.minimum(
-            1.0, median_int / (2**23)
-        )  ## score = 1, iff intensity >= 2**23
+            1.0, median_int / (2 ** 23)
+        )  # score = 1, iff intensity >= 2**23
 
         # 8. Pep Missing Values
         pep_missing_values = np.minimum(
@@ -702,8 +696,8 @@ def calculate_heatmap(evidence_df, oversampling, msms_missed_cleavages):
 # 3-1. evidence.txt: Top Contaminants per Raw file
 def evidence_top_contaminants(evidence_df, top_n):
     if any(
-        column not in evidence_df.columns
-        for column in ["potential contaminant", "proteins", "intensity", "raw file"]
+            column not in evidence_df.columns
+            for column in ["potential contaminant", "proteins", "intensity", "raw file"]
     ):
         return None
 
@@ -725,7 +719,7 @@ def evidence_top_contaminants(evidence_df, top_n):
     contaminant_df = evidence_data[evidence_data["potential contaminant"] == "+"]
 
     contaminant_count = (
-        contaminant_df.groupby("protein_name")["intensity"].sum() / sum_intensity * 100
+            contaminant_df.groupby("protein_name")["intensity"].sum() / sum_intensity * 100
     )
     contaminant_count = contaminant_count.sort_values(ascending=False)
     top_contaminant = list(contaminant_count.head(top_n).index)
@@ -747,12 +741,12 @@ def evidence_top_contaminants(evidence_df, top_n):
     )
 
     intensity_per_file_protein["intensity_percent"] = (
-        intensity_per_file_protein["contaminant_intensity"]
-        / intensity_per_file_protein["total_intensity"]
-        * 100
+            intensity_per_file_protein["contaminant_intensity"]
+            / intensity_per_file_protein["total_intensity"]
+            * 100
     ).replace(
         [np.nan], 1
-    )  ## total_intensity may be 0, which produces NaN (so we judge contaminants not to be an issue -> score 1)
+    )  # total_intensity may be 0, which produces NaN (so we judge contaminants not to be an issue -> score 1)
 
     top_contaminant_dict = {}
 
@@ -855,13 +849,13 @@ def evidence_modified(evidence_data):
 # 3-6.evidence.txt: Peak width over RT
 def evidence_peak_width_rt(evidence_data):
     if any(
-        column not in evidence_data.columns
-        for column in ["retention length", "retention time", "raw file"]
+            column not in evidence_data.columns
+            for column in ["retention length", "retention time", "raw file"]
     ):
         return None
 
     if any(
-        evidence_data[column].isna().all() for column in ["retention length", "retention time"]
+            evidence_data[column].isna().all() for column in ["retention length", "retention time"]
     ):
         return None
 
@@ -924,7 +918,6 @@ def evidence_oversampling(evidence_data):
 
 # 3-8.evidence.txt: Uncalibrated mass error
 def evidence_uncalibrated_mass_error(evidence_data):
-
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
@@ -932,8 +925,8 @@ def evidence_uncalibrated_mass_error(evidence_data):
 
     if evd_df is None:
         if any(
-            column not in evidence_data.columns
-            for column in ["uncalibrated mass error [ppm]", "raw file"]
+                column not in evidence_data.columns
+                for column in ["uncalibrated mass error [ppm]", "raw file"]
         ):
             logger.warning(
                 "evidence_uncalibrated_mass_error: Required columns 'uncalibrated mass error [ppm]' or 'raw file' are missing in Evidence DataFrame."
@@ -959,18 +952,17 @@ def evidence_uncalibrated_mass_error(evidence_data):
 # 3-8.evidence.txt: Calibrated mass error
 
 
-
 # 3-9.evidence.txt: Peptide ID count
 def evidence_peptide_count(evidence_df, evidence_df_tf):
     if any(
-        column not in evidence_df.columns
-        for column in ["modified sequence", "is_transferred", "raw file"]
+            column not in evidence_df.columns
+            for column in ["modified sequence", "is_transferred", "raw file"]
     ):
         return None
 
     if any(
-        column not in evidence_df_tf.columns
-        for column in ["modified sequence", "is_transferred", "raw file"]
+            column not in evidence_df_tf.columns
+            for column in ["modified sequence", "is_transferred", "raw file"]
     ):
         return None
 
@@ -983,7 +975,7 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
     if "potential contaminant" in evidence_data_tf.columns:
         evidence_data_tf = evidence_data_tf[
             evidence_data_tf["potential contaminant"] != "+"
-        ].copy()
+            ].copy()
 
     required_cols = ["raw file", "is_transferred", "modified sequence"]
     evid_df = pd.concat(
@@ -1064,14 +1056,14 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
 # 3-10.evidence.txt: ProteinGroups count
 def evidence_protein_count(evidence_df, evidence_df_tf):
     if any(
-        column not in evidence_df.columns
-        for column in ["protein group ids", "is_transferred", "raw file"]
+            column not in evidence_df.columns
+            for column in ["protein group ids", "is_transferred", "raw file"]
     ):
         return None
 
     if any(
-        column not in evidence_df_tf.columns
-        for column in ["protein group ids", "is_transferred", "raw file"]
+            column not in evidence_df_tf.columns
+            for column in ["protein group ids", "is_transferred", "raw file"]
     ):
         return None
 
@@ -1083,7 +1075,7 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
     if "potential contaminant" in evidence_data_tf.columns:
         evidence_data_tf = evidence_data_tf[
             evidence_data_tf["potential contaminant"] != "+"
-        ].copy()
+            ].copy()
 
     required_cols = ["raw file", "is_transferred", "protein group ids"]
     evid_df = pd.concat(
@@ -1096,7 +1088,7 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
         for raw_file, group in evd_df.groupby("raw file"):
 
             group["protein_group_mtd"] = (
-                group["protein group ids"] + "_" + group["is_transferred"].astype(str)
+                    group["protein group ids"] + "_" + group["is_transferred"].astype(str)
             )
             duplicated_protein_group = group[~group["protein_group_mtd"].duplicated()]
 
@@ -1114,7 +1106,7 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
             )
             protein_group_mbr_only = len(protein_group_mbr_unique) - protein_group_gen_and_mbr
             protein_group_genuine_only = (
-                len(protein_group_genuine_unique) - protein_group_gen_and_mbr
+                    len(protein_group_genuine_unique) - protein_group_gen_and_mbr
             )
 
             if any(evd_df["is_transferred"]):
@@ -1178,7 +1170,6 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
 
 # 3-11.evidence.txt: Summary Table
 def evidence_summary_table(evid_df):
-
     if "potential contaminant" in evid_df.columns:
         evid_df = evid_df[evid_df["potential contaminant"] != "+"].copy()
 
@@ -1188,7 +1179,6 @@ def evidence_summary_table(evid_df):
     msms_count = evid_df["ms/ms count"].sum() if "ms/ms count" in evid_df.columns else None
 
     if unique_peptides is not None and msms_count is not None:
-
         return {
             "summary_identified_msms_count": int(msms_count),
             "summary_identified_peptides": int(unique_peptides),
@@ -1199,7 +1189,6 @@ def evidence_summary_table(evid_df):
 
 # 3-12.evidence.txt: Delta Mass [Da]
 def evidence_delta_mass_da(evidence_data):
-
     if any(column not in evidence_data.columns for column in ["mass error [da]", "raw file"]):
         return None
 
@@ -1213,10 +1202,9 @@ def evidence_delta_mass_da(evidence_data):
 
 # 3-13.evidence.txt: Quantification Table
 def evidence_peptides_table(evidence_data):
-
     if any(
-        column not in evidence_data.columns
-        for column in ["proteins", "sequence", "score", "intensity"]
+            column not in evidence_data.columns
+            for column in ["proteins", "sequence", "score", "intensity"]
     ):
         return None, None
 
@@ -1229,7 +1217,6 @@ def evidence_peptides_table(evidence_data):
     # Peptides Quantification Table
     peptides_table_dict = dict()
     for sequence_protein, group in evidence_data.groupby(["sequence", "proteins"]):
-
         peptides_table_dict[sequence_protein] = {
             "ProteinName": sequence_protein[1],
             "PeptideSequence": sequence_protein[0],
@@ -1242,7 +1229,6 @@ def evidence_peptides_table(evidence_data):
     # Protein Quantification Table
     protein_table_dict = dict()
     for protein, group in evidence_data.groupby("proteins"):
-
         protein_table_dict[protein] = {
             "ProteinName": protein,
             "Peptides_Number": group["sequence"].nunique(),
@@ -1301,7 +1287,7 @@ def get_msms(file_path: Union[Path, str], evidence_df: pd.DataFrame = None):
 # 4-1.msms.txt: Missed cleavages per Raw file
 def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
     if any(
-        column not in msms_df.columns for column in ["evidence id", "missed cleavages", "raw file"]
+            column not in msms_df.columns for column in ["evidence id", "missed cleavages", "raw file"]
     ):
         return None
 
@@ -1331,7 +1317,7 @@ def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
     for raw_file, group in msms_not_contaminant.groupby("raw file"):
         missed_cleavages_df = pd.DataFrame(group["missed cleavages"].value_counts().reset_index())
         missed_cleavages_df["percentage"] = (
-            missed_cleavages_df["count"] / missed_cleavages_df["count"].sum() * 100
+                missed_cleavages_df["count"] / missed_cleavages_df["count"].sum() * 100
         )
 
         plot_dict[raw_file] = dict(
@@ -1346,7 +1332,6 @@ def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
 
 # 4-2.msms.txt: Search Engine Scores
 def search_engine_scores(msms_df):
-
     if any(column not in msms_df.columns for column in ["score", "raw file"]):
         return None
 
@@ -1355,14 +1340,13 @@ def search_engine_scores(msms_df):
     bins_step = 6
 
     bins = list(range(bins_start, bins_end + 1, bins_step)) + [float("inf")]
-    labels = [f"{i} ~ {i+bins_step}" for i in range(bins_start, bins_end, bins_step)] + [
+    labels = [f"{i} ~ {i + bins_step}" for i in range(bins_start, bins_end, bins_step)] + [
         f"{bins_end} ~ inf"
     ]
 
     plot_data = list()
     data_labels = list()
     for name, group in msms_df.groupby("raw file"):
-
         group["score_bin"] = pd.cut(group["score"], bins=bins, labels=labels, right=False)
         score_dist = group["score_bin"].value_counts().sort_index().reset_index()
 
@@ -1460,10 +1444,10 @@ def msms_scans_ion_injec_time_rt(msms_scans_df):
         "int_mean_ion_injection_time"
     ].astype(str)
     mean_ion_injec_time_df["raw_file_mean_ion_time"] = (
-        mean_ion_injec_time_df["raw file"]
-        + " (~"
-        + mean_ion_injec_time_df["int_mean_ion_injection_time"].astype(str)
-        + "ms)"
+            mean_ion_injec_time_df["raw file"]
+            + " (~"
+            + mean_ion_injec_time_df["int_mean_ion_injection_time"].astype(str)
+            + "ms)"
     )
 
     result_df = pd.merge(
@@ -1484,8 +1468,8 @@ def msms_scans_ion_injec_time_rt(msms_scans_df):
 # 5-2.msmsScans.txt: TopN over RT
 def msms_scans_top_over_rt(msms_scans_df):
     if any(
-        column not in msms_scans_df.columns
-        for column in ["raw file", "retention time", "scan event number"]
+            column not in msms_scans_df.columns
+            for column in ["raw file", "retention time", "scan event number"]
     ):
         return None
 
@@ -1667,8 +1651,8 @@ def parameters_table(parameters_df):
     logger.debug(f"Created parameters table with {len(parameters_dict)} entries")
     return parameters_dict
 
-def read_sdrf(sdrf_path):
 
+def read_sdrf(sdrf_path):
     sdrf_df = pd.read_csv(sdrf_path, sep="\t")
     sdrf_df.columns = sdrf_df.columns.str.lower()
 
