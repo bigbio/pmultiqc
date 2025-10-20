@@ -18,13 +18,4 @@ class BaseParser(ABC):
 
     @abstractmethod
     def parse(self, **kwargs) -> bool | None:
-        """
-        Parse the input files and populate instance attributes with results.
-        
-        Args:
-            **kwargs: Parser-specific options
-            
-        Returns:
-            None or bool indicating success (implementation-dependent)
-        """
         return None
