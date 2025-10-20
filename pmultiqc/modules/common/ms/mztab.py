@@ -150,18 +150,16 @@ class MzTabReader(BaseParser):
         decoy_affix = config.kwargs["decoy_affix"]
         affix_type = config.kwargs["affix_type"]
 
-        name_list = protein_name.split(";")
+        proteins = protein_name.split(";")
 
-        if not any(
-            (n.startswith(decoy_affix) if affix_type == "prefix" else n.endswith(decoy_affix))
-            for n in name_list
-        ):
+        if decoy_affix not in protein_name:
             return "TARGET"
 
-        if all(
-            (n.startswith(decoy_affix) if affix_type == "prefix" else n.endswith(decoy_affix))
-            for n in name_list
-        ):
+        is_decoy = (
+            lambda x: x.startswith(decoy_affix) if affix_type == "prefix" else x.endswith(decoy_affix)
+        )
+
+        if any(is_decoy(p) for p in proteins):
             return "DECOY"
 
         return "TARGET"

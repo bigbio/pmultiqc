@@ -481,7 +481,7 @@ def heatmap_cont_pep_intensity(report_df):
     charge = dict()
     for raw_file, group in df[["Run", "Precursor.Charge"]].groupby("Run"):
         vc = group["Precursor.Charge"].value_counts(dropna=True, normalize=True)
-        charge[raw_file] = int(vc.get(2, 0))
+        charge[raw_file] = vc.get(2, 0)
     charge_median = np.median(list(charge.values())) if charge else 0
     heatmap_charge = {
         k: float(max(0.0, 1.0 - abs(v - charge_median))) for k, v in charge.items()
