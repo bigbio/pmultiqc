@@ -3329,7 +3329,6 @@ def _collect_filesystem_info(output_dir: str) -> Dict[str, Any]:
                     info["zip_reports"].append(file_info)
     return info
 
-
 def _collect_public_reports(job_id: str, file_system_info: Dict[str, Any]) -> None:
     if not os.path.exists(HTML_REPORTS_FOLDER):
         return
