@@ -1,8 +1,5 @@
 import numpy as np
-import pytest
-
 from pmultiqc.modules.common.stats import nanmedian as pm_nanmedian
-
 
 class TestStatisticsUtils:
     """
