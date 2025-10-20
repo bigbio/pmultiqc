@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 MultiQC command line options - we tie into the MultiQC
 core here and add some new command line parameters.
@@ -59,16 +58,16 @@ ignored_idxml = click.option(
 affix_type = click.option(
     "--affix_type", "affix_type", default="prefix", help="Prefix (default) or suffix"
 )
-disable_plugin = click.option(
-    "--disable_plugin",
-    "disable_plugin",
-    is_flag=True,
-    help="Disable the pmultiqc plugin on this run",
-)
 mzid_plugin = click.option("--mzid_plugin", "mzid_plugin", is_flag=True, help="Extract mzIdentML")
-parse_maxquant = click.option(
-    "--parse_maxquant", "parse_maxquant", is_flag=True, help="Parse MaxQuant results"
+proteobench_plugin = click.option(
+    "--proteobench_plugin", "proteobench_plugin", is_flag=True, help="Enable ProteoBench plugin"
 )
-parse_proteobench = click.option(
-    "--parse_proteobench", "parse_proteobench", is_flag=True, help="Parse ProteoBench results"
+maxquant_plugin = click.option(
+    "--maxquant_plugin", "maxquant_plugin", is_flag=True, help="Enable MaxQuant plugin"
+)
+diann_plugin = click.option(
+    "--diann_plugin", "diann_plugin", is_flag=True, help="Enable DIA-NN plugin"
+)
+quantms_plugin = click.option(
+    "--quantms_plugin", "quantms_plugin", is_flag=True, help="Enable quantms plugin"
 )

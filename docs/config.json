@@ -70,12 +70,16 @@
             "file_type": "mzid"
         },
         {
-            "accession": "PXD051187",
+            "accession": "PXD053068",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzML",
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/10/PXD051187/33060_Control_vs_Infection_JMI.mzid.gz"
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/F10854.mzML",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/F10854.mzid.gz",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Q00745.mzML",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Q00745.mzid.gz",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzML",
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzid.gz"
             ],
-            "path": "docs/PXD051187",
+            "path": "docs/PXD053068",
             "file_type": "mzid"
         }
     ]

@@ -1,12 +1,33 @@
 import numpy as np
 
 
-def qualUniform(group_df_rt):
+def nanmedian(values: np.ndarray, all_nan_fallback: np.float64) -> np.float64:
+    """
+    Compute the median of the given array, ignoring NaNs; if all values are NaN (or the array is empty), return a fallback.
+
+    Parameters:
+    -----------
+    values: numpy array with values
+    all_nan_fallback: if all *values* are NaN, return this number instead of NaN
+
+    Returns
+    -------
+    float
+        The median of the non-NaN values in *values*. If all entries are NaN (or the array is empty),
+        returns *all_nan_fallback*.
+    """
+    if np.isnan(values).all():
+        return all_nan_fallback
+    else:
+        return np.nanmedian(values)
+
+
+def qual_uniform(group_df_rt):
     """
     Parameters:
     -----------
     group_df_rt: group["Retention time"] or group["retention_time"]
-    
+
     """
     x = group_df_rt / np.nansum(group_df_rt)
     n = group_df_rt.notna().sum()
@@ -16,6 +37,7 @@ def qualUniform(group_df_rt):
     result = 1.0 if worst == 0 else float((worst - sc) / worst)
 
     return result
+
 
 def cal_delta_mass_dict(df, col):
 

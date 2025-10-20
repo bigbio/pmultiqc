@@ -62,8 +62,8 @@ pmultiqc supports the following data sources:
 
 ### 3. **[DIA-NN](https://aptila.bio)** result files:
    - `report.tsv` or `report.parquet`: DIA-NN main report
-   - `experimental_design.tsv` or `*sdrf.tsv`: Experimental design file / SDRF-Proteomics (optional)
-   - `*ms_info.parquet`: mzML statistics after Raw-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**) (optional)
+   - `*sdrf.tsv`: SDRF-Proteomics (optional)
+   - `*ms_info.parquet`: mzML statistics after RAW-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**) (optional)
 
 ### 4. **[ProteoBench](https://proteobench.readthedocs.io)** file:
    - `result_performance.csv`: ProteoBench result file
@@ -116,28 +116,34 @@ Where:
 
 ```bash
 # Basic usage
-multiqc /path/to/quantms/results -o ./report
+multiqc --quantms_plugin /path/to/quantms/results -o ./report
 
 # With specific options
-multiqc /path/to/quantms/results -o ./report --remove_decoy --condition factor
+multiqc --quantms_plugin /path/to/quantms/results -o ./report --remove_decoy --condition factor
 ```
 
 #### For MaxQuant results
 
 ```bash
-multiqc --parse_maxquant /path/to/maxquant/results -o ./report
+multiqc --maxquant_plugin /path/to/maxquant/results -o ./report
 ```
 
 #### For DIA-NN results
 
 ```bash
-multiqc /path/to/diann/results -o ./report
+# Discover report inside a results folder
+multiqc --diann_plugin /path/to/diann/results -o ./report
+
+# Directly pass a DIA-NN report file (TSV or Parquet)
+# Note: MultiQC requires an analysis directory argument; use '.' as a placeholder
+multiqc --diann_plugin --diann_report /path/to/report.tsv . -o ./report
+multiqc --diann_plugin --diann_report /path/to/report.parquet . -o ./report
 ```
 
 #### For ProteoBench files
 
 ```bash
-multiqc --parse_proteobench /path/to/proteobench/files -o ./report
+multiqc --proteobench_plugin /path/to/proteobench/files -o ./report
 ```
 
 #### For mzIdentML files
@@ -160,8 +166,11 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--quantification_method` | Quantification method for LFQ experiment | `feature_intensity` |
 | `--disable_table` | Disable protein/peptide table plots for large datasets | `False` |
 | `--ignored_idxml` | Ignore idXML files for faster processing | `False` |
-| `--parse_maxquant` | Generate reports based on MaxQuant results | `False` |
-| `--parse_proteobench` | Generate reports based on ProteoBench result | `False` |
+| `--quantms_plugin` | Generate reports based on Quantms results | `False` |
+| `--diann_plugin` | Generate reports based on DIANN results | `False` |
+| `--diann_report` | Path to DIA-NN main report (.tsv or .parquet). When provided with `--diann_plugin`, you can use `.` as the analysis directory placeholder. | - |
+| `--maxquant_plugin` | Generate reports based on MaxQuant results | `False` |
+| `--proteobench_plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
 
 ## 📊 QC Metrics and Visualizations
@@ -213,7 +222,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | MaxQuant | MaxQuant results | [MaxQuant Example](https://bigbio.github.io/pmultiqc/PXD003133/multiqc_report.html) |
 | MaxQuant DIA | MaxQuant DIA results | [MaxQuant DIA Example](https://bigbio.github.io/pmultiqc/MaxDIA/multiqc_report.html) |
 | ProteoBench | ProteoBench results | [ProteoBench Example](https://bigbio.github.io/pmultiqc/ProteoBench/multiqc_report.html) |
-| mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://bigbio.github.io/pmultiqc/PXD051187/multiqc_report.html) |
+| mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://bigbio.github.io/pmultiqc/PXD053068/multiqc_report.html) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://bigbio.github.io/pmultiqc/PXD054720/multiqc_report.html) |
 
 ## 👥 Contributing

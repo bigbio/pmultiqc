@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Logging system for pmultiqc package.
 
@@ -132,6 +131,7 @@ def log_system_info(logger):
     """
     import platform
     import multiprocessing
+    import psutil
 
     logger.info("=" * 50)
     logger.info(f"pmultiqc execution started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -139,8 +139,6 @@ def log_system_info(logger):
     logger.info(f"Python: {platform.python_version()}")
     logger.info(f"CPU cores: {multiprocessing.cpu_count()}")
     try:
-        import psutil
-
         memory = psutil.virtual_memory()
         logger.info(
             f"Memory: {memory.total / (1024**3):.1f} GB total, {memory.available / (1024**3):.1f} GB available"

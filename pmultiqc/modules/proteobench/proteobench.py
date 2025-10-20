@@ -1,37 +1,39 @@
-import logging
 import os
 
 from .proteobench_utils import get_pb_data
+from ..base import BasePMultiqcModule
 from ..core.section_groups import add_group_modules, add_sub_section
 
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+class ProteoBenchModule(BasePMultiqcModule):
 
-class ProteoBenchModule:
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-    def __init__(self, find_log_files_func):
-
-        self.find_log_files = find_log_files_func
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
+        self.section_group_dict = None
         self.pb_results = None
 
-    def get_proteobench(self):
+    def get_data(self) -> bool | None:
 
         pb_file_path = []
         for pb_result in self.find_log_files("pmultiqc/proteobench_result", filecontents=False):
             pb_file_path.append(os.path.join(pb_result["root"], pb_result["fn"]))
 
-        if len(pb_file_path) != 1:
+        if len(pb_file_path) == 0:
+            raise FileNotFoundError(
+                "No ProteoBench result file found."
+            )
+        if len(pb_file_path) > 1:
             raise ValueError(
                 f"Multiple ProteoBench result files found ({len(pb_file_path)}): {', '.join(pb_file_path)}. Please ensure only one result file is present."
             )
 
         self.pb_results = get_pb_data(pb_file_path[0])
-        
-        return self.pb_results
 
-    def draw_report_plots(self):
-        log.info("Start plotting the ProteoBench results...")
+        return True
+
+    def draw_plots(self) -> None:
+        self.log.info("Start plotting the ProteoBench results...")
 
         # 1. precursor ion
         precursor_sub_section = list()
@@ -45,7 +47,7 @@ class ProteoBenchModule:
                 """,
             helptext="""
                 [result_performance.csv] The precursor ion charge extracted from the 'precursor ion' column.
-                """
+                """,
         )
 
         # 2. Intensity
@@ -61,7 +63,7 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] This plot visualizes the distribution of mean intensity 
                 values after log2 transformation for both Condition A and Condition B.
-                """
+                """,
         )
         add_sub_section(
             sub_section=log_mean_sub_section,
@@ -73,7 +75,7 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] This plot shows the number of missing (NA) values in the 
                 mean log2-transformed intensities for Condition A and Condition B.
-                """
+                """,
         )
         add_sub_section(
             sub_section=log_mean_sub_section,
@@ -84,7 +86,7 @@ class ProteoBenchModule:
                 """,
             helptext="""
                 [result_performance.csv] Distribution of intensity for each run.
-                """
+                """,
         )
         add_sub_section(
             sub_section=log_mean_sub_section,
@@ -95,7 +97,7 @@ class ProteoBenchModule:
                 """,
             helptext="""
                 [result_performance.csv] Number of missing (NA) values for each run.
-                """
+                """,
         )
         add_sub_section(
             sub_section=log_mean_sub_section,
@@ -107,9 +109,8 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] This plot shows the number of missing (NA) values in the 
                 mean log2-transformed intensities for Condition A and Condition B.
-                """
+                """,
         )
-
 
         # 3. Standard Deviation of Intensity
         log_std_sub_section = list()
@@ -124,7 +125,7 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] This plot shows the distribution of standard deviations 
                 calculated from log2-transformed intensity values for Condition A and Condition B.
-                """
+                """,
         )
 
         # 4. CV
@@ -140,7 +141,7 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] This plot shows the distribution of coefficient of variation (CV) values 
                 for Condition A and Condition B.
-                """
+                """,
         )
         add_sub_section(
             sub_section=cv_sub_section,
@@ -152,7 +153,7 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] This plot shows the number of missing values (NAs) in the coefficient of 
                 variation (CV) for condition A and B.
-                """
+                """,
         )
 
         # 5. log2_A_vs_B
@@ -168,7 +169,7 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] Distribution of log₂ fold changes (log2_A_vs_B) between Condition A and B 
                 based on mean log2-transformed intensities.
-                """
+                """,
         )
         add_sub_section(
             sub_section=log_vs_sub_section,
@@ -180,7 +181,7 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] Distribution of mean intensity across all runs and log2 fold change (log2FC). 
                 Legend: ECOLI (blue), HUMAN (green), YEAST (red).
-                """
+                """,
         )
         add_sub_section(
             sub_section=log_vs_sub_section,
@@ -192,7 +193,7 @@ class ProteoBenchModule:
             helptext="""
                 [result_performance.csv] 'Epsilon' measures the deviation between observed and expected log2 fold changes, 
                 indicating agreement between data and expectations.
-                """
+                """,
         )
 
         self.section_group_dict = {

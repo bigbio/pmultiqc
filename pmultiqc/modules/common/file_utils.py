@@ -1,14 +1,14 @@
-from typing import Union, Optional
-from pathlib import Path
-import io
-import zipfile
 import gzip
-import tarfile
+import io
+import logging
 import os
 import shutil
-import pandas as pd
+import tarfile
+import zipfile
+from pathlib import Path
+from typing import Union, Optional
 
-import logging
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def extract_tar(file_path, extract_to):
 
 def extract_archive_file(root_dir, file_name):
     file_path = os.path.join(root_dir, file_name)
-    
+
     try:
         # *.zip
         if file_name.endswith(".zip"):
@@ -85,7 +85,7 @@ def extract_archive_file(root_dir, file_name):
         ):
             extract_tar(file_path, root_dir)
     except Exception:
-            raise SystemExit(f"Failed to extract: {file_path}")
+        raise SystemExit(f"Failed to extract: {file_path}")
 
 
 def extract_files(folder_path):
@@ -113,8 +113,9 @@ def file_prefix(path):
         if "\\" in path:
             path = path.replace("\\", "/")
         return Path(path).stem
-    except:
+    except Exception:
         raise SystemExit(f"Illegal file path: {path}")
+
 
 def drop_empty_row(df, cols):
     """

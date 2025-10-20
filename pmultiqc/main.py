@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 MultiQC pmultiqc plugin functions
 """
@@ -11,6 +10,7 @@ from importlib import metadata
 from pathlib import Path
 
 from multiqc import config
+from pmultiqc.modules.common.logging import configure_package_logging
 
 from pmultiqc.modules.common.file_utils import (
     extract_archive_file,
@@ -34,9 +34,8 @@ def pmultiqc_plugin_execution_start():
     to use custom command line flags.
     """
 
-    # Halt execution if we've disabled the plugin
-    if config.kwargs.get("disable_plugin", True):
-        return None
+    # Configure centralized package logging once
+    configure_package_logging()
 
     log.warning("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
 
@@ -58,10 +57,12 @@ def pmultiqc_plugin_execution_start():
         else:
             analysis_dir_new.append(anal_dir)
     config.analysis_dir = analysis_dir_new
-    
+
     # Module filename search patterns
     if "pmultiqc/exp_design" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0}}
+        )
 
     if "pmultiqc/sdrf" not in config.sp:
         config.update_dict(config.sp, {"pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0}})
@@ -79,24 +80,37 @@ def pmultiqc_plugin_execution_start():
         config.update_dict(config.sp, {"pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0}})
 
     if "pmultiqc/ms_info" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/ms_info": {"fn": "*_ms_info.parquet", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/ms_info": {"fn": "*_ms_info.parquet", "num_lines": 0}}
+        )
 
     if "pmultiqc/idXML" not in config.sp:
         config.update_dict(config.sp, {"pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0}})
 
     if "pmultiqc/msstats" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}}
+        )
 
     if "pmultiqc/diann_report_tsv" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/diann_report_tsv": {"fn": "*report.tsv", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/diann_report_tsv": {"fn": "*report.tsv", "num_lines": 0}}
+        )
 
     if "pmultiqc/diann_report_parquet" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/diann_report_parquet": {"fn": "report.parquet", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/diann_report_parquet": {"fn": "report.parquet", "num_lines": 0}}
+        )
 
     if "pmultiqc/maxquant_result" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/maxquant_result": {"fn": "*.txt", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/maxquant_result": {"fn": "*.txt", "num_lines": 0}}
+        )
 
     if "pmultiqc/proteobench_result" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/proteobench_result": {"fn": "result_performance.*", "num_lines": 0}})
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/proteobench_result": {"fn": "result_performance.*", "num_lines": 0}},
+        )
 
     config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})

@@ -135,6 +135,7 @@ dmypy.json
 /quantms.db
 /results_mq/
 .qodo
+.codacy/
 pmultiqc_service/local*
 
 # ARM64 patches for local testing only
