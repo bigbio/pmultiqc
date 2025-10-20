@@ -1447,12 +1447,17 @@ def run_pmultiqc_with_progress(
 
 def _setup_multiqc_args(input_path: str, output_path: str, input_type: str, pmultiqc_config: str) -> List[str]:
     """Set up MultiQC arguments based on input type."""
+    # Validate and sanitize input paths
+    input_path = _validate_and_sanitize_path(input_path, "input_path")
+    output_path = _validate_and_sanitize_path(output_path, "output_path")
+    
     args = ["multiqc", input_path, "-o", output_path, "--force"]
 
     if input_type == "maxquant":
         args.extend(["--maxquant_plugin", "--ignore", "summary.txt"])
     elif input_type == "quantms":
         if pmultiqc_config:
+            pmultiqc_config = _validate_and_sanitize_path(pmultiqc_config, "pmultiqc_config")
             args.extend(["--quantms_plugin", "--config", pmultiqc_config])
         else:
             logger.error("The function 'run_pmultiqc_with_progress' is missing the parameter: pmultiqc_config")
@@ -1467,6 +1472,31 @@ def _setup_multiqc_args(input_path: str, output_path: str, input_type: str, pmul
     _check_pmultiqc_plugin_availability()
 
     return args
+
+
+def _validate_and_sanitize_path(path: str, path_name: str) -> str:
+    """Validate and sanitize file paths to prevent command injection."""
+    if not path:
+        raise ValueError(f"{path_name} cannot be empty")
+    
+    # Convert to absolute path and resolve any symbolic links
+    abs_path = os.path.abspath(os.path.realpath(path))
+    
+    # Check for path traversal attempts
+    if ".." in path or path.startswith("/") and not abs_path.startswith("/"):
+        raise ValueError(f"Invalid path in {path_name}: {path}")
+    
+    # Ensure the path exists (for input paths) or is in a safe directory (for output paths)
+    if path_name in ["input_path", "pmultiqc_config"]:
+        if not os.path.exists(abs_path):
+            raise ValueError(f"{path_name} does not exist: {abs_path}")
+    
+    # Additional security: ensure path doesn't contain shell metacharacters
+    dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r']
+    if any(char in path for char in dangerous_chars):
+        raise ValueError(f"Invalid characters in {path_name}: {path}")
+    
+    return abs_path
 
 
 def _check_pmultiqc_plugin_availability():
@@ -1538,7 +1568,6 @@ def _preprocess_data_if_needed(input_type: str, args: List[str]):
     # Fallback: check if report.tsv files exist even if input type detection failed
     if not should_preprocess:
         try:
-            import glob
             input_dir = args[1]
             if os.path.exists(input_dir):
                 report_files = glob.glob(f"{input_dir}/**/report.tsv", recursive=True)
@@ -1697,7 +1726,6 @@ def _process_small_report_file(report_file: str):
             logger.info(f"Cleaned report file saved: {report_file}")
     else:
         logger.info("No is_contaminant column found in report file")
-
 
 def _run_multiqc_process(args: List[str], job_id: str, timeout_seconds: int) -> Dict[str, Any]:
     """Run MultiQC process with real-time output."""
@@ -1898,7 +1926,7 @@ def process_job_async(
         _init_async_progress(job_id)
         result = _run_pmultiqc_and_return_result(extract_path, output_dir, input_type, quantms_config, job_id)
         if not result["success"]:
-            _fail_async_job(job_id, result["message"]) 
+            _fail_async_job(job_id, result["message"])
             return
 
         update_job_progress(job_id, "creating_report", 75, processing_stage="Creating zip report...")
