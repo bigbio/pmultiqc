@@ -23,8 +23,8 @@ from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.common.dia_utils")
 
-
 DEFAULT_BINS = 500
+
 
 def parse_diann_report(
         sub_sections,
@@ -37,26 +37,61 @@ def parse_diann_report(
         quantms_modified,
         ms_paths,
         msstats_input_valid=False
-    ):
-
+):
+    """Parse DIA-NN report and generate plots and statistics."""
     log.info("Parsing {}...".format(diann_report_path))
 
-    from pmultiqc.modules.common.ms.diann import DiannReader
-    diann_reader = DiannReader(
-        file_path=diann_report_path
+    # Load and preprocess report data
+    report_data = _load_and_preprocess_diann_data(diann_report_path)
+
+    # Draw various plots
+    _draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, file_df, msstats_input_valid)
+
+    # Process statistics and modifications
+    total_protein_quantified, total_peptide_count, pep_plot = _process_diann_statistics(report_data)
+    peptide_search_score = _process_peptide_search_scores(report_data)
+    _process_modifications(report_data)
+
+    # Process run-specific data
+    _process_run_data(report_data, ms_with_psm, cal_num_table_data, quantms_modified)
+
+    # Handle files without PSM
+    ms_without_psm = _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data)
+
+    return (
+        total_protein_quantified,
+        total_peptide_count,
+        pep_plot,
+        peptide_search_score,
+        ms_with_psm,
+        cal_num_table_data,
+        quantms_modified,
+        ms_without_psm
     )
+
+
+def _load_and_preprocess_diann_data(diann_report_path):
+    """Load DIA-NN report data and perform initial preprocessing."""
+    from pmultiqc.modules.common.ms.diann import DiannReader
+    diann_reader = DiannReader(file_path=diann_report_path)
     diann_reader.parse()
     report_data = diann_reader.report_data
 
-    # "Decoy" appears only in DIA-NN 2.0 and later.
-    # 0 or 1 based on whether the precursor is decoy, relevant when using --report-decoys
+    # Filter out decoy entries if present
     if "Decoy" in report_data.columns:
         report_data = report_data[report_data["Decoy"] == 0].copy()
 
-    # Normalisation.Factor: can be calculated as Precursor.Normalised/Precursor.Quantity
+    # Calculate normalisation factor if needed
+    _calculate_normalisation_factor(report_data)
+
+    return report_data
+
+
+def _calculate_normalisation_factor(report_data):
+    """Calculate normalisation factor if not present."""
     required_cols = ["Precursor.Normalised", "Precursor.Quantity"]
     if "Normalisation.Factor" not in report_data.columns and all(
-        col in report_data.columns for col in required_cols
+            col in report_data.columns for col in required_cols
     ):
         report_data["Normalisation.Factor"] = np.divide(
             report_data[required_cols[0]],
@@ -65,17 +100,15 @@ def parse_diann_report(
             where=report_data[required_cols[1]].to_numpy(dtype="float64") != 0,
         )
 
-    # Draw: Standard Deviation of Intensity
+
+def _draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, file_df, msstats_input_valid):
+    """Draw all DIA-NN plots."""
+    # Draw intensity plots and heatmap
     if "Precursor.Quantity" in report_data.columns:
         draw_dia_intensitys(sub_sections["quantification"], report_data)
-        # Inline former draw_dia_heatmap wrapper
-        log.info("Compute the Heatmap.")
-        heatmap_data = cal_dia_heatmap(report_data)
+        _draw_heatmap(sub_sections["summary"], report_data, heatmap_color_list)
 
-        if heatmap_data:
-            dia_plots.draw_heatmap(sub_sections["summary"], heatmap_color_list, heatmap_data)
-            log.info("Heatmap calculation is done.")
-
+    # Draw other plots
     log.info("Draw the DIA MS1 subsection.")
     draw_dia_ms1(sub_sections["ms1"], report_data)
 
@@ -88,13 +121,27 @@ def parse_diann_report(
     log.info("Draw the DIA rt_qc subsection.")
     draw_dia_rt_qc(sub_sections["rt_qc"], report_data)
 
-    # Draw: Quantification Table (DIA-NN, without msstats data)
+    # Draw quantification table if not using msstats
     if not msstats_input_valid:
         log.info("Draw the DIA quant table subsection.")
         draw_diann_quant_table(
             sub_sections["quantification"], report_data, sample_df, file_df
         )
 
+
+def _draw_heatmap(sub_section, report_data, heatmap_color_list):
+    """Draw heatmap for DIA-NN data."""
+    log.info("Compute the Heatmap.")
+    heatmap_data = cal_dia_heatmap(report_data)
+
+    if heatmap_data:
+        dia_plots.draw_heatmap(sub_section, heatmap_color_list, heatmap_data)
+        log.info("Heatmap calculation is done.")
+
+
+def _process_diann_statistics(report_data):
+    """Process DIA-NN statistics and create peptide plot."""
+    # Extract sequence information
     report_data["sequence"] = report_data[
         "Modified.Sequence"
     ].astype("string").str.replace(r"\(.*?\)", "", regex=True)
@@ -102,6 +149,7 @@ def parse_diann_report(
     total_protein_quantified = len(set(report_data["Protein.Group"]))
     total_peptide_count = len(set(report_data["sequence"]))
 
+    # Create peptide plot
     log.info("Processing DIA pep_plot.")
     protein_pep_map = report_data.groupby("Protein.Group")["sequence"].agg(list).to_dict()
     pep_plot = Histogram("number of peptides per proteins", plot_category="frequency")
@@ -117,10 +165,16 @@ def parse_diann_report(
 
     pep_plot.to_dict(percentage=True, cats=categorys)
 
+    return total_protein_quantified, total_peptide_count, pep_plot
+
+
+def _process_peptide_search_scores(report_data):
+    """Process peptide search scores."""
     log.info("Processing DIA peptide_search_score.")
     peptide_search_score = dict()
     pattern = re.compile(r"\((.*?)\)")
     unimod_data = UnimodDatabase()
+
     for peptide, group in report_data.groupby("Modified.Sequence"):
         origianl_mods = re.findall(pattern, peptide)
         for mod in set(origianl_mods):
@@ -131,7 +185,11 @@ def parse_diann_report(
 
         peptide_search_score[peptide] = np.min(group["Q.Value"])
 
-    # Modifications Name
+    return peptide_search_score
+
+
+def _process_modifications(report_data):
+    """Process modifications in the report data."""
     log.info("Processing DIA Modifications.")
     mod_pattern = re.compile(r"\((.*?)\)")
 
@@ -139,6 +197,7 @@ def parse_diann_report(
         if isinstance(peptide, str):
             mods = mod_pattern.findall(peptide)
             if mods:
+                unimod_data = UnimodDatabase()
                 mod_type = [
                     unimod_data.get_by_accession(mod.upper()).get_name() for mod in set(mods)
                 ]
@@ -147,47 +206,61 @@ def parse_diann_report(
                 return "Unmodified"
         return None
 
-    report_data["Modifications"] = report_data["Modified.Sequence"].apply(
-        find_diann_modified
-    )
+    report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
 
+
+def _process_run_data(report_data, ms_with_psm, cal_num_table_data, quantms_modified):
+    """Process run-specific data including modifications and statistics."""
     log.info("Processing DIA mod_plot_dict.")
     mod_plot_dict = dict()
     modified_cats = list()
+
     for run_file, group in report_data.groupby("Run"):
         run_file = str(run_file)
         ms_with_psm.append(run_file)
 
-        # Modifications
+        # Process modifications for this run
         mod_group_processed = mod_group_percentage(group.drop_duplicates())
         mod_plot_dict[run_file] = dict(
             zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
         )
         modified_cats.extend(mod_group_processed["modifications"])
 
-        cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Group"]))}
-        cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
-        peptides = set(group["Modified.Sequence"])
-        modified_pep = list(
-            filter(lambda x: re.match(r".*?\(.*?\).*?", x) is not None, peptides)
-        )
-        group_peptides = group.groupby("sequence")["Protein.Group"].apply(list).to_dict()
-        unique_peptides = [
-            pep for pep, prots in group_peptides.items() if len(set(prots)) == 1
-        ]
-        cal_num_table_data[run_file]["unique_peptide_num"] = len(unique_peptides)
-        cal_num_table_data[run_file]["modified_peptide_num"] = len(modified_pep)
+        # Calculate statistics for this run
+        _calculate_run_statistics(group, run_file, cal_num_table_data)
 
+    # Update quantms_modified with processed data
     quantms_modified["plot_data"] = mod_plot_dict
     quantms_modified["cats"] = list(
         sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
     )
 
+
+def _calculate_run_statistics(group, run_file, cal_num_table_data):
+    """Calculate statistics for a specific run."""
+    cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Group"]))}
+    cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
+
+    peptides = set(group["Modified.Sequence"])
+    modified_pep = list(
+        filter(lambda x: re.match(r".*?\(.*?\).*?", x) is not None, peptides)
+    )
+
+    group_peptides = group.groupby("sequence")["Protein.Group"].apply(list).to_dict()
+    unique_peptides = [
+        pep for pep, prots in group_peptides.items() if len(set(prots)) == 1
+    ]
+
+    cal_num_table_data[run_file]["unique_peptide_num"] = len(unique_peptides)
+    cal_num_table_data[run_file]["modified_peptide_num"] = len(modified_pep)
+
+
+def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
+    """Handle files that don't have PSM data."""
     ms_without_psm = set([file_prefix(i) for i in ms_paths]) - set(ms_with_psm)
-    for i in ms_without_psm:
-        log.warning("No PSM found in '{}'!".format(i))
 
     for i in ms_without_psm:
+        log.warning("No PSM found in '{}'!".format(i))
         cal_num_table_data[i] = {
             "protein_num": 0,
             "peptide_num": 0,
@@ -195,22 +268,13 @@ def parse_diann_report(
             "modified_peptide_num": 0,
         }
 
-    return (
-        total_protein_quantified,
-        total_peptide_count,
-        pep_plot,
-        peptide_search_score,
-        ms_with_psm,
-        cal_num_table_data,
-        quantms_modified,
-        ms_without_psm
-    )
+    return ms_without_psm
+
 
 ## Removed draw_dia_heatmap wrapper; call cal_dia_heatmap and dia_plots.draw_heatmap directly.
 
 
 def draw_dia_intensitys(sub_section, report_df):
-
     df_sub = report_df[report_df["Precursor.Quantity"] > 0].copy()
     df_sub["log_intensity"] = np.log2(df_sub["Precursor.Quantity"])
 
@@ -221,7 +285,6 @@ def draw_dia_intensitys(sub_section, report_df):
 
 
 def draw_dia_ms1(sub_section, df):
-
     # Ms1.Area: non-normalised MS1 peak area
     if "Ms1.Area" in df.columns:
         df_sub = df[df["Ms1.Area"] > 0][["Ms1.Area", "Run"]].copy()
@@ -231,7 +294,6 @@ def draw_dia_ms1(sub_section, df):
 
 
 def draw_dia_ms2s(sub_section, df):
-
     # Distribution of Precursor Charges
     if "Precursor.Charge" in df.columns:
         dia_plots.draw_dia_whole_exp_charge(sub_section, df)
@@ -241,7 +303,6 @@ def draw_dia_ms2s(sub_section, df):
 
 
 def draw_dia_mass_error(sub_section, df):
-
     # Ms1.Apex.Mz.Delta: difference between observed precursor m/z and the theoretical value
     if "Ms1.Apex.Mz.Delta" in df.columns:
         dia_plots.draw_dia_delta_mass(sub_section, df)
@@ -249,7 +310,6 @@ def draw_dia_mass_error(sub_section, df):
 
 # DIA-NN: RT Quality Control
 def draw_dia_rt_qc(sub_section, report_df):
-
     df = report_df.copy()
 
     # IDs over RT
@@ -304,7 +364,6 @@ def draw_dia_rt_qc(sub_section, report_df):
 
 # DIA-NN: IDs over RT
 def draw_dia_ids_rt(sub_section, report_df):
-
     rt_df = report_df[["Run", "RT"]].copy()
     rt_df.rename(columns={"Run": "raw file", "RT": "retention time"}, inplace=True)
     ids_over_rt = evidence_rt_count(rt_df)
@@ -313,7 +372,6 @@ def draw_dia_ids_rt(sub_section, report_df):
 
 # DIA-NN: Quantification Table
 def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
-
     # Peptides Quantification Table
     peptides_table, peptides_headers = create_peptides_table(
         diann_report, sample_df, file_df
@@ -329,7 +387,6 @@ def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
 
 # Draw: Peptides Quantification Table
 def draw_peptides_table(sub_section, table_data, headers, report_type):
-
     draw_config = {
         "id": "peptides_quantification_table",
         "title": "Peptides Quantification Table",
@@ -390,7 +447,6 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
 
 # Draw: Protein Quantification Table
 def draw_protein_table(sub_sections, table_data, headers, report_type):
-
     draw_config = {
         "id": "protein_quant_result",
         "title": "Protein Quantification Table",
@@ -443,9 +499,9 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
         helptext=helptext_text,
     )
 
+
 # DIA-NN: HeatMap
 def cal_dia_heatmap(report_df):
-
     # "Contaminants" & "Peptide Intensity"
     pep_intensity = heatmap_cont_pep_intensity(report_df)
 
@@ -455,7 +511,6 @@ def cal_dia_heatmap(report_df):
 
 
 def heatmap_cont_pep_intensity(report_df):
-
     require_cols = [
         "Run",
         "Protein.Names",
@@ -500,7 +555,7 @@ def heatmap_cont_pep_intensity(report_df):
 
         # 2. "Peptide Intensity"
         pep_median = np.nanmedian(group["Precursor.Quantity"].to_numpy())
-        pep_intensity = float(np.fmin(1.0, pep_median / (2**23)))
+        pep_intensity = float(np.fmin(1.0, pep_median / (2 ** 23)))
 
         # 4. "RT Alignment"
         rt_alignment = max(0.0, 1 - float(np.mean(np.abs(group["RT"] - group["Predicted.RT"]))))
@@ -531,8 +586,8 @@ def heatmap_cont_pep_intensity(report_df):
 
     return heatmap_dict
 
-def cal_feature_avg_rt(report_data, col):
 
+def cal_feature_avg_rt(report_data, col):
     # RT: the retention time (RT) of the PSM in minutes
     sub_df = report_data[[col, "Run", "RT"]].copy()
 
@@ -562,7 +617,6 @@ def cal_feature_avg_rt(report_data, col):
 
 # DIA-NN: Lowess (Loess)
 def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
-
     if len(report_df) > 1000000:
         log.warning(f"Dataset too large ({len(report_df)} rows). Skipping LOWESS computation.")
         return None
@@ -607,9 +661,9 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
 
     return plot_dict
 
+
 # DIA-NN: Peptides Quantification Table
 def create_peptides_table(report_df, sample_df, file_df):
-
     # Validation: remove rows with 0 or NA Precursor.Normalised values
     report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
     report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
@@ -618,7 +672,6 @@ def create_peptides_table(report_df, sample_df, file_df):
 
     table_dict = dict()
     for sequence_protein, group in report_data.groupby(["Stripped.Sequence", "Protein.Names"]):
-
         table_dict[sequence_protein] = {
             "ProteinName": sequence_protein[1],
             "PeptideSequence": sequence_protein[0],
@@ -659,7 +712,7 @@ def create_peptides_table(report_df, sample_df, file_df):
         )
 
         for sequence_protein, group in cond_report_data.groupby(
-            ["Stripped.Sequence", "Protein.Names"]
+                ["Stripped.Sequence", "Protein.Names"]
         ):
 
             condition_data = dict()
@@ -669,7 +722,6 @@ def create_peptides_table(report_df, sample_df, file_df):
             table_dict[sequence_protein].update(condition_data)
 
         for exp_condition in sample_df["MSstats_Condition"].drop_duplicates():
-
             headers[str(exp_condition)] = {
                 "title": str(exp_condition),
                 "description": "MSstats Condition",
@@ -683,14 +735,12 @@ def create_peptides_table(report_df, sample_df, file_df):
 
 # DIA-NN: Protein Quantification Table
 def create_protein_table(report_df, sample_df, file_df):
-
     # Validation: remove rows with 0 or NA Precursor.Normalised values
     report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
     report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
 
     table_dict = dict()
     for protein_name, group in report_data.groupby("Protein.Names"):
-
         table_dict[protein_name] = {
             "ProteinName": protein_name,
             "Peptides_Number": group["Stripped.Sequence"].nunique(),
@@ -740,7 +790,6 @@ def create_protein_table(report_df, sample_df, file_df):
             table_dict[protein_name].update(condition_data)
 
         for exp_condition in sample_df["MSstats_Condition"].drop_duplicates():
-
             headers[str(exp_condition)] = {
                 "title": str(exp_condition),
                 "description": "MSstats Condition",

@@ -11,6 +11,7 @@ from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.logging import get_logger
+
 log = get_logger("pmultiqc.modules.common.common_utils")
 
 
@@ -50,6 +51,7 @@ def read_openms_design(desfile):
 
     return s_data_frame, f_table
 
+
 def condition_split(conditions):
     items = conditions.split(';')
     key_value_pairs = [item.split('=') for item in items if '=' in item]
@@ -57,8 +59,8 @@ def condition_split(conditions):
     result_dict = {k.strip(): v.strip() for k, v in key_value_pairs}
     return result_dict
 
-def get_ms_path(find_log_files):
 
+def get_ms_path(find_log_files):
     ms_paths = []
     for mzml_current_file in find_log_files("pmultiqc/mzML", filecontents=False):
         ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
@@ -77,6 +79,7 @@ def get_ms_path(find_log_files):
 
     return ms_info_path, read_ms_info, ms_paths
 
+
 def parse_mzml(
         is_bruker: bool = False,
         read_ms_info: bool = False,
@@ -86,8 +89,7 @@ def parse_mzml(
         enable_dia: bool = False,
         ms_paths: list[str] | None = None,
         enable_mzid: bool = False,
-    ):
-
+):
     ms1_tic = dict()
     ms1_bpc = dict()
     ms1_peaks = dict()
@@ -266,8 +268,8 @@ def parse_mzml(
         ms1_general_stats
     )
 
-def mod_group_percentage(group):
 
+def mod_group_percentage(group):
     if "Modifications" in group.columns:
         group.rename(columns={"Modifications": "modifications"}, inplace=True)
 
@@ -277,13 +279,14 @@ def mod_group_percentage(group):
 
     # Modified (Total)
     percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"] = (
-        100 - percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"]
+            100 - percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"]
     )
     percentage_df.loc[percentage_df["modifications"] == "Unmodified", "modifications"] = (
         "Modified (Total)"
     )
 
     return percentage_df
+
 
 def evidence_rt_count(evidence_data):
     if any(column not in evidence_data.columns for column in ["retention time", "raw file"]):
@@ -313,8 +316,8 @@ def evidence_rt_count(evidence_data):
 
     return rt_count_dict
 
-def evidence_calibrated_mass_error(evidence_data, recommpute=False):
 
+def evidence_calibrated_mass_error(evidence_data, recommpute=False):
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
@@ -354,9 +357,9 @@ def evidence_calibrated_mass_error(evidence_data, recommpute=False):
 
     return result_dict
 
+
 # re-compute mass error
 def recommpute_mass_error(evidence_df):
-
     required_cols = [
         "mass error [ppm]",
         "uncalibrated mass error [ppm]",
@@ -384,7 +387,7 @@ def recommpute_mass_error(evidence_df):
         df["theoretical_mz"] = df["mass"] / df["charge"] + 1.00726
         df["mass_error_ppm"] = (df["theoretical_mz"] - df["m/z"]) / df["theoretical_mz"] * 1e6
         df["uncalibrated_mass_error_ppm"] = (
-            df["mass_error_ppm"] + df["uncalibrated - calibrated m/z [ppm]"]
+                df["mass_error_ppm"] + df["uncalibrated - calibrated m/z [ppm]"]
         )
 
         idx_overwrite = df["raw file"].isin(decal_df.loc[decal_df["decal"], "raw file"])
@@ -398,17 +401,17 @@ def recommpute_mass_error(evidence_df):
 
     return df[["mass error [ppm]", "uncalibrated mass error [ppm]", "raw file"]]
 
+
 def parse_sdrf(
         sdrf_path,
         raw_config=None,
         condition_config=None
-    ):
-
+):
     OpenMS().openms_convert(
         sdrf_path,
-        raw_config,     # config.kwargs["raw"],
+        raw_config,  # config.kwargs["raw"],
         False,
         True,
         False,
-        condition_config,   # config.kwargs["condition"],
+        condition_config,  # config.kwargs["condition"],
     )

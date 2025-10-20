@@ -113,7 +113,7 @@ def file_prefix(path):
         if "\\" in path:
             path = path.replace("\\", "/")
         return Path(path).stem
-    except:
+    except Exception:
         raise SystemExit(f"Illegal file path: {path}")
 
 

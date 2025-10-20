@@ -30,7 +30,7 @@ def draw_heatmap(
         heatmap_xnames,
         heatmap_ynames,
         is_maxquant
-    ):
+):
     pconfig = {
         "id": "heatmap",
         "title": "HeatMap",
@@ -80,8 +80,8 @@ def draw_exp_design(sub_sections, exp_design):
 
     if is_multi_conditions:
         for sample in sorted(
-            sample_df["Sample"].tolist(),
-            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+                sample_df["Sample"].tolist(),
+                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
         ):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
@@ -125,7 +125,7 @@ def draw_exp_design(sub_sections, exp_design):
             "scale": False,
         }}
         for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-            headers["MSstats_Condition_" + str(k)] ={
+            headers["MSstats_Condition_" + str(k)] = {
                 "title": "MSstats Condition: " + str(k),
                 "description": "",
                 "scale": False,
@@ -152,8 +152,8 @@ def draw_exp_design(sub_sections, exp_design):
         }
     else:
         for sample in sorted(
-            sample_df["Sample"].tolist(),
-            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+                sample_df["Sample"].tolist(),
+                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
         ):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()

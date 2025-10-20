@@ -67,8 +67,8 @@ from pmultiqc.modules.core.section_groups import (
 )
 from pmultiqc.modules.common.logging import get_logger
 
-
 log = get_logger("pmultiqc.modules.quantms")
+
 
 class QuantMSModule:
 
@@ -161,7 +161,6 @@ class QuantMSModule:
         self.is_multi_conditions = False
         self.sample_df = pd.DataFrame()
         self.file_df = pd.DataFrame()
-
 
     def get_data(self):
 
@@ -278,7 +277,6 @@ class QuantMSModule:
         log.info("Data recognition and processing completed.")
 
         return True
-
 
     def draw_plots(self):
 
@@ -456,8 +454,8 @@ class QuantMSModule:
         # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
         # currently only draw protein tabel for spectral counting
         if (
-            not self.msstats_input_valid
-            and config.kwargs["quantification_method"] == "spectral_counting"
+                not self.msstats_input_valid
+                and config.kwargs["quantification_method"] == "spectral_counting"
         ):
             log.warning("MSstats input file not found!")
             add_sub_section(
@@ -640,7 +638,6 @@ class QuantMSModule:
                 * Peptides quantified: extracted from PSM table in mzTab file
                 """,
         )
-
 
     def draw_delta_mass(self):
 
@@ -959,7 +956,6 @@ class QuantMSModule:
         )
 
         if spec_e_bar_html != "":
-
             spec_e_bar_html = remove_subtitle(spec_e_bar_html)
 
             add_sub_section(
@@ -974,7 +970,6 @@ class QuantMSModule:
             )
 
         if xcorr_bar_html != "":
-
             xcorr_bar_html = remove_subtitle(xcorr_bar_html)
 
             add_sub_section(
@@ -989,7 +984,6 @@ class QuantMSModule:
             )
 
         if hyper_bar_html != "":
-
             hyper_bar_html = remove_subtitle(hyper_bar_html)
 
             add_sub_section(
@@ -1032,7 +1026,6 @@ class QuantMSModule:
 
         # Create identified number plot
         if len(self.search_engine["data_label"]["consensus_label"]) != 0:
-
             consensus_pconfig = {
                 "id": "consensus_summary",
                 "cpswitch": True,
@@ -1106,14 +1099,13 @@ class QuantMSModule:
 
             # Contaminants
             if (
-                len(
-                    pep_table[
-                        pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
-                    ]
-                )
-                > 0
+                    len(
+                        pep_table[
+                            pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
+                        ]
+                    )
+                    > 0
             ):
-
                 self.quantms_contaminant_percent = self.cal_quantms_contaminant_percent(
                     pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy()
                 )
@@ -1152,15 +1144,15 @@ class QuantMSModule:
                     )
 
                 self.heatmap_pep_intensity[name] = np.minimum(
-                    1.0, pep_median / (2**23)
+                    1.0, pep_median / (2 ** 23)
                 )  # Threshold
 
         #  HeatMapMissedCleavages
         global_peps = set(psm["opt_global_cv_MS:1000889_peptidoform_sequence"])
         global_peps_count = len(global_peps)
         if (
-            config.kwargs["remove_decoy"]
-            and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
+                config.kwargs["remove_decoy"]
+                and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
         ):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
         psm.loc[:, "stand_spectra_ref"] = psm.apply(
@@ -1191,12 +1183,12 @@ class QuantMSModule:
 
             # For HeatMapPepMissingScore
             id_fraction = (
-                len(
-                    set(group["opt_global_cv_MS:1000889_peptidoform_sequence"]).intersection(
-                        global_peps
+                    len(
+                        set(group["opt_global_cv_MS:1000889_peptidoform_sequence"]).intersection(
+                            global_peps
+                        )
                     )
-                )
-                / global_peps_count
+                    / global_peps_count
             )
             self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
 
@@ -1389,7 +1381,7 @@ class QuantMSModule:
             if None in proteins:
                 proteins.remove(None)
 
-            ## TODO this is not really the number of proteins but the number of protein groups
+            # TODO this is not really the number of proteins but the number of protein groups
             self.cal_num_table_data[m] = {"protein_num": len(proteins)}
             self.cal_num_table_data[m]["peptide_num"] = len(peptides)
             self.cal_num_table_data[m]["unique_peptide_num"] = len(unique_peptides)
@@ -1424,9 +1416,9 @@ class QuantMSModule:
         # Delta Mass [ppm]
         mass_error = psm[["filename", "calc_mass_to_charge", "exp_mass_to_charge"]].copy()
         mass_error["mass error [ppm]"] = (
-            (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"])
-            / mass_error["calc_mass_to_charge"]
-        ) * 1e6
+                                                 (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"])
+                                                 / mass_error["calc_mass_to_charge"]
+                                         ) * 1e6
         mass_error.rename(columns={"filename": "raw file"}, inplace=True)
         self.quantms_mass_error = evidence_calibrated_mass_error(mass_error)
 
@@ -1481,7 +1473,7 @@ class QuantMSModule:
 
         # draw PSMs table for spectral counting
         if config.kwargs["quantification_method"] == "spectral_counting" and not config.kwargs.get(
-            "disable_table", True
+                "disable_table", True
         ):
             mztab_data_psm_full = psm[
                 [
@@ -1558,20 +1550,21 @@ class QuantMSModule:
             pattern = re.compile(r'<small id="peptide_spectrum_matches_numrows_text"')
             index = re.search(pattern, table_html).span()[0]
             t_html = (
-                table_html[:index]
-                + '<input type="text" placeholder="search..." class="searchInput" '
-                'onkeyup="searchPsmFunction()" id="psm_search">'
-                '<select name="psm_search_col" id="psm_search_col">'
+                    table_html[:index]
+                    + '<input type="text" placeholder="search..." class="searchInput" '
+                      'onkeyup="searchPsmFunction()" id="psm_search">'
+                      '<select name="psm_search_col" id="psm_search_col">'
             )
             for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"]:
                 t_html += "<option>" + key + "</option>"
             table_html = (
-                t_html + "</select>" + '<button type="button" class="btn btn-default '
-                'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' + table_html[index:]
+                    t_html + "</select>" + '<button type="button" class="btn btn-default '
+                                           'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' + table_html[
+                        index:]
             )
             table_html = (
-                table_html
-                + """<div class="page_control"><span id="psmFirst">First Page</span><span
+                    table_html
+                    + """<div class="page_control"><span id="psmFirst">First Page</span><span
             id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
             Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
             type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
@@ -1584,9 +1577,9 @@ class QuantMSModule:
         # in the future with Protein and peptide tables from mzTab.
         # Draw protein table with spectral counting from mzTab file
         if (
-            not self.msstats_input_valid
-            and config.kwargs["quantification_method"] == "spectral_counting"
-            and not config.kwargs.get("disable_table", True)
+                not self.msstats_input_valid
+                and config.kwargs["quantification_method"] == "spectral_counting"
+                and not config.kwargs.get("disable_table", True)
         ):
             mztab_data_dict_prot_full = dict()
             conditions = self.sample_df.drop_duplicates(subset="MSstats_Condition")[
@@ -1627,9 +1620,9 @@ class QuantMSModule:
                         meta_data[
                             meta_data[
                                 abundance_col.replace("protein_abundance_", "") + "-ms_run_ref"
-                            ].split(",")[0]
+                                ].split(",")[0]
                             + "-location"
-                        ]
+                            ]
                     )
                     sample_name = str(
                         self.file_df[self.file_df["Run"] == os.path.splitext(file_name)[0]][
@@ -1702,9 +1695,9 @@ class QuantMSModule:
 
             # ProteinName is index
             all_term = (
-                ["Peptides_Number", "Average Spectrum Counting"]
-                + list(map(str, conditions))
-                + list(map(lambda x: str(x) + "_distribution", conditions))
+                    ["Peptides_Number", "Average Spectrum Counting"]
+                    + list(map(str, conditions))
+                    + list(map(lambda x: str(x) + "_distribution", conditions))
             )
             self.cur.executemany(
                 "INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
@@ -1736,20 +1729,21 @@ class QuantMSModule:
             pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
             index = re.search(pattern, table_html).span()[0]
             t_html = (
-                table_html[:index]
-                + '<input type="text" placeholder="search..." class="searchInput" '
-                'onkeyup="searchProtFunction()" id="prot_search">'
-                '<select name="prot_search_col" id="prot_search_col">'
+                    table_html[:index]
+                    + '<input type="text" placeholder="search..." class="searchInput" '
+                      'onkeyup="searchProtFunction()" id="prot_search">'
+                      '<select name="prot_search_col" id="prot_search_col">'
             )
             for key in ["ProteinName"]:
                 t_html += "<option>" + key + "</option>"
             table_html = (
-                t_html + "</select>" + '<button type="button" class="btn btn-default '
-                'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[index:]
+                    t_html + "</select>" + '<button type="button" class="btn btn-default '
+                                           'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[
+                        index:]
             )
             table_html = (
-                table_html
-                + """<div class="page_control"><span id="protFirst">First Page</span><span
+                    table_html
+                    + """<div class="page_control"><span id="protFirst">First Page</span><span
             id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last 
             Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input 
             type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
@@ -1765,7 +1759,7 @@ class QuantMSModule:
             )
         )
         msstats_data = pd.read_csv(self.msstats_input_path)
-        ## TODO we probably shouldn't even write out 0-intensity values to MSstats csv
+        # TODO we probably shouldn't even write out 0-intensity values to MSstats csv
         msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
         msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[:, "PeptideSequence"].map(
             self.peptide_search_score
@@ -1794,7 +1788,7 @@ class QuantMSModule:
             gdict.update(dict.fromkeys(conditions_dists, "{}"))
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
             gdict["BestSearchScore"] = g["BestSearchScore"].min()
-            ## TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
+            # TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
             grouped = g.groupby(["Condition", "BioReplicate"], as_index=False)["Intensity"].mean()
             cond_grp = grouped.groupby("Condition", group_keys=False)[
                 ["BioReplicate", "Intensity"]
@@ -1815,7 +1809,7 @@ class QuantMSModule:
         )
 
         del msstats_data
-        ## TODO Can we guarantee that the score was always PEP? I don't think so!
+        # TODO Can we guarantee that the score was always PEP? I don't think so!
         msstats_data_pep_agg.reset_index(inplace=True)
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict("index")
@@ -1855,15 +1849,15 @@ class QuantMSModule:
 
         # PeptideID is index
         all_term = (
-            [
-                "PeptideSequence",
-                "Modification",
-                "ProteinName",
-                "BestSearchScore",
-                "Average Intensity",
-            ]
-            + list(map(str, conditions))
-            + list(map(lambda x: str(x) + "_distribution", conditions))
+                [
+                    "PeptideSequence",
+                    "Modification",
+                    "ProteinName",
+                    "BestSearchScore",
+                    "Average Intensity",
+                ]
+                + list(map(str, conditions))
+                + list(map(lambda x: str(x) + "_distribution", conditions))
         )
         self.cur.executemany(
             "INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
@@ -1991,9 +1985,9 @@ class QuantMSModule:
 
         # ProteinID is index
         all_term = (
-            ["ProteinName", "Peptides_Number", "Average Intensity"]
-            + list(map(str, conditions))
-            + list(map(lambda x: str(x) + "_distribution", conditions))
+                ["ProteinName", "Peptides_Number", "Average Intensity"]
+                + list(map(str, conditions))
+                + list(map(lambda x: str(x) + "_distribution", conditions))
         )
         self.cur.executemany(
             "INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
@@ -2040,7 +2034,7 @@ class QuantMSModule:
         )
 
         group_stats["contaminant_percent"] = (
-            group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
+                group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
         )
 
         result_dict = dict()
@@ -2071,7 +2065,6 @@ class QuantMSModule:
         plot_cats = list()
 
         for file_name, group in pep_df.groupby("stand_spectra_ref"):
-
             contaminant_rows = group[group["cont_accession"] != not_cont_tag].copy()
             contaminant_rows.loc[
                 ~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"
@@ -2084,8 +2077,8 @@ class QuantMSModule:
                 .reset_index(drop=True)
             )
             cont_df["contaminant_percent"] = (
-                cont_df["average_intensity"] / group["average_intensity"].sum()
-            ) * 100
+                                                     cont_df["average_intensity"] / group["average_intensity"].sum()
+                                             ) * 100
 
             plot_dict[file_name] = dict(
                 zip(cont_df["cont_accession"], cont_df["contaminant_percent"])
@@ -2163,6 +2156,7 @@ class QuantMSModule:
             draw_delta_mass_da_ppm(
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
+
 
 def find_modification(peptide):
     peptide = str(peptide)
