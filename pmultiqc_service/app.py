@@ -2032,7 +2032,7 @@ async def view_results(request: Request):
                 {
                     "request": request,
                     "config": {"BASE_URL": BASE_URL},
-                    "error": f"No job ID provided. Please provide a job ID using ?job=<job_id>",
+                    "error": f"No job ID provided. Please provide a job ID using ?job={job_id}",
                 },
             )
 
@@ -2045,7 +2045,7 @@ async def view_results(request: Request):
                 {
                     "request": request,
                     "config": {"BASE_URL": BASE_URL},
-                    "error": f"Invalid job ID format.",
+                    "error": f"Invalid job ID format. {job_id}",
                 },
             )
 

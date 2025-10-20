@@ -1,6 +1,5 @@
 import pandas as pd
 from datetime import datetime
-from typing import List
 import os
 import copy
 from collections import OrderedDict
