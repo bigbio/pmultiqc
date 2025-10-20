@@ -27,4 +27,4 @@ class BaseParser(ABC):
         Returns:
             None or bool indicating success (implementation-dependent)
         """
-        pass
+        return None
