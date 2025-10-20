@@ -18,8 +18,6 @@ from pmultiqc.modules.common.common_utils import (
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots.id import draw_ids_rt_count
 
-
-from statsmodels.nonparametric.smoothers_lowess import lowess
 from pmultiqc.modules.common.file_utils import drop_empty_row
 from pmultiqc.modules.common.logging import get_logger
 
@@ -45,7 +43,7 @@ def parse_diann_report(
 
     from pmultiqc.modules.common.ms.diann import DiannReader
     diann_reader = DiannReader(
-        file_paths=diann_report_path
+        file_path=diann_report_path
     )
     diann_reader.parse()
     report_data = diann_reader.report_data
@@ -60,8 +58,11 @@ def parse_diann_report(
     if "Normalisation.Factor" not in report_data.columns and all(
         col in report_data.columns for col in required_cols
     ):
-        report_data["Normalisation.Factor"] = (
-            report_data[required_cols[0]] / report_data[required_cols[1]]
+        report_data["Normalisation.Factor"] = np.divide(
+            report_data[required_cols[0]],
+            report_data[required_cols[1]],
+            out=np.full_like(report_data[required_cols[0]], np.nan, dtype="float64"),
+            where=report_data[required_cols[1]].to_numpy(dtype="float64") != 0,
         )
 
     # Draw: Standard Deviation of Intensity
@@ -70,8 +71,10 @@ def parse_diann_report(
         # Inline former draw_dia_heatmap wrapper
         log.info("Compute the Heatmap.")
         heatmap_data = cal_dia_heatmap(report_data)
-        dia_plots.draw_heatmap(sub_sections["summary"], heatmap_color_list, heatmap_data)
-        log.info("Heatmap calculation is done.")
+
+        if heatmap_data:
+            dia_plots.draw_heatmap(sub_sections["summary"], heatmap_color_list, heatmap_data)
+            log.info("Heatmap calculation is done.")
 
     log.info("Draw the DIA MS1 subsection.")
     draw_dia_ms1(sub_sections["ms1"], report_data)
@@ -92,8 +95,9 @@ def parse_diann_report(
             sub_sections["quantification"], report_data, sample_df, file_df
         )
 
-    pattern = re.compile(r"\(.*?\)")
-    report_data["sequence"] = [pattern.sub("", s) for s in report_data["Modified.Sequence"]]
+    report_data["sequence"] = report_data[
+        "Modified.Sequence"
+    ].astype("string").str.replace(r"\(.*?\)", "", regex=True)
 
     total_protein_quantified = len(set(report_data["Protein.Group"]))
     total_peptide_count = len(set(report_data["sequence"]))
@@ -232,8 +236,8 @@ def draw_dia_ms2s(sub_section, df):
     if "Precursor.Charge" in df.columns:
         dia_plots.draw_dia_whole_exp_charge(sub_section, df)
 
-    # Charge-state of Per File
-    dia_plots.draw_dia_ms2_charge(sub_section, df)
+        # Charge-state of Per File
+        dia_plots.draw_dia_ms2_charge(sub_section, df)
 
 
 def draw_dia_mass_error(sub_section, df):
@@ -257,14 +261,18 @@ def draw_dia_rt_qc(sub_section, report_df):
     if "Normalisation.Factor" in df.columns:
         log.info("Draw[rt_qc]: norm_factor_rt")
         norm_factor_rt = cal_feature_avg_rt(df, "Normalisation.Factor")
-        dia_plots.draw_norm_factor_rt(sub_section, norm_factor_rt)
+
+        if norm_factor_rt:
+            dia_plots.draw_norm_factor_rt(sub_section, norm_factor_rt)
 
     # 2. FWHM over RT
     #   FWHM: estimated peak width at half-maximum
     if "FWHM" in df.columns:
         log.info("Draw[rt_qc]: draw_fwhm_rt")
         fwhm_rt = cal_feature_avg_rt(df, "FWHM")
-        dia_plots.draw_fwhm_rt(sub_section, fwhm_rt)
+
+        if fwhm_rt:
+            dia_plots.draw_fwhm_rt(sub_section, fwhm_rt)
 
     # 3. Peak Width over RT
     #   RT.Start and RT.Stop peak boundaries
@@ -272,20 +280,25 @@ def draw_dia_rt_qc(sub_section, report_df):
         log.info("Draw[rt_qc]: draw_peak_width_rt")
         df["peak_width"] = df["RT.Stop"] - df["RT.Start"]
         peak_width_rt = cal_feature_avg_rt(df, "peak_width")
-        dia_plots.draw_peak_width_rt(sub_section, peak_width_rt)
+
+        if peak_width_rt:
+            dia_plots.draw_peak_width_rt(sub_section, peak_width_rt)
 
     # 4. Absolute RT Error over RT
     if all(col in df.columns for col in ["RT", "Predicted.RT"]):
         log.info("Draw[rt_qc]: draw_rt_error_rt")
         df["rt_error"] = abs(df["RT"] - df["Predicted.RT"])
         rt_error_rt = cal_feature_avg_rt(df, "rt_error")
-        dia_plots.draw_rt_error_rt(sub_section, rt_error_rt)
+
+        if rt_error_rt:
+            dia_plots.draw_rt_error_rt(sub_section, rt_error_rt)
 
     # 5. loess(RT ~ iRT)
     if all(col in df.columns for col in ["RT", "iRT"]):
         log.info("Draw[rt_qc]: draw_loess_rt_irt")
         rt_irt_loess = cal_rt_irt_loess(df)
-        if rt_irt_loess is not None:
+
+        if rt_irt_loess:
             dia_plots.draw_loess_rt_irt(sub_section, rt_irt_loess)
 
 
@@ -443,19 +456,23 @@ def cal_dia_heatmap(report_df):
 
 def heatmap_cont_pep_intensity(report_df):
 
-    df = report_df[
-        [
-            "Run",
-            "Protein.Names",
-            "Precursor.Quantity",
-            "RT",
-            "Predicted.RT",
-            "Precursor.Charge",
-            "Normalisation.Factor",
-            "RT.Stop",
-            "RT.Start",
-        ]
-    ].copy()
+    require_cols = [
+        "Run",
+        "Protein.Names",
+        "Precursor.Quantity",
+        "RT",
+        "Predicted.RT",
+        "Precursor.Charge",
+        "Normalisation.Factor",
+        "RT.Stop",
+        "RT.Start",
+    ]
+
+    if not all(col in report_df.columns for col in require_cols):
+        log.warning("Missing require column. Skipping heatmap.")
+        return {}
+
+    df = report_df[require_cols].copy()
 
     # TODO "CON"?
     df["is_contaminant"] = df["Protein.Names"].str.startswith("CON", na=False)
@@ -463,14 +480,12 @@ def heatmap_cont_pep_intensity(report_df):
     # 3. "Charge"
     charge = dict()
     for raw_file, group in df[["Run", "Precursor.Charge"]].groupby("Run"):
-        charge[raw_file] = group["Precursor.Charge"].value_counts()[2] / len(group)
-    charge_median = np.median(list(charge.values()))
-    heatmap_charge = dict(
-        zip(
-            charge.keys(),
-            list(map(lambda v: float(1 - np.abs(v - charge_median)), charge.values())),
-        )
-    )
+        vc = group["Precursor.Charge"].value_counts(dropna=True, normalize=True)
+        charge[raw_file] = vc.get(2, 0)
+    charge_median = np.median(list(charge.values())) if charge else 0
+    heatmap_charge = {
+        k: float(max(0.0, 1.0 - abs(v - charge_median))) for k, v in charge.items()
+    }
 
     heatmap_dict = {}
     for run, group in df.groupby("Run"):
@@ -522,8 +537,18 @@ def cal_feature_avg_rt(report_data, col):
     sub_df = report_data[[col, "Run", "RT"]].copy()
 
     # RT bin
-    sub_df["RT_bin"] = pd.cut(sub_df["RT"], bins=DEFAULT_BINS)
+    if sub_df["RT"].notna().sum() < 2 or sub_df["RT"].min() == sub_df["RT"].max():
+        return {}
+
+    sub_df["RT_bin"] = pd.cut(
+        sub_df["RT"],
+        bins=DEFAULT_BINS,
+        include_lowest=True,
+        duplicates="drop"
+    )
+    sub_df = sub_df.dropna(subset=["RT_bin"])
     sub_df["RT_bin_mid"] = sub_df["RT_bin"].apply(lambda x: x.mid)
+
     result = sub_df.groupby(["Run", "RT_bin_mid"], observed=False)[col].mean().reset_index()
     result[col] = result[col].fillna(0)
 
@@ -543,10 +568,18 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
         return None
 
     log.info("Start compute loess...")
+
+    from statsmodels.nonparametric.smoothers_lowess import lowess
+
     df = report_df.copy()
 
     # bin
     x_min, x_max = df["iRT"].min(), df["iRT"].max()
+
+    if pd.isna(x_min) or pd.isna(x_max) or x_min == x_max:
+        log.warning("iRT values are incorrect. Skipping LOWESS computation.")
+        return None
+
     bins = np.linspace(x_min, x_max, data_bins)
 
     plot_dict = dict()

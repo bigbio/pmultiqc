@@ -19,7 +19,7 @@ from pmultiqc.modules.common.ms_io import (
 class MsInfoReader(BaseParser):
     def __init__(
         self,
-        file_paths: list[str, Path],
+        file_paths: list[str | Path],
         ms_with_psm,
         identified_spectrum,
         mzml_charge_plot,
@@ -54,7 +54,7 @@ class MsInfoReader(BaseParser):
 
         self.log = get_logger("pmultiqc.modules.common.ms.msinfo")
 
-    def parse(self, **kwargs) -> None:
+    def parse(self, **_kwargs) -> None:
         mzml_table = {}
         heatmap_charge = {}
         total_ms2_spectra = 0
@@ -101,8 +101,14 @@ class MsInfoReader(BaseParser):
                     raise ValueError(
                         "ms_io: The identified_spectrum is missing. Please check your mzTab file!"
                     )
+
+                if m_name not in self.identified_spectrum:
+                    raise ValueError(
+                        f"identified_spectrum missing entries for '{m_name}'. Check your mzTab file."
+                    )
                 identified_spectrum_scan_id = [
-                    spectra_ref_check(spectrum_id) for spectrum_id in self.identified_spectrum[m_name]
+                    spectra_ref_check(spectrum_id)
+                    for spectrum_id in self.identified_spectrum[m_name]
                 ]
 
             for _, row in group.iterrows():
@@ -136,8 +142,18 @@ class MsInfoReader(BaseParser):
         self.mzml_table = mzml_table
         self.heatmap_charge = heatmap_charge
         self.total_ms2_spectra = total_ms2_spectra
-        self.ms1_tic = ms1_tic
-        self.ms1_bpc = ms1_bpc
-        self.ms1_peaks = ms1_peaks
-        self.ms1_general_stats = ms1_general_stats
+
+        self.ms1_tic = {
+            k: v for k, v in ms1_tic.items() if v is not None
+        }
+        self.ms1_bpc = {
+            k: v for k, v in ms1_bpc.items() if v is not None
+        }
+        self.ms1_peaks = {
+            k: v for k, v in ms1_peaks.items() if v is not None
+        }
+        self.ms1_general_stats = {
+            k: v for k, v in ms1_general_stats.items() if v is not None
+        }
+
         return None

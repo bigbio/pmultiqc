@@ -15,7 +15,7 @@ from pmultiqc.modules.common.ms_io import get_ms_qc_info
 class MzMLReader(BaseParser):
     def __init__(
         self,
-        file_paths: list[str, Path],
+        file_paths: list[str | Path],
         ms_with_psm,
         identified_spectrum,
         mzml_charge_plot,
@@ -72,7 +72,7 @@ class MzMLReader(BaseParser):
 
         self.log = get_logger("pmultiqc.modules.common.ms.mzml")
 
-    def parse(self, **kwargs) -> None:
+    def parse(self, **_kwargs) -> None:
         mzml_table = {}
         heatmap_charge = {}
         total_ms2_spectra = 0
@@ -156,11 +156,11 @@ class MzMLReader(BaseParser):
                             }
                         )
 
-                    peak_per_ms2 = len(mz_array)
+                    peak_per_ms2 = num_peaks
                     if spectrum.getMetaValue("base peak intensity"):
                         base_peak_intensity = spectrum.getMetaValue("base peak intensity")
                     else:
-                        base_peak_intensity = max(intensity_array) if len(intensity_array) > 0 else None
+                        base_peak_intensity = float(intensity_array.max()) if num_peaks > 0 else None
 
                     if charge_state == 2:
                         charge_2 += 1

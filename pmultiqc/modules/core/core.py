@@ -92,7 +92,7 @@ class PMultiQC(BaseMultiqcModule):
             if quantms.get_data():
                 quantms.draw_plots()
         else:
-            raise ValueError("No plugin defined")
+            raise ValueError("No pmultiqc plugin selected; skipping.")
 
 
 def get_module(module_name, class_name):

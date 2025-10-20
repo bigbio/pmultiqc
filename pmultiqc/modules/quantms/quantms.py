@@ -85,7 +85,6 @@ class QuantMSModule:
         self.mzml_peak_distribution_plot_1 = None
         self.mzml_charge_plot_1 = None
         self.mzml_peaks_ms2_plot_1 = None
-        self.ms_without_psm = None
         self.msgf_label = None
         self.comet_label = None
         self.sage_label = None
@@ -93,7 +92,6 @@ class QuantMSModule:
         self.pep_plot = None
         self.peptide_search_score = None
         self.oversampling_plot = None
-        self.ms_without_psm = None
         self.psm_table_html = None
         self.protein_quantification_table_html = None
         self.pep_plot = None
@@ -557,7 +555,7 @@ class QuantMSModule:
                 "Pep Missing Values",
             ]
             ynames = []
-            for k, v in self.heatmap_charge_score.items():
+            for k, _ in self.heatmap_charge_score.items():
                 if k in self.ms_with_psm:
                     ynames.append(k)
                     heat_map_score.append(
@@ -1272,7 +1270,7 @@ class QuantMSModule:
         from pmultiqc.modules.common.ms.mztab import MzTabReader
 
         mztab_reader = MzTabReader(
-            file_paths=self.out_mztab_path
+            file_path=self.out_mztab_path
         )
         mztab_reader.parse()
         self.mztab_data = mztab_reader.mztab_data

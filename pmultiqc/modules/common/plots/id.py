@@ -242,7 +242,7 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
             Delta Mass [ppm] calculated from mzTab.
             """
         help_text = """
-            Delta Mass [ppm] calculated from mzTab: ((𝑒𝑥𝑝𝑒𝑟𝑖𝑚𝑒𝑛𝑡𝑎𝑙 𝑚/𝑧 - 𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧) / (𝑡ℎ𝑒𝑜𝑟𝑒𝑡𝑖𝑐𝑎𝑙 𝑚/𝑧)) × 10^6.
+            Delta Mass [ppm] calculated from mzTab: ((experimental m/z - theoretical m/z) / (theoretical m/z)) x 10^6.
             """
 
     x_values = list(delta_mass["count"].keys())
@@ -494,7 +494,7 @@ def draw_summary_protein_ident_table(
                 "#Identified MS2 Spectra": total_ms2_spectra_identified
             }
         }
-        coverage = total_ms2_spectra_identified / total_ms2_spectra * 100
+        coverage = (total_ms2_spectra_identified / total_ms2_spectra * 100) if total_ms2_spectra > 0 else 0.0
         summary_table[total_ms2_spectra]["%Identified MS2 Spectra"] = coverage
         summary_table[total_ms2_spectra]["#Peptides Identified"] = total_peptide_count
         summary_table[total_ms2_spectra]["#Proteins Identified"] = total_protein_identified
@@ -558,7 +558,10 @@ def draw_quantms_identi_num(
 
     if enable_exp or enable_sdrf:
         if is_multi_conditions:
-            for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
+            for sample in sorted(
+                sample_df["Sample"].tolist(),
+                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+            ):
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
                 sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
                 row_data: List[InputRow] = []
@@ -628,7 +631,11 @@ def draw_quantms_identi_num(
                 "description": "The number of identified protein(group)s in the pipeline",
             }
         else:
-            for sample in sorted(sample_df["Sample"].tolist(), key=lambda x: int(x)):
+            for sample in sorted(
+                sample_df["Sample"].tolist(),
+                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+            ):
+
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
                 sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
                 row_data: List[InputRow] = []

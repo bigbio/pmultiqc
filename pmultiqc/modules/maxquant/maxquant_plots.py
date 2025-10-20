@@ -28,7 +28,7 @@ def draw_exp_design(sdrf_df, sub_sections):
                 InputRow(
                     sample=SampleName(row["file_name"]),
                     data={
-                        "MSstats_BioReplicate": "",
+                        "BioReplicate": "",
                         "Fraction": row["fraction_identifier"],
                         "TecReplicate": row["technical_replicate"],
                     },
@@ -549,7 +549,7 @@ def draw_mass_error_box(sub_section, mass_error_data):
         sub_section=sub_section,
         plot=box_html,
         order=5,
-        description="[Excludes Contaminants] Mass accurary before calibration.",
+        description="[Excludes Contaminants] Mass accuracy before calibration.",
         helptext="""
             Mass error of the uncalibrated mass-over-charge value of the precursor ion in comparison 
             to the predicted monoisotopic mass of the identified peptide sequence. 
@@ -562,7 +562,7 @@ def draw_maxquant_summary_table(
     sub_section, msms_spectra, identified_msms, identified_peptides, protein_dict
 ):
 
-    coverage = (identified_msms / msms_spectra) * 100
+    coverage = (identified_msms / msms_spectra) * 100 if msms_spectra else 0
 
     summary_table = dict()
     summary_table[msms_spectra] = {

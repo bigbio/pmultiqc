@@ -94,7 +94,8 @@ class DiannModule:
             self.diann_report_path = diann_report_path
             self.enable_dia = True
         else:
-            raise ValueError("DIANN report not found. Please check your data!")
+            log.error("DIANN report not found. Please check your data!")
+            return False
 
         (
             self.mzml_table,

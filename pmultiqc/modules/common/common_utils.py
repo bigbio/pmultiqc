@@ -81,11 +81,11 @@ def get_ms_path(find_log_files):
 def parse_mzml(
         is_bruker: bool = False,
         read_ms_info: bool = False,
-        ms_info_path: List[str] = None,
-        ms_with_psm: List[str] = None,
-        identified_spectrum: List[str] = None,
+        ms_info_path: list[str] | None = None,
+        ms_with_psm: list[str] | None = None,
+        identified_spectrum: list[str] | None = None,
         enable_dia: bool = False,
-        ms_paths: List[str] = None,
+        ms_paths: list[str] | None = None,
         enable_mzid: bool = False,
     ):
 
@@ -194,7 +194,7 @@ def parse_mzml(
         if enable_mzid:
             mzml_ms_df = mzml_reader.mzml_ms_df
 
-    for i in ms_without_psm:
+    for i in sorted(set(ms_without_psm)):
         log.warning("No PSM found in '{}'!".format(i))
 
     mzml_peaks_ms2_plot.to_dict()

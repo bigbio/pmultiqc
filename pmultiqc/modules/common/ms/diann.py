@@ -12,30 +12,32 @@ from pmultiqc.modules.common.logging import get_logger
 class DiannReader(BaseParser):
     def __init__(
         self,
-        file_paths: Path = Path(),
+        file_path: Path | str,
     ) -> None:
 
-        super().__init__(file_paths)
+        super().__init__([file_path])
+
+        self.file_path = file_path
 
         # Outputs populated by parse()
         self.report_data: pd.DataFrame = pd.DataFrame()
 
         self.log = get_logger("pmultiqc.modules.common.ms.diann")
 
-    def parse(self, **kwargs) -> None:
+    def parse(self, **_kwargs) -> None:
 
         # parse DIA-NN report data
-        if os.path.splitext(self.file_paths)[1] == ".tsv":
+        if os.path.splitext(self.file_path)[1] == ".tsv":
             report_data = pd.read_csv(
-                self.file_paths, header=0, sep="\t", on_bad_lines="warn"
+                self.file_path, header=0, sep="\t", on_bad_lines="warn"
             )
 
         else:
-            report_data = pd.read_parquet(self.file_paths)
+            report_data = pd.read_parquet(self.file_path)
 
         self.log.info(
             "{}: Done parsing DIANN file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.file_paths
+                datetime.now().strftime("%H:%M:%S"), self.file_path
             )
         )
 

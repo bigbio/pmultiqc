@@ -38,7 +38,10 @@ def get_pb_data(file_path):
     elif any("_Condition_" in col for col in pb_df.columns):
         runs_col = "_Condition_"
     else:
-        log.warning("'_Condition_' or 'abundance_' not found. Check result_performance.csv!")
+        runs_col = None
+        log.warning(
+            "'_Condition_' or 'abundance_' not found. Check result_performance.csv!"
+        )
 
     # precursor ion charge
     charge_html = draw_precursor_ion_charge(pb_df)
@@ -190,49 +193,57 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
     # 1. Missing Values
     if enable_bar:
 
-        bar_data = statistics_na_values(df, cols)
+        if cols:
+            bar_data = statistics_na_values(df, cols)
 
-        draw_bar_config = {
-            "id": bar_plot_id,
-            "cpswitch": True,
-            "title": bar_plot_title,
-            "tt_decimals": 0,
-            "ylab": "Count",
-        }
+            draw_bar_config = {
+                "id": bar_plot_id,
+                "cpswitch": True,
+                "title": bar_plot_title,
+                "tt_decimals": 0,
+                "ylab": "Count",
+            }
 
-        bar_html = bargraph.plot(
-            data=bar_data,
-            pconfig=draw_bar_config,
-        )
+            bar_html = bargraph.plot(
+                data=bar_data,
+                pconfig=draw_bar_config,
+            )
 
-        bar_html = remove_subtitle(bar_html)
+            bar_html = remove_subtitle(bar_html)
+        else:
+            bar_html = None
     else:
         bar_html = None
 
     # 2. Distribution
     if enable_line:
 
-        if only_one_col:
-            linegraph_data = statistics_line_values(df, cols, "", only_one_col)
+        if cols:
 
+            if only_one_col:
+                linegraph_data = statistics_line_values(df, cols, "", only_one_col)
+
+            else:
+                linegraph_data = statistics_line_values(df, cols, plot_type, only_one_col)
+
+            draw_line_config = {
+                "id": line_plot_id,
+                "cpswitch": False,
+                "cpswitch_c_active": False,
+                "title": line_plot_title,
+                "ymin": 0,
+                "tt_decimals": 0,
+                "ylab": "Count",
+                "xlab": line_plot_xlab,
+                "showlegend": True,
+            }
+
+            linegraph_html = linegraph.plot(data=linegraph_data, pconfig=draw_line_config)
+
+            linegraph_html = remove_subtitle(linegraph_html)
+        
         else:
-            linegraph_data = statistics_line_values(df, cols, plot_type, only_one_col)
-
-        draw_line_config = {
-            "id": line_plot_id,
-            "cpswitch": False,
-            "cpswitch_c_active": False,
-            "title": line_plot_title,
-            "ymin": 0,
-            "tt_decimals": 0,
-            "ylab": "Count",
-            "xlab": line_plot_xlab,
-            "showlegend": True,
-        }
-
-        linegraph_html = linegraph.plot(data=linegraph_data, pconfig=draw_line_config)
-
-        linegraph_html = remove_subtitle(linegraph_html)
+            linegraph_html = None
 
     else:
         linegraph_html = None
@@ -240,22 +251,27 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
     # 3. BoxPlot
     if enable_box:
 
-        box_data = statistics_box_values(df, cols)
+        if cols:
 
-        draw_box_config = {
-            "id": box_plot_id,
-            "cpswitch": False,
-            "title": box_plot_title,
-            "tt_decimals": 5,
-            "xlab": box_plot_xlab,
-        }
+            box_data = statistics_box_values(df, cols)
 
-        box_html = box.plot(
-            list_of_data_by_sample=box_data,
-            pconfig=draw_box_config,
-        )
+            draw_box_config = {
+                "id": box_plot_id,
+                "cpswitch": False,
+                "title": box_plot_title,
+                "tt_decimals": 5,
+                "xlab": box_plot_xlab,
+            }
 
-        box_html = remove_subtitle(box_html)
+            box_html = box.plot(
+                list_of_data_by_sample=box_data,
+                pconfig=draw_box_config,
+            )
+
+            box_html = remove_subtitle(box_html)
+        
+        else:
+            box_html = None
 
     else:
         box_html = None
@@ -321,7 +337,11 @@ def statistics_box_values(df, cols):
     return boxplot_data
 
 
-def intensity_count_per_file(df, runs_col):
+def intensity_count_per_file(df, runs_col=None):
+
+    if runs_col is None:
+        log.warning("runs_col is not set; skipping intensity_count_per_file.")
+        return None
 
     cols = [col for col in df.columns if runs_col in col]
 
@@ -419,6 +439,9 @@ def draw_logintensitymean_vs_logfc(df):
 
 
 def calculate_log_intensity(df, runs_col):
+
+    if runs_col is None:
+        return None, None
 
     cols = [col for col in df.columns if runs_col in col]
     log_cols = [f"log2_{os.path.splitext(col)[0]}" for col in cols]

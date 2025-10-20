@@ -19,7 +19,11 @@ class ProteoBenchModule(BasePMultiqcModule):
         for pb_result in self.find_log_files("pmultiqc/proteobench_result", filecontents=False):
             pb_file_path.append(os.path.join(pb_result["root"], pb_result["fn"]))
 
-        if len(pb_file_path) != 1:
+        if len(pb_file_path) == 0:
+            raise FileNotFoundError(
+                "No ProteoBench result file found."
+            )
+        if len(pb_file_path) > 1:
             raise ValueError(
                 f"Multiple ProteoBench result files found ({len(pb_file_path)}): {', '.join(pb_file_path)}. Please ensure only one result file is present."
             )
