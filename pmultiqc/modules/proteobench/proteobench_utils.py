@@ -87,200 +87,167 @@ def get_pb_data(file_path):
 
 def draw_logmean_std_cv(df, plot_type, runs_col=None):
 
-    enable_bar = False
-    enable_line = False
-    enable_box = False
+    config = _config_for_plot_type(df, plot_type, runs_col)
 
-    # Initialize plotting identifiers to satisfy static analysis
-    bar_plot_id = None
-    bar_plot_title = None
-    line_plot_id = None
-    line_plot_title = None
-    line_plot_xlab = None
-    box_plot_id = None
-    box_plot_title = None
-    box_plot_xlab = None
-    cols = []
-
-    only_one_col = False
-
-    if plot_type == "log_intensity_mean":
-
-        enable_bar = True
-        enable_line = True
-
-        cols = ["log_Intensity_mean_A", "log_Intensity_mean_B"]
-
-        if not all(col in df.columns for col in cols):
-            log.warning(f"{' and '.join(cols)} not found. Check result_performance.csv!")
-
-        bar_plot_id = "log_intensity_mean_na"
-        bar_plot_title = "Missing Values (for Conditions)"
-        line_plot_id = "log_intensity_mean_linegraph"
-        line_plot_title = "Distribution of Intensity (for Conditions)"
-        line_plot_xlab = "log2(Intensity)"
-
-    elif plot_type == "log_intensity":
-
-        enable_bar = True
-        enable_line = True
-
-        df, cols = calculate_log_intensity(df, runs_col)
-
-        bar_plot_id = "log_intensity_na"
-        bar_plot_title = "Missing Values (for Runs)"
-        line_plot_id = "log_intensity_linegraph"
-        line_plot_title = "Distribution of Intensity (for Runs)"
-        line_plot_xlab = "log2(Intensity)"
-
-    elif plot_type == "log_intensity_std":
-
-        enable_box = True
-
-        cols = ["log_Intensity_std_A", "log_Intensity_std_B"]
-
-        if not all(col in df.columns for col in cols):
-            log.warning(f"{' and '.join(cols)} not found. Check result_performance.csv!")
-
-        box_plot_id = "std_intensity_box"
-        box_plot_title = "Standard Deviation of Intensity"
-        box_plot_xlab = "Standard Deviation of log2(Intensity)"
-
-    elif plot_type == "cv":
-
-        enable_bar = True
-        enable_line = True
-
-        cols = ["CV_A", "CV_B"]
-
-        if not all(col in df.columns for col in cols):
-            log.warning(f"{' and '.join(cols)} not found. Check result_performance.csv!")
-
-        bar_plot_id = "cv_na"
-        bar_plot_title = "Missing Values"
-        line_plot_id = "cv_linegraph"
-        line_plot_title = "Distribution of CV"
-        line_plot_xlab = "Coefficient of Variation"
-
-    elif plot_type == "log2_A_vs_B":
-
-        enable_line = True
-        only_one_col = True
-
-        cols = ["log2_A_vs_B"]
-
-        if not all(col in df.columns for col in cols):
-            log.warning(f"{cols[0]} not found. Check result_performance.csv!")
-
-        line_plot_id = "log_vs_linegraph"
-        line_plot_title = "Log2 Fold Change (A vs B)"
-        line_plot_xlab = "log_Intensity_mean_A - log_Intensity_mean_B"
-
-    elif plot_type == "epsilon":
-
-        enable_line = True
-        only_one_col = True
-
-        cols = ["epsilon"]
-
-        if not all(col in df.columns for col in cols):
-            log.warning(f"{cols[0]} not found. Check result_performance.csv!")
-
-        line_plot_id = "epsilon_linegraph"
-        line_plot_title = "Distribution of Epsilon"
-        line_plot_xlab = "log2 FC difference"
-
-    # 1. Missing Values
-    if enable_bar:
-
-        if cols:
-            bar_data = statistics_na_values(df, cols)
-
-            draw_bar_config = {
-                "id": bar_plot_id,
-                "cpswitch": True,
-                "title": bar_plot_title,
-                "tt_decimals": 0,
-                "ylab": "Count",
-            }
-
-            bar_html = bargraph.plot(
-                data=bar_data,
-                pconfig=draw_bar_config,
-            )
-
-            bar_html = remove_subtitle(bar_html)
-        else:
-            bar_html = None
-    else:
-        bar_html = None
-
-    # 2. Distribution
-    if enable_line:
-
-        if cols:
-
-            if only_one_col:
-                linegraph_data = statistics_line_values(df, cols, "", only_one_col)
-
-            else:
-                linegraph_data = statistics_line_values(df, cols, plot_type, only_one_col)
-
-            draw_line_config = {
-                "id": line_plot_id,
-                "cpswitch": False,
-                "cpswitch_c_active": False,
-                "title": line_plot_title,
-                "ymin": 0,
-                "tt_decimals": 0,
-                "ylab": "Count",
-                "xlab": line_plot_xlab,
-                "showlegend": True,
-            }
-
-            linegraph_html = linegraph.plot(data=linegraph_data, pconfig=draw_line_config)
-
-            linegraph_html = remove_subtitle(linegraph_html)
-
-        else:
-            linegraph_html = None
-
-    else:
-        linegraph_html = None
-
-    # 3. BoxPlot
-    if enable_box:
-
-        if cols:
-
-            box_data = statistics_box_values(df, cols)
-
-            draw_box_config = {
-                "id": box_plot_id,
-                "cpswitch": False,
-                "title": box_plot_title,
-                "tt_decimals": 5,
-                "xlab": box_plot_xlab,
-            }
-
-            box_html = box.plot(
-                list_of_data_by_sample=box_data,
-                pconfig=draw_box_config,
-            )
-
-            box_html = remove_subtitle(box_html)
-        
-        else:
-            box_html = None
-
-    else:
-        box_html = None
+    bar_html = _maybe_draw_bar(df, config)
+    linegraph_html = _maybe_draw_line(df, config)
+    box_html = _maybe_draw_box(df, config)
 
     return {
         "bar_html": bar_html,
         "linegraph_html": linegraph_html,
         "box_html": box_html,
     }
+
+
+def _config_for_plot_type(df, plot_type, runs_col):
+    config = {
+        "enable_bar": False,
+        "enable_line": False,
+        "enable_box": False,
+        "only_one_col": False,
+        "cols": [],
+        "bar": {"id": None, "title": None},
+        "line": {"id": None, "title": None, "xlab": None},
+        "box": {"id": None, "title": None, "xlab": None},
+        "plot_type": plot_type,
+    }
+
+    if plot_type == "log_intensity_mean":
+        config["enable_bar"] = True
+        config["enable_line"] = True
+        config["cols"] = ["log_Intensity_mean_A", "log_Intensity_mean_B"]
+        if not all(col in df.columns for col in config["cols"]):
+            log.warning(f"{' and '.join(config['cols'])} not found. Check result_performance.csv!")
+        config["bar"].update({"id": "log_intensity_mean_na", "title": "Missing Values (for Conditions)"})
+        config["line"].update({
+            "id": "log_intensity_mean_linegraph",
+            "title": "Distribution of Intensity (for Conditions)",
+            "xlab": "log2(Intensity)",
+        })
+
+    elif plot_type == "log_intensity":
+        config["enable_bar"] = True
+        config["enable_line"] = True
+        new_df, cols = calculate_log_intensity(df, runs_col)
+        df = new_df if new_df is not None else df
+        config["cols"] = cols or []
+        config["bar"].update({"id": "log_intensity_na", "title": "Missing Values (for Runs)"})
+        config["line"].update({
+            "id": "log_intensity_linegraph",
+            "title": "Distribution of Intensity (for Runs)",
+            "xlab": "log2(Intensity)",
+        })
+
+    elif plot_type == "log_intensity_std":
+        config["enable_box"] = True
+        config["cols"] = ["log_Intensity_std_A", "log_Intensity_std_B"]
+        if not all(col in df.columns for col in config["cols"]):
+            log.warning(f"{' and '.join(config['cols'])} not found. Check result_performance.csv!")
+        config["box"].update({
+            "id": "std_intensity_box",
+            "title": "Standard Deviation of Intensity",
+            "xlab": "Standard Deviation of log2(Intensity)",
+        })
+
+    elif plot_type == "cv":
+        config["enable_bar"] = True
+        config["enable_line"] = True
+        config["cols"] = ["CV_A", "CV_B"]
+        if not all(col in df.columns for col in config["cols"]):
+            log.warning(f"{' and '.join(config['cols'])} not found. Check result_performance.csv!")
+        config["bar"].update({"id": "cv_na", "title": "Missing Values"})
+        config["line"].update({
+            "id": "cv_linegraph",
+            "title": "Distribution of CV",
+            "xlab": "Coefficient of Variation",
+        })
+
+    elif plot_type == "log2_A_vs_B":
+        config["enable_line"] = True
+        config["only_one_col"] = True
+        config["cols"] = ["log2_A_vs_B"]
+        if not all(col in df.columns for col in config["cols"]):
+            log.warning(f"{config['cols'][0]} not found. Check result_performance.csv!")
+        config["line"].update({
+            "id": "log_vs_linegraph",
+            "title": "Log2 Fold Change (A vs B)",
+            "xlab": "log_Intensity_mean_A - log_Intensity_mean_B",
+        })
+
+    elif plot_type == "epsilon":
+        config["enable_line"] = True
+        config["only_one_col"] = True
+        config["cols"] = ["epsilon"]
+        if not all(col in df.columns for col in config["cols"]):
+            log.warning(f"{config['cols'][0]} not found. Check result_performance.csv!")
+        config["line"].update({
+            "id": "epsilon_linegraph",
+            "title": "Distribution of Epsilon",
+            "xlab": "log2 FC difference",
+        })
+
+    config["df"] = df
+    return config
+
+
+def _maybe_draw_bar(df, config):
+    if not config["enable_bar"]:
+        return None
+    cols = config["cols"]
+    if not cols:
+        return None
+    bar_data = statistics_na_values(df, cols)
+    draw_bar_config = {
+        "id": config["bar"]["id"],
+        "cpswitch": True,
+        "title": config["bar"]["title"],
+        "tt_decimals": 0,
+        "ylab": "Count",
+    }
+    bar_html = bargraph.plot(data=bar_data, pconfig=draw_bar_config)
+    return remove_subtitle(bar_html)
+
+
+def _maybe_draw_line(df, config):
+    if not config["enable_line"]:
+        return None
+    cols = config["cols"]
+    if not cols:
+        return None
+    dict_key = "" if config["only_one_col"] else config["plot_type"]
+    linegraph_data = statistics_line_values(df, cols, dict_key, config["only_one_col"])
+    draw_line_config = {
+        "id": config["line"]["id"],
+        "cpswitch": False,
+        "cpswitch_c_active": False,
+        "title": config["line"]["title"],
+        "ymin": 0,
+        "tt_decimals": 0,
+        "ylab": "Count",
+        "xlab": config["line"]["xlab"],
+        "showlegend": True,
+    }
+    linegraph_html = linegraph.plot(data=linegraph_data, pconfig=draw_line_config)
+    return remove_subtitle(linegraph_html)
+
+
+def _maybe_draw_box(df, config):
+    if not config["enable_box"]:
+        return None
+    cols = config["cols"]
+    if not cols:
+        return None
+    box_data = statistics_box_values(df, cols)
+    draw_box_config = {
+        "id": config["box"]["id"],
+        "cpswitch": False,
+        "title": config["box"]["title"],
+        "tt_decimals": 5,
+        "xlab": config["box"]["xlab"],
+    }
+    box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_box_config)
+    return remove_subtitle(box_html)
 
 
 def statistics_na_values(df, cols):

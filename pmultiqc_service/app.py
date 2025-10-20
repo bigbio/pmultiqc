@@ -17,6 +17,10 @@ import uuid
 import zipfile
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+import tempfile
+import glob
+import pandas as pd
+import gzip
 
 import redis
 import requests
@@ -577,7 +581,6 @@ def download_pride_file(file_info: Dict, download_dir: str, job_id: str = None) 
         final_file_path = file_path
         if filename.lower().endswith(".gz"):
             logger.info(f"Decompressing gzipped file: {filename}")
-            import gzip
 
             decompressed_path = file_path[:-3]  # Remove .gz extension
             with gzip.open(file_path, "rb") as f_in:
@@ -1159,30 +1162,61 @@ def _finalize_pride_job(
         f"File processing loop completed. total_processed: {total_processed}, all_results count: {len(all_results)}"
     )
     if not all_results:
-        error_msg = f"No files were successfully processed for job {job_id}"
-        logger.error(error_msg)
-        logger.error(f"Total files downloaded: {len(downloaded_files)}")
-        logger.error(f"Files processed: {total_processed}")
-        logger.error(f"All results count: {len(all_results)}")
-        update_job_progress(
-            job_id,
-            "failed",
-            error=error_msg,
-            finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        )
+        _fail_job_no_results(job_id, downloaded_files, total_processed, all_results)
         return
 
+    if not _create_combined_zip_or_fail(job_id, output_dir):
+        return
+
+    _mark_completed(job_id)
+    html_urls = _copy_html_reports_safely(output_dir, job_id, accession)
+
+    job_data = _build_completed_job_data(
+        job_id=job_id,
+        accession=accession,
+        is_complete=is_complete,
+        total_processed=total_processed,
+        downloaded_files=downloaded_files,
+        all_results=all_results,
+        html_urls=html_urls,
+    )
+    _persist_job(job_id, job_data, output_dir)
+
+    logger.info(
+        f"Successfully completed PRIDE job {job_id}: {total_processed}/{len(downloaded_files)} files processed"
+    )
+    logger.info(f"process_pride_job_async finished successfully for job {job_id}")
+
+
+def _fail_job_no_results(job_id: str, downloaded_files: List[str], total_processed: int, all_results: List[Any]) -> None:
+    error_msg = f"No files were successfully processed for job {job_id}"
+    logger.error(error_msg)
+    logger.error(f"Total files downloaded: {len(downloaded_files)}")
+    logger.error(f"Files processed: {total_processed}")
+    logger.error(f"All results count: {len(all_results)}")
+    update_job_progress(
+        job_id,
+        "failed",
+        error=error_msg,
+        finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
+def _create_combined_zip_or_fail(job_id: str, output_dir: str) -> bool:
     combined_zip_path = os.path.join(output_dir, f"pmultiqc_report_{job_id}.zip")
-    if not create_zip_report(output_dir, combined_zip_path):
-        logger.error(f"Failed to create combined zip report for job {job_id}")
-        update_job_progress(
-            job_id,
-            "failed",
-            error="Failed to create zip report",
-            finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        )
-        return
+    if create_zip_report(output_dir, combined_zip_path):
+        return True
+    logger.error(f"Failed to create combined zip report for job {job_id}")
+    update_job_progress(
+        job_id,
+        "failed",
+        error="Failed to create zip report",
+        finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    return False
 
+
+def _mark_completed(job_id: str) -> None:
     logger.info(f"Updating PRIDE job {job_id} status to completed after PMultiQC success")
     try:
         update_job_progress(
@@ -1197,6 +1231,8 @@ def _finalize_pride_job(
         logger.error(f"Failed to update job {job_id} status to completed: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
 
+
+def _copy_html_reports_safely(output_dir: str, job_id: str, accession: Optional[str]) -> Optional[Dict[str, str]]:
     logger.info(f"Starting HTML report processing for PRIDE job {job_id}")
     try:
         logger.info(
@@ -1206,11 +1242,22 @@ def _finalize_pride_job(
         logger.info(f"Generated html_urls for PRIDE job {job_id}: {html_urls}")
         if html_urls is None:
             logger.warning(f"HTML report copying returned None for PRIDE job {job_id}")
+        return html_urls
     except Exception as e:
         logger.error(f"Failed to copy HTML reports for PRIDE job {job_id}: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        html_urls = None
+        return None
 
+
+def _build_completed_job_data(
+    job_id: str,
+    accession: Optional[str],
+    is_complete: bool,
+    total_processed: int,
+    downloaded_files: List[str],
+    all_results: List[Dict[str, Any]],
+    html_urls: Optional[Dict[str, str]],
+) -> Dict[str, Any]:
     logger.info(
         f"Completed HTML report processing for PRIDE job {job_id}, proceeding to final steps"
     )
@@ -1232,7 +1279,10 @@ def _finalize_pride_job(
             update_job_progress(job_id, "completed", 100, html_report_urls=html_urls)
         except Exception as e:
             logger.error(f"Failed to update job {job_id} with HTML URLs in Redis: {e}")
+    return job_data
 
+
+def _persist_job(job_id: str, job_data: Dict[str, Any], output_dir: str) -> None:
     save_job_data_to_disk(job_id, job_data, output_dir)
     try:
         save_job_to_db(job_id, job_data)
@@ -1257,11 +1307,6 @@ def _finalize_pride_job(
                 logger.error(f"Final fallback Redis update failed for job {job_id}: {redis_e}")
         except Exception as fallback_e:
             logger.error(f"Failed to create fallback job file: {fallback_e}")
-
-    logger.info(
-        f"Successfully completed PRIDE job {job_id}: {total_processed}/{len(downloaded_files)} files processed"
-    )
-    logger.info(f"process_pride_job_async finished successfully for job {job_id}")
 
 
 # Files with completion time exceeding 24 hours will be cleaned up.
@@ -1437,7 +1482,6 @@ def _check_pmultiqc_plugin_availability():
 
 def _setup_environment_variables(args: List[str]):
     """Set up environment variables for MultiQC."""
-    import tempfile
 
     # Set matplotlib directory
     matplotlib_dir = os.environ.get(
@@ -1514,9 +1558,6 @@ def _preprocess_data_if_needed(input_type: str, args: List[str]):
 def _process_report_files(input_dir: str):
     """Process report files to handle NaN values in is_contaminant column."""
     try:
-        import pandas as pd
-        import glob
-
         logger.info(f"Looking for report files in: {input_dir}")
 
         if not os.path.exists(input_dir):
@@ -1567,8 +1608,6 @@ def _process_single_report_file(report_file: str):
 
 def _process_large_report_file(report_file: str):
     """Process a large report file using chunking."""
-    import pandas as pd
-
     logger.info("Large file detected, using chunked reading...")
     chunk_size = 100000  # 100k rows per chunk
     chunks_processed = 0
@@ -1635,8 +1674,6 @@ def _combine_chunks_back_to_file(report_file: str, chunks_processed: int):
 
 def _process_small_report_file(report_file: str):
     """Process a small report file normally."""
-    import pandas as pd
-
     logger.info("Reading file normally...")
     df = pd.read_csv(report_file, sep="\t")
     logger.info(
@@ -1858,110 +1895,19 @@ def process_job_async(
 ):
     """Process a job asynchronously."""
     try:
-        # Update job status to running
-        update_job_progress(
-            job_id,
-            "running_pmultiqc",
-            0,
-            console_output=[],
-            console_errors=[],
-            processing_stage="Starting pmultiqc analysis...",
-        )
-
-        # Run PMultiQC with real-time progress
-        logger.info(f"Starting async processing for job {job_id}")
-        result = run_pmultiqc_with_progress(
-            extract_path, output_dir, input_type, quantms_config, job_id
-        )
-
+        _init_async_progress(job_id)
+        result = _run_pmultiqc_and_return_result(extract_path, output_dir, input_type, quantms_config, job_id)
         if not result["success"]:
-            update_job_progress(
-                job_id,
-                "failed",
-                error=result["message"],
-                finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            )
+            _fail_async_job(job_id, result["message"]) 
             return
 
-        # Update job status to creating report
-        update_job_progress(
-            job_id, "creating_report", 75, processing_stage="Creating zip report..."
-        )
-
-        # Create zip report
-        zip_report_path = os.path.join(output_dir, f"pmultiqc_report_{job_id}.zip")
-        if not create_zip_report(output_dir, zip_report_path):
-            update_job_progress(
-                job_id,
-                "failed",
-                error="Failed to create zip report",
-                finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            )
+        update_job_progress(job_id, "creating_report", 75, processing_stage="Creating zip report...")
+        if not _create_zip_for_job(job_id, output_dir):
             return
 
-        # Update job status to completed immediately after PMultiQC succeeds
-        logger.info(f"Updating async job {job_id} status to completed after PMultiQC success")
-        try:
-            update_job_progress(
-                job_id,
-                "completed",
-                100,
-                processing_stage="Analysis completed successfully!",
-                finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            )
-            logger.info(f"Async job {job_id} status updated to completed successfully")
-        except Exception as e:
-            logger.error(f"Failed to update async job {job_id} status to completed: {e}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            # Continue with HTML report copying even if status update fails
-
-        # Copy HTML report to public directory for online viewing
-        try:
-            logger.info(
-                f"Starting HTML report copying for async job {job_id}, output_dir: {output_dir}"
-            )
-            html_urls = copy_html_report_for_online_viewing(output_dir, job_id)
-            logger.info(f"Generated html_urls for async job {job_id}: {html_urls}")
-            if html_urls is None:
-                logger.warning(f"HTML report copying returned None for async job {job_id}")
-        except Exception as e:
-            logger.error(f"Failed to copy HTML reports for async job {job_id}: {e}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            html_urls = None
-
-        # Update job to completed
-        final_job_data = {
-            "status": "completed",
-            "progress": 100,
-            "input_type": input_type,
-            "processing_stage": "Analysis completed successfully!",
-            "finished_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "download_url": f'{BASE_URL.rstrip("/")}/download-report/{job_id}',
-        }
-
-        # Add HTML report URLs if available
-        if html_urls:
-            final_job_data["html_report_urls"] = html_urls
-            # Also update the job in Redis with HTML URLs
-            try:
-                update_job_progress(job_id, "completed", 100, html_report_urls=html_urls)
-            except Exception as e:
-                logger.error(f"Failed to update async job {job_id} with HTML URLs in Redis: {e}")
-
-        # Save final job data to database
-        try:
-            save_job_to_db(job_id, final_job_data)
-        except Exception as e:
-            logger.error(f"Failed to save async job {job_id} to database: {e}")
-            # Create a fallback completed job file
-            fallback_file = os.path.join(output_dir, "job_completed.json")
-            try:
-                with open(fallback_file, "w") as f:
-                    json.dump(final_job_data, f, indent=2)
-                logger.info(f"Created fallback async job completion file: {fallback_file}")
-            except Exception as fallback_e:
-                logger.error(f"Failed to create fallback async job file: {fallback_e}")
-
+        _mark_completed(job_id)
+        html_urls = _copy_html_reports_safely(output_dir, job_id, None)
+        _finalize_and_persist_async_job(job_id, input_type, html_urls, output_dir)
         logger.info(f"Successfully completed async job {job_id}")
 
     except Exception as e:
@@ -1972,6 +1918,72 @@ def process_job_async(
             error=str(e),
             finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
+
+
+def _init_async_progress(job_id: str) -> None:
+    update_job_progress(
+        job_id,
+        "running_pmultiqc",
+        0,
+        console_output=[],
+        console_errors=[],
+        processing_stage="Starting pmultiqc analysis...",
+    )
+
+
+def _run_pmultiqc_and_return_result(extract_path: str, output_dir: str, input_type: str, quantms_config: str, job_id: str) -> Dict[str, Any]:
+    logger.info(f"Starting async processing for job {job_id}")
+    return run_pmultiqc_with_progress(extract_path, output_dir, input_type, quantms_config, job_id)
+
+
+def _fail_async_job(job_id: str, message: str) -> None:
+    update_job_progress(
+        job_id,
+        "failed",
+        error=message,
+        finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
+def _create_zip_for_job(job_id: str, output_dir: str) -> bool:
+    zip_report_path = os.path.join(output_dir, f"pmultiqc_report_{job_id}.zip")
+    if create_zip_report(output_dir, zip_report_path):
+        return True
+    update_job_progress(
+        job_id,
+        "failed",
+        error="Failed to create zip report",
+        finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    return False
+
+
+def _finalize_and_persist_async_job(job_id: str, input_type: str, html_urls: Optional[Dict[str, str]], output_dir: str) -> None:
+    final_job_data = {
+        "status": "completed",
+        "progress": 100,
+        "input_type": input_type,
+        "processing_stage": "Analysis completed successfully!",
+        "finished_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "download_url": f'{BASE_URL.rstrip("/")}/download-report/{job_id}',
+    }
+    if html_urls:
+        final_job_data["html_report_urls"] = html_urls
+        try:
+            update_job_progress(job_id, "completed", 100, html_report_urls=html_urls)
+        except Exception as e:
+            logger.error(f"Failed to update async job {job_id} with HTML URLs in Redis: {e}")
+    try:
+        save_job_to_db(job_id, final_job_data)
+    except Exception as e:
+        logger.error(f"Failed to save async job {job_id} to database: {e}")
+        fallback_file = os.path.join(output_dir, "job_completed.json")
+        try:
+            with open(fallback_file, "w") as f:
+                json.dump(final_job_data, f, indent=2)
+            logger.info(f"Created fallback async job completion file: {fallback_file}")
+        except Exception as fallback_e:
+            logger.error(f"Failed to create fallback async job file: {fallback_e}")
 
 
 # API Routes
