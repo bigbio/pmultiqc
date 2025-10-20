@@ -1450,7 +1450,7 @@ def _setup_multiqc_args(input_path: str, output_path: str, input_type: str, pmul
     # Validate and sanitize input paths
     input_path = _validate_and_sanitize_path(input_path, "input_path")
     output_path = _validate_and_sanitize_path(output_path, "output_path")
-    
+
     args = ["multiqc", input_path, "-o", output_path, "--force"]
 
     if input_type == "maxquant":
@@ -1473,30 +1473,68 @@ def _setup_multiqc_args(input_path: str, output_path: str, input_type: str, pmul
 
     return args
 
-
 def _validate_and_sanitize_path(path: str, path_name: str) -> str:
     """Validate and sanitize file paths to prevent command injection."""
     if not path:
         raise ValueError(f"{path_name} cannot be empty")
-    
+
     # Convert to absolute path and resolve any symbolic links
     abs_path = os.path.abspath(os.path.realpath(path))
-    
+
     # Check for path traversal attempts
     if ".." in path or path.startswith("/") and not abs_path.startswith("/"):
         raise ValueError(f"Invalid path in {path_name}: {path}")
-    
+
     # Ensure the path exists (for input paths) or is in a safe directory (for output paths)
     if path_name in ["input_path", "pmultiqc_config"]:
         if not os.path.exists(abs_path):
             raise ValueError(f"{path_name} does not exist: {abs_path}")
-    
+
     # Additional security: ensure path doesn't contain shell metacharacters
     dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r']
     if any(char in path for char in dangerous_chars):
         raise ValueError(f"Invalid characters in {path_name}: {path}")
-    
+
     return abs_path
+
+def _validate_subprocess_args(args: List[str]) -> None:
+    """Validate subprocess arguments to prevent command injection."""
+    if not args:
+        raise ValueError("Subprocess arguments cannot be empty")
+
+    # Define allowed commands and their expected arguments
+    allowed_commands = {
+        'multiqc': ['-o', '--force', '--maxquant_plugin', '--quantms_plugin',
+                   '--diann_plugin', '--mzid_plugin', '--config', '--ignore',
+                   '--no-megaqc-upload', '--verbose']
+    }
+
+    # Check if the first argument is a known command
+    if args[0] not in allowed_commands:
+        raise ValueError(f"Unknown command: {args[0]}")
+
+    # Validate each argument
+    for i, arg in enumerate(args):
+        if not isinstance(arg, str):
+            raise ValueError(f"Argument {i} must be a string: {arg}")
+
+        # Check for dangerous characters that could be used for injection
+        dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r', '\\']
+        if any(char in arg for char in dangerous_chars):
+            raise ValueError(f"Argument {i} contains dangerous characters: {arg}")
+
+        # For non-flag arguments (not starting with -), validate as paths
+        if not arg.startswith('-') and i > 0:
+            # This is likely a path argument, validate it
+            try:
+                _validate_and_sanitize_path(arg, f"argument_{i}")
+            except ValueError as e:
+                # If it's not a valid path, it might be a valid argument
+                # Only raise if it contains clearly dangerous content
+                if any(char in arg for char in ['..', '/', '\\']):
+                    raise ValueError(f"Invalid path in argument {i}: {e}")
+
+    logger.info(f"Subprocess arguments validated successfully: {args}")
 
 
 def _check_pmultiqc_plugin_availability():
@@ -1728,8 +1766,10 @@ def _process_small_report_file(report_file: str):
         logger.info("No is_contaminant column found in report file")
 
 def _run_multiqc_process(args: List[str], job_id: str, timeout_seconds: int) -> Dict[str, Any]:
-    """Run MultiQC process with real-time output."""
     try:
+        # Validate all arguments to prevent command injection
+        _validate_subprocess_args(args)
+
         # Run the multiqc command with real-time output
         env = os.environ.copy()
         process = subprocess.Popen(
@@ -1740,6 +1780,7 @@ def _run_multiqc_process(args: List[str], job_id: str, timeout_seconds: int) -> 
             bufsize=1,
             universal_newlines=True,
             env=env,
+            shell=False,  # Explicitly disable shell to prevent injection
         )
 
         # Stream output in real-time
