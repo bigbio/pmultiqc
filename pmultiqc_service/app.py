@@ -2290,14 +2290,12 @@ def _log_report_dir_contents(report_dir: str) -> None:
         for file in files:
             logger.info(f"{subindent}{file}")
 
-
 def _enforce_path_security(file_path: str) -> None:
     real_path = os.path.realpath(file_path)
     html_reports_real = os.path.realpath(HTML_REPORTS_FOLDER)
     if not real_path.startswith(html_reports_real):
         logger.error(f"Security violation: {real_path} not within {html_reports_real}")
         raise HTTPException(status_code=403, detail="Access denied")
-
 
 def _guess_mime_type(filename: str) -> str:
     if filename.endswith(".css"):
