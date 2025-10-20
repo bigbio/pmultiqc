@@ -38,7 +38,8 @@ class MzidReader(BaseParser):
             with mzid.MzIdentML(file_path) as mzid_data:
 
                 if len(mzid_data) == 0:
-                    raise ValueError(f"Please check your MzIdentML {file_path}")
+                    raise ValueError(f"Please check your MzIdentML: {file_path}")
+
 
                 self.log.info(
                     "{}: Done parsing MzIdentML file {}.".format(

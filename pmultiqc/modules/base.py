@@ -1,7 +1,4 @@
-
-import logging
 from abc import abstractmethod, ABC
-
 
 class BasePMultiqcModule(ABC):
 
