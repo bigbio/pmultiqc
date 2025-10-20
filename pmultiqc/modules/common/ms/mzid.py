@@ -40,6 +40,7 @@ class MzidReader(BaseParser):
                 if len(mzid_data) == 0:
                     raise ValueError(f"Please check your MzIdentML: {file_path}")
 
+
                 self.log.info(
                     "{}: Done parsing MzIdentML file {}.".format(
                         datetime.now().strftime("%H:%M:%S"), file_path

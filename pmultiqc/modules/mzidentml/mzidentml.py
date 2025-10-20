@@ -1075,7 +1075,13 @@ class MzIdentMLModule(BasePMultiqcModule):
             charge_2 = 0
             ms2_number = 0
             for i, spectrum in enumerate(mgf_data):
-                charge_state = int(spectrum.get("params", {}).get("charge", [])[0])
+
+                charge_state = 0
+                charge_list = spectrum.get("params", {}).get("charge", [])
+                if charge_list:
+                    charge_state = int(charge_list[0])
+                    ms2_number += 1
+
                 if charge_state == 2:
                     charge_2 += 1
 
@@ -1107,10 +1113,8 @@ class MzIdentMLModule(BasePMultiqcModule):
                 else:
                     if m not in self.ms_without_psm:
                         self.ms_without_psm.append(m)
-                
-                ms2_number = i + 1
 
-            heatmap_charge[m] = charge_2 / ms2_number
+            heatmap_charge[m] = charge_2 / ms2_number if ms2_number > 0 else 0
             self.total_ms2_spectra = self.total_ms2_spectra + ms2_number
             self.log.info(
                 "{}: Done aggregating MGF file {}...".format(
