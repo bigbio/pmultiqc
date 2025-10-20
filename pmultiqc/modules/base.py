@@ -13,8 +13,8 @@ class BasePMultiqcModule(ABC):
 
     @abstractmethod
     def get_data(self) -> bool | None:
-        pass
+        return None
 
     @abstractmethod
     def draw_plots(self) -> None:
-        pass
+        return None
