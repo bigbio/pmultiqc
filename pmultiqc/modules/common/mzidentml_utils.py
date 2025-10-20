@@ -61,7 +61,7 @@ def get_mzid_num_data(df):
 # Charge-state of Per File
 def get_mzidentml_charge(df):
     charge_state_df = df.groupby(["filename", "chargeState"]).size().unstack(fill_value=0)
-    charge_state_df.rename(columns=lambda x: str(x), inplace=True)
+    charge_state_df.rename(columns=str, inplace=True)
 
     charge_state = {
         "plot_data": charge_state_df.to_dict(orient="index"),

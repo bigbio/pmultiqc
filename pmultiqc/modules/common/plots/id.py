@@ -598,10 +598,9 @@ def draw_quantms_identi_num(
                             sample=SampleName(row["Run"]),
                             data=sample_data,
                         )
-                    ) 
+                    )
                 group_name: SampleGroup = SampleGroup(sample)
                 rows_by_group[group_name] = row_data
-                
             headers = {}
             for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                 headers["MSstats_Condition_" + str(k)] ={
@@ -706,7 +705,6 @@ def draw_quantms_identi_num(
                 "Modified_Peptide_Num": value["modified_peptide_num"],
                 "Protein_Num": value["protein_num"],
             }
-        
         headers = {
             "Peptide_Num": {
                 "title": "#Peptide IDs",
@@ -775,7 +773,8 @@ def draw_modifications(sub_section, modified_data):
         helptext="""
             Post-translational modifications contained within the identified peptide sequence.<br>
 
-            <p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences (where different charge state counts as a separate peptide) per Raw file.
+            <p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences 
+            (where different charge state counts as a separate peptide) per Raw file.
             The sum of frequencies may exceed 100% per Raw file, since a peptide can have multiple modifications.</p>
 
             E.g. given three peptides in a single Raw file                 <br>
@@ -791,7 +790,8 @@ def draw_modifications(sub_section, modified_data):
             * 33% of 'Unmodified'              <br>
 
             <p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once. 
-            If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
+            If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification 
+            (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
             """,
     )
 
@@ -896,7 +896,6 @@ def draw_num_pep_per_protein(
                     This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
                     identifications can constitute more confident results.
                 """
-    
     add_sub_section(
         sub_section=sub_sections,
         plot=bar_html,

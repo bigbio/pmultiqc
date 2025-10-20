@@ -148,7 +148,7 @@ def parse_diann_report(
         return None
 
     report_data["Modifications"] = report_data["Modified.Sequence"].apply(
-        lambda x: find_diann_modified(x)
+        find_diann_modified
     )
 
     log.info("Processing DIA mod_plot_dict.")

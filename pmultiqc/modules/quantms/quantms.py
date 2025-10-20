@@ -349,7 +349,6 @@ class QuantMSModule:
                     self.mzml_peak_distribution_plot,
                     self.ms_info
                 )
-        
         # quantms: LFQ or TMT
         else:
 
@@ -1572,7 +1571,7 @@ class QuantMSModule:
             )
             table_html = (
                 table_html
-                + """<div class="page_control"><span id="psmFirst">First Page</span><span 
+                + """<div class="page_control"><span id="psmFirst">First Page</span><span
             id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
             Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
             type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
@@ -1750,7 +1749,7 @@ class QuantMSModule:
             )
             table_html = (
                 table_html
-                + """<div class="page_control"><span id="protFirst">First Page</span><span 
+                + """<div class="page_control"><span id="protFirst">First Page</span><span
             id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last 
             Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input 
             type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
