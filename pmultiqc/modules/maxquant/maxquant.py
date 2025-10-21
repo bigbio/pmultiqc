@@ -337,7 +337,7 @@ class MaxQuantModule(BasePMultiqcModule):
                 maxquant_plots.draw_parameters,
                 self.sub_sections["experiment"],
                 self.mq_results["get_parameter_dicts"]["parameters_tb_dict"],
-                "draw_parameters"
+                error_name="draw_parameters"
             )
 
     def _draw_quantification_plots(self):
@@ -352,7 +352,7 @@ class MaxQuantModule(BasePMultiqcModule):
                 "",
                 "",
                 True,
-                "draw_heatmap"
+                error_name="draw_heatmap"
             )
 
         # Quantification tables
@@ -360,14 +360,14 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_peptide_table,
             self.sub_sections["quantification"],
             self.mq_results["get_evidence_dicts"].get("peptides_quant_table"),
-            "draw_peptide_table"
+            error_name="draw_peptide_table"
         )
 
         self._safe_draw_if_exists(
             maxquant_plots.draw_protein_table,
             self.sub_sections["quantification"],
             self.mq_results["get_evidence_dicts"].get("protein_quant_table"),
-            "draw_protein_table"
+            error_name="draw_protein_table"
         )
 
         # Intensity plots
@@ -380,16 +380,16 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_intensity_box,
             self.sub_sections["quantification"],
             self.mq_results["get_protegroups_dicts"].get("pg_intensity_distri", {}).get("box"),
-            "draw_intensity_box",
-            "intensity"
+            "intensity",
+            error_name="draw_intensity_box"
         )
 
         self._safe_draw_if_exists(
             maxquant_plots.draw_intensity_box,
             self.sub_sections["quantification"],
             self.mq_results["get_protegroups_dicts"].get("pg_lfq_intensity_distri", {}).get("box"),
-            "draw_intensity_box",
-            "lfq_intensity"
+            "lfq_intensity",
+            error_name="draw_intensity_box"
         )
 
         # PCA plots
@@ -397,16 +397,16 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_pg_pca,
             self.sub_sections["quantification"],
             self.mq_results["get_protegroups_dicts"].get("raw_intensity_pca"),
-            "draw_pg_pca",
-            "raw_intensity"
+            "raw_intensity",
+            error_name="draw_pg_pca"
         )
 
         self._safe_draw_if_exists(
             maxquant_plots.draw_pg_pca,
             self.sub_sections["quantification"],
             self.mq_results["get_protegroups_dicts"].get("lfq_intensity_pca"),
-            "draw_pg_pca",
-            "lfq_intensity"
+            "lfq_intensity",
+            error_name="draw_pg_pca"
         )
 
         # Peptide intensity
@@ -414,8 +414,8 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_intensity_box,
             self.sub_sections["quantification"],
             self.mq_results["get_evidence_dicts"].get("peptide_intensity", {}).get("box"),
-            "draw_intensity_box",
-            "peptide_intensity"
+            "peptide_intensity",
+            error_name="draw_intensity_box"
         )
 
     def _draw_identification_plots(self):
@@ -426,7 +426,7 @@ class MaxQuantModule(BasePMultiqcModule):
                 id_plots.draw_ms_ms_identified,
                 self.sub_sections["identification"],
                 self.mq_results["ms_ms_identified"],
-                "draw_ms_ms_identified"
+                error_name="draw_ms_ms_identified"
             )
 
         # Charge state
@@ -434,8 +434,8 @@ class MaxQuantModule(BasePMultiqcModule):
             id_plots.draw_charge_state,
             self.sub_sections["ms2"],
             self.mq_results["get_evidence_dicts"].get("charge_counts"),
-            "draw_charge_state",
-            "MaxQuant"
+            "MaxQuant",
+            error_name="draw_charge_state"
         )
 
         # Modifications
@@ -443,7 +443,7 @@ class MaxQuantModule(BasePMultiqcModule):
             id_plots.draw_modifications,
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("modified_percentage"),
-            "draw_modifications"
+            error_name="draw_modifications"
         )
 
         # Peptide and protein counts
@@ -451,14 +451,14 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_evidence_peptide_id_count,
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("peptide_id_count"),
-            "draw_evidence_peptide_id_count"
+            error_name="draw_evidence_peptide_id_count"
         )
 
         self._safe_draw_if_exists(
             maxquant_plots.draw_evidence_protein_group_count,
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("protein_group_count"),
-            "draw_evidence_protein_group_count"
+            error_name="draw_evidence_protein_group_count"
         )
 
         # Oversampling
@@ -466,9 +466,9 @@ class MaxQuantModule(BasePMultiqcModule):
             id_plots.draw_oversampling,
             self.sub_sections["ms2"],
             self.mq_results["get_evidence_dicts"].get("oversampling"),
-            "draw_oversampling",
             "",
-            True
+            True,
+            error_name="draw_oversampling"
         )
 
         # Missed cleavages
@@ -476,8 +476,8 @@ class MaxQuantModule(BasePMultiqcModule):
             id_plots.draw_msms_missed_cleavages,
             self.sub_sections["identification"],
             self.mq_results["get_msms_dicts"].get("missed_cleavages"),
-            "draw_msms_missed_cleavages",
-            True
+            True,
+            error_name="draw_msms_missed_cleavages"
         )
 
         # Number of peptides per protein
@@ -485,7 +485,7 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_maxquant_num_pep_pro,
             self.sub_sections["identification"],
             self.mq_results["get_protegroups_dicts"].get("num_pep_per_protein_dict"),
-            "draw_maxquant_num_pep_pro"
+            error_name="draw_maxquant_num_pep_pro"
         )
 
         # Search engine scores
@@ -493,7 +493,7 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_maxquant_scores,
             self.sub_sections["search_engine"],
             self.mq_results["get_msms_dicts"].get("search_engine_scores"),
-            "draw_maxquant_scores"
+            error_name="draw_maxquant_scores"
         )
 
     def _draw_contaminant_plots(self):
@@ -502,15 +502,15 @@ class MaxQuantModule(BasePMultiqcModule):
             id_plots.draw_potential_contaminants,
             self.sub_sections["contaminants"],
             self.mq_results["get_protegroups_dicts"].get("pg_contaminant"),
-            "draw_potential_contaminants",
-            True
+            True,
+            error_name="draw_potential_contaminants"
         )
 
         self._safe_draw_if_exists(
             id_plots.draw_top_n_contaminants,
             self.sub_sections["contaminants"],
             self.mq_results["get_evidence_dicts"].get("top_contaminants"),
-            "draw_top_n_contaminants"
+            error_name="draw_top_n_contaminants"
         )
 
     def _draw_mass_error_plots(self):
@@ -520,7 +520,7 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_mass_error_box,
             self.sub_sections["mass_error"],
             self.mq_results["get_evidence_dicts"].get("uncalibrated_mass_error"),
-            "draw_mass_error_box"
+            error_name="draw_mass_error_box"
         )
 
         # Delta mass plots
@@ -528,16 +528,16 @@ class MaxQuantModule(BasePMultiqcModule):
             id_plots.draw_delta_mass_da_ppm,
             self.sub_sections["mass_error"],
             self.mq_results["get_evidence_dicts"].get("maxquant_delta_mass_da"),
-            "Delta Mass [Da]",
-            "Mass Error [Da]"
+            "Mass Error [Da]",
+            error_name="draw_delta_mass_da_ppm"
         )
 
         self._safe_draw_if_exists(
             id_plots.draw_delta_mass_da_ppm,
             self.sub_sections["mass_error"],
             self.mq_results["get_evidence_dicts"].get("calibrated_mass_error"),
-            "Delta Mass [ppm]",
-            "Mass Error [ppm]"
+            "Mass Error [ppm]",
+            error_name="draw_delta_mass_da_ppm"
         )
 
     def _draw_summary_plots(self):
@@ -561,7 +561,7 @@ class MaxQuantModule(BasePMultiqcModule):
                     summary_stat["summary_identified_msms_count"],
                     summary_stat["summary_identified_peptides"],
                     self.mq_results["get_protegroups_dicts"]["protein_summary"],
-                    "draw_maxquant_summary_table"
+                    error_name="draw_maxquant_summary_table"
                 )
 
     def _draw_rt_qc_plots(self):
@@ -571,8 +571,8 @@ class MaxQuantModule(BasePMultiqcModule):
             id_plots.draw_ids_rt_count,
             self.sub_sections["rt_qc"],
             self.mq_results["get_evidence_dicts"].get("rt_counts"),
-            "draw_ids_rt_count",
-            "maxquant"
+            "maxquant",
+            error_name="draw_ids_rt_count"
         )
 
         # Peak RT
@@ -580,7 +580,7 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_evidence_peak_width_rt,
             self.sub_sections["rt_qc"],
             self.mq_results["get_evidence_dicts"].get("peak_rt"),
-            "draw_evidence_peak_width_rt"
+            error_name="draw_evidence_peak_width_rt"
         )
 
         # TopN plots
@@ -588,21 +588,21 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_msms_scans_top_n,
             self.sub_sections["rt_qc"],
             self.mq_results["get_msms_scans_dicts"].get("top_n"),
-            "draw_msms_scans_top_n"
+            error_name="draw_msms_scans_top_n"
         )
 
         self._safe_draw_if_exists(
             maxquant_plots.draw_msms_scans_top_over_rt,
             self.sub_sections["rt_qc"],
             self.mq_results["get_msms_scans_dicts"].get("top_over_rt"),
-            "draw_msms_scans_top_over_rt"
+            error_name="draw_msms_scans_top_over_rt"
         )
 
         self._safe_draw_if_exists(
             maxquant_plots.draw_msms_scans_ion_injec_time_rt,
             self.sub_sections["rt_qc"],
             self.mq_results["get_msms_scans_dicts"].get("ion_injec_time_rt"),
-            "draw_msms_scans_ion_injec_time_rt"
+            error_name="draw_msms_scans_ion_injec_time_rt"
         )
 
     def _setup_section_groups(self):
