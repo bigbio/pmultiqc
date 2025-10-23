@@ -3,7 +3,7 @@ name = "pmultiqc"
 description = "Python package for quality control of proteomics datasets, based on multiqc package"
 readme = "README.md"
 license = "MIT"
-version = "0.0.36"
+version = "0.0.37"
 authors = [
     "Yasset Perez-Riverol <ypriverol@gmail.com>",
     "Dai Chengxin <chengxin2024@126.com>",
@@ -46,7 +46,6 @@ lxml = "*"
 numpy = ">=1.23"
 pyarrow = "*"
 scikit-learn = ">=1.2"
-psutil = "*"
 
 [tool.poetry.urls]
 GitHub = "https://github.com/bigbio/pmultiqc"
