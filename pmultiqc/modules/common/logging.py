@@ -137,14 +137,6 @@ def log_system_info(logger):
     logger.info(f"System: {platform.system()} {platform.release()} ({platform.machine()})")
     logger.info(f"Python: {platform.python_version()}")
     logger.info(f"CPU cores: {multiprocessing.cpu_count()}")
-    try:
-        import psutil
-        memory = psutil.virtual_memory()
-        logger.info(
-            f"Memory: {memory.total / (1024**3):.1f} GB total, {memory.available / (1024**3):.1f} GB available"
-        )
-    except ImportError:
-        logger.debug("psutil not available, skipping memory info")
     logger.info("=" * 50)
 
 
