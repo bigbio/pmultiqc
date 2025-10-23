@@ -27,7 +27,7 @@ You can use pmultiqc through our public web services:
 | Service | URL | Status | Description |
 |---------|-----|--------|-------------|
 | **EBI PRIDE Service** | [https://www.ebi.ac.uk/pride/services/pmultiqc/](https://www.ebi.ac.uk/pride/services/pmultiqc/) | ![PRIDE pmultiqc service](https://img.shields.io/endpoint?url=https%3A%2F%2Fwww.ebi.ac.uk%2Fpride%2Fservices%2Fpmultiqc%2Fhealth-check)| Official EBI service with PRIDE integration |
-| **Tübingen University Service** | [https://abi-services.cs.uni-tuebingen.de/pmultiqc](https://abi-services.cs.uni-tuebingen.de/pmultiqc) | - | pmultiqc service at Tübingen University |
+| **Tübingen University Service** | [https://abi-services.cs.uni-tuebingen.de/pmultiqc](https://abi-services.cs.uni-tuebingen.de/pmultiqc/) | ![Tübingen pmultiqc service](https://img.shields.io/endpoint?url=https%3A%2F%2Fabi-services.cs.uni-tuebingen.de%2Fpmultiqc%2Fhealth-check) | pmultiqc service at Tübingen University |
 
 ### 🎯 Service Features
 
