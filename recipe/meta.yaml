@@ -1,6 +1,6 @@
 # recipe/meta.yaml
 {% set name = "pmultiqc" %}
-{% set version = "0.0.37" %}
+{% set version = "0.0.38" %}
 
 package:
   name: {{ name }}
@@ -25,7 +25,7 @@ requirements:
     - python >=3.10
     - pytest
     - lxml
-    - multiqc >=1.29
+    - multiqc >=1.29, <=1.31
     - pandas
     - sdrf-pipelines >=0.0.32
     - pyteomics
@@ -34,6 +34,7 @@ requirements:
     - pyarrow
     - scikit-learn >=1.2
     - lxml
+    - statsmodels
 
 test:
   imports:

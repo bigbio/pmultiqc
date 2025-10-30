@@ -66,7 +66,7 @@ def draw_exp_design(sub_sections, exp_design):
     # Currently this only supports the OpenMS two-table format (default in quantms pipeline)
     sample_df, file_df = read_openms_design(exp_design)
 
-    exp_design_runs = np.unique(file_df["Run"].tolist())
+    exp_design_runs = file_df["Run"].unique().tolist()
 
     is_bruker = False
     if not file_df.empty:
