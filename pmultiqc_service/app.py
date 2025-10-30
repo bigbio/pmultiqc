@@ -38,6 +38,21 @@ HTML_REPORTS_FOLDER = os.environ.get(
 )
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
 
+
+# PRIDE button visibility configuration
+# Priority: Environment variable > Default (False)
+def get_pride_button_visible():
+    """Get PRIDE button visibility setting from environment variable."""
+    env_val = os.environ.get('PRIDE_BUTTON_VISIBLE')
+    if env_val is not None:
+        return env_val.lower() in ('true', '1', 'yes', 'on')
+
+    # Default to False - users must explicitly enable PRIDE functionality
+    return False
+
+
+PRIDE_BUTTON_VISIBLE = get_pride_button_visible()
+
 # Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -95,6 +110,8 @@ class NoHealthAccessLogFilter(logging.Filter):
 # Initialize logging
 logger = setup_logging()
 
+# Log PRIDE button configuration
+logger.info(f"PRIDE button visibility: {PRIDE_BUTTON_VISIBLE}")
 
 def init_redis():
     """Initialize Redis connection for job storage."""
@@ -1972,7 +1989,7 @@ async def index(request: Request):
         HTMLResponse: index.html template with upload interface and PRIDE submission page
     """
     return templates.TemplateResponse(
-        "index.html", {"request": request, "config": {"BASE_URL": BASE_URL}}
+        "index.html", {"request": request, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}}
     )
 
 

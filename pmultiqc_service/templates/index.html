@@ -46,7 +46,9 @@
             <h3>🔍 Choose Analysis Type</h3>
             <p>Select how you want to analyze your proteomics data</p>
             <button class="upload-btn" onclick="showStep('upload')">📁 Upload Files</button>
+            {% if config.PRIDE_BUTTON_VISIBLE %}
             <button class="upload-btn" onclick="showStep('pride')">🔍 PRIDE Dataset</button>
+            {% endif %}
             <button class="upload-btn" onclick="showStep('lookup')">🔍 Check Job Status</button>
         </div>
 
