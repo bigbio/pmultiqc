@@ -192,12 +192,12 @@ def _process_modifications(report_data):
     """Process modifications in the report data."""
     log.info("Processing DIA Modifications.")
     mod_pattern = re.compile(r"\((.*?)\)")
+    unimod_data = UnimodDatabase()
 
     def find_diann_modified(peptide):
         if isinstance(peptide, str):
             mods = mod_pattern.findall(peptide)
             if mods:
-                unimod_data = UnimodDatabase()
                 mod_type = [
                     unimod_data.get_by_accession(mod.upper()).get_name() for mod in set(mods)
                 ]
