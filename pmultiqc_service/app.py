@@ -2008,7 +2008,7 @@ async def submit_pride(request: Request):
     if not accession:
         # No accession provided, show the main page
         return templates.TemplateResponse(
-            "index.html", {"request": request, "config": {"BASE_URL": BASE_URL}}
+            "index.html", {"request": request, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}}
         )
 
     # Validate accession format
@@ -2017,7 +2017,7 @@ async def submit_pride(request: Request):
             "index.html",
             {
                 "request": request,
-                "config": {"BASE_URL": BASE_URL},
+                "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
                 "error": f"Invalid PRIDE accession format: {accession}. Should start with PXD.",
             },
         )
@@ -2025,7 +2025,7 @@ async def submit_pride(request: Request):
     # Render the submission page with the accession pre-filled
     return templates.TemplateResponse(
         "submit.html",
-        {"request": request, "accession": accession, "config": {"BASE_URL": BASE_URL}},
+        {"request": request, "accession": accession, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}},
     )
 
 
@@ -2048,7 +2048,7 @@ async def view_results(request: Request):
                 "index.html",
                 {
                     "request": request,
-                    "config": {"BASE_URL": BASE_URL},
+                    "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
                     "error": f"No job ID provided. Please provide a job ID using ?job={job_id}",
                 },
             )
@@ -2061,7 +2061,7 @@ async def view_results(request: Request):
                 "index.html",
                 {
                     "request": request,
-                    "config": {"BASE_URL": BASE_URL},
+                    "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
                     "error": f"Invalid job ID format. {job_id}",
                 },
             )
@@ -2179,7 +2179,7 @@ async def view_results(request: Request):
                 "request": request,
                 "job_id": job_id,
                 "job_data": job_data,
-                "config": {"BASE_URL": BASE_URL},
+                "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
             },
         )
 
@@ -2208,7 +2208,7 @@ async def view_results(request: Request):
                 "request": request,
                 "job_id": job_data["job_id"],
                 "job_data": job_data,
-                "config": {"BASE_URL": BASE_URL},
+                "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
             },
         )
 
