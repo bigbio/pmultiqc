@@ -379,7 +379,7 @@ class MaxQuantModule(BasePMultiqcModule):
         self._safe_draw_if_exists(
             maxquant_plots.draw_intensity_box,
             self.sub_sections["quantification"],
-            self.mq_results["get_protegroups_dicts"].get("pg_intensity_distri", {}).get("box"),
+            self.mq_results["get_protegroups_dicts"].get("pg_intensity_distri", {}),
             "intensity",
             error_name="draw_intensity_box"
         )
@@ -387,7 +387,7 @@ class MaxQuantModule(BasePMultiqcModule):
         self._safe_draw_if_exists(
             maxquant_plots.draw_intensity_box,
             self.sub_sections["quantification"],
-            self.mq_results["get_protegroups_dicts"].get("pg_lfq_intensity_distri", {}).get("box"),
+            self.mq_results["get_protegroups_dicts"].get("pg_lfq_intensity_distri", {}),
             "lfq_intensity",
             error_name="draw_intensity_box"
         )
@@ -413,7 +413,7 @@ class MaxQuantModule(BasePMultiqcModule):
         self._safe_draw_if_exists(
             maxquant_plots.draw_intensity_box,
             self.sub_sections["quantification"],
-            self.mq_results["get_evidence_dicts"].get("peptide_intensity", {}).get("box"),
+            self.mq_results["get_evidence_dicts"].get("peptide_intensity", {}),
             "peptide_intensity",
             error_name="draw_intensity_box"
         )
