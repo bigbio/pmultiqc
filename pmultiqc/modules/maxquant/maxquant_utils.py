@@ -331,9 +331,7 @@ def pg_intensity_distr(mq_data, intensity_cols):
         # Box plot data
         boxplot_data = [box_fun(raw_df), None]
 
-    result_dict = {"box": boxplot_data}
-
-    return result_dict
+    return boxplot_data
 
 
 # 1-3.proteinGroups.txt: PCA
@@ -790,9 +788,7 @@ def evidence_peptide_intensity(evidence_df):
     else:
         boxplot_data = [box_fun(evidence_df), None]
 
-    result_dict = {"box": boxplot_data}
-
-    return result_dict
+    return boxplot_data
 
 
 # 3-3.evidence.txt: charge distribution
