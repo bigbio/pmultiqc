@@ -243,7 +243,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "id": "intensity_distribution_box",
             "cpswitch": False,
             "cpswitch_c_active": False,
-            "title": "Intensity Distribution",
+            "title": "Protein Intensity Distribution",
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
@@ -259,7 +259,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             order=1,
             description="",
             helptext="""
-                Intensity boxplots by experimental groups. Groups are user-defined during MaxQuant configuration. 
+                Protein intensity boxplots by experimental groups. Groups are user-defined during MaxQuant configuration. 
                 This plot displays a (customizable) threshold line for the desired mean intensity of proteins. 
                 Groups which underperform here, are likely to also suffer from a worse MS/MS id rate and higher 
                 contamination due to the lack of total protein loaded/detected. If possible, all groups should 
