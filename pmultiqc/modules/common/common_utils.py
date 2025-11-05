@@ -320,7 +320,7 @@ def evidence_rt_count(evidence_data):
 def evidence_calibrated_mass_error(
     evidence_data,
     recommpute=False,
-    filter_outliers_ppm: bool = True
+    filter_outliers_ppm: bool = False
 ):
 
     if "potential contaminant" in evidence_data.columns:
@@ -344,7 +344,7 @@ def evidence_calibrated_mass_error(
             evd_df = evidence_data[["mass error [ppm]", "raw file"]].copy()
 
     evd_df.dropna(subset=["mass error [ppm]"], inplace=True)
-    
+
     # Remove rows with mass error [ppm] greater than 1000
     if filter_outliers_ppm:
         evd_df = evd_df[evd_df["mass error [ppm]"].abs() <= 1000].copy()
@@ -360,7 +360,7 @@ def evidence_calibrated_mass_error(
     elif max_abs_ppm < 1000:
         num_bins = 10000
     else:
-        num_bins = 20000
+        num_bins = 50000
 
     count_bin = evd_df["mass error [ppm]"].value_counts(sort=False, bins=num_bins)
     count_bin_data = dict()
