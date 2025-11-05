@@ -349,6 +349,10 @@ def evidence_calibrated_mass_error(
     if filter_outliers_ppm:
         evd_df = evd_df[evd_df["mass error [ppm]"].abs() <= 1000].copy()
 
+    if evd_df.empty:
+        log.warning("No valid mass error [ppm] values found after filtering.")
+        return None
+
     max_abs_ppm = evd_df["mass error [ppm]"].abs().max()
 
     if max_abs_ppm < 100:
