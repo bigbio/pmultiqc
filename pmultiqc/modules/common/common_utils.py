@@ -356,7 +356,7 @@ def evidence_calibrated_mass_error(
     elif max_abs_ppm < 1000:
         num_bins = 10000
     else:
-        num_bins = 100000
+        num_bins = 20000
 
     count_bin = evd_df["mass error [ppm]"].value_counts(sort=False, bins=num_bins)
     count_bin_data = dict()
