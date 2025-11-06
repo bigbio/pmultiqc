@@ -322,6 +322,7 @@ def evidence_calibrated_mass_error(
     recommpute=False,
     filter_outliers_ppm: bool = False
 ):
+    # filter_outliers_ppm (if True): Remove rows with mass error [ppm] greater than 1000 (Default: False)
 
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
@@ -359,18 +360,22 @@ def evidence_calibrated_mass_error(
         num_bins = 1000
     elif max_abs_ppm < 1000:
         num_bins = 10000
-    else:
+    elif max_abs_ppm < 5000:
         num_bins = 50000
+    else:
+        num_bins = 100000
 
-    count_bin = evd_df["mass error [ppm]"].value_counts(sort=False, bins=num_bins)
-    count_bin_data = dict()
-    for index in count_bin.index:
-        count_bin_data[float(index.mid)] = int(count_bin[index])
+    bin_series = pd.cut(evd_df["mass error [ppm]"], bins=num_bins)
 
-    frequency_bin = evd_df["mass error [ppm]"].value_counts(sort=False, bins=num_bins, normalize=True)
-    frequency_bin_data = dict()
-    for index in frequency_bin.index:
-        frequency_bin_data[float(index.mid)] = float(frequency_bin[index])
+    count_bin = bin_series.value_counts(sort=False)
+    count_bin_data = {
+        float(interval.mid): int(count) for interval, count in count_bin.items()
+    }
+
+    frequency_bin = bin_series.value_counts(sort=False, normalize=True)
+    frequency_bin_data = {
+        float(interval.mid): float(freq) for interval, freq in frequency_bin.items()
+    }
 
     result_dict = {
         "count": count_bin_data,
@@ -378,7 +383,6 @@ def evidence_calibrated_mass_error(
     }
 
     return result_dict
-
 
 # re-compute mass error
 def recommpute_mass_error(evidence_df):
