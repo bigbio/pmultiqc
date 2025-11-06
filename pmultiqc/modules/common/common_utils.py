@@ -346,7 +346,7 @@ def evidence_calibrated_mass_error(
 
     evd_df.dropna(subset=["mass error [ppm]"], inplace=True)
 
-    # Remove rows with mass error [ppm] greater than 1000
+    # Remove rows with absolute mass error [ppm] greater than 1000
     if filter_outliers_ppm:
         evd_df = evd_df[evd_df["mass error [ppm]"].abs() <= 1000].copy()
 
