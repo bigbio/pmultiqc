@@ -210,9 +210,14 @@ def _validate_columns(df, cols):
 def _process_data_for_plot(df, plot_config, runs_col):
     """Process data based on plot configuration."""
     if plot_config["cols"] is None:  # Special case for log_intensity
-        df, cols = calculate_log_intensity(df, runs_col)
+
+        processed_df, cols = calculate_log_intensity(df, runs_col)
+
+        if processed_df is None:
+            return df  # Return original df if processing fails
+
         plot_config["cols"] = cols  # Update cols
-        return df
+        return processed_df
     return df
 
 
