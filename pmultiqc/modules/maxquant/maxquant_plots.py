@@ -23,6 +23,7 @@ def draw_exp_design(sdrf_df, sub_sections):
             },
         )]
 
+        # subrows for each Raw file in the sample group
         for _, row in group.iterrows():
             row_data.append(
                 InputRow(
@@ -77,8 +78,7 @@ def draw_exp_design(sdrf_df, sub_sections):
             This table shows the design of the experiment. I.e., which files and channels correspond to which sample/condition/fraction.
             """,
         helptext="""
-            You can see details about it in 
-            https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
+            You can see details about it in <a href="https://openms.de/current_doxygen/html/classOpenMS_1_1ExperimentalDesign.html" target="_blank">.
             """,
     )
 
