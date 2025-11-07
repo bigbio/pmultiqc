@@ -112,7 +112,7 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
 
     # Create plots
     bar_html = _create_bar_plot(processed_df, plot_config) if plot_config["enable_bar"] else None
-    linegraph_html = _create_line_plot(processed_df, plot_config) if plot_config["enable_line"] else None
+    linegraph_html = _create_line_plot(processed_df, plot_config, plot_type) if plot_config["enable_line"] else None
     box_html = _create_box_plot(processed_df, plot_config) if plot_config["enable_box"] else None
 
     return {
@@ -210,7 +210,9 @@ def _validate_columns(df, cols):
 def _process_data_for_plot(df, plot_config, runs_col):
     """Process data based on plot configuration."""
     if plot_config["cols"] is None:  # Special case for log_intensity
-        return calculate_log_intensity(df, runs_col)
+        df, cols = calculate_log_intensity(df, runs_col)
+        plot_config["cols"] = cols  # Update cols
+        return df
     return df
 
 
@@ -233,7 +235,7 @@ def _create_bar_plot(df, plot_config):
     return remove_subtitle(bar_html)
 
 
-def _create_line_plot(df, plot_config):
+def _create_line_plot(df, plot_config, plot_type):
     """Create line plot for distribution."""
     if plot_config["cols"] is None:
         return None
@@ -241,7 +243,7 @@ def _create_line_plot(df, plot_config):
     if plot_config["only_one_col"]:
         linegraph_data = statistics_line_values(df, plot_config["cols"], "", plot_config["only_one_col"])
     else:
-        linegraph_data = statistics_line_values(df, plot_config["cols"], "cv", plot_config["only_one_col"])
+        linegraph_data = statistics_line_values(df, plot_config["cols"], plot_type, plot_config["only_one_col"])
 
     draw_line_config = {
         "id": plot_config["line_plot_id"],
