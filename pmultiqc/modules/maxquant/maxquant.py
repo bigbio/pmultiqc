@@ -51,8 +51,13 @@ class MaxQuantModule(BasePMultiqcModule):
 
     def _process_sdrf_file(self):
         """Process SDRF file if present."""
+
         if "sdrf" not in self.maxquant_paths.keys():
-            return
+            self.log.info("{}: No SDRF file found.".format(
+                    datetime.now().strftime("%H:%M:%S")
+                )
+            )
+            return  # no SDRF file found in txt folder
 
         try:
             self.log.info(

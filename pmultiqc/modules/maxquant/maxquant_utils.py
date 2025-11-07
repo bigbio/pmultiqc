@@ -1660,22 +1660,21 @@ def read_sdrf(sdrf_path):
         "characteristics[biological replicate]",
     ]
 
-    if all(col in sdrf_df.columns for col in required_cols):
-
-        sdrf_df = sdrf_df[required_cols].copy()
-        sdrf_df.rename(
-            columns={
-                "source name": "sample",
-                "comment[data file]": "data_file",
-                "comment[technical replicate]": "technical_replicate",
-                "comment[fraction identifier]": "fraction_identifier",
-                "characteristics[biological replicate]": "biological_replicate",
-            },
-            inplace=True,
-        )
-        sdrf_df["file_name"] = sdrf_df["data_file"].apply(lambda x: Path(x).stem)
-        sdrf_df = sdrf_df.drop("data_file", axis=1)
-        return sdrf_df
-
-    else:
+    if not all(col in sdrf_df.columns for col in required_cols):
         return None
+
+    sdrf_df = sdrf_df[required_cols].copy()
+    sdrf_df.rename(
+        columns={
+            "source name": "sample",
+            "comment[data file]": "data_file",
+            "comment[technical replicate]": "technical_replicate",
+            "comment[fraction identifier]": "fraction_identifier",
+            "characteristics[biological replicate]": "biological_replicate",
+        },
+        inplace=True,
+    )
+    sdrf_df["file_name"] = sdrf_df["data_file"].apply(lambda x: Path(x).stem)
+    sdrf_df = sdrf_df.drop("data_file", axis=1)
+
+    return sdrf_df
