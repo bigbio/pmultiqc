@@ -37,7 +37,7 @@ contaminant_affix = click.option(
     "--contaminant_affix",
     "contaminant_affix",
     default="CONT",
-    help="The contaminant prefix or suffix used or to be used (default: CONT_)",
+    help="The contaminant prefix or suffix used or to be used (default: CONT)",
 )
 quantification_method = click.option(
     "--quantification_method",
