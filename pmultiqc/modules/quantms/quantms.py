@@ -2045,7 +2045,7 @@ class QuantMSModule:
 
     def top_n_contaminant_percent(self, pep_df, top_n):
 
-        not_cont_tag = "NOT_CONTAM"       
+        not_cont_tag = "NOT_CONTAM"
         is_contaminant = pep_df["accession"].str.contains(config.kwargs["contaminant_affix"], na=False)
         pep_df.loc[:, "cont_accession"] = np.where(is_contaminant, pep_df["accession"], not_cont_tag)
 
