@@ -1075,7 +1075,7 @@ class QuantMSModule:
 
     def cal_heat_map_score(self):
         log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
-        # mztab_data = mztab.MzTab(self.out_mztab_path)
+
         psm = self.mztab_data.spectrum_match_table
         meta_data = dict(self.mztab_data.metadata)
         if self.pep_table_exists:
@@ -1113,6 +1113,8 @@ class QuantMSModule:
                 self.quantms_top_contaminant_percent = self.top_n_contaminant_percent(
                     pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(), 5
                 )
+            else:
+                log.warning("CONTAMINANT not found.")
 
             for name, group in pep_table.groupby("stand_spectra_ref"):
 
@@ -2025,12 +2027,10 @@ class QuantMSModule:
 
     def cal_quantms_contaminant_percent(self, pep_df):
 
+        pep_df["is_contaminant"] = pep_df["accession"].str.contains(config.kwargs["contaminant_affix"], na=False)
         group_stats = pep_df.groupby("stand_spectra_ref").agg(
             total_intensity=("average_intensity", "sum"),
-            cont_intensity=(
-                "average_intensity",
-                lambda x: x[pep_df["accession"].str.contains("CONT")].sum(),
-            ),
+            cont_intensity=("average_intensity", lambda x: x[pep_df.loc[x.index, "is_contaminant"]].sum()),
         )
 
         group_stats["contaminant_percent"] = (
@@ -2045,12 +2045,9 @@ class QuantMSModule:
 
     def top_n_contaminant_percent(self, pep_df, top_n):
 
-        not_cont_tag = "NOT_CONT"
-        pep_df["cont_accession"] = pep_df["accession"].apply(
-            lambda x: (
-                x.replace("CONTAMINANT_", "") if x.startswith("CONTAMINANT_") else not_cont_tag
-            )
-        )
+        not_cont_tag = "NOT_CONTAM"
+        is_contaminant = pep_df["accession"].str.contains(config.kwargs["contaminant_affix"], na=False)
+        pep_df.loc[:, "cont_accession"] = np.where(is_contaminant, pep_df["accession"], not_cont_tag)
 
         pep_contaminant_df = pep_df[pep_df["cont_accession"] != not_cont_tag].copy()
         contaminant_df = (
@@ -2085,15 +2082,18 @@ class QuantMSModule:
             )
             plot_cats.extend(cont_df["cont_accession"].tolist())
 
+        plot_dict = {k: v for k, v in plot_dict.items() if v}
+
+        if not plot_dict:
+            return None
+
         plot_cats = list(set(plot_cats))
         if "Other" in plot_cats:
-            plot_cats_ordered = [x for x in plot_cats if x != "Other"] + [
-                x for x in plot_cats if x == "Other"
-            ]
+            plot_cats = [x for x in plot_cats if x != "Other"] + ["Other"]
 
         result_dict = dict()
         result_dict["plot_data"] = plot_dict
-        result_dict["cats"] = plot_cats_ordered
+        result_dict["cats"] = plot_cats
 
         return result_dict
 
