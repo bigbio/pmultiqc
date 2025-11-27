@@ -1114,7 +1114,7 @@ class QuantMSModule:
                     pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(), 5
                 )
             else:
-                log.warning("CONTAMINANT not found.")
+                log.warning(f"No contaminants found matching affix '{config.kwargs['contaminant_affix']}'")
 
             for name, group in pep_table.groupby("stand_spectra_ref"):
 
