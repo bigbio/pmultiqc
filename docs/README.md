@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/pmultiqc_logo_darkbg.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/pmultiqc_logo.svg">
-    <img src="docs/images/pmultiqc_logo.svg" width="40%" alt="pmultiqc Logo"/>
+    <source media="(prefers-color-scheme: dark)" srcset="images/pmultiqc_logo_darkbg.svg">
+    <source media="(prefers-color-scheme: light)" srcset="images/pmultiqc_logo.svg">
+    <img src="images/pmultiqc_logo.svg" width="40%" alt="pmultiqc Logo"/>
   </picture>
 </p>
 
