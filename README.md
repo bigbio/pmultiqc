@@ -1,4 +1,10 @@
-# pmultiqc
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/bigbio/pmultiqc/main/docs/images/pmultiqc_logo_darkbg.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/bigbio/pmultiqc/main/docs/images/pmultiqc_logo.svg">
+    <img src="https://raw.githubusercontent.com/bigbio/pmultiqc/main/docs/images/pmultiqc_logo.svg" width="45%" alt="pmultiqc Logo"/>
+  </picture>
+</p>
 
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
 [![Upload Python Package](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml)

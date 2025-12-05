@@ -34,6 +34,18 @@ def pmultiqc_plugin_execution_start():
     to use custom command line flags.
     """
 
+    # logo
+    current_dir = Path(__file__).parent.resolve()
+    pmultiqc_logo = current_dir / "images" / "pmultiqc_logo_report.png"
+
+    if pmultiqc_logo.exists():
+        config.custom_logo = str(pmultiqc_logo)
+        config.custom_logo_url = "https://github.com/bigbio/pmultiqc"
+        config.custom_logo_title = "pmultiqc"
+        log.info(f"pmultiqc: injected custom logo from local path: {pmultiqc_logo}")
+    else:
+        log.warning(f"pmultiqc logo file not found at: {pmultiqc_logo}")
+
     # Configure centralized package logging once
     configure_package_logging()
 
