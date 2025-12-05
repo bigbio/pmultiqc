@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/pmultiqc-logo.png" width="35%" alt="pmultiqc Logo"/>
+  <img src="images/pmultiqc-logo.svg" width="40%" alt="pmultiqc Logo"/>
 </p>
 
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
