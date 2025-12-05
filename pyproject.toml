@@ -35,6 +35,10 @@ packages = [
     { include = "pmultiqc" }
 ]
 
+include = [
+    "pmultiqc/images/**/*"
+]
+
 [tool.poetry.dependencies]
 python = ">=3.10"
 multiqc = ">=1.29, <=1.32"
