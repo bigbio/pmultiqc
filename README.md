@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="docs/images/pmultiqc-logo.png" width="50%" alt="pmultiqc Logo"/>
+  <img src="docs/images/pmultiqc-logo.png" width="35%" alt="pmultiqc Logo"/>
 </p>
-
-# pmultiqc
 
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
 [![Upload Python Package](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml)
