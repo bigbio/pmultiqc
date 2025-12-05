@@ -1,10 +1,10 @@
-<div style="text-align: center;">
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="images/pmultiqc_logo_darkbg.svg">
     <source media="(prefers-color-scheme: light)" srcset="images/pmultiqc_logo.svg">
     <img src="images/pmultiqc_logo.svg" width="40%" alt="pmultiqc Logo"/>
   </picture>
-</div>
+</p>
 
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
 [![Upload Python Package](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-publish.yml)
