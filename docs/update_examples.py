@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import shutil
@@ -168,7 +169,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
-def new_examples(config_file):
+def new_examples(config_file, project_accession=None):
 
     if not os.path.exists(config_file):
         print(f"config file {config_file} not exist!")
@@ -177,26 +178,69 @@ def new_examples(config_file):
     with open(config_file, "r") as f:
         config = json.load(f)
 
-    for project in config.get("projects"):
+    projects = config.get("projects", [])
 
+    # Filter to specific project if accession is provided
+    if project_accession:
+        projects = [p for p in projects if p.get("accession") == project_accession]
+        if not projects:
+            print(f"❌ Project with accession '{project_accession}' not found in config!")
+            return
+        print(f"✅ Processing project: {project_accession}")
+
+    for project in projects:
+        accession = project.get("accession")
         urls = project.get("urls")
         report_path = project.get("path")
         file_type = project.get("file_type")
 
+        print(f"\n{'='*60}")
+        print(f"Processing project: {accession}")
+        print(f"Report path: {report_path}")
+        print(f"File type: {file_type}")
+        print(f"{'='*60}\n")
+
         download_path = "./data"
         Path(download_path).mkdir(parents=True, exist_ok=True)
 
-        for url in urls:
-            download_file(url, download_path)
+        try:
+            for url in urls:
+                download_file(url, download_path)
 
-        extract_files(download_path)
+            extract_files(download_path)
 
-        Path(report_path).mkdir(parents=True, exist_ok=True)
-        delete_old_examples(report_path)
+            Path(report_path).mkdir(parents=True, exist_ok=True)
+            delete_old_examples(report_path)
 
-        run_pmultiqc(download_path, report_path, file_type)
+            run_pmultiqc(download_path, report_path, file_type)
 
-        shutil.rmtree(download_path)
+            print(f"✅ Successfully processed project: {accession}")
+        except Exception as e:
+            print(f"❌ Error processing project {accession}: {e}")
+            raise
+        finally:
+            # Clean up download directory
+            if os.path.exists(download_path):
+                shutil.rmtree(download_path)
 
 
-new_examples("docs/config.json")
+def main():
+    parser = argparse.ArgumentParser(description="Update pmultiqc examples")
+    parser.add_argument(
+        "--project",
+        type=str,
+        help="Process only a specific project by accession (e.g., 'LFQ_PXD007683')",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="docs/config.json",
+        help="Path to config.json file (default: docs/config.json)",
+    )
+    args = parser.parse_args()
+
+    new_examples(args.config, args.project)
+
+
+if __name__ == "__main__":
+    main()
