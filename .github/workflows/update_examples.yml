@@ -5,9 +5,41 @@ on:
     branches: [ main ]
 
 jobs:
-  update_examples:
+  setup:
     if: "! contains(github.event.head_commit.message, 'Update pmultiqc documentation and examples')"
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Generate matrix from config
+        id: set-matrix
+        run: |
+          python << 'EOF'
+          import json
+          import os
+          with open('docs/config.json', 'r') as f:
+              config = json.load(f)
+          projects = [{'accession': p['accession']} for p in config.get('projects', [])]
+          matrix = json.dumps({'include': projects})
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'matrix={matrix}\n')
+          EOF
+
+  update_examples:
+    needs: setup
+    if: "! contains(github.event.head_commit.message, 'Update pmultiqc documentation and examples')"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,11 +55,46 @@ jobs:
           pip install .
           pip install pytest pytest-cov
 
-      - name: Run update script
+      - name: Run update script for ${{ matrix.accession }}
         run: |
-          python docs/update_examples.py
+          python docs/update_examples.py --project "${{ matrix.accession }}"
 
-      - name: Check if changes were made
+      - name: Check if changes were made for ${{ matrix.accession }}
+        id: check_changes
+        run: |
+          if [[ -n $(git status --porcelain docs/) ]]; then
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+            echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+            git status --porcelain docs/ >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload changed files as artifact
+        if: steps.check_changes.outputs.changes_detected == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-changes-${{ matrix.accession }}
+          path: docs/
+          retention-days: 1
+
+  create_pr:
+    needs: [setup, update_examples]
+    if: "! contains(github.event.head_commit.message, 'Update pmultiqc documentation and examples')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: docs-changes-*
+          merge-multiple: true
+          path: docs/
+
+      - name: Check if any changes were made
         id: check_changes
         run: |
           if [[ -n $(git status --porcelain docs/) ]]; then
