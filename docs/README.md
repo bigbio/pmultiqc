@@ -1,4 +1,6 @@
-# ![bigbio/pmultiqc](images/pmultiqc-logo.png)
+<p align="center">
+  <img src="images/pmultiqc-logo.png" width="50%" alt="pmultiqc Logo"/>
+</p>
 
 # pmultiqc 🔍📈
 
