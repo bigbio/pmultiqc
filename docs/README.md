@@ -1,3 +1,5 @@
+# ![bigbio/pmultiqc](images/pmultiqc-logo.png)
+
 # pmultiqc 🔍📈
 
 [![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
