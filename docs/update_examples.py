@@ -169,7 +169,6 @@ def run_pmultiqc(download_path, report_path, plugin_type):
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
-
 def new_examples(config_file, project_accession=None):
 
     if not os.path.exists(config_file):
