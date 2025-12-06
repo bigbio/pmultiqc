@@ -9,124 +9,165 @@ import urllib.request
 from ftplib import FTP
 from pathlib import Path
 from urllib.parse import urlparse
-
+import requests
 from tqdm import tqdm
 
 from pmultiqc.modules.common.file_utils import extract_files
 
 
-def download_file(url, save_path, max_retries=3, backoff_factor=2):
-    parsed_url = urlparse(url)
-    filename = os.path.basename(parsed_url.path)
-    local_filepath = os.path.join(save_path, filename)
-    Path(save_path).mkdir(parents=True, exist_ok=True)
+def download_file(url, directory, retries=5):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
-    ftp_url = url.replace("https://", "ftp://", 1)
-    ftp_parsed = urlparse(ftp_url)
-    ftp_host = ftp_parsed.hostname
-    ftp_path = ftp_parsed.path
+    local_filename = os.path.join(directory, url.split('/')[-1])
+    
+    print(f"Start downloading: {local_filename}")
 
-    # -------- Try FTP first --------
-    for attempt in range(1, max_retries + 1):
+    for attempt in range(retries):
         try:
-            print(f"[Attempt {attempt}] Trying FTP download: {ftp_host}{ftp_path}")
-            ftp = FTP(ftp_host, timeout=30)
-            ftp.login()
-            total_size = ftp.size(ftp_path)
+            with requests.get(url, stream=True, timeout=(10, 60)) as r:
+                r.raise_for_status()
+                total_size = int(r.headers.get('content-length', 0))
 
-            with open(local_filepath, "wb") as f, tqdm(
-                total=total_size, unit="B", unit_scale=True, desc=filename
-            ) as pbar:
+                with open(local_filename, 'wb') as f, tqdm(
+                    desc=os.path.basename(local_filename),
+                    total=total_size,
+                    unit='iB',
+                    unit_scale=True,
+                    unit_divisor=1024,
+                ) as bar:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        if chunk: 
+                            size = f.write(chunk)
+                            bar.update(size)
 
-                def callback(data):
-                    f.write(data)
-                    pbar.update(len(data))
+            print(f"Successfully downloaded: {local_filename}")
+            return local_filename
 
-                ftp.retrbinary(f"RETR {ftp_path}", callback)
-
-            ftp.quit()
-            print(f"✅ FTP download complete: {filename}")
-            return  # success
-        except Exception as ftp_err:
-            print(f"⚠️ FTP attempt {attempt} failed: {ftp_err}")
-            if attempt < max_retries:
-                sleep_time = backoff_factor**attempt
-                print(f"Retrying in {sleep_time} seconds...")
-                time.sleep(sleep_time)
+        except (requests.exceptions.RequestException, requests.exceptions.ChunkedEncodingError, Exception) as e:
+            wait_time = 2 ** attempt
+            print(f"Attempt {attempt + 1}/{retries} failed for {url}")
+            print(f"Error: {str(e)}")
+            
+            if attempt < retries - 1:
+                print(f"Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
             else:
-                print("FTP download failed after maximum retries. Trying HTTPS...")
+                print(f"Failed to download {url} after {retries} attempts.")
+                raise e
 
-    # -------- Try HTTPS fallback --------
-    for attempt in range(1, max_retries + 1):
-        try:
-            print(f"[Attempt {attempt}] Trying HTTPS download: {url}")
+# def download_file(url, save_path, max_retries=3, backoff_factor=2):
+#     parsed_url = urlparse(url)
+#     filename = os.path.basename(parsed_url.path)
+#     local_filepath = os.path.join(save_path, filename)
+#     Path(save_path).mkdir(parents=True, exist_ok=True)
 
-            def reporthook(block_num, block_size, total_size):
-                if reporthook.pbar is None:
-                    reporthook.pbar = tqdm(
-                        total=total_size, unit="B", unit_scale=True, desc=filename
-                    )
-                downloaded = block_num * block_size
-                reporthook.pbar.update(downloaded - reporthook.pbar.n)
+#     ftp_url = url.replace("https://", "ftp://", 1)
+#     ftp_parsed = urlparse(ftp_url)
+#     ftp_host = ftp_parsed.hostname
+#     ftp_path = ftp_parsed.path
 
-            reporthook.pbar = None
+#     # -------- Try FTP first --------
+#     for attempt in range(1, max_retries + 1):
+#         try:
+#             print(f"[Attempt {attempt}] Trying FTP download: {ftp_host}{ftp_path}")
+#             ftp = FTP(ftp_host, timeout=30)
+#             ftp.login()
+#             total_size = ftp.size(ftp_path)
 
-            # Try with default SSL context first
-            try:
-                urllib.request.urlretrieve(url, local_filepath, reporthook)
-            except urllib.error.URLError as ssl_err:
-                import ssl
+#             with open(local_filepath, "wb") as f, tqdm(
+#                 total=total_size, unit="B", unit_scale=True, desc=filename
+#             ) as pbar:
 
-                # Check if this is specifically an SSL certificate error
-                if isinstance(ssl_err.reason, ssl.SSLError) and "CERTIFICATE_VERIFY_FAILED" in str(
-                    ssl_err.reason
-                ):
-                    print(
-                        "⚠️ SSL certificate verification failed, trying with SSL context that bypasses verification..."
-                    )
-                    print(
-                        "🔓 WARNING: This bypasses SSL certificate verification and reduces security!"
-                    )
+#                 def callback(data):
+#                     f.write(data)
+#                     pbar.update(len(data))
 
-                    # Store original opener to restore later
-                    original_opener = urllib.request._opener
+#                 ftp.retrbinary(f"RETR {ftp_path}", callback)
 
-                    try:
-                        # Create SSL context that bypasses certificate verification
-                        ssl_context = ssl.create_default_context()
-                        ssl_context.check_hostname = False
-                        ssl_context.verify_mode = ssl.CERT_NONE
+#             ftp.quit()
+#             print(f"✅ FTP download complete: {filename}")
+#             return  # success
+#         except Exception as ftp_err:
+#             print(f"⚠️ FTP attempt {attempt} failed: {ftp_err}")
+#             if attempt < max_retries:
+#                 sleep_time = backoff_factor**attempt
+#                 print(f"Retrying in {sleep_time} seconds...")
+#                 time.sleep(sleep_time)
+#             else:
+#                 print("FTP download failed after maximum retries. Trying HTTPS...")
 
-                        # Create opener with custom SSL context
-                        opener = urllib.request.build_opener(
-                            urllib.request.HTTPSHandler(context=ssl_context)
-                        )
-                        urllib.request.install_opener(opener)
+#     # -------- Try HTTPS fallback --------
+#     for attempt in range(1, max_retries + 1):
+#         try:
+#             print(f"[Attempt {attempt}] Trying HTTPS download: {url}")
 
-                        # Retry with SSL context that bypasses verification
-                        urllib.request.urlretrieve(url, local_filepath, reporthook)
-                    finally:
-                        # Restore original opener to limit scope of changes
-                        if original_opener:
-                            urllib.request.install_opener(original_opener)
-                        else:
-                            urllib.request.install_opener(urllib.request.build_opener())
-                else:
-                    raise ssl_err
-            if reporthook.pbar:
-                reporthook.pbar.close()
+#             def reporthook(block_num, block_size, total_size):
+#                 if reporthook.pbar is None:
+#                     reporthook.pbar = tqdm(
+#                         total=total_size, unit="B", unit_scale=True, desc=filename
+#                     )
+#                 downloaded = block_num * block_size
+#                 reporthook.pbar.update(downloaded - reporthook.pbar.n)
 
-            print(f"✅ HTTPS download complete: {filename}")
-            return  # success
-        except Exception as http_err:
-            print(f"⚠️ HTTPS attempt {attempt} failed: {http_err}")
-            if attempt < max_retries:
-                sleep_time = backoff_factor**attempt
-                print(f"Retrying in {sleep_time} seconds...")
-                time.sleep(sleep_time)
-            else:
-                print("❌ All download attempts failed.")
-                raise http_err
+#             reporthook.pbar = None
+
+#             # Try with default SSL context first
+#             try:
+#                 urllib.request.urlretrieve(url, local_filepath, reporthook)
+#             except urllib.error.URLError as ssl_err:
+#                 import ssl
+
+#                 # Check if this is specifically an SSL certificate error
+#                 if isinstance(ssl_err.reason, ssl.SSLError) and "CERTIFICATE_VERIFY_FAILED" in str(
+#                     ssl_err.reason
+#                 ):
+#                     print(
+#                         "⚠️ SSL certificate verification failed, trying with SSL context that bypasses verification..."
+#                     )
+#                     print(
+#                         "🔓 WARNING: This bypasses SSL certificate verification and reduces security!"
+#                     )
+
+#                     # Store original opener to restore later
+#                     original_opener = urllib.request._opener
+
+#                     try:
+#                         # Create SSL context that bypasses certificate verification
+#                         ssl_context = ssl.create_default_context()
+#                         ssl_context.check_hostname = False
+#                         ssl_context.verify_mode = ssl.CERT_NONE
+
+#                         # Create opener with custom SSL context
+#                         opener = urllib.request.build_opener(
+#                             urllib.request.HTTPSHandler(context=ssl_context)
+#                         )
+#                         urllib.request.install_opener(opener)
+
+#                         # Retry with SSL context that bypasses verification
+#                         urllib.request.urlretrieve(url, local_filepath, reporthook)
+#                     finally:
+#                         # Restore original opener to limit scope of changes
+#                         if original_opener:
+#                             urllib.request.install_opener(original_opener)
+#                         else:
+#                             urllib.request.install_opener(urllib.request.build_opener())
+#                 else:
+#                     raise ssl_err
+#             if reporthook.pbar:
+#                 reporthook.pbar.close()
+
+#             print(f"✅ HTTPS download complete: {filename}")
+#             return  # success
+#         except Exception as http_err:
+#             print(f"⚠️ HTTPS attempt {attempt} failed: {http_err}")
+#             if attempt < max_retries:
+#                 sleep_time = backoff_factor**attempt
+#                 print(f"Retrying in {sleep_time} seconds...")
+#                 time.sleep(sleep_time)
+#             else:
+#                 print("❌ All download attempts failed.")
+#                 raise http_err
 
 
 def delete_old_examples(folder_path):
@@ -167,7 +208,6 @@ def run_pmultiqc(download_path, report_path, plugin_type):
         command = ["multiqc", "--diann_plugin", download_path, "-o", report_path]
 
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
 
 
 def new_examples(config_file, project_accession=None):
