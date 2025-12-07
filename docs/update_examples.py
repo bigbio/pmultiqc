@@ -172,7 +172,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
 def new_examples(config_file, project_accession=None):
 
     if not os.path.exists(config_file):
-        print(f"Error: config file {config_file} not exist!")
+        print(f"Error: config file {config_file} does not exist!")
         return
 
     with open(config_file, "r") as f:
