@@ -222,7 +222,7 @@ def new_examples(config_file, project_accession=None):
             print(f"✅ Successfully processed project: {accession}")
         except Exception as e:
             print(f"❌ Error processing project {accession}: {e}")
-            raise e
+            raise
         finally:
             # Clean up download directory
             if os.path.exists(download_path):
