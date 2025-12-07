@@ -25,12 +25,17 @@ jobs:
           python << 'EOF'
           import json
           import os
-          with open('docs/config.json', 'r') as f:
-              config = json.load(f)
-          projects = [{'accession': p['accession']} for p in config.get('projects', [])]
-          matrix = json.dumps({'include': projects})
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'matrix={matrix}\n')
+          
+          try:
+              with open('docs/config.json', 'r') as f:
+                  config = json.load(f)
+              projects = [{'accession': p['accession'], 'path': p['path']} for p in config.get('projects', [])]
+              matrix = json.dumps({'include': projects})
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f'matrix={matrix}\n')
+          except Exception as e:
+              print(f"Error parsing config: {e}")
+              exit(1)
           EOF
 
   update_examples:
@@ -59,24 +64,16 @@ jobs:
         run: |
           python docs/update_examples.py --project "${{ matrix.accession }}"
 
-      - name: Check if changes were made for ${{ matrix.accession }}
-        id: check_changes
+      - name: Prepare artifact for upload
         run: |
-          if [[ -n $(git status --porcelain docs/) ]]; then
-            echo "changes_detected=true" >> $GITHUB_OUTPUT
-            echo "changed_files<<EOF" >> $GITHUB_OUTPUT
-            git status --porcelain docs/ >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "changes_detected=false" >> $GITHUB_OUTPUT
-          fi
+          mkdir -p artifact_stage
+          rsync -avR "${{ matrix.path }}" artifact_stage/
 
       - name: Upload changed files as artifact
-        if: steps.check_changes.outputs.changes_detected == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: docs-changes-${{ matrix.accession }}
-          path: docs/
+          path: artifact_stage/
           retention-days: 1
 
   create_pr:
@@ -92,35 +89,26 @@ jobs:
         with:
           pattern: docs-changes-*
           merge-multiple: true
-          path: docs/
+          path: .
 
       - name: Check if any changes were made
         id: check_changes
         run: |
+          echo "=== Debug: Files in docs/ after download ==="
+          ls -R docs/
+          echo "============================================"
+
           if [[ -n $(git status --porcelain docs/) ]]; then
             echo "changes_detected=true" >> $GITHUB_OUTPUT
+            echo "Changes detected by git status"
+            git status
           else
             echo "changes_detected=false" >> $GITHUB_OUTPUT
+            echo "No changes detected."
           fi
 
-      - name: Check for existing PR
-        if: steps.check_changes.outputs.changes_detected == 'true'
-        id: check_pr
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { data: pulls } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              head: `${context.repo.owner}:dev-docs-update`,
-              base: 'main',
-              state: 'open'
-            });
-            return pulls.length > 0 ? 'exists' : 'not_exists';
-          result-encoding: string
-
       - name: Create Pull Request
-        if: steps.check_changes.outputs.changes_detected == 'true' && steps.check_pr.outputs.result == 'not_exists'
+        if: steps.check_changes.outputs.changes_detected == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

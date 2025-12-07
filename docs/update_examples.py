@@ -172,7 +172,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
 def new_examples(config_file, project_accession=None):
 
     if not os.path.exists(config_file):
-        print(f"config file {config_file} not exist!")
+        print(f"Error: config file {config_file} does not exist!")
         return
 
     with open(config_file, "r") as f:
@@ -200,11 +200,15 @@ def new_examples(config_file, project_accession=None):
         print(f"File type: {file_type}")
         print(f"{'='*60}\n")
 
-        download_path = "./data"
+        download_path = "./data_temp"
+
+        if os.path.exists(download_path):
+            shutil.rmtree(download_path)
         Path(download_path).mkdir(parents=True, exist_ok=True)
 
         try:
             for url in urls:
+                print(f"Downloading: {url}")
                 download_file(url, download_path)
 
             extract_files(download_path)
@@ -212,6 +216,7 @@ def new_examples(config_file, project_accession=None):
             Path(report_path).mkdir(parents=True, exist_ok=True)
             delete_old_examples(report_path)
 
+            print("Running pmultiqc...")
             run_pmultiqc(download_path, report_path, file_type)
 
             print(f"✅ Successfully processed project: {accession}")
