@@ -257,11 +257,25 @@ This project is licensed under the terms of the [LICENSE](https://github.com/big
 
 ## 📝 Citation
 
-If you use pmultiqc in your research, please cite:
+If you use pmultiqc in your research, please cite our preprint:
 
-```
-pmultiqc: A MultiQC plugin for proteomics quality control
-https://github.com/bigbio/pmultiqc
+**pmultiqc: A MultiQC plugin for proteomics quality control**  
+Yasset Perez-Riverol, Dai Chengxin, Qi-xuan Yue  
+*bioRxiv* 2025. DOI: [10.1101/2025.11.02.685980](https://doi.org/10.1101/2025.11.02.685980)
+
+Preprint: https://www.biorxiv.org/content/10.1101/2025.11.02.685980v1
+
+### BibTeX
+
+```bibtex
+@article{perezriverol2025pmultiqc,
+  title={pmultiqc: A MultiQC plugin for proteomics quality control},
+  author={Perez-Riverol, Yasset and Chengxin, Dai and Yue, Qi-xuan},
+  journal={bioRxiv},
+  year={2025},
+  doi={10.1101/2025.11.02.685980},
+  url={https://www.biorxiv.org/content/10.1101/2025.11.02.685980v1}
+}
 ```
 
 ## 🔗 Related Tools
