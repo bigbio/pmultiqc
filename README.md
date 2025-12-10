@@ -229,21 +229,24 @@ This project is licensed under the terms of the LICENSE file included in the rep
 
 If you use pmultiqc in your research, please cite our preprint:
 
-**pmultiqc: A MultiQC plugin for proteomics quality control**  
-Yasset Perez-Riverol, Dai Chengxin, Qi-xuan Yue  
+**pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics**  
+Qi-Xuan Yue, Chengxin Dai, Selvakumar Kamatchinathan, Chakradhar Bandla, Henry Webel, Asier Larrea, Wout Bittremieux, Julian Uszkoreit, Tom David Muller, Jinqiu Xiao, Juergen Cox, Philip Ewels, Vadim Demichev, Oliver Kohlbacher, Timo Sachsenberg, Chris Bielow, Mingze Bai, Yasset Perez-Riverol  
 *bioRxiv* 2025. DOI: [10.1101/2025.11.02.685980](https://doi.org/10.1101/2025.11.02.685980)
 
-Preprint: https://www.biorxiv.org/content/10.1101/2025.11.02.685980v1
+Preprint: https://www.biorxiv.org/content/early/2025/11/03/2025.11.02.685980
 
 ### BibTeX
 
 ```bibtex
-@article{perezriverol2025pmultiqc,
-  title={pmultiqc: A MultiQC plugin for proteomics quality control},
-  author={Perez-Riverol, Yasset and Chengxin, Dai and Yue, Qi-xuan},
-  journal={bioRxiv},
-  year={2025},
-  doi={10.1101/2025.11.02.685980},
-  url={https://www.biorxiv.org/content/10.1101/2025.11.02.685980v1}
+@article{Yue2025.11.02.685980,
+  author = {Yue, Qi-Xuan and Dai, Chengxin and Kamatchinathan, Selvakumar and Bandla, Chakradhar and Webel, Henry and Larrea, Asier and Bittremieux, Wout and Uszkoreit, Julian and Muller, Tom David and Xiao, Jinqiu and Cox, Juergen and Ewels, Philip and Demichev, Vadim and Kohlbacher, Oliver and Sachsenberg, Timo and Bielow, Chris and Bai, Mingze and Perez-Riverol, Yasset},
+  title = {pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics},
+  elocation-id = {2025.11.02.685980},
+  year = {2025},
+  doi = {10.1101/2025.11.02.685980},
+  publisher = {Cold Spring Harbor Laboratory},
+  URL = {https://www.biorxiv.org/content/early/2025/11/03/2025.11.02.685980},
+  eprint = {https://www.biorxiv.org/content/early/2025/11/03/2025.11.02.685980.full.pdf},
+  journal = {bioRxiv}
 }
 ```
