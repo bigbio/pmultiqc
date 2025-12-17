@@ -20,6 +20,8 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
         "tt_decimals": 2,
         "ylab": "MS/MS Identified [%]",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(data=msms_identified_percent, pconfig=draw_config)
     bar_html = remove_subtitle(bar_html)
@@ -42,6 +44,8 @@ def draw_potential_contaminants(sub_section, contaminant_percent, is_maxquant):
         "tt_decimals": 2,
         "ylab": "Percent [%]",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(data=contaminant_percent, pconfig=draw_config)
     bar_html = remove_subtitle(bar_html)
@@ -82,6 +86,8 @@ def draw_charge_state(sub_section, charge_data, report_type):
         "tt_decimals": 0,
         "ylab": "Count",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=charge_data["plot_data"], cats=charge_data["cats"], pconfig=draw_config
@@ -125,6 +131,8 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
         "tt_decimals": 2,
         "ylab": "Identified [%]",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         top_contaminants_data["plot_data"],
@@ -160,6 +168,8 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
         "tt_decimals": 2,
         "ylab": "Missed Cleavages [%]",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=missed_cleavages_data["plot_data"],
@@ -293,6 +303,9 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
                 "ymin": 0,
             },
         ]
+        
+        # Apply tooltip config to each data label
+        data_label = [apply_tooltip_config(label) for label in data_label]
 
         pconfig = {
             "id": plot_id,
@@ -333,6 +346,9 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
                 "ymin": 0,
             },
         ]
+        
+        # Apply tooltip config to each data label
+        data_label = [apply_tooltip_config(label) for label in data_label]
 
         pconfig = {
             "id": plot_id,
@@ -372,6 +388,8 @@ def draw_quantms_identification(
         "tt_decimals": 0,
         "ylab": "Count",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     if cal_num_table_data:
         protein_count = {
@@ -408,6 +426,9 @@ def draw_quantms_identification(
         "tt_decimals": 0,
         "ylab": "Count",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
+    
     bar_html = bargraph.plot(
         peptide_count,
         pconfig=draw_config,
@@ -748,6 +769,8 @@ def draw_modifications(sub_section, modified_data):
         "tt_decimals": 3,
         "ylab": "Occurence [%]",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=modified_data["plot_data"], cats=modified_data["cats"], pconfig=draw_config
@@ -797,6 +820,7 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
             "tt_decimals": 2,
             "ylab": "MS/MS Counts Per 3D-peak [%]",
         }
+        draw_config = apply_tooltip_config(draw_config)
         bar_html = bargraph.plot(
             data=oversampling["plot_data"], cats=oversampling["cats"], pconfig=draw_config
         )
@@ -809,6 +833,7 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
             "ylab": "MS/MS Counts Per 3D-peak [%]",
             "tt_decimals": 0,
         }
+        draw_config = apply_tooltip_config(draw_config)
         bar_html = bargraph.plot(data=oversampling, cats=oversampling_plot, pconfig=draw_config)
 
     bar_html = remove_subtitle(bar_html)
@@ -857,6 +882,8 @@ def draw_num_pep_per_protein(
                 "tt_decimals": 2,
             },
         ]
+        # Apply tooltip config to each data label
+        data_labels = [apply_tooltip_config(label) for label in data_labels]
 
     pconfig = {
         "id": "number_of_peptides_per_proteins",
@@ -907,6 +934,8 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=rt_count_data, pconfig=draw_config)
 
