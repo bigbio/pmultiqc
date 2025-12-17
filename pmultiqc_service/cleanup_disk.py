@@ -6,6 +6,7 @@ Removes old job directories and corrupted files to free up disk space
 import os
 import shutil
 import time
+import uuid as uuid_lib
 import zipfile
 
 
@@ -23,7 +24,6 @@ def cleanup_job_directories(base_dir, max_age_days=7):
         # Security: Validate that it's a directory and has UUID format (8-4-4-4-12 format)
         if os.path.isdir(item_path) and len(item) == 36:
             # Additional validation: Check if it looks like a valid UUID
-            import uuid as uuid_lib
             try:
                 uuid_lib.UUID(item)  # This will raise ValueError if not a valid UUID
             except ValueError:

@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -1323,6 +1324,104 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+async def validate_and_save_upload(file: UploadFile, upload_dir: str, job_id: str) -> tuple[str, int]:
+    """
+    Validate and save an uploaded file with security checks.
+    
+    Args:
+        file: The uploaded file
+        upload_dir: Directory to save the file
+        job_id: Job ID for error reporting
+    
+    Returns:
+        tuple: (file_path, file_size)
+    
+    Raises:
+        HTTPException: If validation fails
+    """
+    # Check file extension
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only ZIP files are allowed")
+
+    # Security: Validate filename to prevent path traversal
+    if ".." in file.filename or "/" in file.filename or "\\" in file.filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    filename = file.filename
+    zip_path = os.path.join(upload_dir, filename)
+
+    # Security: Check file size while saving
+    file_size = 0
+    with open(zip_path, "wb") as buffer:
+        chunk_size = 8192
+        while chunk := await file.read(chunk_size):
+            file_size += len(chunk)
+            # Security: Enforce maximum file size
+            if file_size > MAX_FILE_SIZE:
+                # Clean up partial file
+                buffer.close()
+                os.remove(zip_path)
+                shutil.rmtree(upload_dir, ignore_errors=True)
+                raise HTTPException(
+                    status_code=413, 
+                    detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024**3):.1f} GB"
+                )
+            buffer.write(chunk)
+    
+    return zip_path, file_size
+
+
+def validate_and_extract_zip(zip_path: str, extract_path: str, file_size: int):
+    """
+    Validate and extract a ZIP file with security checks.
+    
+    Args:
+        zip_path: Path to the ZIP file
+        extract_path: Directory to extract to
+        file_size: Size of the ZIP file
+    
+    Raises:
+        HTTPException: If validation fails
+    """
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            # Security: Check number of files in zip
+            file_list = zip_ref.namelist()
+            if len(file_list) > MAX_UPLOAD_FILES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Too many files in ZIP archive. Maximum is {MAX_UPLOAD_FILES} files"
+                )
+            
+            # Security: Check for zip bombs and path traversal in zip entries
+            total_uncompressed_size = 0
+            for file_info in zip_ref.infolist():
+                # Check for path traversal in zip entry names
+                if ".." in file_info.filename or file_info.filename.startswith("/"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="ZIP file contains invalid file paths"
+                    )
+                total_uncompressed_size += file_info.file_size
+            
+            # Check for zip bombs (compression ratio > 100:1)
+            compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
+            if compression_ratio > 100:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Suspicious ZIP file detected (possible zip bomb)"
+                )
+            
+            zip_ref.extractall(extract_path)
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting ZIP file: {e}")
+        raise HTTPException(status_code=400, detail=f"Error extracting ZIP file: {str(e)}")
+
+
 def current_time():
     now = int(time.time())
     dt = datetime.fromtimestamp(now)
@@ -2055,7 +2154,6 @@ async def submit_pride(request: Request):
         )
 
     # Security: Validate accession format (PXD followed by 6 digits)
-    import re
     if not re.match(r'^PXD\d{6}$', accession):
         return templates.TemplateResponse(
             "index.html",
@@ -2417,7 +2515,6 @@ async def process_pride(request: Request):
     accession = data.get("accession", "").strip().upper()
 
     # Security: Validate accession format (PXD followed by 6 digits)
-    import re
     if not re.match(r'^PXD\d{6}$', accession):
         raise HTTPException(
             status_code=400, detail="Invalid PRIDE accession format. Should be PXD followed by 6 digits (e.g., PXD012345)"
@@ -2454,14 +2551,6 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     The job will be processed asynchronously and you can check the status
     using the returned job_id.
     """
-    # Check file extension
-    if not file.filename or not file.filename.lower().endswith(".zip"):
-        raise HTTPException(status_code=400, detail="Only ZIP files are allowed")
-
-    # Security: Validate filename to prevent path traversal
-    if ".." in file.filename or "/" in file.filename or "\\" in file.filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
-
     # Generate unique job ID
     job_id = str(uuid.uuid4())
 
@@ -2471,11 +2560,7 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     os.makedirs(upload_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save uploaded file
-    filename = file.filename
-    zip_path = os.path.join(upload_dir, filename)
-
-    logger.info(f"Starting async upload for job {job_id}: {filename}")
+    logger.info(f"Starting async upload for job {job_id}: {file.filename}")
 
     # Initialize job in database
     initial_job_data = {
@@ -2486,24 +2571,8 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     }
     save_job_to_db(job_id, initial_job_data)
 
-    # Security: Check file size while saving
-    file_size = 0
-    with open(zip_path, "wb") as buffer:
-        chunk_size = 8192
-        while chunk := await file.read(chunk_size):
-            file_size += len(chunk)
-            # Security: Enforce maximum file size
-            if file_size > MAX_FILE_SIZE:
-                # Clean up partial file
-                buffer.close()
-                os.remove(zip_path)
-                shutil.rmtree(upload_dir, ignore_errors=True)
-                raise HTTPException(
-                    status_code=413, 
-                    detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024**3):.1f} GB"
-                )
-            buffer.write(chunk)
-
+    # Validate and save uploaded file
+    zip_path, file_size = await validate_and_save_upload(file, upload_dir, job_id)
     logger.info(f"Upload completed for job {job_id}: {file_size} bytes")
 
     # Extract the zip file
@@ -2514,43 +2583,7 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     update_job_progress(job_id, "extracting", 25)
     logger.info(f"Extracting ZIP file for job {job_id}")
 
-    try:
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            # Security: Check number of files in zip
-            file_list = zip_ref.namelist()
-            if len(file_list) > MAX_UPLOAD_FILES:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Too many files in ZIP archive. Maximum is {MAX_UPLOAD_FILES} files"
-                )
-            
-            # Security: Check for zip bombs and path traversal in zip entries
-            total_uncompressed_size = 0
-            for file_info in zip_ref.infolist():
-                # Check for path traversal in zip entry names
-                if ".." in file_info.filename or file_info.filename.startswith("/"):
-                    raise HTTPException(
-                        status_code=400,
-                        detail="ZIP file contains invalid file paths"
-                    )
-                total_uncompressed_size += file_info.file_size
-            
-            # Check for zip bombs (compression ratio > 100:1)
-            compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
-            if compression_ratio > 100:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Suspicious ZIP file detected (possible zip bomb)"
-                )
-            
-            zip_ref.extractall(extract_path)
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=400, detail="Invalid ZIP file")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error extracting ZIP file: {e}")
-        raise HTTPException(status_code=400, detail=f"Error extracting ZIP file: {str(e)}")
+    validate_and_extract_zip(zip_path, extract_path, file_size)
 
     # Detect input type
     input_type, quantms_config = detect_input_type(extract_path)
@@ -2842,14 +2875,6 @@ async def generate_report(file: UploadFile = File(...)):
     - JSON response with job ID and status
     """
     try:
-        # Check file extension
-        if not file.filename or not file.filename.lower().endswith(".zip"):
-            raise HTTPException(status_code=400, detail="Only ZIP files are allowed")
-
-        # Security: Validate filename to prevent path traversal
-        if ".." in file.filename or "/" in file.filename or "\\" in file.filename:
-            raise HTTPException(status_code=400, detail="Invalid filename")
-
         # Generate unique job ID
         job_id = str(uuid.uuid4())
 
@@ -2859,69 +2884,14 @@ async def generate_report(file: UploadFile = File(...)):
         os.makedirs(upload_dir, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
 
-        # Save uploaded file
-        filename = file.filename
-        zip_path = os.path.join(upload_dir, filename)
-
-        # Security: Check file size while saving
-        file_size = 0
-        with open(zip_path, "wb") as buffer:
-            chunk_size = 8192
-            while chunk := await file.read(chunk_size):
-                file_size += len(chunk)
-                # Security: Enforce maximum file size
-                if file_size > MAX_FILE_SIZE:
-                    # Clean up partial file
-                    buffer.close()
-                    os.remove(zip_path)
-                    shutil.rmtree(upload_dir, ignore_errors=True)
-                    raise HTTPException(
-                        status_code=413, 
-                        detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024**3):.1f} GB"
-                    )
-                buffer.write(chunk)
+        # Validate and save uploaded file
+        zip_path, file_size = await validate_and_save_upload(file, upload_dir, job_id)
 
         # Extract the zip file
         extract_path = os.path.join(upload_dir, "extracted")
         os.makedirs(extract_path, exist_ok=True)
 
-        try:
-            with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                # Security: Check number of files in zip
-                file_list = zip_ref.namelist()
-                if len(file_list) > MAX_UPLOAD_FILES:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Too many files in ZIP archive. Maximum is {MAX_UPLOAD_FILES} files"
-                    )
-                
-                # Security: Check for zip bombs and path traversal in zip entries
-                total_uncompressed_size = 0
-                for file_info in zip_ref.infolist():
-                    # Check for path traversal in zip entry names
-                    if ".." in file_info.filename or file_info.filename.startswith("/"):
-                        raise HTTPException(
-                            status_code=400,
-                            detail="ZIP file contains invalid file paths"
-                        )
-                    total_uncompressed_size += file_info.file_size
-                
-                # Check for zip bombs (compression ratio > 100:1)
-                compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
-                if compression_ratio > 100:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Suspicious ZIP file detected (possible zip bomb)"
-                    )
-                
-                zip_ref.extractall(extract_path)
-        except zipfile.BadZipFile:
-            raise HTTPException(status_code=400, detail="Invalid ZIP file")
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Error extracting ZIP file: {e}")
-            raise HTTPException(status_code=400, detail=f"Error extracting ZIP file: {str(e)}")
+        validate_and_extract_zip(zip_path, extract_path, file_size)
 
         # Detect input type
         input_type, quantms_config = detect_input_type(extract_path)
@@ -3007,7 +2977,6 @@ async def api_submit_pride(request: Request):
         accession = data["accession"].strip().upper()
 
         # Security: Validate accession format (PXD followed by 6 digits)
-        import re
         if not re.match(r'^PXD\d{6}$', accession):
             raise HTTPException(
                 status_code=400, detail="Invalid PRIDE accession format. Should be PXD followed by 6 digits (e.g., PXD012345)"
