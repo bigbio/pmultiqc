@@ -29,14 +29,13 @@ def apply_tooltip_config(plot_config):
         dict: The modified plot configuration dictionary
     """
     if should_disable_tooltips():
-        # Remove tooltip-related keys
-        plot_config.pop('tt_label', None)
+        # Remove tooltip-related keys if they exist
         plot_config.pop('tt_decimals', None)
         plot_config.pop('tt_suffix', None)
         plot_config.pop('tt_percentages', None)
         
-        # Disable tooltips by setting tt_label to empty string or False
-        # Different plot types may handle this differently
+        # Set tt_label to False to disable tooltips
+        # This works for most plot types in MultiQC/pmultiqc
         plot_config['tt_label'] = False
     
     return plot_config
