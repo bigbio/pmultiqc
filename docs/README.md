@@ -181,38 +181,6 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--proteobench_plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
 
-
-### Configuration Options
-
-pmultiqc can be configured using a MultiQC configuration file (typically named `multiqc_config.yaml`). You can place this file in your analysis directory or specify it with `--config <path>`.
-
-#### Disabling Plot Tooltips
-
-By default, all interactive plots in pmultiqc display tooltips when you hover over data points. If you find the tooltips overwhelming or want to reduce interactivity, you can disable them globally:
-
-```yaml
-# multiqc_config.yaml
-disable_plot_tooltips: true
-```
-
-This setting will disable tooltips across all plot types, including:
-- Box-and-whisker plots (intensity distributions, mass error, etc.)
-- Bar graphs (peptide counts, protein groups, modifications, etc.)
-- Line graphs (retention time plots, peak width over RT, etc.)
-- Scatter plots (PCA, log2FC vs intensity, etc.)
-
-**Default value**: `false` (tooltips are enabled by default)
-
-**Example usage**:
-
-```bash
-# Create a config file
-echo "disable_plot_tooltips: true" > multiqc_config.yaml
-
-# Run pmultiqc with the config
-multiqc /path/to/data --config multiqc_config.yaml -o ./report
-```
-
 ## 📊 QC Metrics and Visualizations
 
 pmultiqc generates a comprehensive report with multiple sections:
