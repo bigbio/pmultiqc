@@ -8,6 +8,7 @@ from multiqc.plots.table_object import InputRow
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
 from pmultiqc.modules.common.plots.general import remove_subtitle
+from pmultiqc.modules.common.tooltip_config import apply_tooltip_config
 
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):

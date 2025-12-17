@@ -6,6 +6,7 @@ from multiqc.plots import heatmap, box, bargraph, linegraph
 from pmultiqc.modules.common.plots.general import remove_subtitle
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.core.section_groups import add_sub_section
+from pmultiqc.modules.common.tooltip_config import apply_tooltip_config
 
 from pmultiqc.modules.common.logging import get_logger
 
@@ -26,6 +27,8 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
         "square": False,
         "colstops": hm_colors,
     }
+    
+    pconfig = apply_tooltip_config(pconfig)
 
     hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
 
@@ -79,6 +82,8 @@ def draw_dia_intensity_dis(sub_section, df):
         "tt_decimals": 5,
         "xlab": "log2(Precursor.Quantity)",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
@@ -109,6 +114,8 @@ def draw_dia_ms1_area(sub_section, df):
         "tt_decimals": 5,
         "xlab": "log2(Ms1.Area)",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
@@ -142,6 +149,8 @@ def draw_dia_whole_exp_charge(sub_section, df):
         "tt_decimals": 0,
         "ylab": "Count",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=bar_data,
@@ -187,6 +196,8 @@ def draw_dia_ms2_charge(sub_section, df):
         "tt_decimals": 0,
         "ylab": "Count",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=bar_data,
@@ -230,6 +241,8 @@ def draw_dia_intensity_std(sub_section, df):
         "tt_decimals": 5,
         "xlab": "Standard Deviation of log2(Precursor.Quantity)",
     }
+    
+    draw_box_config = apply_tooltip_config(draw_box_config)
 
     box_html = box.plot(
         list_of_data_by_sample=box_data,
@@ -278,6 +291,9 @@ def draw_dia_delta_mass(sub_section, df):
             "ymin": 0,
         },
     ]
+    
+    # Apply tooltip config to each data label
+    data_label = [apply_tooltip_config(label) for label in data_label]
 
     pconfig = {
         "id": "delta_mass",
@@ -321,6 +337,8 @@ def draw_norm_factor_rt(sub_section, plot_data):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
@@ -356,6 +374,8 @@ def draw_fwhm_rt(sub_section, plot_data):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
@@ -394,6 +414,8 @@ def draw_peak_width_rt(sub_section, plot_data):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
@@ -428,6 +450,8 @@ def draw_rt_error_rt(sub_section, plot_data):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
@@ -462,6 +486,8 @@ def draw_loess_rt_irt(sub_section, plot_data):
         "xlab": "iRT",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 

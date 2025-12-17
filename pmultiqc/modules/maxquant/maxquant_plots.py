@@ -7,6 +7,7 @@ from multiqc.types import SampleGroup, SampleName
 
 from pmultiqc.modules.common.plots.general import remove_subtitle
 from pmultiqc.modules.core.section_groups import add_sub_section
+from pmultiqc.modules.common.tooltip_config import apply_tooltip_config
 
 
 def draw_exp_design(sdrf_df, sub_sections):
@@ -248,6 +249,8 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
         }
+        
+        draw_config = apply_tooltip_config(draw_config)
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
@@ -281,6 +284,8 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
         }
+        
+        draw_config = apply_tooltip_config(draw_config)
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
@@ -315,6 +320,8 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
         }
+        
+        draw_config = apply_tooltip_config(draw_config)
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
@@ -401,6 +408,8 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
         "tt_decimals": 0,
         "ylab": "Count",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=peptide_id_count_data["plot_data"],
@@ -449,6 +458,8 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
         "tt_decimals": 0,
         "ylab": "Count",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=protein_group_count_data["plot_data"],
@@ -496,6 +507,8 @@ def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=peak_rt_data, pconfig=draw_config)
 
@@ -540,6 +553,8 @@ def draw_mass_error_box(sub_section, mass_error_data):
         "xmax": xmax_value,
         "xmin": xmin_value,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     box_html = box.plot(list_of_data_by_sample=mass_error_data, pconfig=draw_config)
 
@@ -642,6 +657,8 @@ def draw_maxquant_num_pep_pro(sub_section, num_pep_per_protein):
         "title": "Number of Peptides identified Per Protein",
         "data_labels": data_labels,
     }
+    
+    pconfig = apply_tooltip_config(pconfig)
 
     bar_html = bargraph.plot(
         data=num_pep_per_protein, cats=["Frequency", "Percentage"], pconfig=pconfig
@@ -673,6 +690,8 @@ def draw_maxquant_scores(sub_section, maxquant_scores):
         "tt_decimals": 0,
         "data_labels": maxquant_scores["data_labels"],
     }
+    
+    pconfig = apply_tooltip_config(pconfig)
 
     bar_html = bargraph.plot(data=maxquant_scores["plot_data"], pconfig=pconfig)
 
@@ -700,6 +719,8 @@ def draw_msms_scans_top_n(sub_section, top_n_data):
         "tt_decimals": 0,
         "ylab": "Highest Scan Event",
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=top_n_data["plot_data"], cats=top_n_data["cats"], pconfig=draw_config
@@ -733,6 +754,8 @@ def draw_msms_scans_top_over_rt(sub_section, top_over_rt_data):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=top_over_rt_data, pconfig=draw_config)
 
@@ -765,6 +788,8 @@ def draw_msms_scans_ion_injec_time_rt(sub_section, ion_injec_time_rt_data):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
+    
+    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=ion_injec_time_rt_data, pconfig=draw_config)
 
