@@ -20,7 +20,16 @@ def cleanup_job_directories(base_dir, max_age_days=7):
 
     for item in os.listdir(base_dir):
         item_path = os.path.join(base_dir, item)
-        if os.path.isdir(item_path) and len(item) == 36:  # UUID format
+        # Security: Validate that it's a directory and has UUID format (8-4-4-4-12 format)
+        if os.path.isdir(item_path) and len(item) == 36:
+            # Additional validation: Check if it looks like a valid UUID
+            import uuid as uuid_lib
+            try:
+                uuid_lib.UUID(item)  # This will raise ValueError if not a valid UUID
+            except ValueError:
+                print(f"Skipping non-UUID directory: {item}")
+                continue
+            
             try:
                 mtime = os.path.getmtime(item_path)
                 if mtime < cutoff_time:

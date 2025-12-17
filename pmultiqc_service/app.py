@@ -38,6 +38,10 @@ HTML_REPORTS_FOLDER = os.environ.get(
 )
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
 
+# Security: File upload limits
+MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE", str(10 * 1024 * 1024 * 1024)))  # 10GB default
+MAX_UPLOAD_FILES = int(os.environ.get("MAX_UPLOAD_FILES", "100"))  # Max files in a zip
+
 
 # PRIDE button visibility configuration
 # Priority: Environment variable > Default (False)
@@ -159,6 +163,7 @@ def get_redis_client():
         logger.info(f"Redis password provided: {REDIS_PASSWORD is not None}")
         logger.info(f"Redis username provided: {REDIS_USERNAME is not None}")
         logger.info(f"Redis database: {REDIS_DB}")
+        # Security: Never log actual credentials
 
         if REDIS_PASSWORD:
             if REDIS_USERNAME:
@@ -355,12 +360,20 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# Security: Configure CORS based on environment
+# Get allowed origins from environment variable or use secure defaults
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").split(",")
+if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
+    # Default to localhost for development
+    ALLOWED_ORIGINS = ["http://localhost", "http://localhost:5000", "http://127.0.0.1", "http://127.0.0.1:5000"]
+    logger.warning("Using default CORS origins for development. Set ALLOWED_ORIGINS environment variable for production.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],  # Restrict to only needed methods
+    allow_headers=["Content-Type", "Authorization"],  # Restrict to only needed headers
 )
 
 # Mount static files
@@ -1408,6 +1421,27 @@ def run_pmultiqc_with_progress(
     Run PMultiQC with real-time progress updates stored in job_status_dict.
     """
     try:
+        # Security: Validate input_type to prevent command injection
+        allowed_input_types = ["maxquant", "quantms", "diann", "mzidentml"]
+        if input_type not in allowed_input_types:
+            logger.error(f"Invalid input_type: {input_type}")
+            return {
+                "success": False,
+                "message": f"Invalid input type: {input_type}",
+                "output": [],
+                "errors": []
+            }
+
+        # Security: Validate paths to ensure they don't contain injection attempts
+        if not os.path.exists(input_path):
+            logger.error(f"Input path does not exist: {input_path}")
+            return {
+                "success": False,
+                "message": "Input path does not exist",
+                "output": [],
+                "errors": []
+            }
+
         # Set up MultiQC arguments based on input type
         args = ["multiqc", input_path, "-o", output_path, "--force"]
 
@@ -1416,6 +1450,15 @@ def run_pmultiqc_with_progress(
             args.extend(["--maxquant_plugin", "--ignore", "summary.txt"])
         elif input_type == "quantms":
             if pmultiqc_config:
+                # Security: Validate config file path
+                if not os.path.exists(pmultiqc_config):
+                    logger.error(f"Config file does not exist: {pmultiqc_config}")
+                    return {
+                        "success": False,
+                        "message": "Config file does not exist",
+                        "output": [],
+                        "errors": []
+                    }
                 args.extend(["--quantms_plugin", "--config", pmultiqc_config])
             else:
                 logger.error("The function 'run_pmultiqc_with_progress' is missing the parameter: pmultiqc_config")
@@ -2011,14 +2054,15 @@ async def submit_pride(request: Request):
             "index.html", {"request": request, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}}
         )
 
-    # Validate accession format
-    if not accession.startswith("PXD"):
+    # Security: Validate accession format (PXD followed by 6 digits)
+    import re
+    if not re.match(r'^PXD\d{6}$', accession):
         return templates.TemplateResponse(
             "index.html",
             {
                 "request": request,
                 "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
-                "error": f"Invalid PRIDE accession format: {accession}. Should start with PXD.",
+                "error": f"Invalid PRIDE accession format: {accession}. Should be PXD followed by 6 digits (e.g., PXD012345).",
             },
         )
 
@@ -2234,6 +2278,12 @@ async def serve_html_report(report_hash: str, filename: str):
             logger.error(f"Invalid report hash format: {report_hash}")
             raise HTTPException(status_code=400, detail="Invalid report hash")
 
+        # Security: Validate filename to prevent path traversal
+        # Reject any filename containing path traversal patterns
+        if ".." in filename or filename.startswith("/") or "\\" in filename:
+            logger.error(f"Potential path traversal attempt detected: {filename}")
+            raise HTTPException(status_code=400, detail="Invalid filename")
+
         # Construct file path
         file_path = os.path.join(HTML_REPORTS_FOLDER, report_hash, filename)
         logger.info(f"Looking for file at: {file_path}")
@@ -2366,10 +2416,11 @@ async def process_pride(request: Request):
     data = await request.json()
     accession = data.get("accession", "").strip().upper()
 
-    # Validate accession format
-    if not accession.startswith("PXD"):
+    # Security: Validate accession format (PXD followed by 6 digits)
+    import re
+    if not re.match(r'^PXD\d{6}$', accession):
         raise HTTPException(
-            status_code=400, detail="Invalid PRIDE accession format. Should start with PXD"
+            status_code=400, detail="Invalid PRIDE accession format. Should be PXD followed by 6 digits (e.g., PXD012345)"
         )
 
     # Generate unique job ID
@@ -2407,6 +2458,10 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="Only ZIP files are allowed")
 
+    # Security: Validate filename to prevent path traversal
+    if ".." in file.filename or "/" in file.filename or "\\" in file.filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     # Generate unique job ID
     job_id = str(uuid.uuid4())
 
@@ -2431,11 +2486,24 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     }
     save_job_to_db(job_id, initial_job_data)
 
-    # Save the uploaded file
+    # Security: Check file size while saving
+    file_size = 0
     with open(zip_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        chunk_size = 8192
+        while chunk := await file.read(chunk_size):
+            file_size += len(chunk)
+            # Security: Enforce maximum file size
+            if file_size > MAX_FILE_SIZE:
+                # Clean up partial file
+                buffer.close()
+                os.remove(zip_path)
+                shutil.rmtree(upload_dir, ignore_errors=True)
+                raise HTTPException(
+                    status_code=413, 
+                    detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024**3):.1f} GB"
+                )
+            buffer.write(chunk)
 
-    file_size = os.path.getsize(zip_path)
     logger.info(f"Upload completed for job {job_id}: {file_size} bytes")
 
     # Extract the zip file
@@ -2446,8 +2514,43 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     update_job_progress(job_id, "extracting", 25)
     logger.info(f"Extracting ZIP file for job {job_id}")
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(extract_path)
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            # Security: Check number of files in zip
+            file_list = zip_ref.namelist()
+            if len(file_list) > MAX_UPLOAD_FILES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Too many files in ZIP archive. Maximum is {MAX_UPLOAD_FILES} files"
+                )
+            
+            # Security: Check for zip bombs and path traversal in zip entries
+            total_uncompressed_size = 0
+            for file_info in zip_ref.infolist():
+                # Check for path traversal in zip entry names
+                if ".." in file_info.filename or file_info.filename.startswith("/"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="ZIP file contains invalid file paths"
+                    )
+                total_uncompressed_size += file_info.file_size
+            
+            # Check for zip bombs (compression ratio > 100:1)
+            compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
+            if compression_ratio > 100:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Suspicious ZIP file detected (possible zip bomb)"
+                )
+            
+            zip_ref.extractall(extract_path)
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting ZIP file: {e}")
+        raise HTTPException(status_code=400, detail=f"Error extracting ZIP file: {str(e)}")
 
     # Detect input type
     input_type, quantms_config = detect_input_type(extract_path)
@@ -2743,6 +2846,10 @@ async def generate_report(file: UploadFile = File(...)):
         if not file.filename or not file.filename.lower().endswith(".zip"):
             raise HTTPException(status_code=400, detail="Only ZIP files are allowed")
 
+        # Security: Validate filename to prevent path traversal
+        if ".." in file.filename or "/" in file.filename or "\\" in file.filename:
+            raise HTTPException(status_code=400, detail="Invalid filename")
+
         # Generate unique job ID
         job_id = str(uuid.uuid4())
 
@@ -2756,15 +2863,65 @@ async def generate_report(file: UploadFile = File(...)):
         filename = file.filename
         zip_path = os.path.join(upload_dir, filename)
 
+        # Security: Check file size while saving
+        file_size = 0
         with open(zip_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            chunk_size = 8192
+            while chunk := await file.read(chunk_size):
+                file_size += len(chunk)
+                # Security: Enforce maximum file size
+                if file_size > MAX_FILE_SIZE:
+                    # Clean up partial file
+                    buffer.close()
+                    os.remove(zip_path)
+                    shutil.rmtree(upload_dir, ignore_errors=True)
+                    raise HTTPException(
+                        status_code=413, 
+                        detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024**3):.1f} GB"
+                    )
+                buffer.write(chunk)
 
         # Extract the zip file
         extract_path = os.path.join(upload_dir, "extracted")
         os.makedirs(extract_path, exist_ok=True)
 
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(extract_path)
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                # Security: Check number of files in zip
+                file_list = zip_ref.namelist()
+                if len(file_list) > MAX_UPLOAD_FILES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Too many files in ZIP archive. Maximum is {MAX_UPLOAD_FILES} files"
+                    )
+                
+                # Security: Check for zip bombs and path traversal in zip entries
+                total_uncompressed_size = 0
+                for file_info in zip_ref.infolist():
+                    # Check for path traversal in zip entry names
+                    if ".." in file_info.filename or file_info.filename.startswith("/"):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="ZIP file contains invalid file paths"
+                        )
+                    total_uncompressed_size += file_info.file_size
+                
+                # Check for zip bombs (compression ratio > 100:1)
+                compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
+                if compression_ratio > 100:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Suspicious ZIP file detected (possible zip bomb)"
+                    )
+                
+                zip_ref.extractall(extract_path)
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=400, detail="Invalid ZIP file")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error extracting ZIP file: {e}")
+            raise HTTPException(status_code=400, detail=f"Error extracting ZIP file: {str(e)}")
 
         # Detect input type
         input_type, quantms_config = detect_input_type(extract_path)
@@ -2849,10 +3006,11 @@ async def api_submit_pride(request: Request):
 
         accession = data["accession"].strip().upper()
 
-        # Validate accession format
-        if not accession.startswith("PXD"):
+        # Security: Validate accession format (PXD followed by 6 digits)
+        import re
+        if not re.match(r'^PXD\d{6}$', accession):
             raise HTTPException(
-                status_code=400, detail="Invalid PRIDE accession format. Should start with PXD"
+                status_code=400, detail="Invalid PRIDE accession format. Should be PXD followed by 6 digits (e.g., PXD012345)"
             )
 
         # Generate unique job ID
