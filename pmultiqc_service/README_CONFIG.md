@@ -1,6 +1,6 @@
-# PMultiQC Service Configuration
+# pmultiqc Service Configuration
 
-The PMultiQC service supports multiple configuration methods with the following priority order:
+The pmultiqc service supports multiple configuration methods with the following priority order:
 
 1. **Environment Variables** (highest priority)
 2. **YAML Configuration File**
@@ -63,7 +63,7 @@ If no environment variables or YAML file is found, the service uses these defaul
 
 ### Docker Compose
 
-This section provides comprehensive Docker Compose configurations for deploying PMultiQC service in different environments.
+This section provides comprehensive Docker Compose configurations for deploying pmultiqc service in different environments.
 
 #### Quick Start
 
@@ -116,7 +116,7 @@ This section provides comprehensive Docker Compose configurations for deploying 
 
 #### Critical Configuration: BASE_URL
 
-The `BASE_URL` environment variable is **critical** for proper operation. It must be set to the exact URL where users will access your PMultiQC service.
+The `BASE_URL` environment variable is **critical** for proper operation. It must be set to the exact URL where users will access your pmultiqc service.
 
 **Examples:**
 - **Local testing**: `BASE_URL=http://localhost:8080`
