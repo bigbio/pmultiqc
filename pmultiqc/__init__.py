@@ -1,5 +1,5 @@
 """
-PMultiQC - A MultiQC plugin for proteomics data analysis
+pmultiqc - A MultiQC plugin for proteomics data analysis
 """
 
 from importlib import metadata

@@ -1,4 +1,4 @@
-# Production Docker Compose Configuration for PMultiQC Service
+# Production Docker Compose Configuration for pmultiqc Service
 # 
 # This configuration is designed for production deployments where you need to
 # configure the BASE_URL and other environment variables for your specific setup.

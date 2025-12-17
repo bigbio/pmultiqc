@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🧪 Testing PMultiQC Docker Compose BASE_URL Configuration"
+echo "🧪 Testing pmultiqc Docker Compose BASE_URL Configuration"
 echo "========================================================="
 
 cd "$(dirname "$0")"
