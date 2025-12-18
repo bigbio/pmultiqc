@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# PMultiQC Service Kubernetes Deployment Script
+# pmultiqc Service Kubernetes Deployment Script
 
 set -e
 
@@ -15,7 +15,7 @@ NAMESPACE="pmultiqc"
 IMAGE_NAME="pmultiqc-service"
 IMAGE_TAG="latest"
 
-echo -e "${GREEN}PMultiQC Service Kubernetes Deployment${NC}"
+echo -e "${GREEN}pmultiqc Service Kubernetes Deployment${NC}"
 echo "=============================================="
 
 # Function to check if kubectl is available
@@ -87,7 +87,7 @@ show_logs() {
 
 # Function to delete deployment
 delete() {
-    echo -e "${YELLOW}Deleting PMultiQC service...${NC}"
+    echo -e "${YELLOW}Deleting pmultiqc service...${NC}"
     kubectl delete -k k8s/
     echo -e "${GREEN}Deletion completed${NC}"
 }

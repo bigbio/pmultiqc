@@ -3,7 +3,7 @@ import pandas as pd
 
 from multiqc.plots import heatmap, box, bargraph, linegraph
 
-from pmultiqc.modules.common.plots.general import remove_subtitle
+from pmultiqc.modules.common.plots.general import plot_html_check
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.core.section_groups import add_sub_section
 
@@ -29,7 +29,7 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
 
     hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
 
-    hm_html = remove_subtitle(hm_html)
+    hm_html = plot_html_check(hm_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -82,7 +82,7 @@ def draw_dia_intensity_dis(sub_section, df):
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
-    box_html = remove_subtitle(box_html)
+    box_html = plot_html_check(box_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -112,7 +112,7 @@ def draw_dia_ms1_area(sub_section, df):
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
-    box_html = remove_subtitle(box_html)
+    box_html = plot_html_check(box_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -148,7 +148,7 @@ def draw_dia_whole_exp_charge(sub_section, df):
         pconfig=draw_config,
     )
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -193,7 +193,7 @@ def draw_dia_ms2_charge(sub_section, df):
         pconfig=draw_config,
     )
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -236,7 +236,7 @@ def draw_dia_intensity_std(sub_section, df):
         pconfig=draw_box_config,
     )
 
-    box_html = remove_subtitle(box_html)
+    box_html = plot_html_check(box_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -324,7 +324,7 @@ def draw_norm_factor_rt(sub_section, plot_data):
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -359,7 +359,7 @@ def draw_fwhm_rt(sub_section, plot_data):
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -397,7 +397,7 @@ def draw_peak_width_rt(sub_section, plot_data):
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -431,7 +431,7 @@ def draw_rt_error_rt(sub_section, plot_data):
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -465,7 +465,7 @@ def draw_loess_rt_irt(sub_section, plot_data):
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,

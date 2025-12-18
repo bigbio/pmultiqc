@@ -1,6 +1,6 @@
 """
-PMultiQC Service API - FastAPI Version
-A FastAPI-based web service for generating PMultiQC reports from uploaded data files.
+pmultiqc Service API - FastAPI Version
+A FastAPI-based web service for generating pmultiqc reports from uploaded data files.
 """
 
 import hashlib
@@ -336,11 +336,11 @@ cleanup_old_jobs(days_to_keep=30)
 
 # Create FastAPI app
 app = FastAPI(
-    title="PMultiQC Service API",
-    description="A FastAPI-based web service for generating PMultiQC reports from uploaded data files and PRIDE datasets.",
+    title="pmultiqc Service API",
+    description="A FastAPI-based web service for generating pmultiqc reports from uploaded data files and PRIDE datasets.",
     version="1.0.0",
     contact={
-        "name": "PMultiQC Team",
+        "name": "pmultiqc Team",
         "url": "https://github.com/bigbio/pmultiqc",
     },
     license_info={
@@ -1004,7 +1004,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                 )
                 return
 
-            # Run PMultiQC on the combined files
+            # Run pmultiqc on the combined files
             update_job_progress(
                 job_id,
                 "processing",
@@ -1043,7 +1043,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                 else:
                     logger.warning("Failed to create zip report for COMPLETE submission")
             else:
-                logger.warning(f"PMultiQC failed for COMPLETE submission: {result.get('message')}")
+                logger.warning(f"pmultiqc failed for COMPLETE submission: {result.get('message')}")
         else:
             # For regular submissions, process each file separately
             total_files_to_process = len(downloaded_files)
@@ -1109,7 +1109,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                         logger.warning(f"Could not detect input type for {file_name}")
                         continue
 
-                    # Run PMultiQC on this file
+                    # Run pmultiqc on this file
                     logger.info(
                         f"Starting run_pmultiqc_with_progress for job {job_id}, file {file_name}"
                     )
@@ -1140,7 +1140,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                                 f"Successfully processed file {file_name}, total_processed now: {total_processed}"
                             )
                     else:
-                        logger.warning(f"PMultiQC failed for {file_name}: {result.get('message')}")
+                        logger.warning(f"pmultiqc failed for {file_name}: {result.get('message')}")
 
                 except Exception as e:
                     logger.error(f"Error processing {downloaded_file}: {e}")
@@ -1178,8 +1178,8 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
             )
             return
 
-        # Update job status to completed immediately after PMultiQC succeeds
-        logger.info(f"Updating PRIDE job {job_id} status to completed after PMultiQC success")
+        # Update job status to completed immediately after pmultiqc succeeds
+        logger.info(f"Updating PRIDE job {job_id} status to completed after pmultiqc success")
         try:
             update_job_progress(
                 job_id,
@@ -1405,7 +1405,7 @@ def run_pmultiqc_with_progress(
     input_path: str, output_path: str, input_type: str, pmultiqc_config: str, job_id: str
 ) -> Dict[str, Any]:
     """
-    Run PMultiQC with real-time progress updates stored in job_status_dict.
+    Run pmultiqc with real-time progress updates stored in job_status_dict.
     """
     try:
         # Set up MultiQC arguments based on input type
@@ -1426,8 +1426,8 @@ def run_pmultiqc_with_progress(
         elif input_type == "mzidentml":
             args.extend(["--mzid_plugin"])
 
-        # Run MultiQC with PMultiQC plugin
-        logger.info(f"Running PMultiQC with args: {args}")
+        # Run MultiQC with pmultiqc plugin
+        logger.info(f"Running pmultiqc with args: {args}")
         logger.info(f"Detected input type: {input_type}")
 
         # Test if pmultiqc plugin is available
@@ -1710,7 +1710,7 @@ def run_pmultiqc_with_progress(
                         0,
                         console_output=output_lines,
                         console_errors=error_lines,
-                        processing_stage="Running PMultiQC...",
+                        processing_stage="Running pmultiqc...",
                     )
                     logger.info(f"MultiQC: {output_line}")
 
@@ -1723,7 +1723,7 @@ def run_pmultiqc_with_progress(
                         0,
                         console_output=output_lines,
                         console_errors=error_lines,
-                        processing_stage="Running PMultiQC...",
+                        processing_stage="Running pmultiqc...",
                     )
                     logger.warning(f"MultiQC: {error_line}")
 
@@ -1744,7 +1744,7 @@ def run_pmultiqc_with_progress(
                             0,
                             console_output=output_lines,
                             console_errors=error_lines,
-                            processing_stage="Running PMultiQC...",
+                            processing_stage="Running pmultiqc...",
                         )
                         logger.info(f"MultiQC remaining output: {line.strip()}")
             if remaining_error:
@@ -1757,7 +1757,7 @@ def run_pmultiqc_with_progress(
                             0,
                             console_output=output_lines,
                             console_errors=error_lines,
-                            processing_stage="Running PMultiQC...",
+                            processing_stage="Running pmultiqc...",
                         )
                         logger.warning(f"MultiQC remaining error: {line.strip()}")
 
@@ -1792,13 +1792,13 @@ def run_pmultiqc_with_progress(
             }
 
     except Exception as e:
-        logger.error(f"Error running PMultiQC: {e}")
+        logger.error(f"Error running pmultiqc: {e}")
         return {"success": False, "message": str(e), "output": [], "errors": []}
 
 
 def create_zip_report(output_path: str, zip_path: str) -> bool:
     """
-    Create a zip file containing the PMultiQC report.
+    Create a zip file containing the pmultiqc report.
 
     Args:
         output_path: Path to the MultiQC output directory
@@ -1871,7 +1871,7 @@ def process_job_async(
             processing_stage="Starting pmultiqc analysis...",
         )
 
-        # Run PMultiQC with real-time progress
+        # Run pmultiqc with real-time progress
         logger.info(f"Starting async processing for job {job_id}")
         result = run_pmultiqc_with_progress(
             extract_path, output_dir, input_type, quantms_config, job_id
@@ -1902,8 +1902,8 @@ def process_job_async(
             )
             return
 
-        # Update job status to completed immediately after PMultiQC succeeds
-        logger.info(f"Updating async job {job_id} status to completed after PMultiQC success")
+        # Update job status to completed immediately after pmultiqc succeeds
+        logger.info(f"Updating async job {job_id} status to completed after pmultiqc success")
         try:
             update_job_progress(
                 job_id,
@@ -2399,7 +2399,7 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     """
     Upload and process files asynchronously
 
-    Upload a ZIP file containing data files for PMultiQC analysis.
+    Upload a ZIP file containing data files for pmultiqc analysis.
     The job will be processed asynchronously and you can check the status
     using the returned job_id.
     """
@@ -2730,7 +2730,7 @@ async def job_status_api(job_id: str):
 @app.post("/generate-report")
 async def generate_report(file: UploadFile = File(...)):
     """
-    Generate a PMultiQC report from uploaded data.
+    Generate a pmultiqc report from uploaded data.
 
     Expected form data:
     - file: ZIP file containing the data to analyze
@@ -2776,7 +2776,7 @@ async def generate_report(file: UploadFile = File(...)):
                 detail="Could not detect input type. Please ensure your ZIP file contains valid data files.",
             )
 
-        # Run PMultiQC
+        # Run pmultiqc
         result = run_pmultiqc_with_progress(
             extract_path, output_dir, input_type, quantms_config, job_id
         )
@@ -3275,13 +3275,13 @@ async def download_report_api(job_id: str):
 
 async def download_report(job_id: str):
     """
-    Download the generated PMultiQC report.
+    Download the generated pmultiqc report.
 
     Args:
         job_id: The job ID returned from generate-report
 
     Returns:
-        ZIP file containing the PMultiQC report
+        ZIP file containing the pmultiqc report
     """
     try:
         # Validate job_id format
