@@ -162,7 +162,7 @@
                 "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/cGAS.mzid.gz"
             ],
             "path": "docs/PXD053068_disable_hoverinfo",
-            "file_type": ["mzid", "_disable_hoverinfo"]
+            "file_type": ["mzid", "disable_hoverinfo"]
         }
     ]
 }
