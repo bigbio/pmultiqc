@@ -166,7 +166,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
     elif plugin_type[0] == "diann":
         command = ["multiqc", "--diann_plugin", download_path, "-o", report_path]
 
-    if plugin_type[1] == "disable_hoverinfo":
+    if len(plugin_type) > 1 and plugin_type[1] == "disable_hoverinfo":
         command.append("--disable_hoverinfo")
 
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
