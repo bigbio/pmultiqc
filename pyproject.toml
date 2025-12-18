@@ -44,7 +44,7 @@ python = ">=3.10"
 multiqc = ">=1.29, <=1.32"
 pandas = ">=1.5"
 pyteomics = "*"
-pyopenms = "*"
+pyopenms = "<=3.4.0"
 sdrf-pipelines = ">=0.0.32"
 lxml = "*"
 numpy = ">=1.23"
@@ -76,6 +76,7 @@ maxquant_plugin = "pmultiqc.cli:maxquant_plugin"
 proteobench_plugin = "pmultiqc.cli:proteobench_plugin"
 diann_plugin = "pmultiqc.cli:diann_plugin"
 quantms_plugin = "pmultiqc.cli:quantms_plugin"
+disable_hoverinfo = "pmultiqc.cli:disable_hoverinfo"
 
 
 [tool.poetry.plugins."multiqc.hooks.v1"]

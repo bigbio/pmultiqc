@@ -154,6 +154,7 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--maxquant_plugin` | Generate reports based on MaxQuant results | `False` |
 | `--proteobench_plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
+| `--disable_hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
 
 ## QC Metrics and Visualizations
 
