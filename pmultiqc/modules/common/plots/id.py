@@ -409,7 +409,7 @@ def draw_quantms_identification(
         "tt_decimals": 0,
         "ylab": "Count",
     }
-    
+
     bar_html = bargraph.plot(
         peptide_count,
         pconfig=draw_config,
