@@ -144,16 +144,16 @@ def delete_old_examples(folder_path):
 
 def run_pmultiqc(download_path, report_path, plugin_type):
 
-    if plugin_type == "maxquant":
+    if plugin_type[0] == "maxquant":
         command = ["multiqc", "--maxquant_plugin", download_path, "-o", report_path]
 
-    elif plugin_type == "proteobench":
+    elif plugin_type[0] == "proteobench":
         command = ["multiqc", "--proteobench_plugin", download_path, "-o", report_path]
 
-    elif plugin_type == "mzid":
+    elif plugin_type[0] == "mzid":
         command = ["multiqc", "--mzid_plugin", download_path, "-o", report_path]
 
-    elif plugin_type == "dia" or plugin_type == "tmt" or plugin_type == "lfq":
+    elif plugin_type[0] == "dia" or plugin_type[0] == "tmt" or plugin_type[0] == "lfq":
         command = [
             "multiqc",
             "--quantms_plugin",
@@ -163,8 +163,11 @@ def run_pmultiqc(download_path, report_path, plugin_type):
             "-o",
             report_path,
         ]
-    elif plugin_type == "diann":
+    elif plugin_type[0] == "diann":
         command = ["multiqc", "--diann_plugin", download_path, "-o", report_path]
+
+    if plugin_type[1] == "disable_hoverinfo":
+        command.append("--disable_hoverinfo")
 
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

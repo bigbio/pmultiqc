@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from multiqc.plots import bargraph, linegraph, box, scatter
 
-from ..common.plots.general import remove_subtitle
-from pmultiqc.modules.common.tooltip_config import apply_tooltip_config
+from ..common.plots.general import plot_html_check
 
 from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.proteobench.proteobench_utils")
@@ -236,11 +235,9 @@ def _create_bar_plot(df, plot_config):
         "tt_decimals": 0,
         "ylab": "Count",
     }
-    
-    draw_bar_config = apply_tooltip_config(draw_bar_config)
 
     bar_html = bargraph.plot(data=bar_data, pconfig=draw_bar_config)
-    return remove_subtitle(bar_html)
+    return plot_html_check(bar_html)
 
 
 def _create_line_plot(df, plot_config, plot_type):
@@ -264,11 +261,9 @@ def _create_line_plot(df, plot_config, plot_type):
         "xlab": plot_config["line_plot_xlab"],
         "showlegend": True,
     }
-    
-    draw_line_config = apply_tooltip_config(draw_line_config)
 
     linegraph_html = linegraph.plot(data=linegraph_data, pconfig=draw_line_config)
-    return remove_subtitle(linegraph_html)
+    return plot_html_check(linegraph_html)
 
 
 def _create_box_plot(df, plot_config):
@@ -285,11 +280,9 @@ def _create_box_plot(df, plot_config):
         "tt_decimals": 5,
         "xlab": plot_config["box_plot_xlab"],
     }
-    
-    draw_box_config = apply_tooltip_config(draw_box_config)
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_box_config)
-    return remove_subtitle(box_html)
+    return plot_html_check(box_html)
 
 
 def statistics_na_values(df, cols):
@@ -372,15 +365,13 @@ def intensity_count_per_file(df, runs_col=None):
         "tt_decimals": 0,
         "ylab": "Count",
     }
-    
-    draw_bar_config = apply_tooltip_config(draw_bar_config)
 
     bar_html = bargraph.plot(
         data=plot_data,
         pconfig=draw_bar_config,
     )
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     return bar_html
 
@@ -406,15 +397,13 @@ def draw_precursor_ion_charge(df):
         "tt_decimals": 0,
         "ylab": "Count",
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=charge_data,
         pconfig=draw_config,
     )
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     return bar_html
 
@@ -446,7 +435,7 @@ def draw_logintensitymean_vs_logfc(df):
 
     scatter_html = scatter.plot(data=plot_data, pconfig=draw_config)
 
-    scatter_html = remove_subtitle(scatter_html)
+    scatter_html = plot_html_check(scatter_html)
 
     return scatter_html
 

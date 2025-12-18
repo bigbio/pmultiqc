@@ -126,7 +126,3 @@ def pmultiqc_plugin_execution_start():
         )
 
     config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})
-    
-    # Set default for disable_plot_tooltips if not already set
-    if not hasattr(config, 'disable_plot_tooltips'):
-        config.disable_plot_tooltips = False

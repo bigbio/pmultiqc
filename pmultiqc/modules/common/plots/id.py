@@ -7,8 +7,7 @@ from multiqc.plots.table_object import InputRow
 
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
-from pmultiqc.modules.common.plots.general import remove_subtitle
-from pmultiqc.modules.common.tooltip_config import apply_tooltip_config
+from pmultiqc.modules.common.plots.general import plot_html_check
 
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
@@ -20,11 +19,9 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
         "tt_decimals": 2,
         "ylab": "MS/MS Identified [%]",
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(data=msms_identified_percent, pconfig=draw_config)
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -44,11 +41,9 @@ def draw_potential_contaminants(sub_section, contaminant_percent, is_maxquant):
         "tt_decimals": 2,
         "ylab": "Percent [%]",
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(data=contaminant_percent, pconfig=draw_config)
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     if is_maxquant:
         description_text = "Potential contaminants per group from proteinGroups.txt."
@@ -86,13 +81,11 @@ def draw_charge_state(sub_section, charge_data, report_type):
         "tt_decimals": 0,
         "ylab": "Count",
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=charge_data["plot_data"], cats=charge_data["cats"], pconfig=draw_config
     )
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     help_text = (
         "Charge distribution per Raw file. For typtic digests, peptides of charge 2 "
@@ -131,15 +124,13 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
         "tt_decimals": 2,
         "ylab": "Identified [%]",
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         top_contaminants_data["plot_data"],
         cats=top_contaminants_data["cats"],
         pconfig=draw_config,
     )
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -168,15 +159,13 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
         "tt_decimals": 2,
         "ylab": "Missed Cleavages [%]",
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=missed_cleavages_data["plot_data"],
         cats=missed_cleavages_data["cats"],
         pconfig=draw_config,
     )
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     helptext = """
                 Under optimal digestion conditions (high enzyme grade etc.), only few missed cleavages (MC) are expected. In 
@@ -303,9 +292,6 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
                 "ymin": 0,
             },
         ]
-        
-        # Apply tooltip config to each data label
-        data_label = [apply_tooltip_config(label) for label in data_label]
 
         pconfig = {
             "id": plot_id,
@@ -346,9 +332,6 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
                 "ymin": 0,
             },
         ]
-        
-        # Apply tooltip config to each data label
-        data_label = [apply_tooltip_config(label) for label in data_label]
 
         pconfig = {
             "id": plot_id,
@@ -363,6 +346,8 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
             [{"count": delta_mass["count"]}, {"relative_frequency": delta_mass["frequency"]}],
             pconfig,
         )
+
+    line_html = plot_html_check(line_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -388,8 +373,6 @@ def draw_quantms_identification(
         "tt_decimals": 0,
         "ylab": "Count",
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     if cal_num_table_data:
         protein_count = {
@@ -407,7 +390,7 @@ def draw_quantms_identification(
         protein_count,
         pconfig=draw_config,
     )
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_sections,
@@ -427,13 +410,11 @@ def draw_quantms_identification(
         "ylab": "Count",
     }
     
-    draw_config = apply_tooltip_config(draw_config)
-    
     bar_html = bargraph.plot(
         peptide_count,
         pconfig=draw_config,
     )
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_sections,
@@ -769,13 +750,11 @@ def draw_modifications(sub_section, modified_data):
         "tt_decimals": 3,
         "ylab": "Occurence [%]",
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     bar_html = bargraph.plot(
         data=modified_data["plot_data"], cats=modified_data["cats"], pconfig=draw_config
     )
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -820,7 +799,7 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
             "tt_decimals": 2,
             "ylab": "MS/MS Counts Per 3D-peak [%]",
         }
-        draw_config = apply_tooltip_config(draw_config)
+
         bar_html = bargraph.plot(
             data=oversampling["plot_data"], cats=oversampling["cats"], pconfig=draw_config
         )
@@ -833,10 +812,10 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
             "ylab": "MS/MS Counts Per 3D-peak [%]",
             "tt_decimals": 0,
         }
-        draw_config = apply_tooltip_config(draw_config)
+
         bar_html = bargraph.plot(data=oversampling, cats=oversampling_plot, pconfig=draw_config)
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     helptext = """
                 For high complexity samples, oversampling of individual 3D-peaks automatically leads to 
@@ -882,8 +861,6 @@ def draw_num_pep_per_protein(
                 "tt_decimals": 2,
             },
         ]
-        # Apply tooltip config to each data label
-        data_labels = [apply_tooltip_config(label) for label in data_labels]
 
     pconfig = {
         "id": "number_of_peptides_per_proteins",
@@ -897,7 +874,7 @@ def draw_num_pep_per_protein(
         ["Frequency", "Percentage"],
         pconfig,
     )
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     if enable_mzid:
         description_str = (
@@ -934,12 +911,10 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
         "xlab": "Retention time [min]",
         "showlegend": True,
     }
-    
-    draw_config = apply_tooltip_config(draw_config)
 
     linegraph_html = linegraph.plot(data=rt_count_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     if report_type == "maxquant":
         description_text = "Distribution of retention time, derived from the evidence table."

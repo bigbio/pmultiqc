@@ -2,14 +2,22 @@ from multiqc.plots import heatmap, table
 from pmultiqc.modules.core.section_groups import add_sub_section
 from multiqc.types import SampleGroup, SampleName
 from multiqc.plots.table_object import InputRow
+from multiqc import config
 from typing import Dict, List
-import numpy as np
 import re
 
 from pmultiqc.modules.common.common_utils import (
     read_openms_design,
     condition_split
 )
+
+
+def plot_html_check(plot_html):
+
+    checked_html = remove_subtitle(plot_html)
+    checked_html = apply_hoverinfo_config(checked_html)
+
+    return checked_html
 
 
 def remove_subtitle(plot_html):
@@ -20,6 +28,19 @@ def remove_subtitle(plot_html):
             title_text = dataset.layout["title"].get("text", "")
             if "<br><sup>" in title_text:
                 dataset.layout["title"]["text"] = title_text.split("<br><sup>")[0]
+    return plot_html
+
+
+def apply_hoverinfo_config(plot_html):
+
+    if config.kwargs.get("disable_hoverinfo", False):
+        for dataset in plot_html.datasets:
+
+            dataset.trace_params["hoverinfo"] = "skip"
+
+            if "hovertemplate" in dataset.trace_params:
+                dataset.trace_params["hovertemplate"] = ""
+
     return plot_html
 
 
@@ -50,7 +71,8 @@ def draw_heatmap(
         hm_html = heatmap.plot(heatmap_data, heatmap_xnames, heatmap_ynames, pconfig)
         description_text = "This heatmap provides an overview of the performance of quantms."
 
-    hm_html = remove_subtitle(hm_html)
+    hm_html = plot_html_check(hm_html)
+
     add_sub_section(
         sub_section=sub_sections,
         plot=hm_html,
