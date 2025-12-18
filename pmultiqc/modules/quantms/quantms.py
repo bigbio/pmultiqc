@@ -55,7 +55,7 @@ from pmultiqc.modules.common.plots.id import (
 )
 from pmultiqc.modules.common.plots.general import (
     draw_heatmap,
-    remove_subtitle,
+    plot_html_check,
     draw_exp_design
 )
 from pmultiqc.modules.common.file_utils import file_prefix
@@ -871,6 +871,8 @@ class QuantMSModule:
                 }
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
 
+        line_html = plot_html_check(line_html)
+
         add_sub_section(
             sub_section=self.sub_sections["mass_error"],
             plot=line_html,
@@ -956,7 +958,7 @@ class QuantMSModule:
         )
 
         if spec_e_bar_html != "":
-            spec_e_bar_html = remove_subtitle(spec_e_bar_html)
+            spec_e_bar_html = plot_html_check(spec_e_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -970,7 +972,7 @@ class QuantMSModule:
             )
 
         if xcorr_bar_html != "":
-            xcorr_bar_html = remove_subtitle(xcorr_bar_html)
+            xcorr_bar_html = plot_html_check(xcorr_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -984,7 +986,7 @@ class QuantMSModule:
             )
 
         if hyper_bar_html != "":
-            hyper_bar_html = remove_subtitle(hyper_bar_html)
+            hyper_bar_html = plot_html_check(hyper_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -1014,7 +1016,7 @@ class QuantMSModule:
             list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
         )
 
-        pep_bar_html = remove_subtitle(pep_bar_html)
+        pep_bar_html = plot_html_check(pep_bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["search_engine"],
@@ -1041,7 +1043,7 @@ class QuantMSModule:
                 bar_cats,
                 consensus_pconfig,
             )
-            consensus_bar_html = remove_subtitle(consensus_bar_html)
+            consensus_bar_html = plot_html_check(consensus_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -2124,7 +2126,7 @@ class QuantMSModule:
                 "xlab": "log2(Intensity)",
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
-            box_html = remove_subtitle(box_html)
+            box_html = plot_html_check(box_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["quantification"],

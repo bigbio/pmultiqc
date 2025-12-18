@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Local testing script for PMultiQC service with Redis
+# Local testing script for pmultiqc service with Redis
 # This script starts Redis and runs the container locally
 
 set -e
@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== PMultiQC Service Local Testing with Redis ===${NC}"
+echo -e "${GREEN}=== pmultiqc Service Local Testing with Redis ===${NC}"
 echo ""
 
 # Check if Docker is running
@@ -79,7 +79,7 @@ echo -e "${GREEN}✅ Directories created${NC}"
 echo ""
 
 # Run the container with Redis connection
-echo -e "${YELLOW}Starting PMultiQC service container...${NC}"
+echo -e "${YELLOW}Starting pmultiqc service container...${NC}"
 echo "Service will be available at: http://localhost:5000"
 echo "Redis is available at: localhost:6379"
 echo "Press Ctrl+C to stop the containers"

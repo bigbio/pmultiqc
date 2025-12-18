@@ -1,5 +1,5 @@
-# PMultiQC Service Configuration File
-# This file can be used to configure the PMultiQC service
+# pmultiqc Service Configuration File
+# This file can be used to configure the pmultiqc service
 # Environment variables take precedence over this file
 
 # Maximum file upload size in bytes (default: 4GB)

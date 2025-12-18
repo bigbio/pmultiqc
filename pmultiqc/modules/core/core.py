@@ -3,6 +3,12 @@ from importlib import import_module
 from matplotlib.colors import LinearSegmentedColormap, to_hex
 from multiqc import BaseMultiqcModule, config
 
+from pmultiqc.modules.common.logging import get_logger
+
+
+# Initialize logger for this module
+logger = get_logger("pmultiqc.modules.core")
+
 
 class PMultiQC(BaseMultiqcModule):
 
@@ -49,6 +55,9 @@ class PMultiQC(BaseMultiqcModule):
             "mass_error": [],
             "rt_qc": [],
         }
+
+        if config.kwargs.get("disable_hoverinfo", False):
+            logger.info("disable_hoverinfo has been enabled by the user; hoverinfo will no longer be displayed.")
 
         # Parse ProteoBench results
         if config.kwargs.get("proteobench_plugin", False):

@@ -1,10 +1,10 @@
-# GitHub Container Registry (GHCR) Setup for PMultiQC
+# GitHub Container Registry (GHCR) Setup for pmultiqc
 
-This document explains how to use GitHub Container Registry for PMultiQC Docker images instead of Docker Hub.
+This document explains how to use GitHub Container Registry for pmultiqc Docker images instead of Docker Hub.
 
 ## Overview
 
-The PMultiQC service has been configured to build and push Docker images to GitHub Container Registry (ghcr.io) with the following benefits:
+The pmultiqc service has been configured to build and push Docker images to GitHub Container Registry (ghcr.io) with the following benefits:
 
 - **Cross-platform builds**: Automatically builds for `linux/amd64` (required for Kubernetes)
 - **No local Docker required**: Builds happen in GitHub Actions runners

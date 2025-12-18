@@ -30,7 +30,7 @@ from pmultiqc.modules.common.plots.ms import (
     draw_ms_information,
 )
 from pmultiqc.modules.common.plots.general import (
-    remove_subtitle,
+    plot_html_check,
     draw_heatmap
 )
 from pmultiqc.modules.common.file_utils import file_prefix
@@ -625,6 +625,8 @@ class MzIdentMLModule(BasePMultiqcModule):
                 }
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
 
+        line_html = plot_html_check(line_html)
+
         add_sub_section(
             sub_section=self.sub_sections["mass_error"],
             plot=line_html,
@@ -710,7 +712,7 @@ class MzIdentMLModule(BasePMultiqcModule):
         )
 
         if spec_e_bar_html != "":
-            spec_e_bar_html = remove_subtitle(spec_e_bar_html)
+            spec_e_bar_html = plot_html_check(spec_e_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -724,7 +726,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             )
 
         if xcorr_bar_html != "":
-            xcorr_bar_html = remove_subtitle(xcorr_bar_html)
+            xcorr_bar_html = plot_html_check(xcorr_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -738,7 +740,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             )
 
         if hyper_bar_html != "":
-            hyper_bar_html = remove_subtitle(hyper_bar_html)
+            hyper_bar_html = plot_html_check(hyper_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
@@ -768,7 +770,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
         )
 
-        pep_bar_html = remove_subtitle(pep_bar_html)
+        pep_bar_html = plot_html_check(pep_bar_html)
 
         add_sub_section(
             sub_section=self.sub_sections["search_engine"],
@@ -795,7 +797,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                 bar_cats,
                 consensus_pconfig,
             )
-            consensus_bar_html = remove_subtitle(consensus_bar_html)
+            consensus_bar_html = plot_html_check(consensus_bar_html)
 
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],

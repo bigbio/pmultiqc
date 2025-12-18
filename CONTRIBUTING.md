@@ -1,6 +1,6 @@
-# Contributing to PMultiQC
+# Contributing to pmultiqc
 
-Thank you for your interest in contributing to PMultiQC! This guide will help you get started.
+Thank you for your interest in contributing to pmultiqc! This guide will help you get started.
 
 ## Quick Start
 
@@ -87,4 +87,4 @@ Look for issues labeled `good-first-issue` or `help-wanted`:
 
 ---
 
-Thank you for contributing to PMultiQC! Your contributions help make proteomics analysis more accessible and reliable for the entire community.
+Thank you for contributing to pmultiqc! Your contributions help make proteomics analysis more accessible and reliable for the entire community.

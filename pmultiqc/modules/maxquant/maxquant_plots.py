@@ -5,7 +5,7 @@ from multiqc.plots import bargraph, linegraph, box, scatter, table
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
-from pmultiqc.modules.common.plots.general import remove_subtitle
+from pmultiqc.modules.common.plots.general import plot_html_check
 from pmultiqc.modules.core.section_groups import add_sub_section
 
 
@@ -251,7 +251,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
-        box_html = remove_subtitle(box_html)
+        box_html = plot_html_check(box_html)
 
         add_sub_section(
             sub_section=sub_section,
@@ -284,7 +284,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
-        box_html = remove_subtitle(box_html)
+        box_html = plot_html_check(box_html)
 
         add_sub_section(
             sub_section=sub_section,
@@ -318,7 +318,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
-        box_html = remove_subtitle(box_html)
+        box_html = plot_html_check(box_html)
 
         add_sub_section(
             sub_section=sub_section,
@@ -365,7 +365,7 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
 
     scatter_html = scatter.plot(data=pca_data, pconfig=draw_config)
 
-    scatter_html = remove_subtitle(scatter_html)
+    scatter_html = plot_html_check(scatter_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -408,7 +408,7 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
         pconfig=draw_config,
     )
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -456,7 +456,7 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
         pconfig=draw_config,
     )
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -499,7 +499,7 @@ def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
 
     linegraph_html = linegraph.plot(data=peak_rt_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -543,7 +543,7 @@ def draw_mass_error_box(sub_section, mass_error_data):
 
     box_html = box.plot(list_of_data_by_sample=mass_error_data, pconfig=draw_config)
 
-    box_html = remove_subtitle(box_html)
+    box_html = plot_html_check(box_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -647,7 +647,7 @@ def draw_maxquant_num_pep_pro(sub_section, num_pep_per_protein):
         data=num_pep_per_protein, cats=["Frequency", "Percentage"], pconfig=pconfig
     )
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -676,7 +676,7 @@ def draw_maxquant_scores(sub_section, maxquant_scores):
 
     bar_html = bargraph.plot(data=maxquant_scores["plot_data"], pconfig=pconfig)
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -705,7 +705,7 @@ def draw_msms_scans_top_n(sub_section, top_n_data):
         data=top_n_data["plot_data"], cats=top_n_data["cats"], pconfig=draw_config
     )
 
-    bar_html = remove_subtitle(bar_html)
+    bar_html = plot_html_check(bar_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -736,7 +736,7 @@ def draw_msms_scans_top_over_rt(sub_section, top_over_rt_data):
 
     linegraph_html = linegraph.plot(data=top_over_rt_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,
@@ -768,7 +768,7 @@ def draw_msms_scans_ion_injec_time_rt(sub_section, ion_injec_time_rt_data):
 
     linegraph_html = linegraph.plot(data=ion_injec_time_rt_data, pconfig=draw_config)
 
-    linegraph_html = remove_subtitle(linegraph_html)
+    linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
         sub_section=sub_section,

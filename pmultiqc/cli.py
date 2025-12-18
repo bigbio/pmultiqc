@@ -71,3 +71,5 @@ diann_plugin = click.option(
 quantms_plugin = click.option(
     "--quantms_plugin", "quantms_plugin", is_flag=True, help="Enable quantms plugin"
 )
+disable_hoverinfo = click.option(
+    "--disable_hoverinfo", "disable_hoverinfo", is_flag=True, help="Disable hoverinfo")

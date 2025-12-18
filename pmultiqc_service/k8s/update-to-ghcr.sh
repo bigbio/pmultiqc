@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to update PMultiQC deployment to use GitHub Container Registry
+# Script to update pmultiqc deployment to use GitHub Container Registry
 # This script updates the deployment to use the new GHCR image
 
 set -e
@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== Updating PMultiQC to use GitHub Container Registry ===${NC}"
+echo -e "${GREEN}=== Updating pmultiqc to use GitHub Container Registry ===${NC}"
 echo ""
 
 # Check if kubectl is available
@@ -69,5 +69,5 @@ echo -e "${YELLOW}New image being used:${NC}"
 kubectl --kubeconfig "$KUBECONFIG_FILE" get deployment pmultiqc-service -n pmultiqc -o jsonpath='{.spec.template.spec.containers[0].image}'
 echo ""
 
-echo -e "${GREEN}🎉 PMultiQC has been successfully updated to use GitHub Container Registry!${NC}"
+echo -e "${GREEN}🎉 pmultiqc has been successfully updated to use GitHub Container Registry!${NC}"
 echo -e "${YELLOW}Image: ghcr.io/bigbio/pmultiqc:latest${NC}"
