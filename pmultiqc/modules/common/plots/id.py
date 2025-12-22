@@ -366,7 +366,7 @@ def draw_quantms_identification(
         quantms_modified=None,
         identified_msms_spectra=None
 ):
-    
+
     if cal_num_table_data.get("sdrf_samples"):
         plot_label = ["by Run", "by Sample"]
     else:
