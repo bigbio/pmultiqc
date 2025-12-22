@@ -366,23 +366,58 @@ def draw_quantms_identification(
         quantms_modified=None,
         identified_msms_spectra=None
 ):
+    
+    if cal_num_table_data.get("sdrf_samples"):
+        plot_label = ["by Run", "by Sample"]
+    else:
+        plot_label = ["by Run"]
+
     draw_config = {
         "id": "protein_group_count",
         "cpswitch": False,
         "title": "ProteinGroups Count",
         "tt_decimals": 0,
         "ylab": "Count",
+        "data_labels": plot_label,
     }
 
+    def build_count(data, value_key, sources):
+
+        if "sdrf_samples" in sources:
+            sample_prefix = "Sample "
+        else:
+            sample_prefix = ""
+
+        if len(sources) == 1:
+            return {
+                f"{sample_prefix}{sample}": {"Count": info[value_key]}
+                for sample, info in data[sources[0]].items()
+            }
+
+        return [
+            {
+                f"{sample_prefix}{sample}": {"Count": info[value_key]}
+                for sample, info in data[source].items()
+            }
+            for source in sources
+        ]
+
     if cal_num_table_data:
-        protein_count = {
-            sample: {"Count": info["protein_num"]}
-            for sample, info in cal_num_table_data.items()
-        }
-        peptide_count = {
-            sample: {"Count": info["peptide_num"]}
-            for sample, info in cal_num_table_data.items()
-        }
+
+        sources = ["ms_runs", "sdrf_samples"] if cal_num_table_data.get("sdrf_samples") else ["ms_runs"]
+
+        protein_count = build_count(
+            cal_num_table_data,
+            value_key="protein_num",
+            sources=sources
+        )
+
+        peptide_count = build_count(
+            cal_num_table_data,
+            value_key="peptide_num",
+            sources=sources
+        )
+
     else:
         return
 
@@ -390,6 +425,8 @@ def draw_quantms_identification(
         protein_count,
         pconfig=draw_config,
     )
+    del draw_config
+
     bar_html = plot_html_check(bar_html)
 
     add_sub_section(
@@ -408,6 +445,7 @@ def draw_quantms_identification(
         "title": "Peptide ID Count",
         "tt_decimals": 0,
         "ylab": "Count",
+        "data_labels": plot_label,
     }
 
     bar_html = bargraph.plot(
@@ -552,6 +590,10 @@ def draw_quantms_identi_num(
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
     if enable_exp or enable_sdrf:
+
+        sdrf_samples_data = cal_num_table_data.get("sdrf_samples")
+        ms_runs_data = cal_num_table_data.get("ms_runs")
+
         if is_multi_conditions:
             for sample in sorted(
                     sample_df["Sample"].tolist(),
@@ -566,14 +608,14 @@ def draw_quantms_identi_num(
                     sample_data["MSstats_Condition_" + str(k)] = v
                 sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
                 sample_data["Fraction"] = ""
-                sample_data["Peptide_Num"] = ""
-                sample_data["Unique_Peptide_Num"] = ""
-                sample_data["Modified_Peptide_Num"] = ""
-                sample_data["Protein_Num"] = ""
+                sample_data["Peptide_Num"] = sdrf_samples_data[sample].get("peptide_num", "")
+                sample_data["Unique_Peptide_Num"] = sdrf_samples_data[sample].get("unique_peptide_num", "")
+                sample_data["Modified_Peptide_Num"] = sdrf_samples_data[sample].get("modified_peptide_num", "")
+                sample_data["Protein_Num"] = sdrf_samples_data[sample].get("protein_num", "")
 
                 row_data.append(
                     InputRow(
-                        sample=SampleName(sample),
+                        sample=SampleName(f"Sample {str(sample)}"),
                         data=sample_data,
                     )
                 )
@@ -583,10 +625,10 @@ def draw_quantms_identi_num(
                     for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                         sample_data["MSstats_Condition_" + str(k)] = ""
                     sample_data["Fraction"] = row["Fraction"]
-                    sample_data["Peptide_Num"] = cal_num_table_data[row["Run"]]["peptide_num"]
-                    sample_data["Unique_Peptide_Num"] = cal_num_table_data[row["Run"]]["unique_peptide_num"]
-                    sample_data["Modified_Peptide_Num"] = cal_num_table_data[row["Run"]]["modified_peptide_num"]
-                    sample_data["Protein_Num"] = cal_num_table_data[row["Run"]]["protein_num"]
+                    sample_data["Peptide_Num"] = ms_runs_data[row["Run"]]["peptide_num"]
+                    sample_data["Unique_Peptide_Num"] = ms_runs_data[row["Run"]]["unique_peptide_num"]
+                    sample_data["Modified_Peptide_Num"] = ms_runs_data[row["Run"]]["modified_peptide_num"]
+                    sample_data["Protein_Num"] = ms_runs_data[row["Run"]]["protein_num"]
 
                     row_data.append(
                         InputRow(
@@ -635,14 +677,14 @@ def draw_quantms_identi_num(
                 row_data: List[InputRow] = []
                 row_data.append(
                     InputRow(
-                        sample=SampleName(sample),
+                        sample=SampleName(f"Sample {str(sample)}"),
                         data={
                             "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
                             "Fraction": "",
-                            "Peptide_Num": "",
-                            "Unique_Peptide_Num": "",
-                            "Modified_Peptide_Num": "",
-                            "Protein_Num": "",
+                            "Peptide_Num": sdrf_samples_data[sample].get("peptide_num", ""),
+                            "Unique_Peptide_Num": sdrf_samples_data[sample].get("unique_peptide_num", ""),
+                            "Modified_Peptide_Num": sdrf_samples_data[sample].get("modified_peptide_num", ""),
+                            "Protein_Num": sdrf_samples_data[sample].get("protein_num", ""),
                         },
                     )
                 )
@@ -653,10 +695,10 @@ def draw_quantms_identi_num(
                             data={
                                 "MSstats_Condition": "",
                                 "Fraction": row["Fraction"],
-                                "Peptide_Num": cal_num_table_data[row["Run"]]["peptide_num"],
-                                "Unique_Peptide_Num": cal_num_table_data[row["Run"]]["unique_peptide_num"],
-                                "Modified_Peptide_Num": cal_num_table_data[row["Run"]]["modified_peptide_num"],
-                                "Protein_Num": cal_num_table_data[row["Run"]]["protein_num"],
+                                "Peptide_Num": ms_runs_data[row["Run"]]["peptide_num"],
+                                "Unique_Peptide_Num": ms_runs_data[row["Run"]]["unique_peptide_num"],
+                                "Modified_Peptide_Num": ms_runs_data[row["Run"]]["modified_peptide_num"],
+                                "Protein_Num": ms_runs_data[row["Run"]]["protein_num"],
                             },
                         )
                     )
@@ -693,7 +735,7 @@ def draw_quantms_identi_num(
             }
     else:
         rows_by_group = dict()
-        for sample, value in cal_num_table_data.items():
+        for sample, value in cal_num_table_data["ms_runs"].items():
             rows_by_group[sample] = {
                 "Peptide_Num": value["peptide_num"],
                 "Unique_Peptide_Num": value["unique_peptide_num"],

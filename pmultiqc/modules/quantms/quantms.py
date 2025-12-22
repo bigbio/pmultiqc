@@ -31,7 +31,8 @@ from pmultiqc.modules.common.common_utils import (
     mod_group_percentage,
     evidence_rt_count,
     evidence_calibrated_mass_error,
-    parse_mzml
+    parse_mzml,
+    cal_num_table_at_sample
 )
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.ms import idxml as ms_idxml
@@ -307,7 +308,6 @@ class QuantMSModule:
                 sample_df=self.sample_df,
                 file_df=self.file_df,
                 ms_with_psm=self.ms_with_psm,
-                cal_num_table_data=self.cal_num_table_data,
                 quantms_modified=self.quantms_modified,
                 ms_paths=self.ms_paths,
                 msstats_input_valid=self.msstats_input_valid
@@ -1339,6 +1339,9 @@ class QuantMSModule:
         mod_plot_dict = dict()
         modified_cats = list()
 
+        data_per_run = dict()
+        num_table_at_run = dict()
+
         for m, group in psm.groupby("filename"):
             m = os.path.basename(m)
 
@@ -1386,16 +1389,33 @@ class QuantMSModule:
                 proteins.remove(None)
 
             # TODO this is not really the number of proteins but the number of protein groups
-            self.cal_num_table_data[m] = {"protein_num": len(proteins)}
-            self.cal_num_table_data[m]["peptide_num"] = len(peptides)
-            self.cal_num_table_data[m]["unique_peptide_num"] = len(unique_peptides)
+            num_table_at_run[m] = {"protein_num": len(proteins)}
+            num_table_at_run[m]["peptide_num"] = len(peptides)
+            num_table_at_run[m]["unique_peptide_num"] = len(unique_peptides)
 
             modified_pep = list(
                 filter(lambda x: re.match(r".*?\(.*\).*?", x) is not None, peptides)
             )
-            self.cal_num_table_data[m]["modified_peptide_num"] = len(modified_pep)
+            num_table_at_run[m]["modified_peptide_num"] = len(modified_pep)
+
+            if not self.file_df.empty:
+                data_per_run[m] = {
+                    "proteins": proteins,
+                    "peptides": peptides,
+                    "unique_peptides": unique_peptides,
+                    "modified_peps": modified_pep
+                }
 
             ml_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
+
+        num_table_at_sample = cal_num_table_at_sample(self.file_df, data_per_run)
+
+        print(f"num_table_at_sample: {num_table_at_sample}")
+
+        self.cal_num_table_data = {
+            "sdrf_samples": num_table_at_sample,
+            "ms_runs": num_table_at_run
+        }
 
         # Modifications
         self.quantms_modified["plot_data"] = mod_plot_dict
@@ -1429,7 +1449,7 @@ class QuantMSModule:
         # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
         self.ms_without_psm = set([file_prefix(i) for i in self.ms_paths]) - set(self.ms_with_psm)
         for i in self.ms_without_psm:
-            self.cal_num_table_data[i] = {
+            self.cal_num_table_data["ms_runs"][i] = {
                 "protein_num": 0,
                 "peptide_num": 0,
                 "unique_peptide_num": 0,

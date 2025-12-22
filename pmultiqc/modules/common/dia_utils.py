@@ -13,7 +13,8 @@ from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.common_utils import (
     evidence_rt_count,
-    mod_group_percentage
+    mod_group_percentage,
+    cal_num_table_at_sample
 )
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots.id import draw_ids_rt_count
@@ -33,7 +34,6 @@ def parse_diann_report(
         sample_df,
         file_df,
         ms_with_psm,
-        cal_num_table_data,
         quantms_modified,
         ms_paths,
         msstats_input_valid=False
@@ -53,7 +53,7 @@ def parse_diann_report(
     _process_modifications(report_data)
 
     # Process run-specific data
-    _process_run_data(report_data, ms_with_psm, cal_num_table_data, quantms_modified)
+    cal_num_table_data = _process_run_data(report_data, ms_with_psm, quantms_modified, file_df)
 
     # Handle files without PSM
     ms_without_psm = _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data)
@@ -209,11 +209,14 @@ def _process_modifications(report_data):
     report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
 
 
-def _process_run_data(report_data, ms_with_psm, cal_num_table_data, quantms_modified):
+def _process_run_data(report_data, ms_with_psm, quantms_modified, sdrf_file_df):
     """Process run-specific data including modifications and statistics."""
     log.info("Processing DIA mod_plot_dict.")
     mod_plot_dict = dict()
     modified_cats = list()
+
+    statistics_at_run = dict()
+    data_per_run = dict()
 
     for run_file, group in report_data.groupby("Run"):
         run_file = str(run_file)
@@ -227,7 +230,14 @@ def _process_run_data(report_data, ms_with_psm, cal_num_table_data, quantms_modi
         modified_cats.extend(mod_group_processed["modifications"])
 
         # Calculate statistics for this run
-        _calculate_run_statistics(group, run_file, cal_num_table_data)
+        statistics_at_run[run_file], data_per_run[run_file] = _calculate_run_statistics(group)
+
+    num_table_at_sample = cal_num_table_at_sample(sdrf_file_df, data_per_run)
+
+    cal_num_table_data = {
+        "sdrf_samples": num_table_at_sample,
+        "ms_runs": statistics_at_run
+    }
 
     # Update quantms_modified with processed data
     quantms_modified["plot_data"] = mod_plot_dict
@@ -235,11 +245,11 @@ def _process_run_data(report_data, ms_with_psm, cal_num_table_data, quantms_modi
         sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
     )
 
+    return cal_num_table_data
 
-def _calculate_run_statistics(group, run_file, cal_num_table_data):
+
+def _calculate_run_statistics(group):
     """Calculate statistics for a specific run."""
-    cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Group"]))}
-    cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
 
     peptides = set(group["Modified.Sequence"])
     modified_pep = list(
@@ -251,8 +261,21 @@ def _calculate_run_statistics(group, run_file, cal_num_table_data):
         pep for pep, prots in group_peptides.items() if len(set(prots)) == 1
     ]
 
-    cal_num_table_data[run_file]["unique_peptide_num"] = len(unique_peptides)
-    cal_num_table_data[run_file]["modified_peptide_num"] = len(modified_pep)
+    stat_run = {
+        "protein_num": len(set(group["Protein.Group"])),
+        "peptide_num": len(set(group["sequence"])),
+        "unique_peptide_num": len(unique_peptides),
+        "modified_peptide_num": len(modified_pep)
+    }
+
+    data_per_run = {
+        "proteins": set(group["Protein.Group"]),
+        "peptides": set(group["sequence"]),
+        "unique_peptides": unique_peptides,
+        "modified_peps": modified_pep
+    }
+
+    return stat_run, data_per_run
 
 
 def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
@@ -261,7 +284,7 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
 
     for i in ms_without_psm:
         log.warning("No PSM found in '{}'!".format(i))
-        cal_num_table_data[i] = {
+        cal_num_table_data["ms_runs"][i] = {
             "protein_num": 0,
             "peptide_num": 0,
             "unique_peptide_num": 0,

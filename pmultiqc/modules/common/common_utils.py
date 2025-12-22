@@ -441,3 +441,32 @@ def parse_sdrf(
         False,
         condition_config,  # config.kwargs["condition"],
     )
+
+
+def cal_num_table_at_sample(sample_file_df, data_per_run):
+
+    if sample_file_df.empty:
+        return dict()
+
+    cal_num_table_sample = dict()
+    for sample, group in sample_file_df.groupby("Sample"):
+        proteins_set = set()
+        peptides_set = set()
+        unique_peptides_set = set()
+        modified_pep_set = set()
+
+        for run in group["Run"].unique():
+            run_data = data_per_run[run]
+            proteins_set.update(run_data.get("proteins", []))
+            peptides_set.update(run_data.get("peptides", []))
+            unique_peptides_set.update(run_data.get("unique_peptides", []))
+            modified_pep_set.update(run_data.get("modified_peps", []))
+
+        cal_num_table_sample[str(sample)] = {
+            "protein_num": len(proteins_set),
+            "peptide_num": len(peptides_set),
+            "unique_peptide_num": len(unique_peptides_set),
+            "modified_peptide_num": len(modified_pep_set),
+        }
+
+    return cal_num_table_sample

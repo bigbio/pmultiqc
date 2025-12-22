@@ -42,6 +42,11 @@ def pmultiqc_plugin_execution_start():
         config.custom_logo = str(pmultiqc_logo)
         config.custom_logo_url = "https://github.com/bigbio/pmultiqc"
         config.custom_logo_title = "pmultiqc"
+
+        # Supported starting from MultiQC v1.33
+        if hasattr(config, "custom_logo_width"):
+            config.custom_logo_width = 118
+
         log.info(f"pmultiqc: injected custom logo from local path: {pmultiqc_logo}")
     else:
         log.warning(f"pmultiqc logo file not found at: {pmultiqc_logo}")
