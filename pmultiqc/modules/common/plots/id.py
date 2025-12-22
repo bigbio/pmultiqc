@@ -396,7 +396,11 @@ def draw_quantms_identification(
 
         return [
             {
-                f"{sample_prefix}{sample}": {"Count": info[value_key]}
+                (
+                    f"{sample_prefix}{sample}"
+                    if "sdrf_samples" == source
+                    else sample
+                ): {"Count": info[value_key]}
                 for sample, info in data[source].items()
             }
             for source in sources
