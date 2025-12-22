@@ -1410,8 +1410,6 @@ class QuantMSModule:
 
         num_table_at_sample = cal_num_table_at_sample(self.file_df, data_per_run)
 
-        print(f"num_table_at_sample: {num_table_at_sample}")
-
         self.cal_num_table_data = {
             "sdrf_samples": num_table_at_sample,
             "ms_runs": num_table_at_run
