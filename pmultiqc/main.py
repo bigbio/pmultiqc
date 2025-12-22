@@ -37,6 +37,7 @@ def pmultiqc_plugin_execution_start():
     # logo
     current_dir = Path(__file__).parent.resolve()
     pmultiqc_logo = current_dir / "images" / "pmultiqc_logo_report.png"
+    pmultiqc_logo_dark = current_dir / "images" / "pmultiqc_logo_dark.png"
 
     if pmultiqc_logo.exists():
         config.custom_logo = str(pmultiqc_logo)
@@ -44,6 +45,9 @@ def pmultiqc_plugin_execution_start():
         config.custom_logo_title = "pmultiqc"
 
         # Supported starting from MultiQC v1.33
+        if hasattr(config, "custom_logo_width"):
+            config.custom_logo_dark = str(pmultiqc_logo_dark)
+
         if hasattr(config, "custom_logo_width"):
             config.custom_logo_width = 118
 
