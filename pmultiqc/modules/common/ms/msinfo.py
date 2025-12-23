@@ -11,7 +11,7 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.ms.base import BaseParser
 from pmultiqc.modules.common.ms_io import (
     get_ms_qc_info,
-    add_ms_values_df,
+    add_ms_values,
     spectra_ref_check,
 )
 
@@ -111,7 +111,7 @@ class MsInfoReader(BaseParser):
                     for spectrum_id in self.identified_spectrum[m_name]
                 ]
 
-            add_ms_values_df(
+            add_ms_values(
                 group,
                 m_name,
                 self.ms_with_psm,
