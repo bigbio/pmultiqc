@@ -1086,10 +1086,6 @@ class QuantMSModule:
             with pd.option_context("future.no_silent_downcasting", True):
                 pep_table = pep_table.fillna(np.nan).infer_objects(copy=False).copy()
 
-            pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
-                lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-                axis=1,
-            )
             study_variables = list(
                 filter(
                     lambda x: re.match(r"peptide_abundance_study_variable.*?", x) is not None,
@@ -1097,17 +1093,20 @@ class QuantMSModule:
                 )
             )
 
+            pep_df_need_cols = ["accession", "opt_global_cv_MS:1002217_decoy_peptide", "spectra_ref"] + study_variables
+            pep_table = pep_table[pep_df_need_cols].copy()
+            del pep_df_need_cols
+
+            pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
+                lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
+                axis=1,
+            )
+
             pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
 
             # Contaminants
-            if (
-                    len(
-                        pep_table[
-                            pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
-                        ]
-                    )
-                    > 0
-            ):
+            if len(pep_table[pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])]) > 0:
+
                 self.quantms_contaminant_percent = self.cal_quantms_contaminant_percent(
                     pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy()
                 )
@@ -1159,6 +1158,11 @@ class QuantMSModule:
                 and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
         ):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
+
+        psm_need_cols = ["spectra_ref", "opt_global_cv_MS:1000889_peptidoform_sequence", "sequence", "retention_time"]
+        psm = psm[psm_need_cols].copy()
+        del psm_need_cols
+
         psm.loc[:, "stand_spectra_ref"] = psm.apply(
             lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
             axis=1,
@@ -1264,9 +1268,7 @@ class QuantMSModule:
 
         from pmultiqc.modules.common.ms.mztab import MzTabReader
 
-        mztab_reader = MzTabReader(
-            file_path=self.out_mztab_path
-        )
+        mztab_reader = MzTabReader(file_path=self.out_mztab_path)
         mztab_reader.parse()
         self.mztab_data = mztab_reader.mztab_data
         psm = mztab_reader.psm

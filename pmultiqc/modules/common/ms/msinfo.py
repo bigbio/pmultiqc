@@ -11,7 +11,7 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.ms.base import BaseParser
 from pmultiqc.modules.common.ms_io import (
     get_ms_qc_info,
-    add_ms_values,
+    add_ms_values_df,
     spectra_ref_check,
 )
 
@@ -111,21 +111,20 @@ class MsInfoReader(BaseParser):
                     for spectrum_id in self.identified_spectrum[m_name]
                 ]
 
-            for _, row in group.iterrows():
-                add_ms_values(
-                    row,
-                    m_name,
-                    self.ms_with_psm,
-                    identified_spectrum_scan_id,
-                    self.mzml_charge_plot,
-                    self.mzml_peak_distribution_plot,
-                    self.mzml_peaks_ms2_plot,
-                    self.mzml_charge_plot_1,
-                    self.mzml_peak_distribution_plot_1,
-                    self.mzml_peaks_ms2_plot_1,
-                    self.ms_without_psm,
-                    self.enable_dia,
-                )
+            add_ms_values_df(
+                group,
+                m_name,
+                self.ms_with_psm,
+                identified_spectrum_scan_id,
+                self.mzml_charge_plot,
+                self.mzml_peak_distribution_plot,
+                self.mzml_peaks_ms2_plot,
+                self.mzml_charge_plot_1,
+                self.mzml_peak_distribution_plot_1,
+                self.mzml_peaks_ms2_plot_1,
+                self.ms_without_psm,
+                self.enable_dia,
+            )
 
             for m in mzml_table.keys():
                 if mzml_table[m]["MS2_Num"] > 0:

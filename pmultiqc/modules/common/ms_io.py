@@ -11,6 +11,8 @@ import pandas as pd
 
 # Initialise the module logger via central logging
 from pmultiqc.modules.common.logging import get_logger
+
+
 log = get_logger("pmultiqc.modules.common.ms_io")
 
 # The time resolution in seconds. Larger values produce smaller outputs and slight smoothing.
@@ -72,73 +74,77 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
 
     return tic_data, bpc_data, ms1_peaks, general_stats
 
+def add_ms_values_df(
+        info_df,
+        ms_name,
+        ms_with_psm,
+        identified_spectrum_scan_id,
+        mzml_charge_plot,
+        mzml_peak_distribution_plot,
+        mzml_peaks_ms2_plot,
+        mzml_charge_plot_1,
+        mzml_peak_distribution_plot_1,
+        mzml_peaks_ms2_plot_1,
+        ms_without_psm,
+        enable_dia: bool = False,
+    ):
+        """
+        Process MS values from a dataframe row and add them to the appropriate histograms
 
-def add_ms_values(
-    info_df,
-    ms_name,
-    ms_with_psm,
-    identified_spectrum_scan_id,
-    mzml_charge_plot,
-    mzml_peak_distribution_plot,
-    mzml_peaks_ms2_plot,
-    mzml_charge_plot_1,
-    mzml_peak_distribution_plot_1,
-    mzml_peaks_ms2_plot_1,
-    ms_without_psm,
-    enable_dia=False,
-):
-    """
-    Process MS values from a dataframe row and add them to the appropriate histograms
+        Args:
+            info_df: MS information
+            ms_name: Name of the MS file
+            ms_with_psm: List of MS files with PSMs
+            identified_spectrum_scan_id: List of identified spectra by MS file
+            # identified_spectrum: Dictionary of identified spectra by MS file
+            mzml_charge_plot: Histogram for charge distribution of identified spectra
+            mzml_peak_distribution_plot: Histogram for peak distribution of identified spectra
+            mzml_peaks_ms2_plot: Histogram for peaks per MS2 of identified spectra
+            mzml_charge_plot_1: Histogram for charge distribution of unidentified spectra
+            mzml_peak_distribution_plot_1: Histogram for peak distribution of unidentified spectra
+            mzml_peaks_ms2_plot_1: Histogram for peaks per MS2 of unidentified spectra
+            ms_without_psm: List of MS files without PSMs
+            enable_dia: Whether DIA mode is enabled
+        """
 
-    Args:
-        info_df: Series row containing MS information
-        ms_name: Name of the MS file
-        ms_with_psm: List of MS files with PSMs
-        identified_spectrum_scan_id: List of identified spectra by MS file
-        # identified_spectrum: Dictionary of identified spectra by MS file
-        mzml_charge_plot: Histogram for charge distribution of identified spectra
-        mzml_peak_distribution_plot: Histogram for peak distribution of identified spectra
-        mzml_peaks_ms2_plot: Histogram for peaks per MS2 of identified spectra
-        mzml_charge_plot_1: Histogram for charge distribution of unidentified spectra
-        mzml_peak_distribution_plot_1: Histogram for peak distribution of unidentified spectra
-        mzml_peaks_ms2_plot_1: Histogram for peaks per MS2 of unidentified spectra
-        ms_without_psm: List of MS files without PSMs
-        enable_dia: Whether DIA mode is enabled
-    """
-    # info_df is a Pandas.Seires not a DataFrame
-    # "precursor_charge" --> "Charge",
-    # "base_peak_intensity" --> "Base_Peak_Intensity",
-    # "num_peaks": --> "MS_peaks"
+        info_df["precursor_charge"] = info_df["precursor_charge"].astype("Int64")
+        info_df["base_peak_intensity"] = info_df["base_peak_intensity"].astype("float")
+        info_df["num_peaks"] = info_df["num_peaks"].astype("Int64")
 
-    charge_state = (
-        int(info_df["precursor_charge"]) if pd.notna(info_df["precursor_charge"]) else None
-    )
+        def data_add_value(histogram_data, a_value):
+            if not pd.notna(a_value):
+                a_value = None
+            histogram_data.add_value(a_value)
 
-    base_peak_intensity = (
-        float(info_df["base_peak_intensity"]) if pd.notna(info_df["base_peak_intensity"]) else None
-    )
+        if enable_dia:
+            for charge_state in info_df["precursor_charge"]:
+                data_add_value(mzml_charge_plot, charge_state)
+            for base_peak_inte in info_df["base_peak_intensity"]:
+                data_add_value(mzml_peak_distribution_plot, base_peak_inte)
+            for num_peaks in info_df["num_peaks"]:
+                data_add_value(mzml_peaks_ms2_plot, num_peaks)
+            return
 
-    peak_per_ms2 = int(info_df["num_peaks"]) if pd.notna(info_df["num_peaks"]) else None
+        if ms_name not in ms_with_psm:
+            ms_without_psm.add(ms_name)
+            return
 
-    if enable_dia:
-        mzml_charge_plot.add_value(charge_state)
-        mzml_peak_distribution_plot.add_value(base_peak_intensity)
-        mzml_peaks_ms2_plot.add_value(peak_per_ms2)
-        return
+        identified_scans = info_df["scan"].isin(identified_spectrum_scan_id)
 
-    if ms_name in ms_with_psm:
-        # only "scan" in info_df not "SpectrumID"
-        if info_df["scan"] in identified_spectrum_scan_id:
-            mzml_charge_plot.add_value(charge_state)
-            mzml_peak_distribution_plot.add_value(base_peak_intensity)
-            mzml_peaks_ms2_plot.add_value(peak_per_ms2)
-        else:
-            mzml_charge_plot_1.add_value(charge_state)
-            mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
-            mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
-    else:
-        if ms_name not in ms_without_psm:
-            ms_without_psm.append(ms_name)
+        for charge_state in info_df[identified_scans]["precursor_charge"]:
+            data_add_value(mzml_charge_plot, charge_state)
+        for base_peak_inte in info_df[identified_scans]["base_peak_intensity"]:
+            data_add_value(mzml_peak_distribution_plot, base_peak_inte)
+        for peak_per_ms2 in info_df[identified_scans]["num_peaks"]:
+            data_add_value(mzml_peaks_ms2_plot, peak_per_ms2)
+
+        for charge_state in info_df[~identified_scans]["precursor_charge"]:
+            data_add_value(mzml_charge_plot_1, charge_state)
+        for base_peak_inte in info_df[~identified_scans]["base_peak_intensity"]:
+            data_add_value(mzml_peak_distribution_plot_1, base_peak_inte)
+        for peak_per_ms2 in info_df[~identified_scans]["num_peaks"]:
+            data_add_value(mzml_peaks_ms2_plot_1, peak_per_ms2)
+
 
 def spectra_ref_check(spectra_ref):
     match_scan = re.search(r"scan=(\d+)", spectra_ref)
