@@ -105,7 +105,7 @@ def _draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, 
     """Draw all DIA-NN plots."""
     # Draw intensity plots and heatmap
     if "Precursor.Quantity" in report_data.columns:
-        draw_dia_intensitys(sub_sections["quantification"], report_data)
+        draw_dia_intensitys(sub_sections["quantification"], report_data, file_df)
         _draw_heatmap(sub_sections["summary"], report_data, heatmap_color_list)
 
     # Draw other plots
@@ -297,14 +297,13 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
 ## Removed draw_dia_heatmap wrapper; call cal_dia_heatmap and dia_plots.draw_heatmap directly.
 
 
-def draw_dia_intensitys(sub_section, report_df):
+def draw_dia_intensitys(sub_section, report_df, sdrf_file_df):
     df_sub = report_df[report_df["Precursor.Quantity"] > 0].copy()
     df_sub["log_intensity"] = np.log2(df_sub["Precursor.Quantity"])
 
-    dia_plots.draw_dia_intensity_dis(sub_section, df_sub)
+    dia_plots.draw_dia_intensity_dis(sub_section, df_sub, sdrf_file_df)
 
-    if dia_plots.can_groupby_for_std(report_df, "Run"):
-        dia_plots.draw_dia_intensity_std(sub_section, df_sub)
+    dia_plots.draw_dia_intensity_std(sub_section, df_sub, sdrf_file_df)
 
 
 def draw_dia_ms1(sub_section, df):

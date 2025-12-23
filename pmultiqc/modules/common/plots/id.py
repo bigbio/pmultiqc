@@ -397,9 +397,9 @@ def draw_quantms_identification(
         return [
             {
                 (
-                    f"{sample_prefix}{sample}"
+                    f"{sample_prefix}{str(sample)}"
                     if "sdrf_samples" == source
-                    else sample
+                    else str(sample)
                 ): {"Count": info[value_key]}
                 for sample, info in data[source].items()
             }

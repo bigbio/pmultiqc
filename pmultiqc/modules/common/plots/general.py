@@ -63,6 +63,8 @@ def draw_heatmap(
         "tt_decimals": 4,
         "square": False,
         "colstops": hm_colors,
+        "cluster_rows": False,
+        "cluster_cols": False,
     }
     if is_maxquant:
         hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
