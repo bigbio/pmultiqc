@@ -13,8 +13,8 @@ from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.common_utils import (
     evidence_rt_count,
-    mod_group_percentage,
-    cal_num_table_at_sample
+    cal_num_table_at_sample,
+    summarize_modifications
 )
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots.id import draw_ids_rt_count
@@ -113,7 +113,7 @@ def _draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, 
     draw_dia_ms1(sub_sections["ms1"], report_data)
 
     log.info("Draw the DIA MS2 subsection.")
-    draw_dia_ms2s(sub_sections["ms2"], report_data)
+    draw_dia_ms2s(sub_sections["ms2"], report_data, file_df)
 
     log.info("Draw the DIA mass_error subsection.")
     draw_dia_mass_error(sub_sections["mass_error"], report_data)
@@ -209,10 +209,18 @@ def _process_modifications(report_data):
     report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
 
 
-def _process_run_data(report_data, ms_with_psm, quantms_modified, sdrf_file_df):
-    """Process run-specific data including modifications and statistics."""
+def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
+    """
+    Process run-specific data including modifications and statistics.
+    """
+
     log.info("Processing DIA mod_plot_dict.")
-    mod_plot_dict = dict()
+
+    report_data = df[
+        ["Run", "Modified.Sequence", "Modifications", "Protein.Group", "sequence"]
+    ].copy()
+
+    mod_plot_by_run = dict()
     modified_cats = list()
 
     statistics_at_run = dict()
@@ -223,11 +231,9 @@ def _process_run_data(report_data, ms_with_psm, quantms_modified, sdrf_file_df):
         ms_with_psm.append(run_file)
 
         # Process modifications for this run
-        mod_group_processed = mod_group_percentage(group.drop_duplicates())
-        mod_plot_dict[run_file] = dict(
-            zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
-        )
-        modified_cats.extend(mod_group_processed["modifications"])
+        mod_plot_dict, modified_cat = summarize_modifications(group.drop_duplicates())
+        mod_plot_by_run[run_file] = mod_plot_dict
+        modified_cats.extend(modified_cat)
 
         # Calculate statistics for this run
         statistics_at_run[run_file], data_per_run[run_file] = _calculate_run_statistics(group)
@@ -239,8 +245,13 @@ def _process_run_data(report_data, ms_with_psm, quantms_modified, sdrf_file_df):
         "ms_runs": statistics_at_run
     }
 
+    mod_plot_by_sample = dia_sample_level_modifications(
+        df=report_data,
+        sdrf_file_df=sdrf_file_df
+    )
+
     # Update quantms_modified with processed data
-    quantms_modified["plot_data"] = mod_plot_dict
+    quantms_modified["plot_data"] = [mod_plot_by_run, mod_plot_by_sample]
     quantms_modified["cats"] = list(
         sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
     )
@@ -315,13 +326,13 @@ def draw_dia_ms1(sub_section, df):
             dia_plots.draw_dia_ms1_area(sub_section, df_sub)
 
 
-def draw_dia_ms2s(sub_section, df):
+def draw_dia_ms2s(sub_section, df, sdrf_file_df):
     # Distribution of Precursor Charges
     if "Precursor.Charge" in df.columns:
         dia_plots.draw_dia_whole_exp_charge(sub_section, df)
 
         # Charge-state of Per File
-        dia_plots.draw_dia_ms2_charge(sub_section, df)
+        dia_plots.draw_dia_ms2_charge(sub_section, df, sdrf_file_df)
 
 
 def draw_dia_mass_error(sub_section, df):
@@ -821,3 +832,25 @@ def create_protein_table(report_df, sample_df, file_df):
     result_dict = {i: v for i, (_, v) in enumerate(table_dict.items(), start=1)}
 
     return result_dict, headers
+
+
+def dia_sample_level_modifications(df, sdrf_file_df):
+    
+    report_data = df.copy()
+
+    report_data = report_data.merge(
+        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+        on="Run"
+    )
+
+    report_data["Sample"] = report_data["Sample"].astype(int)
+
+    mod_plot = dict()
+    for sample, group in report_data.groupby("Sample", sort=True):
+
+        mod_plot_dict, _ = summarize_modifications(
+            group.drop_duplicates()
+        )
+        mod_plot[f"Sample {str(sample)}"] = mod_plot_dict
+
+    return mod_plot

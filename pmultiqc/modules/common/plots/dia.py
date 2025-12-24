@@ -7,6 +7,7 @@ from pmultiqc.modules.common.plots.general import plot_html_check
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots import dia as dia_plots
+from pmultiqc.modules.common.common_utils import group_charge
 from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.common.plots.dia")
@@ -78,6 +79,8 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
             on="Run"
         )
 
+        df_sub["Sample"] = df_sub["Sample"].astype(int)
+
         box_data = [
             {
                 (
@@ -85,7 +88,7 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
                     if data_type == "Sample"
                     else str(run)
                 ): group["log_intensity"].dropna().tolist()
-                for run, group in df_sub.groupby(data_type)
+                for run, group in df_sub.groupby(data_type, sort=True)
             }
             for data_type in ["Run", "Sample"]
         ]
@@ -197,20 +200,31 @@ def draw_dia_whole_exp_charge(sub_section, df):
 
 
 # Charge-state of Per File
-def draw_dia_ms2_charge(sub_section, df):
+def draw_dia_ms2_charge(sub_section, df, sdrf_file_df):
 
     df = df[["Precursor.Charge", "Run"]].copy()
     df["Precursor.Charge"] = df["Precursor.Charge"].astype("str")
 
-    bar_data = (
-        df.groupby("Run")["Precursor.Charge"]
-        .value_counts()
-        .sort_index()
-        .unstack(fill_value=0)
-        .to_dict(orient="index")
-    )
+    stat_data_by_run = group_charge(df, "Run", "Precursor.Charge")
 
-    bar_data = {str(k): v for k, v in bar_data.items()}
+    if sdrf_file_df.empty:
+
+        bar_data = stat_data_by_run.to_dict(orient="index")
+        plot_label = ["by Run"]
+    
+    else:
+        df = df.merge(
+            right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+            on="Run"
+        )
+
+        stat_data_by_sample = group_charge(df, "Sample", "Precursor.Charge")
+
+        bar_data = [
+            stat_data_by_run.to_dict(orient="index"),
+            stat_data_by_sample.to_dict(orient="index")
+        ]
+        plot_label = ["by Run", "by Sample"]
 
     draw_config = {
         "id": "charge_state_of_per_file",
@@ -218,6 +232,7 @@ def draw_dia_ms2_charge(sub_section, df):
         "title": "Charge-state of Per File",
         "tt_decimals": 0,
         "ylab": "Count",
+        "data_labels": plot_label,
     }
 
     bar_html = bargraph.plot(

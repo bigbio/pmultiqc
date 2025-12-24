@@ -11,13 +11,20 @@ from pmultiqc.modules.common.plots.general import plot_html_check
 
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
+
+    if isinstance(msms_identified_percent, list):
+        plot_labels = ["by Run", "by Sample"]
+    else:
+        plot_labels = ["by Run"]
+
     draw_config = {
-        "id": "msms_identified_per_raw_file",
+        "id": "msms_identified",
         "cpswitch": False,
         "cpswitch_c_active": False,
-        "title": "MS/MS Identified Per Raw File",
+        "title": "MS/MS Identified",
         "tt_decimals": 2,
         "ylab": "MS/MS Identified [%]",
+        "data_labels": plot_labels,
     }
 
     bar_html = bargraph.plot(data=msms_identified_percent, pconfig=draw_config)
@@ -27,8 +34,8 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
         sub_section=sub_section,
         plot=bar_html,
         order=7,
-        description="MS/MS identification rate per raw file.",
-        helptext="MS/MS identification rate per raw file (quantms data from mzTab and mzML files; MaxQuant data from summary.txt)",
+        description="MS/MS identification rate by Run (or Sample).",
+        helptext="MS/MS identification rate by Run (or Sample) (quantms data from mzTab and mzML files; MaxQuant data from summary.txt)",
     )
 
 
@@ -74,12 +81,20 @@ def draw_potential_contaminants(sub_section, contaminant_percent, is_maxquant):
 
 
 def draw_charge_state(sub_section, charge_data, report_type):
+
+    if isinstance(charge_data["plot_data"], list):
+        plot_label = ["by Run", "by Sample"]
+    else:
+        plot_label = ["by Run"]
+
     draw_config = {
-        "id": "charge_state_of_per_raw_file",
+        "id": "charge_state",
         "cpswitch": True,
-        "title": "Charge-state of Per File",
+        "cpswitch_c_active": False,
+        "title": "Charge-state",
         "tt_decimals": 0,
         "ylab": "Count",
+        "data_labels": plot_label,
     }
 
     bar_html = bargraph.plot(
@@ -88,7 +103,7 @@ def draw_charge_state(sub_section, charge_data, report_type):
     bar_html = plot_html_check(bar_html)
 
     help_text = (
-        "Charge distribution per Raw file. For typtic digests, peptides of charge 2 "
+        "Charge distribution by Run (or Sample). For typtic digests, peptides of charge 2 "
         "(one N-terminal and one at tryptic C-terminal R or K residue) should be dominant. "
         "Ionization issues (voltage?), in-source fragmentation, missed cleavages and buffer irregularities can "
         "cause a shift (see Bittremieux 2017, DOI: 10.1002/mas.21544). The charge distribution should be similar "
@@ -152,12 +167,13 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
 
 def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
     draw_config = {
-        "id": "missed_cleavages_per_raw_file",
+        "id": "missed_cleavages",
         "cpswitch": False,
         "cpswitch_c_active": False,
-        "title": "Missed Cleavages Per Raw File",
+        "title": "Missed Cleavages",
         "tt_decimals": 2,
         "ylab": "Missed Cleavages [%]",
+        "data_labels": ["by Run", "by Sample"]
     }
 
     bar_html = bargraph.plot(
@@ -187,7 +203,7 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
         description_text = "[Excludes Contaminants] Missed Cleavages per raw file."
         helptext += "<p>In the rare case that 'no enzyme' was specified in MaxQuant, neither scores nor plots are shown.</p>"
     else:
-        description_text = "Missed Cleavages per raw file."
+        description_text = "Missed Cleavages by Run (or Sample)."
 
     add_sub_section(
         sub_section=sub_section,
@@ -359,12 +375,11 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
 
 
 def draw_quantms_identification(
-        sub_sections,
-        cal_num_table_data=None,
-        mzml_table=None,
-        quantms_missed_cleavages=None,
-        quantms_modified=None,
-        identified_msms_spectra=None
+    sub_sections,
+    cal_num_table_data=None,
+    quantms_missed_cleavages=None,
+    quantms_modified=None,
+    msms_identified_rate=None
 ):
 
     if cal_num_table_data.get("sdrf_samples"):
@@ -471,43 +486,50 @@ def draw_quantms_identification(
     )
 
     if quantms_missed_cleavages:
-        mc_group = {}
-        for sample, counts in quantms_missed_cleavages.items():
-            mc_group[sample] = {"0": 0, "1": 0, ">=2": 0}
-            for mc, count in counts.items():
-                if mc == 0:
-                    mc_group[sample]["0"] += count
-                elif mc == 1:
-                    mc_group[sample]["1"] += count
-                else:
-                    mc_group[sample][">=2"] += count
 
-        mc_group_ratio = {}
-        for sample, counts in mc_group.items():
-            total = sum(counts.values())
-            if total == 0:
-                mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
-                continue
-            mc_group_ratio[sample] = {
-                group: count / total * 100 for group, count in counts.items()
-            }
+        mc_ratio = list()
 
-        mc_data = {"plot_data": mc_group_ratio, "cats": ["0", "1", ">=2"]}
+        for k in ["ms_runs", "sdrf_samples"]:
+            mc_ratio.append(rebuild_dict_structure(quantms_missed_cleavages[k]))
+
+        mc_data = {
+            "plot_data": mc_ratio,
+            "cats": ["0", "1", ">=2"]
+        }
+
         draw_msms_missed_cleavages(sub_sections, mc_data, False)
 
     if quantms_modified:
         draw_modifications(sub_sections, quantms_modified)
 
-    if identified_msms_spectra and mzml_table:
-
-        msms_identified_rate = dict()
-        for m in identified_msms_spectra.keys():
-            identified_ms2 = identified_msms_spectra[m].get("Identified", 0)
-            all_ms2 = mzml_table.get(m, {}).get("MS2_Num", 0)
-            if all_ms2 > 0:
-                msms_identified_rate[m] = {"Identified Rate": (identified_ms2 / all_ms2) * 100}
-
+    if msms_identified_rate:
         draw_ms_ms_identified(sub_sections, msms_identified_rate)
+
+
+def rebuild_dict_structure(sc_dict):
+
+    mc_group = {}
+    for sample, counts in sc_dict.items():
+        mc_group[sample] = {"0": 0, "1": 0, ">=2": 0}
+        for mc, count in counts.items():
+            if mc == 0:
+                mc_group[sample]["0"] += count
+            elif mc == 1:
+                mc_group[sample]["1"] += count
+            else:
+                mc_group[sample][">=2"] += count
+
+    mc_group_ratio = {}
+    for sample, counts in mc_group.items():
+        total = sum(counts.values())
+        if total == 0:
+            mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
+            continue
+        mc_group_ratio[sample] = {
+            group: count / total * 100 for group, count in counts.items()
+        }
+
+    return mc_group_ratio
 
 
 def draw_summary_protein_ident_table(
@@ -598,11 +620,14 @@ def draw_quantms_identi_num(
         sdrf_samples_data = cal_num_table_data.get("sdrf_samples")
         ms_runs_data = cal_num_table_data.get("ms_runs")
 
+        file_df["Sample"] = file_df["Sample"].astype(str)
+
         if is_multi_conditions:
             for sample in sorted(
-                    sample_df["Sample"].tolist(),
-                    key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+                sample_df["Sample"].tolist(),
+                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
             ):
+
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
                 sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
                 row_data: List[InputRow] = []
@@ -787,14 +812,21 @@ def draw_quantms_identi_num(
 
 
 def draw_modifications(sub_section, modified_data):
+
+    if isinstance(modified_data["plot_data"], list):
+        plot_label = ["by Run", "by Sample"]
+    else:
+        plot_label = ["by Run"]
+
     draw_config = {
-        "id": "modifications_per_raw_file",
+        "id": "modifications",
         "cpswitch": False,
         "cpswitch_c_active": False,
-        "title": "Modifications Per Raw File",
+        "title": "Modifications",
         "stacking": "group",
         "tt_decimals": 3,
         "ylab": "Occurence [%]",
+        "data_labels": plot_label,
     }
 
     bar_html = bargraph.plot(

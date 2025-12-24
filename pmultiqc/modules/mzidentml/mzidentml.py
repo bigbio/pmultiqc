@@ -40,6 +40,7 @@ from pmultiqc.modules.core.section_groups import (
     add_group_modules,
     add_sub_section
 )
+from pmultiqc.modules.common.common_utils import aggregate_msms_identified_rate
 
 
 class MzIdentMLModule(BasePMultiqcModule):
@@ -139,13 +140,18 @@ class MzIdentMLModule(BasePMultiqcModule):
                     self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
                 )
 
+                msms_identified_rate = aggregate_msms_identified_rate(
+                    mzml_table=mt,
+                    identified_msms_spectra=self.identified_msms_spectra,
+                    sdrf_file_df=None
+                )
+
                 id_plots.draw_quantms_identification(
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
-                    mzml_table=mt,
                     quantms_missed_cleavages=self.quantms_missed_cleavages,
                     quantms_modified=self.quantms_modified,
-                    identified_msms_spectra=self.identified_msms_spectra,
+                    msms_identified_rate=msms_identified_rate
                 )
 
                 self.mzid_cal_heat_map_score(mzidentml_df)

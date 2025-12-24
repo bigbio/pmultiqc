@@ -194,7 +194,6 @@ class DiannModule:
         draw_quantms_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
-            mzml_table=self.mzml_table,
             quantms_modified=self.quantms_modified
         )
 
