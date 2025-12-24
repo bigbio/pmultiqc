@@ -25,7 +25,7 @@ requirements:
     - python >=3.10
     - pytest
     - lxml
-    - multiqc >=1.29, <=1.32
+    - multiqc >=1.29, <=1.33
     - pandas
     - sdrf-pipelines >=0.0.32
     - pyteomics

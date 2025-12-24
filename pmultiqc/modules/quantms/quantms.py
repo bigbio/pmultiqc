@@ -28,10 +28,13 @@ from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
     get_ms_path,
-    mod_group_percentage,
     evidence_rt_count,
     evidence_calibrated_mass_error,
-    parse_mzml
+    parse_mzml,
+    cal_num_table_at_sample,
+    aggregate_msms_identified_rate,
+    summarize_modifications,
+    group_charge
 )
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.ms import idxml as ms_idxml
@@ -307,7 +310,6 @@ class QuantMSModule:
                 sample_df=self.sample_df,
                 file_df=self.file_df,
                 ms_with_psm=self.ms_with_psm,
-                cal_num_table_data=self.cal_num_table_data,
                 quantms_modified=self.quantms_modified,
                 ms_paths=self.ms_paths,
                 msstats_input_valid=self.msstats_input_valid
@@ -419,13 +421,20 @@ class QuantMSModule:
             )
             self.draw_delta_mass()
 
+        msms_identified_rate = None
+        if self.mzml_table and self.identified_msms_spectra:
+            msms_identified_rate = aggregate_msms_identified_rate(
+                self.mzml_table,
+                self.identified_msms_spectra,
+                self.file_df
+            )
+
         draw_quantms_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
-            mzml_table=self.mzml_table,
             quantms_missed_cleavages=self.quantms_missed_cleavages,
             quantms_modified=self.quantms_modified,
-            identified_msms_spectra=self.identified_msms_spectra,
+            msms_identified_rate=msms_identified_rate,
         )
 
         self.draw_quantms_contaminants()
@@ -1086,10 +1095,6 @@ class QuantMSModule:
             with pd.option_context("future.no_silent_downcasting", True):
                 pep_table = pep_table.fillna(np.nan).infer_objects(copy=False).copy()
 
-            pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
-                lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-                axis=1,
-            )
             study_variables = list(
                 filter(
                     lambda x: re.match(r"peptide_abundance_study_variable.*?", x) is not None,
@@ -1097,17 +1102,20 @@ class QuantMSModule:
                 )
             )
 
+            pep_df_need_cols = ["accession", "opt_global_cv_MS:1002217_decoy_peptide", "spectra_ref"] + study_variables
+            pep_table = pep_table[pep_df_need_cols].copy()
+            del pep_df_need_cols
+
+            pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
+                lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
+                axis=1,
+            )
+
             pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
 
             # Contaminants
-            if (
-                    len(
-                        pep_table[
-                            pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
-                        ]
-                    )
-                    > 0
-            ):
+            if len(pep_table[pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])]) > 0:
+
                 self.quantms_contaminant_percent = self.cal_quantms_contaminant_percent(
                     pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy()
                 )
@@ -1118,6 +1126,7 @@ class QuantMSModule:
             else:
                 log.warning(f"No contaminants found matching affix '{config.kwargs['contaminant_affix']}'")
 
+            pep_intensity_by_run = dict()
             for name, group in pep_table.groupby("stand_spectra_ref"):
 
                 contaminant_sum = (
@@ -1131,25 +1140,51 @@ class QuantMSModule:
                 self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
 
                 if config.kwargs["remove_decoy"]:
+
                     pep_median = np.nanmedian(
                         group[(group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)][
                             study_variables
                         ].to_numpy()
                     )
-                    self.quantms_pep_intensity[name] = group[
+
+                    pep_intensity_by_run[name] = group[
                         (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
                     ]["average_intensity"].apply(
                         lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
                     )
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
-                    self.quantms_pep_intensity[name] = group["average_intensity"].apply(
+
+                    pep_intensity_by_run[name] = group["average_intensity"].apply(
                         lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
                     )
 
                 self.heatmap_pep_intensity[name] = np.minimum(
                     1.0, pep_median / (2 ** 23)
                 )  # Threshold
+
+            pep_table = pep_table.merge(
+                right=self.file_df[["Sample", "Run"]].drop_duplicates(),
+                left_on="stand_spectra_ref",
+                right_on="Run"
+            )
+
+            pep_intensity_by_sample = dict()
+            pep_table["Sample"] = pep_table["Sample"].astype(int)
+            for name, group in pep_table.groupby("Sample", sort=True):
+
+                if config.kwargs["remove_decoy"]:
+                    pep_intensity_by_sample[f"Sample {str(name)}"] = group[
+                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
+                    ]["average_intensity"].apply(
+                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    )
+                else:
+                    pep_intensity_by_sample[f"Sample {str(name)}"] = group["average_intensity"].apply(
+                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    )
+
+            self.quantms_pep_intensity = [pep_intensity_by_run, pep_intensity_by_sample]
 
         #  HeatMapMissedCleavages
         global_peps = set(psm["opt_global_cv_MS:1000889_peptidoform_sequence"])
@@ -1159,6 +1194,11 @@ class QuantMSModule:
                 and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
         ):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
+
+        psm_need_cols = ["spectra_ref", "opt_global_cv_MS:1000889_peptidoform_sequence", "sequence", "retention_time"]
+        psm = psm[psm_need_cols].copy()
+        del psm_need_cols
+
         psm.loc[:, "stand_spectra_ref"] = psm.apply(
             lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
             axis=1,
@@ -1170,11 +1210,13 @@ class QuantMSModule:
             lambda x: self.cal_miss_cleavages(x["sequence"], enzyme), axis=1
         )
 
+        missed_cleavages_by_run = dict()
+
         # Calculate the ID RT Score
         for name, group in psm.groupby("stand_spectra_ref"):
             sc = group["missed_cleavages"].value_counts()
 
-            self.quantms_missed_cleavages[name] = sc.to_dict()
+            missed_cleavages_by_run[name] = sc.to_dict()
 
             mis_0 = sc[0] if 0 in sc else 0
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
@@ -1195,6 +1237,23 @@ class QuantMSModule:
                     / global_peps_count
             )
             self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
+
+        psm = psm.merge(
+            right=self.file_df[["Sample", "Run"]].drop_duplicates(),
+            left_on="stand_spectra_ref",
+            right_on="Run"
+        )
+
+        psm["Sample"] = psm["Sample"].astype(int)
+        missed_cleavages_by_sample = dict()
+        for name, group in psm.groupby("Sample", sort=True):
+            sc = group["missed_cleavages"].value_counts()
+            missed_cleavages_by_sample[f"Sample {str(name)}"] = sc.to_dict()
+
+        self.quantms_missed_cleavages = {
+            "sdrf_samples": missed_cleavages_by_sample,
+            "ms_runs": missed_cleavages_by_run,
+        }
 
         median = np.median(list(self.missed_clevages_heatmap_score.values()))
         self.missed_cleavages_var_score = dict(
@@ -1264,9 +1323,7 @@ class QuantMSModule:
 
         from pmultiqc.modules.common.ms.mztab import MzTabReader
 
-        mztab_reader = MzTabReader(
-            file_path=self.out_mztab_path
-        )
+        mztab_reader = MzTabReader(file_path=self.out_mztab_path)
         mztab_reader.parse()
         self.mztab_data = mztab_reader.mztab_data
         psm = mztab_reader.psm
@@ -1336,23 +1393,24 @@ class QuantMSModule:
 
         psm["Modifications"] = psm["modifications"].apply(lambda x: get_unimod_modification(x))
 
-        mod_plot_dict = dict()
+        mod_plot_by_run = dict()
         modified_cats = list()
 
-        for m, group in psm.groupby("filename"):
-            m = os.path.basename(m)
+        data_per_run = dict()
+        num_table_at_run = dict()
 
-            if config.kwargs["remove_decoy"]:
-                group = group[group["opt_global_cv_MS:1002217_decoy_peptide"] == 0]
+        if config.kwargs["remove_decoy"]:
+            psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
+
+        for m, group in psm.groupby("filename"):
+            # m = os.path.basename(m)
 
             # Modifications
-            mod_group_processed = mod_group_percentage(
+            mod_plot_dict, modified_cat = summarize_modifications(
                 group[["sequence", "charge", "Modifications"]].drop_duplicates()
             )
-            mod_plot_dict[m] = dict(
-                zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
-            )
-            modified_cats.extend(mod_group_processed["modifications"])
+            mod_plot_by_run[m] = mod_plot_dict
+            modified_cats.extend(modified_cat)
 
             # Identified MS2 Spectra Raw File:
             self.identified_msms_spectra[m] = {"Identified": len(set(group["spectra_ref"]))}
@@ -1386,30 +1444,48 @@ class QuantMSModule:
                 proteins.remove(None)
 
             # TODO this is not really the number of proteins but the number of protein groups
-            self.cal_num_table_data[m] = {"protein_num": len(proteins)}
-            self.cal_num_table_data[m]["peptide_num"] = len(peptides)
-            self.cal_num_table_data[m]["unique_peptide_num"] = len(unique_peptides)
+            num_table_at_run[m] = {"protein_num": len(proteins)}
+            num_table_at_run[m]["peptide_num"] = len(peptides)
+            num_table_at_run[m]["unique_peptide_num"] = len(unique_peptides)
 
             modified_pep = list(
                 filter(lambda x: re.match(r".*?\(.*\).*?", x) is not None, peptides)
             )
-            self.cal_num_table_data[m]["modified_peptide_num"] = len(modified_pep)
+            num_table_at_run[m]["modified_peptide_num"] = len(modified_pep)
+
+            if not self.file_df.empty:
+                data_per_run[m] = {
+                    "proteins": proteins,
+                    "peptides": peptides,
+                    "unique_peptides": unique_peptides,
+                    "modified_peps": modified_pep
+                }
 
             ml_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
 
+        num_table_at_sample = cal_num_table_at_sample(self.file_df, data_per_run)
+
+        self.cal_num_table_data = {
+            "sdrf_samples": num_table_at_sample,
+            "ms_runs": num_table_at_run
+        }
+
         # Modifications
-        self.quantms_modified["plot_data"] = mod_plot_dict
+        mod_plot_by_sample = sample_level_modifications(
+            df=psm,
+            sdrf_file_df=self.file_df
+        )
+
+        self.quantms_modified["plot_data"] = [mod_plot_by_run, mod_plot_by_sample]
         self.quantms_modified["cats"] = list(
             sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
         )
 
         # Charge-state of Per File
-        charge_state_df = psm.groupby(["filename", "charge"]).size().unstack(fill_value=0)
-        charge_state_df.rename(columns=lambda x: str(x), inplace=True)
-        self.mztab_charge_state = {
-            "plot_data": charge_state_df.to_dict(orient="index"),
-            "cats": charge_state_df.columns.tolist(),
-        }
+        self.mztab_charge_state = cal_charge_state(
+            psm=psm,
+            sdrf_file_df=self.file_df
+        )
 
         # IDs over RT
         quantms_rt_file_df = psm[["filename", "retention_time"]].copy()
@@ -1429,7 +1505,7 @@ class QuantMSModule:
         # TODO mzMLs without PSM: experimental design information is displayed, and all quantitative information is 0
         self.ms_without_psm = set([file_prefix(i) for i in self.ms_paths]) - set(self.ms_with_psm)
         for i in self.ms_without_psm:
-            self.cal_num_table_data[i] = {
+            self.cal_num_table_data["ms_runs"][i] = {
                 "protein_num": 0,
                 "peptide_num": 0,
                 "unique_peptide_num": 0,
@@ -2124,6 +2200,8 @@ class QuantMSModule:
                 "title": "Peptide Intensity Distribution",
                 "tt_decimals": 2,
                 "xlab": "log2(Intensity)",
+                "data_labels": ["by Run", "by Sample"],
+                "sort_samples": False,
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
             box_html = plot_html_check(box_html)
@@ -2175,3 +2253,57 @@ def find_modification(peptide):
     original_mods = ",".join(str(i) for i in original_mods) if len(original_mods) > 0 else "nan"
 
     return AASequence.fromString(peptide).toUnmodifiedString(), original_mods
+
+
+def cal_charge_state(psm, sdrf_file_df):
+
+    charge_state_df = psm[["filename", "charge"]].copy()
+
+    charge_state_df = charge_state_df.merge(
+        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+        left_on="filename",
+        right_on="Run"
+    )
+
+    charge_state_df["Sample"] = charge_state_df["Sample"].astype(int)
+
+    charge_state_by_run = group_charge(charge_state_df, "filename", "charge")
+    charge_state_by_sample = group_charge(charge_state_df, "Sample", "charge")
+
+    return {
+        "plot_data": [
+            charge_state_by_run.to_dict(orient="index"),
+            charge_state_by_sample.to_dict(orient="index"),
+        ],
+        "cats": sorted(
+            set(charge_state_by_run.columns)
+            | set(charge_state_by_sample.columns),
+            key=int
+        )
+    }
+
+
+def sample_level_modifications(df, sdrf_file_df):
+
+    psm = df[
+        ["filename", "sequence", "charge", "Modifications"]
+    ].copy()
+
+    psm = psm.merge(
+        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+        left_on="filename",
+        right_on="Run"
+    )
+
+    psm["Sample"] = psm["Sample"].astype(int)
+
+    mod_plot = dict()
+    for sample, group in psm.groupby("Sample", sort=True):
+
+        mod_plot_dict, _ = summarize_modifications(
+            group[["sequence", "charge", "Modifications"]].drop_duplicates()
+        )
+        mod_plot[f"Sample {str(sample)}"] = mod_plot_dict
+
+    return mod_plot
+

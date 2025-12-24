@@ -269,12 +269,17 @@ def parse_mzml(
     )
 
 
-def mod_group_percentage(group):
-    if "Modifications" in group.columns:
-        group.rename(columns={"Modifications": "modifications"}, inplace=True)
+def mod_group_percentage(df):
 
-    counts = group["modifications"].str.split(",").explode().value_counts()
-    percentage_df = (counts / len(group["modifications"]) * 100).reset_index()
+    df_copy = df.copy()
+
+    if "Modifications" in df_copy.columns and "modifications" not in df_copy.columns:
+        df_copy = df_copy.rename(columns={"Modifications": "modifications"})
+    else:
+        log.warning('Detected both "Modifications" and "modifications" columns.')
+
+    counts = df_copy["modifications"].str.split(",").explode().value_counts()
+    percentage_df = (counts / len(df_copy["modifications"]) * 100).reset_index()
     percentage_df.columns = ["modifications", "percentage"]
 
     # Modified (Total)
@@ -441,3 +446,117 @@ def parse_sdrf(
         False,
         condition_config,  # config.kwargs["condition"],
     )
+
+
+def cal_num_table_at_sample(file_df, data_per_run):
+
+    if file_df.empty:
+        return dict()
+    
+    sample_file_df = file_df.copy()
+    sample_file_df["Sample"] = sample_file_df["Sample"].astype(int)
+
+    cal_num_table_sample = dict()
+    for sample, group in sample_file_df.groupby("Sample", sort=True):
+        proteins_set = set()
+        peptides_set = set()
+        unique_peptides_set = set()
+        modified_pep_set = set()
+
+        for run in group["Run"].unique():
+            run_data = data_per_run[run]
+            proteins_set.update(run_data.get("proteins", []))
+            peptides_set.update(run_data.get("peptides", []))
+            unique_peptides_set.update(run_data.get("unique_peptides", []))
+            modified_pep_set.update(run_data.get("modified_peps", []))
+
+        cal_num_table_sample[str(sample)] = {
+            "protein_num": len(proteins_set),
+            "peptide_num": len(peptides_set),
+            "unique_peptide_num": len(unique_peptides_set),
+            "modified_peptide_num": len(modified_pep_set),
+        }
+
+    return cal_num_table_sample
+
+
+def cal_msms_identified_rate(ms2_num_data, identified_data):
+
+    identified_rate = dict()
+    for m, msms_info in identified_data.items():
+        identified_ms2 = msms_info.get("Identified", 0)
+        all_ms2 = ms2_num_data.get(m, {}).get("MS2_Num", 0)
+        if all_ms2:
+            identified_rate[m] = {
+                "Identified Rate": identified_ms2 / all_ms2 * 100
+            }
+
+    return identified_rate
+
+
+def aggregate_msms_identified_rate(
+    mzml_table,
+    identified_msms_spectra,
+    sdrf_file_df=None
+):
+    identified_rate_by_run = cal_msms_identified_rate(
+            ms2_num_data=mzml_table,
+            identified_data=identified_msms_spectra
+        )
+
+    if sdrf_file_df is None:
+        return identified_rate_by_run
+
+    else:
+        identified_by_sample = dict()
+        ms2_num_by_sample = dict()
+
+        sdrf_file_df["Sample"] = sdrf_file_df["Sample"].astype(int)
+
+        for sample, group in sdrf_file_df.groupby("Sample", sort=True):
+            runs = group["Run"]
+
+            sample_identified_ms2 = sum(
+                identified_msms_spectra.get(run, {}).get("Identified", 0)
+                for run in runs
+            )
+            sample_all_ms2 = sum(
+                mzml_table.get(run, {}).get("MS2_Num", 0)
+                for run in runs
+            )
+
+            sample_key = f"Sample {str(sample)}"
+
+            identified_by_sample[sample_key] = {"Identified": sample_identified_ms2}
+            ms2_num_by_sample[sample_key] = {"MS2_Num": sample_all_ms2}
+            
+        identified_rate_by_sample = cal_msms_identified_rate(
+            ms2_num_data=ms2_num_by_sample,
+            identified_data=identified_by_sample
+        )
+
+        return [identified_rate_by_run, identified_rate_by_sample]
+
+def summarize_modifications(df):
+
+    mod_group_processed = mod_group_percentage(df)
+    mod_plot_dict = dict(
+        zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
+    )
+    modified_cat = mod_group_processed["modifications"]
+
+    return mod_plot_dict, modified_cat
+
+
+def group_charge(df, group_col, charge_col):
+
+    table = df.groupby([group_col, charge_col], sort=True).size().unstack(fill_value=0)
+    table.columns = table.columns.astype(str)
+
+    if group_col == "Sample":
+        table.index = [
+            f"Sample {str(i)}" for i in table.index
+        ]
+
+    return table
+
