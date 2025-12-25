@@ -835,7 +835,7 @@ def create_protein_table(report_df, sample_df, file_df):
 
 
 def dia_sample_level_modifications(df, sdrf_file_df):
-    
+
     report_data = df.copy()
 
     report_data = report_data.merge(
