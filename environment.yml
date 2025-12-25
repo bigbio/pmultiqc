@@ -5,7 +5,7 @@ channels:
   - defaults
 dependencies:
   - python>=3.10
-  - multiqc>=1.29, <=1.32
+  - multiqc>=1.29, <=1.33
   - pandas>=1.5
   - pyteomics
   - pyopenms<=3.4.0
@@ -19,3 +19,4 @@ dependencies:
   - requests
   - redis
   - statsmodels
+  - urllib3>=2.6.1

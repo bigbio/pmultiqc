@@ -6,7 +6,8 @@ from multiqc.plots import heatmap, box, bargraph, linegraph
 from pmultiqc.modules.common.plots.general import plot_html_check
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.core.section_groups import add_sub_section
-
+from pmultiqc.modules.common.plots import dia as dia_plots
+from pmultiqc.modules.common.common_utils import group_charge
 from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.common.plots.dia")
@@ -25,6 +26,8 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
         "tt_decimals": 4,
         "square": False,
         "colstops": hm_colors,
+        "cluster_rows": False,
+        "cluster_cols": False,
     }
 
     hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
@@ -65,11 +68,41 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
 
 
 # Intensity Distribution
-def draw_dia_intensity_dis(sub_section, df):
+def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
 
-    box_data = {
-        str(run): group["log_intensity"].dropna().tolist() for run, group in df.groupby("Run")
-    }
+    df_sub = df[["Run", "Modified.Sequence", "Protein.Group", "log_intensity"]].copy()
+
+    if not sdrf_file_df.empty:
+
+        df_sub = df_sub.merge(
+            sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+            on="Run"
+        )
+
+        df_sub["Sample"] = df_sub["Sample"].astype(int)
+
+        box_data = [
+            {
+                (
+                    f"Sample {str(run)}"
+                    if data_type == "Sample"
+                    else str(run)
+                ): group["log_intensity"].dropna().tolist()
+                for run, group in df_sub.groupby(data_type, sort=True)
+            }
+            for data_type in ["Run", "Sample"]
+        ]
+
+        plot_label = ["by Run", "by Sample"]
+
+    else:
+        box_data = [
+            {
+                str(run): group["log_intensity"].dropna().tolist()
+                for run, group in df.groupby("Run")
+            }
+        ]
+        plot_label = ["by Run"]
 
     draw_config = {
         "id": "intensity_distribution_box",
@@ -78,6 +111,8 @@ def draw_dia_intensity_dis(sub_section, df):
         "title": "Intensity Distribution",
         "tt_decimals": 5,
         "xlab": "log2(Precursor.Quantity)",
+        "data_labels": plot_label,
+        "sort_samples": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
@@ -88,9 +123,9 @@ def draw_dia_intensity_dis(sub_section, df):
         sub_section=sub_section,
         plot=box_html,
         order=3,
-        description="log2(Precursor.Quantity) for each Run.",
+        description="log2(Precursor.Quantity) for each Run (or Sample).",
         helptext="""
-            [DIA-NN: main report] log2(Precursor.Quantity) for each Run.
+            [DIA-NN: main report] log2(Precursor.Quantity) for each Run (or Sample).
             """,
     )
 
@@ -165,20 +200,31 @@ def draw_dia_whole_exp_charge(sub_section, df):
 
 
 # Charge-state of Per File
-def draw_dia_ms2_charge(sub_section, df):
+def draw_dia_ms2_charge(sub_section, df, sdrf_file_df):
 
     df = df[["Precursor.Charge", "Run"]].copy()
     df["Precursor.Charge"] = df["Precursor.Charge"].astype("str")
 
-    bar_data = (
-        df.groupby("Run")["Precursor.Charge"]
-        .value_counts()
-        .sort_index()
-        .unstack(fill_value=0)
-        .to_dict(orient="index")
-    )
+    stat_data_by_run = group_charge(df, "Run", "Precursor.Charge")
 
-    bar_data = {str(k): v for k, v in bar_data.items()}
+    if sdrf_file_df.empty:
+
+        bar_data = stat_data_by_run.to_dict(orient="index")
+        plot_label = ["by Run"]
+
+    else:
+        df = df.merge(
+            right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+            on="Run"
+        )
+
+        stat_data_by_sample = group_charge(df, "Sample", "Precursor.Charge")
+
+        bar_data = [
+            stat_data_by_run.to_dict(orient="index"),
+            stat_data_by_sample.to_dict(orient="index")
+        ]
+        plot_label = ["by Run", "by Sample"]
 
     draw_config = {
         "id": "charge_state_of_per_file",
@@ -186,6 +232,7 @@ def draw_dia_ms2_charge(sub_section, df):
         "title": "Charge-state of Per File",
         "tt_decimals": 0,
         "ylab": "Count",
+        "data_labels": plot_label,
     }
 
     bar_html = bargraph.plot(
@@ -219,9 +266,12 @@ def can_groupby_for_std(df, col):
         return True
 
 
-def draw_dia_intensity_std(sub_section, df):
+def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
 
-    box_data = calculate_dia_intensity_std(df)
+    box_data = calculate_dia_intensity_std(df, sdrf_file_df)
+
+    if not box_data:
+        return
 
     draw_box_config = {
         "id": "dia_std_intensity_box",
@@ -242,9 +292,11 @@ def draw_dia_intensity_std(sub_section, df):
         sub_section=sub_section,
         plot=box_html,
         order=6,
-        description="Standard deviation of intensity under different experimental conditions.",
+        description="Standard deviation of intensity by sample (experimental conditions).",
         helptext="""
-            [DIA-NN: report.tsv] First, identify the experimental conditions from the "Run" name. 
+            [DIA-NN: report.tsv] Sample grouping is derived from the SDRF when available; 
+            otherwise, it is parsed from "Run" names. 
+            First, identify the experimental conditions from the "Run" name. 
             Then, group the data by experimental condition and Modified.Sequence, and calculate 
             the standard deviation of log2(Precursor.Quantity).
             """,
@@ -481,25 +533,52 @@ def draw_loess_rt_irt(sub_section, plot_data):
         """,
     )
 
-def calculate_dia_intensity_std(df):
+def calculate_dia_intensity_std(df, sdrf_file_df):
 
-    df_sub = df.copy()
-    df_sub[["run_condition", "run_replicate"]] = df_sub["Run"].apply(
-        lambda x: pd.Series(extract_condition_and_replicate(x))
-    )
+    df_sub = df[["Run", "Modified.Sequence", "Protein.Group", "log_intensity"]].copy()
 
-    grouped_std = (
-        df_sub.groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
-        .std()
-        .reset_index(name="log_intensity_std")
-    )
+    if not sdrf_file_df.empty:
 
-    plot_data = {
-        condition: group["log_intensity_std"].dropna().tolist()
-        for condition, group in grouped_std.groupby("run_condition")
-    }
+        df_sub = df_sub.merge(
+            sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+            on="Run"
+        )
 
-    return plot_data
+        grouped_std = (
+            df_sub.groupby(["Sample", "Modified.Sequence"])["log_intensity"]
+            .std()
+            .reset_index(name="log_intensity_std")
+        )
+
+        plot_data = {
+            f"Sample {str(sample)}": group["log_intensity_std"].dropna().tolist()
+            for sample, group in grouped_std.groupby("Sample")
+        }
+
+        return plot_data
+
+    if dia_plots.can_groupby_for_std(df_sub, "Run"):
+
+        log.info("No SDRF available; experimental grouping was parsed using Run names.")
+
+        df_sub[["run_condition", "run_replicate"]] = df_sub["Run"].apply(
+            lambda x: pd.Series(extract_condition_and_replicate(x))
+        )
+
+        grouped_std = (
+            df_sub.groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
+            .std()
+            .reset_index(name="log_intensity_std")
+        )
+
+        plot_data = {
+            condition: group["log_intensity_std"].dropna().tolist()
+            for condition, group in grouped_std.groupby("run_condition")
+        }
+
+        return plot_data
+    else:
+        log.warning("No SDRF available; failed to parse experimental groups; SD Intensity not generated.")
 
 def extract_condition_and_replicate(run_name):
 

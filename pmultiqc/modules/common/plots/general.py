@@ -63,6 +63,8 @@ def draw_heatmap(
         "tt_decimals": 4,
         "square": False,
         "colstops": hm_colors,
+        "cluster_rows": False,
+        "cluster_cols": False,
     }
     if is_maxquant:
         hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
@@ -119,7 +121,7 @@ def draw_exp_design(sub_sections, exp_design):
 
             row_data.append(
                 InputRow(
-                    sample=SampleName(sample),
+                    sample=SampleName(f"Sample {str(sample)}"),
                     data=sample_data,
                 )
             )
@@ -182,7 +184,7 @@ def draw_exp_design(sub_sections, exp_design):
             row_data: List[InputRow] = []
             row_data.append(
                 InputRow(
-                    sample=SampleName(sample),
+                    sample=SampleName(f"Sample {str(sample)}"),
                     data={
                         "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
                         "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],

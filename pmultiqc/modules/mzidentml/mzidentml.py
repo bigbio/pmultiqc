@@ -40,6 +40,7 @@ from pmultiqc.modules.core.section_groups import (
     add_group_modules,
     add_sub_section
 )
+from pmultiqc.modules.common.common_utils import aggregate_msms_identified_rate
 
 
 class MzIdentMLModule(BasePMultiqcModule):
@@ -139,18 +140,18 @@ class MzIdentMLModule(BasePMultiqcModule):
                     self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
                 )
 
-                (self.cal_num_table_data, self.identified_msms_spectra) = get_mzid_num_data(
-                    mzidentml_df
+                msms_identified_rate = aggregate_msms_identified_rate(
+                    mzml_table=mt,
+                    identified_msms_spectra=self.identified_msms_spectra,
+                    sdrf_file_df=None
                 )
-                # self.draw_quantms_identification(mt)
 
                 id_plots.draw_quantms_identification(
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
-                    mzml_table=mt,
                     quantms_missed_cleavages=self.quantms_missed_cleavages,
                     quantms_modified=self.quantms_modified,
-                    identified_msms_spectra=self.identified_msms_spectra,
+                    msms_identified_rate=msms_identified_rate
                 )
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
@@ -308,7 +309,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                 "description": "The number of identified protein(group)s in the pipeline",
             },
         }
-        table_html = table.plot(self.cal_num_table_data, headers, pconfig)
+        table_html = table.plot(self.cal_num_table_data["ms_runs"], headers, pconfig)
         add_sub_section(
             sub_section=self.sub_sections["summary"],
             plot=table_html,
@@ -1209,6 +1210,9 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         psm = mzid_table[psm_cols].drop_duplicates().reset_index(drop=True)
 
+        num_table_at_run = dict()
+        identified_msms_spectra = dict()
+
         for m, group in psm.groupby("filename"):
             self.oversampling_plot = Histogram(
                 "MS/MS counts per 3D-peak", plot_category="frequency", breaks=[1, 2, 3]
@@ -1230,12 +1234,16 @@ class MzIdentMLModule(BasePMultiqcModule):
             if None in proteins:
                 proteins.remove(None)
 
-            self.cal_num_table_data[m] = {"protein_num": len(proteins)}
-            self.cal_num_table_data[m]["peptide_num"] = len(peptides)
-            self.cal_num_table_data[m]["unique_peptide_num"] = len(unique_peptides)
+            num_table_at_run[m] = {"protein_num": len(proteins)}
+            num_table_at_run[m]["peptide_num"] = len(peptides)
+            num_table_at_run[m]["unique_peptide_num"] = len(unique_peptides)
 
             modified_pep = peptides.dropna(subset=["Modifications"])
-            self.cal_num_table_data[m]["modified_peptide_num"] = len(modified_pep)
+            num_table_at_run[m]["modified_peptide_num"] = len(modified_pep)
+
+            identified_msms_spectra[m] = {"Identified": len(set(group["spectrumID"]))}
+
+        self.identified_msms_spectra = identified_msms_spectra
 
         if self.mgf_paths:
             self.ms_without_psm = set([file_prefix(i) for i in self.mgf_paths]) - set(
@@ -1246,12 +1254,16 @@ class MzIdentMLModule(BasePMultiqcModule):
                 self.ms_with_psm
             )
         for i in self.ms_without_psm:
-            self.cal_num_table_data[file_prefix(i)] = {
+            num_table_at_run[file_prefix(i)] = {
                 "protein_num": 0,
                 "peptide_num": 0,
                 "unique_peptide_num": 0,
                 "modified_peptide_num": 0,
             }
+
+        self.cal_num_table_data = {
+            "ms_runs": num_table_at_run
+        }
 
         self.total_ms2_spectra_identified = psm["spectrumID"].nunique()
         self.total_peptide_count = psm["PeptideSequence"].nunique()

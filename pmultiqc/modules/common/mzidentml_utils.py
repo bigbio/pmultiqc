@@ -44,18 +44,12 @@ def get_mzidentml_mzml_df(mzid_psm, mzml_ms_df):
 # ProteinGroups Count / Peptide ID Count
 def get_mzid_num_data(df):
 
-    num_data = dict()
     identified_spectra = dict()
     for file_name, group in df.groupby("filename"):
 
-        num_data[file_name] = {
-            "protein_num": group["accession_group"].nunique(),
-            "peptide_num": len(group[["Modifications", "PeptideSequence"]].drop_duplicates()),
-        }
-
         identified_spectra[file_name] = {"Identified": len(set(group["spectrumID"]))}
 
-    return num_data, identified_spectra
+    return identified_spectra
 
 
 # Charge-state of Per File

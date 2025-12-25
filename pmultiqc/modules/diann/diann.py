@@ -152,7 +152,6 @@ class DiannModule:
             sample_df=self.sample_df,
             file_df=self.file_df,
             ms_with_psm=self.ms_with_psm,
-            cal_num_table_data=self.cal_num_table_data,
             quantms_modified=self.quantms_modified,
             ms_paths=self.ms_paths
         )
@@ -195,7 +194,6 @@ class DiannModule:
         draw_quantms_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
-            mzml_table=self.mzml_table,
             quantms_modified=self.quantms_modified
         )
 
