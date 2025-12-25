@@ -68,6 +68,7 @@ class MzMLReader(BaseParser):
         self.ms1_bpc: dict = {}
         self.ms1_peaks: dict = {}
         self.ms1_general_stats: dict = {}
+        self.current_sum_by_run: dict = {}
         self.mzml_ms_df: pd.DataFrame = pd.DataFrame()
 
         self.log = get_logger("pmultiqc.modules.common.ms.mzml")
@@ -82,6 +83,7 @@ class MzMLReader(BaseParser):
         ms1_bpc = dict()
         ms1_peaks = dict()
         ms1_general_stats = dict()
+        current_sum_by_run = dict()
 
         for file_name in self.file_paths:
             ms1_number = 0
@@ -201,6 +203,7 @@ class MzMLReader(BaseParser):
                 ms1_bpc[m_name],
                 ms1_peaks[m_name],
                 ms1_general_stats[m_name],
+                current_sum_by_run[m_name],
             ) = get_ms_qc_info(spectrums_df)
 
         self.mzml_table = mzml_table
@@ -217,5 +220,6 @@ class MzMLReader(BaseParser):
         self.ms1_bpc = ms1_bpc
         self.ms1_peaks = ms1_peaks
         self.ms1_general_stats = ms1_general_stats
+        self.current_sum_by_run = current_sum_by_run
 
         return None

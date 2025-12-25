@@ -703,8 +703,8 @@ def draw_quantms_identi_num(
             }
         else:
             for sample in sorted(
-                    sample_df["Sample"].tolist(),
-                    key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+                sample_df["Sample"].tolist(),
+                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
             ):
 
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
@@ -930,9 +930,9 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
 
 
 def draw_num_pep_per_protein(
-        sub_sections,
-        pep_plot,
-        enable_mzid: bool = False
+    sub_sections,
+    pep_plot,
+    enable_mzid: bool = False
 ):
     if any([len(i) >= 100 for i in pep_plot.dict["data"].values()]):
         data_labels = ["Frequency", "Percentage"]

@@ -5,6 +5,10 @@ import copy
 from collections import OrderedDict
 import numpy as np
 
+from typing import Dict, List
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
+
 from sdrf_pipelines.openms.openms import OpenMS
 
 from pmultiqc.modules.common.histogram import Histogram
@@ -94,6 +98,7 @@ def parse_mzml(
     ms1_bpc = dict()
     ms1_peaks = dict()
     ms1_general_stats = dict()
+    current_sum_by_run = dict()
 
     if is_bruker and read_ms_info:
         for file in ms_info_path:
@@ -108,6 +113,7 @@ def parse_mzml(
                 ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")],
                 ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")],
                 ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")],
+                _,
             ) = ms_io.get_ms_qc_info(mzml_df)
 
             log.info(
@@ -164,6 +170,7 @@ def parse_mzml(
         ms1_bpc = msinfo_reader.ms1_bpc
         ms1_peaks = msinfo_reader.ms1_peaks
         ms1_general_stats = msinfo_reader.ms1_general_stats
+        current_sum_by_run = msinfo_reader.current_sum_by_run
     else:
         from pmultiqc.modules.common.ms.mzml import MzMLReader
 
@@ -191,6 +198,7 @@ def parse_mzml(
         ms1_bpc = mzml_reader.ms1_bpc
         ms1_peaks = mzml_reader.ms1_peaks
         ms1_general_stats = mzml_reader.ms1_general_stats
+        current_sum_by_run = mzml_reader.current_sum_by_run
 
         if enable_mzid:
             mzml_ms_df = mzml_reader.mzml_ms_df
@@ -265,7 +273,8 @@ def parse_mzml(
         ms1_tic,
         ms1_bpc,
         ms1_peaks,
-        ms1_general_stats
+        ms1_general_stats,
+        current_sum_by_run
     )
 
 
@@ -533,7 +542,7 @@ def aggregate_msms_identified_rate(
 
             identified_by_sample[sample_key] = {"Identified": sample_identified_ms2}
             ms2_num_by_sample[sample_key] = {"MS2_Num": sample_all_ms2}
-            
+
         identified_rate_by_sample = cal_msms_identified_rate(
             ms2_num_data=ms2_num_by_sample,
             identified_data=identified_by_sample
@@ -564,3 +573,84 @@ def group_charge(df, group_col, charge_col):
 
     return table
 
+
+def cal_curr_sum_log(sum_by_run, curr_type, file_df_by_sample):
+    # curr_type: "total_curr" or "scan_curr"
+
+    runs = set(file_df_by_sample["Run"].tolist())
+
+    curr_value = sum(
+        sum_by_run[k][curr_type] for k in runs if k in sum_by_run
+    )
+
+    return float(np.log10(max(curr_value, 1e-12)))
+
+
+def aggregate_general_stats(
+    ms1_general_stats,
+    current_sum_by_run,
+    sdrf_file_df
+):
+
+    if sdrf_file_df.empty:
+
+        rows_by_group = dict()
+
+        for sample, value in ms1_general_stats.items():
+
+            rows_by_group[sample] = {
+                "AcquisitionDateTime": value.get("AcquisitionDateTime", "-"),
+                "log10(TotalCurrent)": value.get("log10(TotalCurrent)", "-"),
+                "log10(ScanCurrent)": value.get("log10(ScanCurrent)", "-"),
+            }
+    else:
+
+        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
+
+        for sample in sorted(
+            sdrf_file_df["Sample"].drop_duplicates().tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+        ):
+
+            file_df_sample = sdrf_file_df[sdrf_file_df["Sample"] == sample].copy()
+
+            total_curr_sample = cal_curr_sum_log(
+                sum_by_run=current_sum_by_run,
+                curr_type="total_curr",
+                file_df_by_sample=file_df_sample
+            )
+            scan_curr_sample = cal_curr_sum_log(
+                sum_by_run=current_sum_by_run,
+                curr_type="scan_curr",
+                file_df_by_sample=file_df_sample
+            )
+
+            row_data: List[InputRow] = []
+            row_data.append(
+                InputRow(
+                    sample=SampleName(f"Sample {str(sample)}"),
+                    data={
+                        "AcquisitionDateTime": "-",
+                        "log10(TotalCurrent)": total_curr_sample,
+                        "log10(ScanCurrent)": scan_curr_sample,
+                    },
+                )
+            )
+            for _, row in file_df_sample.iterrows():
+
+                run_data_temp = ms1_general_stats.get(row["Run"], {})
+
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(row["Run"]),
+                        data={
+                            "AcquisitionDateTime": run_data_temp.get("AcquisitionDateTime", ""),
+                            "log10(TotalCurrent)": run_data_temp.get("log10(TotalCurrent)", ""),
+                            "log10(ScanCurrent)": run_data_temp.get("log10(ScanCurrent)", ""),
+                        },
+                    )
+                )
+            group_name: SampleGroup = SampleGroup(sample)
+            rows_by_group[group_name] = row_data
+    
+    return rows_by_group

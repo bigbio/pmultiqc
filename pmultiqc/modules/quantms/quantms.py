@@ -34,7 +34,8 @@ from pmultiqc.modules.common.common_utils import (
     cal_num_table_at_sample,
     aggregate_msms_identified_rate,
     summarize_modifications,
-    group_charge
+    group_charge,
+    aggregate_general_stats
 )
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.ms import idxml as ms_idxml
@@ -258,7 +259,8 @@ class QuantMSModule:
             self.ms1_tic,
             self.ms1_bpc,
             self.ms1_peaks,
-            self.ms1_general_stats
+            self.ms1_general_stats,
+            self.current_sum_by_run
         ) = parse_mzml(
             is_bruker=self.is_bruker,
             read_ms_info=self.read_ms_info,
@@ -283,12 +285,18 @@ class QuantMSModule:
 
     def draw_plots(self):
 
+        general_stats_data = aggregate_general_stats(
+            ms1_general_stats=self.ms1_general_stats,
+            current_sum_by_run=self.current_sum_by_run,
+            sdrf_file_df=self.file_df
+        )
+
         draw_ms_information(
             self.sub_sections["ms1"],
             self.ms1_tic,
             self.ms1_bpc,
             self.ms1_peaks,
-            self.ms1_general_stats
+            general_stats_data
         )
 
         # quantms: DIA
