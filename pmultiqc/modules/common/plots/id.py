@@ -382,7 +382,7 @@ def draw_quantms_identification(
     msms_identified_rate=None
 ):
 
-    if cal_num_table_data.get("sdrf_samples"):
+    if cal_num_table_data and cal_num_table_data.get("sdrf_samples"):
         plot_label = ["by Run", "by Sample"]
     else:
         plot_label = ["by Run"]
@@ -635,12 +635,15 @@ def draw_quantms_identi_num(
                 sample_data = {}
                 for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                     sample_data["MSstats_Condition_" + str(k)] = v
+
                 sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
                 sample_data["Fraction"] = ""
-                sample_data["Peptide_Num"] = sdrf_samples_data[sample].get("peptide_num", "")
-                sample_data["Unique_Peptide_Num"] = sdrf_samples_data[sample].get("unique_peptide_num", "")
-                sample_data["Modified_Peptide_Num"] = sdrf_samples_data[sample].get("modified_peptide_num", "")
-                sample_data["Protein_Num"] = sdrf_samples_data[sample].get("protein_num", "")
+
+                sample_data_temp = sdrf_samples_data.get(sample, {})
+                sample_data["Peptide_Num"] = sample_data_temp.get("peptide_num", "")
+                sample_data["Unique_Peptide_Num"] = sample_data_temp.get("unique_peptide_num", "")
+                sample_data["Modified_Peptide_Num"] = sample_data_temp.get("modified_peptide_num", "")
+                sample_data["Protein_Num"] = sample_data_temp.get("protein_num", "")
 
                 row_data.append(
                     InputRow(
@@ -653,11 +656,14 @@ def draw_quantms_identi_num(
                     sample_data = {}
                     for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                         sample_data["MSstats_Condition_" + str(k)] = ""
+
                     sample_data["Fraction"] = row["Fraction"]
-                    sample_data["Peptide_Num"] = ms_runs_data[row["Run"]]["peptide_num"]
-                    sample_data["Unique_Peptide_Num"] = ms_runs_data[row["Run"]]["unique_peptide_num"]
-                    sample_data["Modified_Peptide_Num"] = ms_runs_data[row["Run"]]["modified_peptide_num"]
-                    sample_data["Protein_Num"] = ms_runs_data[row["Run"]]["protein_num"]
+
+                    run_data_temp = ms_runs_data.get(row["Run"], {})
+                    sample_data["Peptide_Num"] = run_data_temp.get("peptide_num", "")
+                    sample_data["Unique_Peptide_Num"] = run_data_temp.get("unique_peptide_num", "")
+                    sample_data["Modified_Peptide_Num"] = run_data_temp.get("modified_peptide_num", "")
+                    sample_data["Protein_Num"] = run_data_temp.get("protein_num", "")
 
                     row_data.append(
                         InputRow(
@@ -703,6 +709,9 @@ def draw_quantms_identi_num(
 
                 file_df_sample = file_df[file_df["Sample"] == sample].copy()
                 sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
+
+                sapmle_data_temp = sdrf_samples_data.get(sample, {})
+
                 row_data: List[InputRow] = []
                 row_data.append(
                     InputRow(
@@ -710,24 +719,27 @@ def draw_quantms_identi_num(
                         data={
                             "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
                             "Fraction": "",
-                            "Peptide_Num": sdrf_samples_data[sample].get("peptide_num", ""),
-                            "Unique_Peptide_Num": sdrf_samples_data[sample].get("unique_peptide_num", ""),
-                            "Modified_Peptide_Num": sdrf_samples_data[sample].get("modified_peptide_num", ""),
-                            "Protein_Num": sdrf_samples_data[sample].get("protein_num", ""),
+                            "Peptide_Num": sapmle_data_temp.get("peptide_num", ""),
+                            "Unique_Peptide_Num": sapmle_data_temp.get("unique_peptide_num", ""),
+                            "Modified_Peptide_Num": sapmle_data_temp.get("modified_peptide_num", ""),
+                            "Protein_Num": sapmle_data_temp.get("protein_num", ""),
                         },
                     )
                 )
                 for _, row in file_df_sample.iterrows():
+
+                    run_data_temp = ms_runs_data.get(row["Run"], {})
+
                     row_data.append(
                         InputRow(
                             sample=SampleName(row["Run"]),
                             data={
                                 "MSstats_Condition": "",
                                 "Fraction": row["Fraction"],
-                                "Peptide_Num": ms_runs_data[row["Run"]]["peptide_num"],
-                                "Unique_Peptide_Num": ms_runs_data[row["Run"]]["unique_peptide_num"],
-                                "Modified_Peptide_Num": ms_runs_data[row["Run"]]["modified_peptide_num"],
-                                "Protein_Num": ms_runs_data[row["Run"]]["protein_num"],
+                                "Peptide_Num": run_data_temp.get("peptide_num", ""),
+                                "Unique_Peptide_Num": run_data_temp.get("unique_peptide_num", ""),
+                                "Modified_Peptide_Num": run_data_temp.get("modified_peptide_num", ""),
+                                "Protein_Num": run_data_temp.get("protein_num", ""),
                             },
                         )
                     )

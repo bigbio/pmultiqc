@@ -452,7 +452,7 @@ def cal_num_table_at_sample(file_df, data_per_run):
 
     if file_df.empty:
         return dict()
-    
+
     sample_file_df = file_df.copy()
     sample_file_df["Sample"] = sample_file_df["Sample"].astype(int)
 
@@ -464,7 +464,11 @@ def cal_num_table_at_sample(file_df, data_per_run):
         modified_pep_set = set()
 
         for run in group["Run"].unique():
-            run_data = data_per_run[run]
+
+            run_data = data_per_run.get(run)
+            if not run_data:
+                continue
+
             proteins_set.update(run_data.get("proteins", []))
             peptides_set.update(run_data.get("peptides", []))
             unique_peptides_set.update(run_data.get("unique_peptides", []))

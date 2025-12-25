@@ -45,7 +45,7 @@ def pmultiqc_plugin_execution_start():
         config.custom_logo_title = "pmultiqc"
 
         # Supported starting from MultiQC v1.33
-        if hasattr(config, "custom_logo_width"):
+        if hasattr(config, "custom_logo_dark"):
             config.custom_logo_dark = str(pmultiqc_logo_dark)
 
         if hasattr(config, "custom_logo_width"):

@@ -211,7 +211,7 @@ def draw_dia_ms2_charge(sub_section, df, sdrf_file_df):
 
         bar_data = stat_data_by_run.to_dict(orient="index")
         plot_label = ["by Run"]
-    
+
     else:
         df = df.merge(
             right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
