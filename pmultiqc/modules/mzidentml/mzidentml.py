@@ -146,6 +146,8 @@ class MzIdentMLModule(BasePMultiqcModule):
                     sdrf_file_df=None
                 )
 
+                self.mzid_cal_heat_map_score(mzidentml_df)
+
                 id_plots.draw_quantms_identification(
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
@@ -153,8 +155,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                     quantms_modified=self.quantms_modified,
                     msms_identified_rate=msms_identified_rate
                 )
-
-                self.mzid_cal_heat_map_score(mzidentml_df)
 
         return True
 
@@ -866,10 +866,12 @@ class MzIdentMLModule(BasePMultiqcModule):
                 how="left",
             )
 
+        missed_cleavages_by_run = dict()
+
         for name, group in psm.groupby("filename"):
             sc = group["missed_cleavages"].value_counts()
 
-            self.quantms_missed_cleavages[name] = sc.to_dict()
+            missed_cleavages_by_run[name] = sc.to_dict()
 
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
@@ -892,6 +894,10 @@ class MzIdentMLModule(BasePMultiqcModule):
                     / global_peps_count
             )
             self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
+
+        self.quantms_missed_cleavages = {
+            "ms_runs": missed_cleavages_by_run,
+        }
 
         median = np.median(list(self.missed_clevages_heatmap_score.values()))
         self.missed_cleavages_var_score = dict(

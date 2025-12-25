@@ -490,7 +490,8 @@ def draw_quantms_identification(
         mc_ratio = list()
 
         for k in ["ms_runs", "sdrf_samples"]:
-            mc_ratio.append(rebuild_dict_structure(quantms_missed_cleavages[k]))
+            if quantms_missed_cleavages.get(k, {}):
+                mc_ratio.append(rebuild_dict_structure(quantms_missed_cleavages[k]))
 
         mc_data = {
             "plot_data": mc_ratio,

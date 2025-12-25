@@ -285,7 +285,7 @@ def mod_group_percentage(df):
     if "Modifications" in df_copy.columns and "modifications" not in df_copy.columns:
         df_copy = df_copy.rename(columns={"Modifications": "modifications"})
     else:
-        log.warning('Detected both "Modifications" and "modifications" columns.')
+        raise ValueError('Detected both "Modifications" and "modifications" columns.')
 
     counts = df_copy["modifications"].str.split(",").explode().value_counts()
     percentage_df = (counts / len(df_copy["modifications"]) * 100).reset_index()
@@ -524,6 +524,7 @@ def aggregate_msms_identified_rate(
         identified_by_sample = dict()
         ms2_num_by_sample = dict()
 
+        sdrf_file_df = sdrf_file_df.copy()
         sdrf_file_df["Sample"] = sdrf_file_df["Sample"].astype(int)
 
         for sample, group in sdrf_file_df.groupby("Sample", sort=True):
