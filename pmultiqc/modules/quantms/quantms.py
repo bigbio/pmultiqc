@@ -2355,7 +2355,7 @@ def get_peptide_map_by_sample(peptide_map_by_run, sdrf_file_df):
                 peptide_by_sample.extend(run_data)
 
             peptide_map_by_sample[str(sample)] = len(set(peptide_by_sample))
-        
+
         return peptide_map_by_sample
 
 
