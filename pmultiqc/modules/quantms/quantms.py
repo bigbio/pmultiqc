@@ -2431,5 +2431,5 @@ def aggregate_spectrum_tracking(
                 )
             group_name: SampleGroup = SampleGroup(sample)
             rows_by_group[group_name] = row_data
-    
+
     return rows_by_group, header_cols
