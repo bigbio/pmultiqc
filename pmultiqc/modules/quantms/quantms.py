@@ -2165,6 +2165,7 @@ class QuantMSModule:
                 "xlab": "log2(Intensity)",
                 "data_labels": ["by Run", "by Sample"],
                 "sort_samples": False,
+                "boxpoints": False,
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
             box_html = plot_html_check(box_html)
