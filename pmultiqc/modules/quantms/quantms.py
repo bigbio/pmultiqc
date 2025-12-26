@@ -2353,7 +2353,7 @@ def get_peptide_map_by_sample(peptide_map_by_run, sdrf_file_df):
                     continue
 
                 peptide_by_sample.extend(run_data)
-            
+
             peptide_map_by_sample[str(sample)] = len(set(peptide_by_sample))
         
         return peptide_map_by_sample
@@ -2420,7 +2420,7 @@ def aggregate_spectrum_tracking(
                 run_data_temp = mzml_table.get(row["Run"], {})
 
                 run_data = dict()
-                for h in header_cols:                     
+                for h in header_cols:
                     run_data[h] = run_data_temp.get(h, "-")
 
                 row_data.append(
