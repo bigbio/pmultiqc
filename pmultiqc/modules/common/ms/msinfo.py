@@ -78,7 +78,7 @@ class MsInfoReader(BaseParser):
 
             charge_group = mzml_df.groupby("precursor_charge").size()
             ms_level_group = mzml_df.groupby("ms_level").size()
-            charge_2 = charge_group[2] if 2 in charge_group else 0
+            charge_2 = int(charge_group[2]) if 2 in charge_group else 0
             ms1_number = int(ms_level_group[1]) if 1 in ms_level_group else 0
             ms2_number = int(ms_level_group[2]) if 2 in ms_level_group else 0
             total_ms2_spectra += ms2_number

@@ -575,16 +575,15 @@ def group_charge(df, group_col, charge_col):
     return table
 
 
-def cal_curr_sum_log(sum_by_run, curr_type, file_df_by_sample):
-    # curr_type: "total_curr" or "scan_curr"
+def sum_matching_dict_values(sum_by_run, value_col, file_df_by_sample):
 
     runs = set(file_df_by_sample["Run"].tolist())
 
-    curr_value = sum(
-        sum_by_run[k][curr_type] for k in runs if k in sum_by_run
+    result = sum(
+        sum_by_run[k][value_col] for k in runs if k in sum_by_run
     )
 
-    return float(np.log10(max(curr_value, 1e-12)))
+    return result
 
 
 def aggregate_general_stats(
@@ -615,16 +614,19 @@ def aggregate_general_stats(
 
             file_df_sample = sdrf_file_df[sdrf_file_df["Sample"] == sample].copy()
 
-            total_curr_sample = cal_curr_sum_log(
+            total_curr_sample = sum_matching_dict_values(
                 sum_by_run=current_sum_by_run,
-                curr_type="total_curr",
+                value_col="total_curr",
                 file_df_by_sample=file_df_sample
             )
-            scan_curr_sample = cal_curr_sum_log(
+            total_curr_sample = float(np.log10(max(total_curr_sample, 1e-12)))
+
+            scan_curr_sample = sum_matching_dict_values(
                 sum_by_run=current_sum_by_run,
-                curr_type="scan_curr",
+                value_col="scan_curr",
                 file_df_by_sample=file_df_sample
             )
+            scan_curr_sample = float(np.log10(max(scan_curr_sample, 1e-12)))
 
             row_data: List[InputRow] = []
             row_data.append(

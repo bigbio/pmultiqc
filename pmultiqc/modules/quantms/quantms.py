@@ -23,6 +23,10 @@ from multiqc.plots import (
 from pyopenms import AASequence
 from sdrf_pipelines.openms.openms import UnimodDatabase
 
+from typing import Dict, List
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
+
 from . import sparklines
 from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.common_utils import (
@@ -35,7 +39,8 @@ from pmultiqc.modules.common.common_utils import (
     aggregate_msms_identified_rate,
     summarize_modifications,
     group_charge,
-    aggregate_general_stats
+    aggregate_general_stats,
+    sum_matching_dict_values
 )
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.ms import idxml as ms_idxml
@@ -139,6 +144,7 @@ class QuantMSModule:
 
         self.psm_table = dict()
         self.mzml_peptide_map = dict()
+        self.peptide_map_by_sample = dict()
         self.pep_quant_table = dict()
         self.mzml_table = OrderedDict()
         self.search_engine = OrderedDict()
@@ -399,8 +405,19 @@ class QuantMSModule:
                 self.pep_plot
             )
 
+            spectrum_tracking_data, spectrum_tracking_headers = aggregate_spectrum_tracking(
+                mzml_table=self.mzml_table,
+                peptide_map_by_sample=self.peptide_map_by_sample,
+                sdrf_file_df=self.file_df
+            )
+
+            draw_mzml_ms(
+                sub_section=self.sub_sections["ms2"],
+                spectrum_tracking=spectrum_tracking_data,
+                header_cols=spectrum_tracking_headers
+            )
+
             if not config.kwargs["ignored_idxml"]:
-                self.draw_mzml_ms()
                 self.draw_search_engine()
 
             draw_precursor_charge_distribution(
@@ -583,78 +600,6 @@ class QuantMSModule:
                         ]
                     )
         return heat_map_score, xnames, ynames
-
-    def draw_mzml_ms(self):
-
-        pconfig = {
-            "id": "pipeline_spectrum_tracking",  # ID used for the table
-            "title": "Pipeline Spectrum Tracking",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_spectrum_tracking_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": True,  # Only show columns that are defined in the headers config
-            "col1_header": "Spectra File",
-            # 'format': '{:,.0f}'  # The header used for the first column
-        }
-
-        headers = OrderedDict()
-        headers["MS1_Num"] = {
-            "title": "#MS1 Spectra",
-            "description": "Number of MS1 spectra",
-            "color": "#ffffff",
-        }
-        headers["MS2_Num"] = {
-            "title": "#MS2 Spectra",
-            "description": "Number of MS2 spectra",
-            "color": "#ffffff",
-        }
-
-        if any(["MSGF" in v for k, v in self.mzml_table.items()]):
-            headers["MSGF"] = {
-                "description": "Number of spectra identified by MSGF search engine",
-                "color": "#ffffff",
-            }
-        if any(["Comet" in v for k, v in self.mzml_table.items()]):
-            headers["Comet"] = {
-                "description": "Number of spectra identified by Comet search engine",
-                "color": "#ffffff",
-            }
-        if any(["Sage" in v for k, v in self.mzml_table.items()]):
-            headers["Sage"] = {
-                "description": "Number of spectra identified by Sage search engine",
-                "color": "#ffffff",
-            }
-        headers["num_quant_psms"] = {
-            "title": "#PSMs from quant. peptides",
-            "description": "Number of reliable PSMs from peptides IDs used in quantification",
-            "color": "#ffffff",
-        }
-        headers["num_quant_peps"] = {
-            "title": "#Peptides quantified",
-            "description": "Number of quantified peptides that passed final protein and peptide FDR thresholds.",
-            "color": "#ffffff",
-        }
-        table_html = table.plot(self.mzml_table, headers, pconfig)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=table_html,
-            order=4,
-            description="This plot shows the tracking of the number of spectra along the quantms pipeline",
-            helptext="""
-                This table shows the changes in the number of spectra corresponding to each input file 
-                during the pipeline operation. And the number of peptides finally identified and quantified is obtained from 
-                the PSM table in the mzTab file. You can also remove decoys with the `remove_decoy` parameter.:
-
-                * MS1_Num: The number of MS1 spectra extracted from mzMLs
-                * MS2_Num: The number of MS2 spectra extracted from mzMLs
-                * MSGF: The Number of spectra identified by MSGF search engine
-                * Comet: The Number of spectra identified by Comet search engine
-                * Sage: The Number of spectra identified by Sage search engine
-                * PSMs from quant. peptides: extracted from PSM table in mzTab file
-                * Peptides quantified: extracted from PSM table in mzTab file
-                """,
-        )
 
     def draw_delta_mass(self):
 
@@ -1446,7 +1391,11 @@ class QuantMSModule:
             self.identified_spectrum[m] = list(
                 map(lambda x: x.split(":")[1], group["spectra_ref"])
             )
-            self.mzml_peptide_map[m] = list(set(group["sequence"].tolist()))
+            self.mzml_peptide_map[m] = list(
+                set(
+                    group[group["opt_global_q-value"] <= 0.01]["sequence"].tolist()
+                )
+            )
 
             if None in proteins:
                 proteins.remove(None)
@@ -1477,6 +1426,12 @@ class QuantMSModule:
             "sdrf_samples": num_table_at_sample,
             "ms_runs": num_table_at_run
         }
+
+        # Pipeline Spectrum Tracking (Peptides quantified by Sample)
+        self.peptide_map_by_sample = get_peptide_map_by_sample(
+            peptide_map_by_run=self.mzml_peptide_map,
+            sdrf_file_df=self.file_df
+        )
 
         # Modifications
         mod_plot_by_sample = sample_level_modifications(
@@ -2246,6 +2201,68 @@ class QuantMSModule:
             )
 
 
+def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
+
+    pconfig = {
+        "id": "pipeline_spectrum_tracking",  # ID used for the table
+        "title": "Pipeline Spectrum Tracking",  # Title of the table. Used in the column config modal
+        "save_file": False,  # Whether to save the table data to a file
+        "raw_data_fn": "multiqc_spectrum_tracking_table",  # File basename to use for raw data file
+    }
+
+    headers = OrderedDict()
+    headers["MS1_Num"] = {
+        "title": "#MS1 Spectra",
+        "description": "Number of MS1 spectra",
+    }
+    headers["MS2_Num"] = {
+        "title": "#MS2 Spectra",
+        "description": "Number of MS2 spectra",
+    }
+
+    if "MSGF" in header_cols:
+        headers["MSGF"] = {
+            "description": "Number of spectra identified by MSGF search engine",
+        }
+    if "Comet" in header_cols:
+        headers["Comet"] = {
+            "description": "Number of spectra identified by Comet search engine",
+        }
+    if "Sage" in header_cols:
+        headers["Sage"] = {
+            "description": "Number of spectra identified by Sage search engine",
+        }
+    headers["num_quant_psms"] = {
+        "title": "#PSMs from quant. peptides",
+        "description": "Number of reliable PSMs from peptides IDs used in quantification",
+    }
+    headers["num_quant_peps"] = {
+        "title": "#Peptides quantified",
+        "description": "Number of quantified peptides that passed final protein and peptide FDR thresholds.",
+    }
+    table_html = table.plot(spectrum_tracking, headers, pconfig)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=table_html,
+        order=4,
+        description="This plot shows the tracking of the number of spectra along the quantms pipeline",
+        helptext="""
+            This table shows the changes in the number of spectra corresponding to each input file 
+            during the pipeline operation. And the number of peptides finally identified and quantified is obtained from 
+            the PSM table in the mzTab file. You can also remove decoys with the `remove_decoy` parameter.:
+
+            * MS1_Num: The number of MS1 spectra extracted from mzMLs
+            * MS2_Num: The number of MS2 spectra extracted from mzMLs
+            * MSGF: The Number of spectra identified by MSGF search engine
+            * Comet: The Number of spectra identified by Comet search engine
+            * Sage: The Number of spectra identified by Sage search engine
+            * PSMs from quant. peptides: extracted from PSM table in mzTab file
+            * Peptides quantified: extracted from PSM table in mzTab file
+            """,
+    )
+
+
 def find_modification(peptide):
     peptide = str(peptide)
     pattern = re.compile(r"\((.*?)\)")
@@ -2315,3 +2332,103 @@ def sample_level_modifications(df, sdrf_file_df):
 
     return mod_plot
 
+
+def get_peptide_map_by_sample(peptide_map_by_run, sdrf_file_df):
+
+    if sdrf_file_df.empty:
+        return {}
+    else:
+        file_df = sdrf_file_df.copy()
+        file_df["Sample"] = file_df["Sample"].astype(int)
+
+        peptide_map_by_sample = dict()
+        for sample, group in file_df.groupby("Sample", sort=True):
+
+            peptide_by_sample = list()
+            for run in group["Run"].unique():
+
+                run_data = peptide_map_by_run.get(run)
+                if not run_data:
+                    continue
+
+                peptide_by_sample.extend(run_data)
+            
+            peptide_map_by_sample[str(sample)] = len(set(peptide_by_sample))
+        
+        return peptide_map_by_sample
+
+
+def aggregate_spectrum_tracking(
+    mzml_table,
+    peptide_map_by_sample,
+    sdrf_file_df
+):
+
+    header_cols = [
+        "MS1_Num", "MS2_Num", "MSGF", "Comet", "Sage", "num_quant_psms", "num_quant_peps"
+    ]
+
+    for i in header_cols:
+        if any([i in v for k, v in mzml_table.items()]):
+            pass
+        else:
+            header_cols.remove(i)
+
+    if sdrf_file_df.empty:
+
+        rows_by_group = dict()
+        for sample, value in mzml_table.items():
+            for h in header_cols:
+                rows_by_group[sample] = {
+                    h: value.get(h, "-")
+                }
+    else:
+
+        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
+
+        for sample in sorted(
+            sdrf_file_df["Sample"].drop_duplicates().tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+        ):
+
+            file_df_sample = sdrf_file_df[sdrf_file_df["Sample"] == sample].copy()
+
+            sample_data_temp = dict()
+
+            for h in header_cols:
+
+                if h == "num_quant_peps":
+                    sample_data_temp[h] = peptide_map_by_sample.get(sample, "-")
+                    continue
+
+                sample_data_temp[h] = sum_matching_dict_values(
+                    sum_by_run=mzml_table,
+                    value_col=h,
+                    file_df_by_sample=file_df_sample
+                )
+
+            row_data: List[InputRow] = []
+            row_data.append(
+                InputRow(
+                    sample=SampleName(f"Sample {str(sample)}"),
+                    data=sample_data_temp,
+                )
+            )
+            for _, row in file_df_sample.iterrows():
+
+                run_data_temp = mzml_table.get(row["Run"], {})
+
+                run_data = dict()
+                for h in header_cols:                     
+                    run_data[h] = run_data_temp.get(h, "-")
+
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(row["Run"]),
+                        data=run_data,
+                    )
+                )
+            group_name: SampleGroup = SampleGroup(sample)
+            rows_by_group[group_name] = row_data
+    
+    return rows_by_group, header_cols
