@@ -113,6 +113,7 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
         "xlab": "log2(Precursor.Quantity)",
         "data_labels": plot_label,
         "sort_samples": False,
+        "boxpoints": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
@@ -143,6 +144,7 @@ def draw_dia_ms1_area(sub_section, df):
         "title": "Ms1 Area Distribution",
         "tt_decimals": 5,
         "xlab": "log2(Ms1.Area)",
+        "boxpoints": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
@@ -279,6 +281,7 @@ def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
         "cpswitch": False,
         "tt_decimals": 5,
         "xlab": "Standard Deviation of log2(Precursor.Quantity)",
+        "boxpoints": False,
     }
 
     box_html = box.plot(

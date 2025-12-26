@@ -32,10 +32,10 @@ def parse_diann_report(
         diann_report_path,
         heatmap_color_list,
         sample_df,
-        file_df,
         ms_with_psm,
         quantms_modified,
         ms_paths,
+        file_df=pd.DataFrame(),
         msstats_input_valid=False
 ):
     """Parse DIA-NN report and generate plots and statistics."""
@@ -835,6 +835,9 @@ def create_protein_table(report_df, sample_df, file_df):
 
 
 def dia_sample_level_modifications(df, sdrf_file_df):
+
+    if sdrf_file_df.empty:
+        return {}
 
     report_data = df.copy()
 

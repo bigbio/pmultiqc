@@ -68,11 +68,15 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
     scan_curr = float(ms2_info["summed_peak_intensities"].sum())
     general_stats = {
         "AcquisitionDateTime": ms1_info["acquisition_datetime"].iloc[0],
-        "log10(TotalCurrent)": np.log10(max(total_curr, 1e-12)),
-        "log10(ScanCurrent)": np.log10(max(scan_curr, 1e-12)),
+        "log10(TotalCurrent)": float(np.log10(max(total_curr, 1e-12))),
+        "log10(ScanCurrent)": float(np.log10(max(scan_curr, 1e-12))),
+    }
+    current_sum = {
+        "total_curr": total_curr,
+        "scan_curr": scan_curr
     }
 
-    return tic_data, bpc_data, ms1_peaks, general_stats
+    return tic_data, bpc_data, ms1_peaks, general_stats, current_sum
 
 def add_ms_values(
         info_df,

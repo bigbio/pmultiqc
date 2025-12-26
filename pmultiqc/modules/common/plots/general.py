@@ -104,8 +104,8 @@ def draw_exp_design(sub_sections, exp_design):
 
     if is_multi_conditions:
         for sample in sorted(
-                sample_df["Sample"].tolist(),
-                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+            sample_df["Sample"].tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
         ):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
@@ -176,8 +176,8 @@ def draw_exp_design(sub_sections, exp_design):
         }
     else:
         for sample in sorted(
-                sample_df["Sample"].tolist(),
-                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+            sample_df["Sample"].tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
         ):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
@@ -250,6 +250,7 @@ def draw_exp_design(sub_sections, exp_design):
         "raw_data_fn": "multiqc_Experimental_Design_table",
         "no_violin": True,
     }
+
     table_html = table.plot(rows_by_group, headers, pconfig)
     add_sub_section(
         sub_section=sub_sections,

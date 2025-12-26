@@ -9,7 +9,7 @@ def draw_ms_information(
         ms1_tic=None,
         ms1_bpc=None,
         ms1_peaks=None,
-        ms1_general_stats=None
+        general_stats_data=None
 ):
     if ms1_tic:
         ms1_tic_config = {
@@ -80,20 +80,34 @@ def draw_ms_information(
             """,
         )
 
-    if ms1_general_stats:
+    if general_stats_data:
         tconfig = {
             "id": "ms_general_stats",
             "title": "General stats for MS1 information",
-            "only_defined_headers": True,
-            "col1_header": "File",
+            "save_file": False,
+            "raw_data_fn": "ms_general_stats_table",
+            "no_violin": True,
         }
         headers = {
-            "File": {"title": "File"},
-            "AcquisitionDateTime": {"title": "Acquisition Date Time"},
-            "log10(TotalCurrent)": {"title": "log10(Total Current)", "format": "{:,.4f}"},
-            "log10(ScanCurrent)": {"title": "log10(Scan Current)", "format": "{:,.4f}"},
+            "Sample": {
+                "title": "Sample [Spectra File]",
+                "description": "",
+                "scale": False,
+            },
+            "AcquisitionDateTime": {
+                "title": "Acquisition Date Time",
+            },
+            "log10(TotalCurrent)": {
+                "title": "log10(Total Current)",
+                "format": "{:,.4f}",
+            },
+            "log10(ScanCurrent)": {
+                "title": "log10(Scan Current)",
+                "format": "{:,.4f}",
+            },
         }
-        table_html = table.plot(ms1_general_stats, headers=headers, pconfig=tconfig)
+
+        table_html = table.plot(general_stats_data, headers=headers, pconfig=tconfig)
         add_sub_section(
             sub_section=sub_sections,
             plot=table_html,

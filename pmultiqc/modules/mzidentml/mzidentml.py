@@ -146,6 +146,8 @@ class MzIdentMLModule(BasePMultiqcModule):
                     sdrf_file_df=None
                 )
 
+                self.mzid_cal_heat_map_score(mzidentml_df)
+
                 id_plots.draw_quantms_identification(
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
@@ -153,8 +155,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                     quantms_modified=self.quantms_modified,
                     msms_identified_rate=msms_identified_rate
                 )
-
-                self.mzid_cal_heat_map_score(mzidentml_df)
 
         return True
 
@@ -319,78 +319,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                 This plot shows the submitted results.
                 Including the number of identified peptides and the number of identified modified peptides in the submitted results. 
                 You can also remove the decoy with the `remove_decoy` parameter.
-                """,
-        )
-
-    def draw_mzml_ms(self):
-
-        pconfig = {
-            "id": "pipeline_spectrum_tracking",  # ID used for the table
-            "title": "Pipeline Spectrum Tracking",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_spectrum_tracking_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": True,  # Only show columns that are defined in the headers config
-            "col1_header": "Spectra File",
-            # 'format': '{:,.0f}'  # The header used for the first column
-        }
-
-        headers = OrderedDict()
-        headers["MS1_Num"] = {
-            "title": "#MS1 Spectra",
-            "description": "Number of MS1 spectra",
-            "color": "#ffffff",
-        }
-        headers["MS2_Num"] = {
-            "title": "#MS2 Spectra",
-            "description": "Number of MS2 spectra",
-            "color": "#ffffff",
-        }
-
-        if any(["MSGF" in v for k, v in self.mzml_table.items()]):
-            headers["MSGF"] = {
-                "description": "Number of spectra identified by MSGF search engine",
-                "color": "#ffffff",
-            }
-        if any(["Comet" in v for k, v in self.mzml_table.items()]):
-            headers["Comet"] = {
-                "description": "Number of spectra identified by Comet search engine",
-                "color": "#ffffff",
-            }
-        if any(["Sage" in v for k, v in self.mzml_table.items()]):
-            headers["Sage"] = {
-                "description": "Number of spectra identified by Sage search engine",
-                "color": "#ffffff",
-            }
-        headers["num_quant_psms"] = {
-            "title": "#PSMs from quant. peptides",
-            "description": "Number of reliable PSMs from peptides IDs used in quantification",
-            "color": "#ffffff",
-        }
-        headers["num_quant_peps"] = {
-            "title": "#Peptides quantified",
-            "description": "Number of quantified peptides that passed final protein and peptide FDR thresholds.",
-            "color": "#ffffff",
-        }
-        table_html = table.plot(self.mzml_table, headers, pconfig)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=table_html,
-            order=4,
-            description="This plot shows the tracking of the number of spectra along the quantms pipeline",
-            helptext="""
-                This table shows the changes in the number of spectra corresponding to each input file 
-                during the pipeline operation. And the number of peptides finally identified and quantified is obtained from 
-                the PSM table in the mzTab file. You can also remove decoys with the `remove_decoy` parameter.:
-
-                * MS1_Num: The number of MS1 spectra extracted from mzMLs
-                * MS2_Num: The number of MS2 spectra extracted from mzMLs
-                * MSGF: The Number of spectra identified by MSGF search engine
-                * Comet: The Number of spectra identified by Comet search engine
-                * Sage: The Number of spectra identified by Sage search engine
-                * PSMs from quant. peptides: extracted from PSM table in mzTab file
-                * Peptides quantified: extracted from PSM table in mzTab file
                 """,
         )
 
@@ -866,10 +794,12 @@ class MzIdentMLModule(BasePMultiqcModule):
                 how="left",
             )
 
+        missed_cleavages_by_run = dict()
+
         for name, group in psm.groupby("filename"):
             sc = group["missed_cleavages"].value_counts()
 
-            self.quantms_missed_cleavages[name] = sc.to_dict()
+            missed_cleavages_by_run[name] = sc.to_dict()
 
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
@@ -892,6 +822,10 @@ class MzIdentMLModule(BasePMultiqcModule):
                     / global_peps_count
             )
             self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
+
+        self.quantms_missed_cleavages = {
+            "ms_runs": missed_cleavages_by_run,
+        }
 
         median = np.median(list(self.missed_clevages_heatmap_score.values()))
         self.missed_cleavages_var_score = dict(

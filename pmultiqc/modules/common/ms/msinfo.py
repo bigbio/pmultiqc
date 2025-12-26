@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -51,6 +50,7 @@ class MsInfoReader(BaseParser):
         self.ms1_bpc: dict = {}
         self.ms1_peaks: dict = {}
         self.ms1_general_stats: dict = {}
+        self.current_sum_by_run: dict = {}
 
         self.log = get_logger("pmultiqc.modules.common.ms.msinfo")
 
@@ -62,6 +62,7 @@ class MsInfoReader(BaseParser):
         ms1_bpc = {}
         ms1_peaks = {}
         ms1_general_stats = {}
+        current_sum_by_run = {}
 
         for file in self.file_paths:
             self.log.info(
@@ -76,7 +77,7 @@ class MsInfoReader(BaseParser):
 
             charge_group = mzml_df.groupby("precursor_charge").size()
             ms_level_group = mzml_df.groupby("ms_level").size()
-            charge_2 = charge_group[2] if 2 in charge_group else 0
+            charge_2 = int(charge_group[2]) if 2 in charge_group else 0
             ms1_number = int(ms_level_group[1]) if 1 in ms_level_group else 0
             ms2_number = int(ms_level_group[2]) if 2 in ms_level_group else 0
             total_ms2_spectra += ms2_number
@@ -85,10 +86,11 @@ class MsInfoReader(BaseParser):
             mzml_table[m_name].update({"Charge_2": mzml_table[m_name]["Charge_2"] + charge_2})
 
             (
-                ms1_tic[os.path.basename(file).replace("_ms_info.parquet", "")],
-                ms1_bpc[os.path.basename(file).replace("_ms_info.parquet", "")],
-                ms1_peaks[os.path.basename(file).replace("_ms_info.parquet", "")],
-                ms1_general_stats[os.path.basename(file).replace("_ms_info.parquet", "")],
+                ms1_tic[m_name],
+                ms1_bpc[m_name],
+                ms1_peaks[m_name],
+                ms1_general_stats[m_name],
+                current_sum_by_run[m_name],
             ) = get_ms_qc_info(mzml_df)
 
             group = mzml_df[mzml_df["ms_level"] == 2]
@@ -154,5 +156,7 @@ class MsInfoReader(BaseParser):
         self.ms1_general_stats = {
             k: v for k, v in ms1_general_stats.items() if v is not None
         }
+
+        self.current_sum_by_run = current_sum_by_run
 
         return None
