@@ -247,6 +247,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
+            "boxpoints": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
@@ -280,6 +281,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
+            "boxpoints": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
@@ -314,6 +316,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
+            "boxpoints": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
