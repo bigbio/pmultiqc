@@ -96,9 +96,9 @@ function draw_sparkline(table_dict){
                 }
             }
         };
-        
+
         options = Highcharts.merge(defaultOptions, options);
-        
+
         return hasRenderToArg ?
             new Highcharts.Chart(a, options, c) :
             new Highcharts.Chart(options, b);
@@ -114,7 +114,7 @@ function draw_sparkline(table_dict){
 
     function doChunk() {
         len = sparkline_tds.length;
-        
+
         for (let i = 0; i < len; i += 1) {
             const td = sparkline_tds[i];
             const stringdata = td.dataset.sparkline;
@@ -129,7 +129,7 @@ function draw_sparkline(table_dict){
             }
             const chart = {};
             chart.type = 'column'
-        
+
             td.setAttribute("width", series.length * 30)
             chart.width = td.getAttribute('width')
             chart.height = 50
@@ -209,7 +209,7 @@ $(document).ready(function () {
         } else{
             var span = this.getElementsByTagName("span")[0].innerText;
         };
-        
+
         if((this.getAttribute("class").indexOf("headerSortUp") == -1) && (this.getAttribute("class").indexOf("headerSortDown") == -1)){
             $(this).attr('class', $(this).attr('class') + " headerSortUp");
             sortOrder = "headerSortUp";
@@ -220,14 +220,14 @@ $(document).ready(function () {
             $(this).attr('class', $(this).attr('class').replace("headerSortDown", "headerSortUp"));
             sortOrder = "headerSortUp";
         };
-        
+
         for(i=0; i<pep_header_ths.length; i++){
             if(i==0){
                 previous_span = "ID"
             } else {
                 previous_span = pep_header_ths[i].getElementsByTagName("span")[0].innerText;
             }
-            
+
             if(previous_span != span){
                 pep_header_ths[i].setAttribute('class', pep_header_ths[i].className.replace(" headerSortUp", "").replace(" headerSortDown", ""));
             };
@@ -240,12 +240,12 @@ $(document).ready(function () {
     $("#peptide-distribution-button").click(function() {
         if(this.innerText == " Show replicates"){
             $("#quantification_of_peptides tr").css("height", "50px");
-            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";
             $("#quantification_of_peptides .col-condition").css("display", "none");
             $("#quantification_of_peptides .col-condition-sparkline").css("display", "table-cell");
         } else{
             $("#quantification_of_peptides tr").css("height", "100%");
-            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates";
             $("#quantification_of_peptides .col-condition").css("display", "table-cell");
             $("#quantification_of_peptides .col-condition-sparkline").css("display", "none");
         }
@@ -285,14 +285,14 @@ async function quantNext(order, column){
 			}
 		}
 	});
-    
+
     quantPage++;
 
     if ( maxRow == numberRowsInQuantTable ) { quantNextText(); quantLastText(); }
     showPage(quantPageNum, quantPage);
     quantPreLink();
     quantFirstLink();
-    draw_sparkline(peptide_table_dict); 
+    draw_sparkline(peptide_table_dict);
 }
 
 //PreviousPage
@@ -329,7 +329,7 @@ async function quantPre(order, column){
     if ( maxRow === 0 ){ quantPreText(); quantFirstText(); }
     showPage(quantPageNum, quantPage);
     quantNextLink();
-    quantLastLink(); 
+    quantLastLink();
     draw_sparkline(peptide_table_dict);
 }
 
@@ -444,7 +444,7 @@ async function updateQuantData(currentRow, order, column){
             } else{
                 r = db.exec("select * from PEPQUANT " + "ORDER BY \"" + column + "\" ASC limit "+ String(currentRow) + ",50");
             }
-			
+
 			let e = new Date().getTime();
 			console.info("Time consuming to query data：" + (e - s) + "ms");
 			// parse data
@@ -633,7 +633,7 @@ $(document).ready(function () {
         } else {
             var span = this.getElementsByTagName("span")[0].innerText;
         };
-        
+
         if((this.getAttribute("class").indexOf("headerSortUp") == -1) && (this.getAttribute("class").indexOf("headerSortDown") == -1)){
             $(this).attr('class', $(this).attr('class') + " headerSortUp");
             sortOrder = "headerSortUp";
@@ -659,16 +659,16 @@ $(document).ready(function () {
 
         await protFirst(sortOrder, span);
     });
-    
+
     $("#protein-distribution-button").click(function() {
         if(this.innerText == " Show replicates"){
             $("#quantification_of_protein tr").css("height", "50px");
-            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";        
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Hide replicates";
             $("#quantification_of_protein .col-condition").css("display", "none");
             $("#quantification_of_protein .col-condition-sparkline").css("display", "table-cell");
         } else{
             $("#quantification_of_protein tr").css("height", "100%");
-            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates"; 
+            this.innerHTML = "<span class='glyphicon glyphicon glyphicon-stats'></span> Show replicates";
             $("#quantification_of_protein .col-condition").css("display", "table-cell");
             $("#quantification_of_protein .col-condition-sparkline").css("display", "none");
         }
@@ -999,7 +999,7 @@ $(document).ready(function () {
         } else {
             var span = this.getElementsByTagName("span")[0].innerText;
         };
-        
+
         if((this.getAttribute("class").indexOf("headerSortUp") == -1) && (this.getAttribute("class").indexOf("headerSortDown") == -1)){
             $(this).attr('class', $(this).attr('class') + " headerSortUp");
             sortOrder = "headerSortUp";

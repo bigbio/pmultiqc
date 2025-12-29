@@ -501,7 +501,7 @@ class QuantMSModule:
                     This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
                     """,
                 helptext="""
-                    The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
+                    The quantification information (Spectral Counting) of proteins is obtained from the mzTab file.
                     The table shows the quantitative level and distribution of proteins in different study variables and run.
 
                     * Peptides_Number: The number of peptides for each protein.
@@ -845,14 +845,14 @@ class QuantMSModule:
             plot=line_html,
             order=1,
             description="""
-                This chart represents the distribution of the relative frequency of experimental 
+                This chart represents the distribution of the relative frequency of experimental
                 precursor ion mass (m/z) - theoretical precursor ion mass (m/z).
                 """,
             helptext="""
-                Mass deltas close to zero reflect more accurate identifications and also 
-                that the reporting of the amino acid modifications and charges have been done accurately. 
-                This plot can highlight systematic bias if not centered on zero. 
-                Other distributions can reflect modifications not being reported properly. 
+                Mass deltas close to zero reflect more accurate identifications and also
+                that the reporting of the amino acid modifications and charges have been done accurately.
+                This plot can highlight systematic bias if not centered on zero.
+                Other distributions can reflect modifications not being reported properly.
                 Also it is easy to see the different between the target and the decoys identifications.
                 """,
         )
@@ -936,7 +936,7 @@ class QuantMSModule:
                 order=1,
                 description="",
                 helptext="""
-                        This statistic is extracted from idXML files. SpecEvalue: Spectral E-values, 
+                        This statistic is extracted from idXML files. SpecEvalue: Spectral E-values,
                         the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
                         """,
             )
@@ -950,7 +950,7 @@ class QuantMSModule:
                 order=2,
                 description="",
                 helptext="""
-                        This statistic is extracted from idXML files. xcorr: cross-correlation scores, 
+                        This statistic is extracted from idXML files. xcorr: cross-correlation scores,
                         the search score of Comet. The value used for plotting is xcorr.
                         """,
             )
@@ -964,7 +964,7 @@ class QuantMSModule:
                 order=3,
                 description="",
                 helptext="""
-                        This statistic is extracted from idXML files. hyperscore: Hyperscore, the search 
+                        This statistic is extracted from idXML files. hyperscore: Hyperscore, the search
                         score of Sage. The value used for plotting is hyperscore.
                         """,
             )
@@ -1023,16 +1023,16 @@ class QuantMSModule:
                 order=5,
                 description="",
                 helptext="""
-                    Consensus support is a measure of agreement between search engines. 
-                    Every peptide sequence in the analysis has been identified by at least one search run. 
-                    The consensus support defines which fraction (between 0 and 1) of the remaining search 
-                    runs "supported" a peptide identification that was kept. 
-                    The meaning of "support" differs slightly between algorithms: For best, worst, average 
-                    and rank, each search run supports peptides that it has also identified among its top 
-                    considered_hits candidates. So the "consensus support" simply gives the fraction of 
-                    additional search engines that have identified a peptide. (For example, if there are 
-                    three search runs, peptides identified by two of them will have a "support" of 0.5.) 
-                    For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide 
+                    Consensus support is a measure of agreement between search engines.
+                    Every peptide sequence in the analysis has been identified by at least one search run.
+                    The consensus support defines which fraction (between 0 and 1) of the remaining search
+                    runs "supported" a peptide identification that was kept.
+                    The meaning of "support" differs slightly between algorithms: For best, worst, average
+                    and rank, each search run supports peptides that it has also identified among its top
+                    considered_hits candidates. So the "consensus support" simply gives the fraction of
+                    additional search engines that have identified a peptide. (For example, if there are
+                    three search runs, peptides identified by two of them will have a "support" of 0.5.)
+                    For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide
                     is the average similarity of the most-similar peptide from each (other) search run.
                     """,
             )
@@ -1620,9 +1620,9 @@ class QuantMSModule:
             table_html = (
                     table_html
                     + """<div class="page_control"><span id="psmFirst">First Page</span><span
-            id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
-            Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
-            type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+            id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last
+            Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input
+            type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);"
             onkeydown="psm_page_jump()" min="1"/> </div> """
             )
 
@@ -1800,9 +1800,9 @@ class QuantMSModule:
             table_html = (
                     table_html
                     + """<div class="page_control"><span id="protFirst">First Page</span><span
-            id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last 
-            Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input 
-            type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+            id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last
+            Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input
+            type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);"
             onkeydown="prot_page_jump()" min="1"/> </div> """
             )
 
@@ -1943,16 +1943,16 @@ class QuantMSModule:
                 This plot shows the quantification information of peptides in the final result (mainly the mzTab file).
                 """,
             helptext="""
-                The quantification information of peptides is obtained from the MSstats input file. 
-                The table shows the quantitative level and distribution of peptides in different study variables, 
-                run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+                The quantification information of peptides is obtained from the MSstats input file.
+                The table shows the quantitative level and distribution of peptides in different study variables,
+                run and peptiforms. The distribution show all the intensity values in a bar plot above and below
                 the average intensity for all the fractions, runs and peptiforms.
 
-                * BestSearchScore: It is equal to 1 - min(Q.Value) for DIA datasets. Then it is equal to 
-                1 - min(best_search_engine_score[1]), which is from best_search_engine_score[1] column in mzTab 
+                * BestSearchScore: It is equal to 1 - min(Q.Value) for DIA datasets. Then it is equal to
+                1 - min(best_search_engine_score[1]), which is from best_search_engine_score[1] column in mzTab
                 peptide table for DDA datasets.
                 * Average Intensity: Average intensity of each peptide sequence across all conditions with NA=0 or NA ignored.
-                * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, 
+                * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions,
                 and then mean intensity in technical replicates/biological replicates separately.
                 """,
         )
@@ -2066,7 +2066,7 @@ class QuantMSModule:
                 This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
                 """,
             helptext="""
-                The quantification information of proteins is obtained from the msstats input file. 
+                The quantification information of proteins is obtained from the msstats input file.
                 The table shows the quantitative level and distribution of proteins in different study variables and run.
 
                 * Peptides_Number: The number of peptides for each protein.
@@ -2193,7 +2193,7 @@ class QuantMSModule:
                 order=5,
                 description="Peptide intensity per file from mzTab.",
                 helptext="""
-                    Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the 
+                    Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the
                     peptide table in the mzTab file, and then apply a log2 transformation.
                     """,
             )
@@ -2276,8 +2276,8 @@ def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
         order=4,
         description="This plot shows the tracking of the number of spectra along the quantms pipeline",
         helptext="""
-            This table shows the changes in the number of spectra corresponding to each input file 
-            during the pipeline operation. And the number of peptides finally identified and quantified is obtained from 
+            This table shows the changes in the number of spectra corresponding to each input file
+            during the pipeline operation. And the number of peptides finally identified and quantified is obtained from
             the PSM table in the mzTab file. You can also remove decoys with the `remove_decoy` parameter.:
 
             * MS1_Num: The number of MS1 spectra extracted from mzMLs

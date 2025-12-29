@@ -1327,15 +1327,15 @@ def allowed_file(filename):
 async def validate_and_save_upload(file: UploadFile, upload_dir: str, job_id: str) -> tuple[str, int]:
     """
     Validate and save an uploaded file with security checks.
-    
+
     Args:
         file: The uploaded file
         upload_dir: Directory to save the file
         job_id: Job ID for error reporting
-    
+
     Returns:
         tuple: (file_path, file_size)
-    
+
     Raises:
         HTTPException: If validation fails
     """
@@ -1374,12 +1374,12 @@ async def validate_and_save_upload(file: UploadFile, upload_dir: str, job_id: st
 def validate_and_extract_zip(zip_path: str, extract_path: str, file_size: int):
     """
     Validate and extract a ZIP file with security checks.
-    
+
     Args:
         zip_path: Path to the ZIP file
         extract_path: Directory to extract to
         file_size: Size of the ZIP file
-    
+
     Raises:
         HTTPException: If validation fails
     """
@@ -1403,7 +1403,7 @@ def validate_and_extract_zip(zip_path: str, extract_path: str, file_size: int):
                         detail="ZIP file contains invalid file paths"
                     )
                 total_uncompressed_size += file_info.file_size
-            
+
             # Check for zip bombs (compression ratio > 100:1)
             compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
             if compression_ratio > 100:
@@ -1411,7 +1411,7 @@ def validate_and_extract_zip(zip_path: str, extract_path: str, file_size: int):
                     status_code=400,
                     detail="Suspicious ZIP file detected (possible zip bomb)"
                 )
-            
+
             zip_ref.extractall(extract_path)
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Invalid ZIP file")

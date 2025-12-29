@@ -47,25 +47,25 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
         """,
         helptext="""
             This plot shows the pipeline performance overview. Some metrics are calculated.
-            *Heatmap score[Contaminants]: as fraction of summed intensity with 0 = sample full of contaminants; 
+            *Heatmap score[Contaminants]: as fraction of summed intensity with 0 = sample full of contaminants;
                 1 = no contaminants
-            *Heatmap score[Pep Intensity (>23.0)]: Linear scale of the median intensity reaching the threshold, 
+            *Heatmap score[Pep Intensity (>23.0)]: Linear scale of the median intensity reaching the threshold,
                 i.e. reaching 2^21 of 2^23 gives score 0.25.
-            *Heatmap score[Charge]: Deviation of the charge 2 proportion from a representative 
-                Raw file (median). For typtic digests, peptides of charge 2 (one N-terminal and one at 
-                tryptic C-terminal R or K residue) should be dominant. Ionization issues (voltage?), 
-                in-source fragmentation, missed cleavages and buffer irregularities can cause a shift 
+            *Heatmap score[Charge]: Deviation of the charge 2 proportion from a representative
+                Raw file (median). For typtic digests, peptides of charge 2 (one N-terminal and one at
+                tryptic C-terminal R or K residue) should be dominant. Ionization issues (voltage?),
+                in-source fragmentation, missed cleavages and buffer irregularities can cause a shift
                 (see Bittremieux 2017, DOI: 10.1002/mas.21544)
-            *Heatmap score[RT Alignment]: Compute 1 minus the mean absolute difference between 'RT' and 'Predicted.RT', 
+            *Heatmap score[RT Alignment]: Compute 1 minus the mean absolute difference between 'RT' and 'Predicted.RT',
                 and take the maximum of this value and 0. 1: |RT - Predicted.RT| = 0
-            *Heatmap score [ID rate over RT]: Judge column occupancy over retention time. 
-                Ideally, the LC gradient is chosen such that the number of identifications 
-                (here, after FDR filtering) is uniform over time, to ensure consistent instrument duty cycles. 
-                Sharp peaks and uneven distribution of identifications over time indicate potential for LC gradient 
+            *Heatmap score [ID rate over RT]: Judge column occupancy over retention time.
+                Ideally, the LC gradient is chosen such that the number of identifications
+                (here, after FDR filtering) is uniform over time, to ensure consistent instrument duty cycles.
+                Sharp peaks and uneven distribution of identifications over time indicate potential for LC gradient
                 optimization.Scored using 'Uniform' scoring function. i.e. constant receives good score, extreme shapes are bad
             *Heatmap score [Norm Factor]: Computes the mean absolute deviation (MAD) of 'Normalisation.Factor' from its mean.
                 0 = high variability in normalization factors; 1 = perfectly consistent normalization factors
-            *Heatmap score [Peak Width]: Average peak width (RT.Stop - RT.Start). 1 = peak width equals 0; 
+            *Heatmap score [Peak Width]: Average peak width (RT.Stop - RT.Start). 1 = peak width equals 0;
                 0 = peak width equals 1 or greater
         """,
     )
@@ -325,10 +325,10 @@ def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
         order=6,
         description="Standard deviation of intensity by sample (experimental conditions).",
         helptext="""
-            [DIA-NN: report.tsv] Sample grouping is derived from the SDRF when available; 
-            otherwise, it is parsed from "Run" names. 
-            First, identify the experimental conditions from the "Run" name. 
-            Then, group the data by experimental condition and Modified.Sequence, and calculate 
+            [DIA-NN: report.tsv] Sample grouping is derived from the SDRF when available;
+            otherwise, it is parsed from "Run" names.
+            First, identify the experimental conditions from the "Run" name.
+            Then, group the data by experimental condition and Modified.Sequence, and calculate
             the standard deviation of log2(Precursor.Quantity).
             """,
     )
@@ -384,7 +384,7 @@ def draw_dia_delta_mass(sub_section, df):
             This plot is based on the "Ms1.Apex.Mz.Delta" column from the DIA-NN main report.
         """,
         helptext="""
-            [DIA-NN: main report] 
+            [DIA-NN: main report]
             Ms1.Apex.Mz.Delta: difference between observed precursor m/z and the theoretical value.
         """,
     )
@@ -420,8 +420,8 @@ def draw_norm_factor_rt(sub_section, plot_data):
         """,
         helptext="""
             [DIA-NN: main report] Distribution of Normalisation.Factor with retention time (RT) for each run.
-            RT: the retention time (RT) of the PSM in minutes. Normalisation.Factor: normalisation factor 
-            applied to the precursor in the specific run, 
+            RT: the retention time (RT) of the PSM in minutes. Normalisation.Factor: normalisation factor
+            applied to the precursor in the specific run,
             i.e. normalised quantity = normalisation factor X non-normalised quantity
         """,
     )
@@ -452,15 +452,15 @@ def draw_fwhm_rt(sub_section, plot_data):
         plot=linegraph_html,
         order=3,
         description="""
-            Distribution of FWHM with retention time, derived from the main report. 
+            Distribution of FWHM with retention time, derived from the main report.
             FWHM: estimated peak width at half-maximum.
         """,
         helptext="""
             [DIA-NN: main report] Distribution of FWHM with retention time (RT) for each run.
-            RT: the retention time (RT) of the PSM in minutes. FWHM: estimated peak width at half-maximum; 
-            note that the accuracy of such estimates sometimes strongly depends on the DIA cycle time and 
-            sample injection amount, i.e. they can only be used to evaluate chromatographic performance in 
-            direct comparisons with similar settings, including the scan window; another caveat is that 
+            RT: the retention time (RT) of the PSM in minutes. FWHM: estimated peak width at half-maximum;
+            note that the accuracy of such estimates sometimes strongly depends on the DIA cycle time and
+            sample injection amount, i.e. they can only be used to evaluate chromatographic performance in
+            direct comparisons with similar settings, including the scan window; another caveat is that
             FWHM does not reflect any peak tailing.
         """,
     )
@@ -491,7 +491,7 @@ def draw_peak_width_rt(sub_section, plot_data):
         plot=linegraph_html,
         order=4,
         description="""
-            Distribution of peak width with retention time, derived from the main report. 
+            Distribution of peak width with retention time, derived from the main report.
             Peak Width = RT.Stop - RT.Start.
         """,
         helptext="""
@@ -526,11 +526,11 @@ def draw_rt_error_rt(sub_section, plot_data):
         plot=linegraph_html,
         order=5,
         description="""
-            Distribution of rt error with retention time, derived from the main report. 
+            Distribution of rt error with retention time, derived from the main report.
         """,
         helptext="""
             [DIA-NN: main report] Distribution of absolute RT error (|RT - Predicted.RT|) with retention time (RT) for each run.
-            RT: the retention time (RT) of the PSM in minutes. 
+            RT: the retention time (RT) of the PSM in minutes.
             Predicted.RT: predicted RT based on the iRT.
         """,
     )
@@ -565,7 +565,7 @@ def draw_loess_rt_irt(sub_section, plot_data):
         """,
         helptext="""
             [DIA-NN: main report] Distribution of LOESS RT ~ iRT for each run.
-            RT: the retention time (RT) of the PSM in minutes. 
+            RT: the retention time (RT) of the PSM in minutes.
             iRT: reference RT as recorded in the spectral library.
         """,
     )

@@ -30,10 +30,10 @@ def draw_ms_information(
             order=1,
             description="MS1 quality control information extracted from the spectrum files.",
             helptext="""
-                This plot displays Total Ion Chromatograms (TICs) derived from MS1 scans across all analyzed samples. 
-                The x-axis represents retention time, and the y-axis shows the total ion intensity at each time point. 
+                This plot displays Total Ion Chromatograms (TICs) derived from MS1 scans across all analyzed samples.
+                The x-axis represents retention time, and the y-axis shows the total ion intensity at each time point.
                 Each colored trace corresponds to a different sample. The TIC provides a global view of the ion signal
-                throughout the LC-MS/MS run, reflecting when compounds elute from the chromatography column. 
+                throughout the LC-MS/MS run, reflecting when compounds elute from the chromatography column.
             """,
         )
 

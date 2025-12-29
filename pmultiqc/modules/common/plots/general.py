@@ -305,7 +305,7 @@ def draw_exp_design(sub_sections, exp_design):
             This table shows the design of the experiment. I.e., which files and channels correspond to which sample/condition/fraction.
             """,
         helptext="""
-            You can see details about it in 
+            You can see details about it in
             https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
             """
     )

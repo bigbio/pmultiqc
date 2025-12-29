@@ -88,12 +88,12 @@ def get_pb_data(file_path):
 def draw_logmean_std_cv(df, plot_type, runs_col=None):
     """
     Create plots based on the specified plot type.
-    
+
     Args:
         df: DataFrame containing the data
         plot_type: Type of plot to create
         runs_col: Column identifier for runs (optional)
-    
+
     Returns:
         Dictionary containing HTML for bar, line, and box plots
     """

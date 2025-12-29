@@ -36,4 +36,4 @@ processing:
 # PRIDE API settings
 pride:
   timeout: 30  # seconds
-  max_files: 100 
+  max_files: 100

@@ -61,7 +61,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 Distribution of 'log_Intensity_mean' under Condition A and B.
                 """,
             helptext="""
-                [result_performance.csv] This plot visualizes the distribution of mean intensity 
+                [result_performance.csv] This plot visualizes the distribution of mean intensity
                 values after log2 transformation for both Condition A and Condition B.
                 """,
         )
@@ -73,7 +73,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 Number of missing (NA) values in 'log_Intensity_mean' for Condition A and B.
                 """,
             helptext="""
-                [result_performance.csv] This plot shows the number of missing (NA) values in the 
+                [result_performance.csv] This plot shows the number of missing (NA) values in the
                 mean log2-transformed intensities for Condition A and Condition B.
                 """,
         )
@@ -107,7 +107,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 Number of detected (Non-NA) and missing (NA) values per sample file.
                 """,
             helptext="""
-                [result_performance.csv] This plot shows the number of missing (NA) values in the 
+                [result_performance.csv] This plot shows the number of missing (NA) values in the
                 mean log2-transformed intensities for Condition A and Condition B.
                 """,
         )
@@ -123,7 +123,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 This plot shows the distribution of 'log_Intensity_std' values for Condition A and Condition B.
                 """,
             helptext="""
-                [result_performance.csv] This plot shows the distribution of standard deviations 
+                [result_performance.csv] This plot shows the distribution of standard deviations
                 calculated from log2-transformed intensity values for Condition A and Condition B.
                 """,
         )
@@ -139,7 +139,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 This plot shows the distribution of coefficient of variation (CV) values for Condition A and Condition B.
                 """,
             helptext="""
-                [result_performance.csv] This plot shows the distribution of coefficient of variation (CV) values 
+                [result_performance.csv] This plot shows the distribution of coefficient of variation (CV) values
                 for Condition A and Condition B.
                 """,
         )
@@ -151,7 +151,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 This plot shows the number of missing values (NAs) in the coefficient of variation (CV) for condition A and B.
                 """,
             helptext="""
-                [result_performance.csv] This plot shows the number of missing values (NAs) in the coefficient of 
+                [result_performance.csv] This plot shows the number of missing values (NAs) in the coefficient of
                 variation (CV) for condition A and B.
                 """,
         )
@@ -167,7 +167,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 This plot shows the distribution of 'log2_A_vs_B' values for Condition A and Condition B.
                 """,
             helptext="""
-                [result_performance.csv] Distribution of log₂ fold changes (log2_A_vs_B) between Condition A and B 
+                [result_performance.csv] Distribution of log₂ fold changes (log2_A_vs_B) between Condition A and B
                 based on mean log2-transformed intensities.
                 """,
         )
@@ -179,7 +179,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 Distribution of mean intensity across all runs and log2 fold change. Legend: ECOLI (blue), HUMAN (green), YEAST (red).
                 """,
             helptext="""
-                [result_performance.csv] Distribution of mean intensity across all runs and log2 fold change (log2FC). 
+                [result_performance.csv] Distribution of mean intensity across all runs and log2 fold change (log2FC).
                 Legend: ECOLI (blue), HUMAN (green), YEAST (red).
                 """,
         )
@@ -191,7 +191,7 @@ class ProteoBenchModule(BasePMultiqcModule):
                 Distribution of 'epsilon' values (difference between observed and expected log2 fold changes).
                 """,
             helptext="""
-                [result_performance.csv] 'Epsilon' measures the deviation between observed and expected log2 fold changes, 
+                [result_performance.csv] 'Epsilon' measures the deviation between observed and expected log2 fold changes,
                 indicating agreement between data and expectations.
                 """,
         )

@@ -57,19 +57,19 @@ def draw_potential_contaminants(sub_section, contaminant_percent, is_maxquant):
     if is_maxquant:
         description_text = "Potential contaminants per group from proteinGroups.txt."
         help_text = """
-            External protein contamination should be controlled for, therefore MaxQuant ships with a 
-            comprehensive, yet customizable protein contamination database, which is searched by MaxQuant 
-            by default. 
-            
-            A contamination plot derived from the proteinGroups (PG) table, showing the 
-            fraction of total protein intensity attributable to contaminants. 
-            
+            External protein contamination should be controlled for, therefore MaxQuant ships with a
+            comprehensive, yet customizable protein contamination database, which is searched by MaxQuant
+            by default.
+
+            A contamination plot derived from the proteinGroups (PG) table, showing the
+            fraction of total protein intensity attributable to contaminants.
+
             Note that this plot is based on experimental groups, and therefore may not correspond 1:1 to Raw files.
             """
     else:
         description_text = "Potential contaminants per file from mzTab."
         help_text = """
-            A contamination plot derived from the Peptide section of the mzTab file, showing the 
+            A contamination plot derived from the Peptide section of the mzTab file, showing the
             fraction of total intensity attributable to contaminants.
             """
 
@@ -157,13 +157,13 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
         order=1,
         description="The five most abundant external protein contaminants by Raw file",
         helptext="""
-            pmultiqc will explicitly show the five most abundant external protein contaminants 
-            (as detected via MaxQuant's contaminants FASTA file) by Raw file, and summarize the 
-            remaining contaminants as 'other'. This allows to track down which proteins exactly 
+            pmultiqc will explicitly show the five most abundant external protein contaminants
+            (as detected via MaxQuant's contaminants FASTA file) by Raw file, and summarize the
+            remaining contaminants as 'other'. This allows to track down which proteins exactly
             contaminate your sample. Low contamination is obviously better.
-            
-            If you see less than 5 contaminants, it either means there are actually less, or that 
-            one (or more) of the shortened contaminant names subsume multiple of the top5 
+
+            If you see less than 5 contaminants, it either means there are actually less, or that
+            one (or more) of the shortened contaminant names subsume multiple of the top5
             contaminants (since they start with the same prefix).
             """,
     )
@@ -189,16 +189,16 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
     bar_html = plot_html_check(bar_html)
 
     helptext = """
-                Under optimal digestion conditions (high enzyme grade etc.), only few missed cleavages (MC) are expected. In 
-                general, increased MC counts also increase the number of peptide signals, thus cluttering the available 
+                Under optimal digestion conditions (high enzyme grade etc.), only few missed cleavages (MC) are expected. In
+                general, increased MC counts also increase the number of peptide signals, thus cluttering the available
                 space and potentially provoking overlapping peptide signals, biasing peptide quantification.
-                Thus, low MC counts should be favored. Interestingly, it has been shown recently that 
-                incorporation of peptides with missed cleavages does not negatively influence protein quantification (see 
-                [Chiva, C., Ortega, M., and Sabido, E. Influence of the Digestion Technique, Protease, and Missed 
-                Cleavage Peptides in Protein Quantitation. J. Proteome Res. 2014, 13, 3979-86](https://doi.org/10.1021/pr500294d) ). 
-                However this is true only if all samples show the same degree of digestion. High missed cleavage values 
-                can indicate for example, either a) failed digestion, b) a high (post-digestion) protein contamination, or 
-                c) a sample with high amounts of unspecifically degraded peptides which are not digested by trypsin. 
+                Thus, low MC counts should be favored. Interestingly, it has been shown recently that
+                incorporation of peptides with missed cleavages does not negatively influence protein quantification (see
+                [Chiva, C., Ortega, M., and Sabido, E. Influence of the Digestion Technique, Protease, and Missed
+                Cleavage Peptides in Protein Quantitation. J. Proteome Res. 2014, 13, 3979-86](https://doi.org/10.1021/pr500294d) ).
+                However this is true only if all samples show the same degree of digestion. High missed cleavage values
+                can indicate for example, either a) failed digestion, b) a high (post-digestion) protein contamination, or
+                c) a sample with high amounts of unspecifically degraded peptides which are not digested by trypsin.
 
                 If MC>=1 is high (>20%) you should re-analyse with increased missed cleavages parameters and compare the number of peptides.
                 Usually high MC correlates with bad identification rates, since many spectra cannot be matched to the forward database.
@@ -242,9 +242,9 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
             This plot is based on the "Mass Error [ppm]" column from the evidence.txt generated by MaxQuant.
             """
         help_text = """
-            Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison to the 
+            Mass error of the recalibrated mass-over-charge value of the precursor ion in comparison to the
             predicted monoisotopic mass of the identified peptide sequence in parts per million.
-            
+
             Ppm errors should be centered on zero and their spread is expected to be significantly smaller than before calibration.
             """
 
@@ -829,7 +829,7 @@ def draw_quantms_identi_num(
         description="This plot shows the quantms pipeline final result.",
         helptext="""
             Including Sample Name, Possible Study Variables, identified the number of peptide in the pipeline,
-            and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained 
+            and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained
             from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
             """
     )
@@ -869,7 +869,7 @@ def draw_modifications(sub_section, modified_data):
         helptext="""
             Post-translational modifications contained within the identified peptide sequence.<br>
 
-            <p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences 
+            <p>The plot will show percentages, i.e. is normalized by the total number of peptide sequences
             (where different charge state counts as a separate peptide) per Raw file.
             The sum of frequencies may exceed 100% per Raw file, since a peptide can have multiple modifications.</p>
 
@@ -885,8 +885,8 @@ def draw_modifications(sub_section, modified_data):
             * 33% of '2 Oxidation (M)'         <br>
             * 33% of 'Unmodified'              <br>
 
-            <p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once. 
-            If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification 
+            <p>Thus, 33% of sequences are unmodified, implying 66% are modified at least once.
+            If a modification, e.g. Oxidation(M), occurs multiple times in a single peptide it's listed as a separate modification
             (e.g. '2 Oxidation (M)' for double oxidation of a single peptide).</p>
             """,
     )
@@ -923,9 +923,9 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
     bar_html = plot_html_check(bar_html)
 
     helptext = """
-                For high complexity samples, oversampling of individual 3D-peaks automatically leads to 
-                undersampling or even omission of other 3D-peaks, reducing the number of identified peptides. 
-                Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic 
+                For high complexity samples, oversampling of individual 3D-peaks automatically leads to
+                undersampling or even omission of other 3D-peaks, reducing the number of identified peptides.
+                Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic
                 exclusion windows for data independent acquisitions.
                 """
     if is_maxquant:
@@ -936,8 +936,8 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
         plot=bar_html,
         order=7,
         description="""
-            An oversampled 3D-peak is defined as a peak whose peptide ion 
-            (same sequence and same charge state) was identified by at least two distinct MS2 spectra 
+            An oversampled 3D-peak is defined as a peak whose peptide ion
+            (same sequence and same charge state) was identified by at least two distinct MS2 spectra
             in the same Raw file.
             """,
         helptext=helptext,
@@ -992,7 +992,7 @@ def draw_num_pep_per_protein(
     else:
         description_str = "This plot shows the number of peptides per protein in quantms pipeline final result"
         helptext_str = """
-                    This statistic is extracted from the out_msstats file. Proteins supported by more peptide 
+                    This statistic is extracted from the out_msstats file. Proteins supported by more peptide
                     identifications can constitute more confident results.
                 """
     add_sub_section(
@@ -1026,7 +1026,7 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
     if report_type == "maxquant":
         description_text = "Distribution of retention time, derived from the evidence table."
         help_text = """
-            The uncalibrated retention time in minutes in the elution profile of the precursor ion, 
+            The uncalibrated retention time in minutes in the elution profile of the precursor ion,
             and does not include potential contaminants.
             """
     elif report_type == "dia":

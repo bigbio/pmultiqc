@@ -318,7 +318,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             description="This plot shows the submitted results",
             helptext="""
                 This plot shows the submitted results.
-                Including the number of identified peptides and the number of identified modified peptides in the submitted results. 
+                Including the number of identified peptides and the number of identified modified peptides in the submitted results.
                 You can also remove the decoy with the `remove_decoy` parameter.
                 """,
         )

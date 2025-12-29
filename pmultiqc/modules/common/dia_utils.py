@@ -39,7 +39,7 @@ def parse_diann_report(
         msstats_input_valid=False
 ):
     """Parse DIA-NN report and generate plots and statistics.
-    
+
     Args:
         file_df: Optional DataFrame. If None, an empty DataFrame will be used.
     """
@@ -452,9 +452,9 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
             This plot shows the quantification information of peptides in the final result (DIA-NN report).
             """
         helptext_text = """
-            The quantification information of peptides is obtained from the DIA-NN output file. 
-            The table shows the quantitative level and distribution of peptides in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            The quantification information of peptides is obtained from the DIA-NN output file.
+            The table shows the quantitative level and distribution of peptides in different study variables,
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below
             the average intensity for all the fractions, runs and peptiforms.
 
             * BestSearchScore: It is equal to min(1 - Q.Value) for DIA-NN datasets.
@@ -466,9 +466,9 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
             This plot shows the quantification information of peptides in the final result (mzIdentML).
             """
         helptext_text = """
-            The quantification information of peptides is obtained from the mzIdentML. 
-            The table shows the quantitative level and distribution of peptides in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            The quantification information of peptides is obtained from the mzIdentML.
+            The table shows the quantitative level and distribution of peptides in different study variables,
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below
             the average intensity for all the fractions, runs and peptiforms.
 
             * BestSearchScore: It is equal to max(search_engine_score) for mzIdentML datasets.

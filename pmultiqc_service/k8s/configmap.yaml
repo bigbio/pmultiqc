@@ -15,4 +15,4 @@ data:
   REDIS_URL: "redis://redis-service:6379"
   REDIS_USERNAME: ""
   REDIS_PASSWORD: ""
-  REDIS_DB: "0" 
+  REDIS_DB: "0"

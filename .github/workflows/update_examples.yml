@@ -25,7 +25,7 @@ jobs:
           python << 'EOF'
           import json
           import os
-          
+
           try:
               with open('docs/config.json', 'r') as f:
                   config = json.load(f)
