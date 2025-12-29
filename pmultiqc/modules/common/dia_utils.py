@@ -645,7 +645,7 @@ def cal_feature_avg_rt(report_data, col):
         duplicates="drop"
     )
     sub_df = sub_df.dropna(subset=["RT_bin"])
-    sub_df["RT_bin_mid"] = sub_df["RT_bin"].apply(lambda x: x.mid)
+    sub_df["RT_bin_mid"] = sub_df["RT_bin"].apply(lambda x: x.mid if hasattr(x, 'mid') else x)
 
     result = sub_df.groupby(["Run", "RT_bin_mid"], observed=False)[col].mean().reset_index()
     result[col] = result[col].fillna(0)

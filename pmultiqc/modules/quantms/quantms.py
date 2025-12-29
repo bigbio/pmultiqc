@@ -1068,7 +1068,6 @@ class QuantMSModule:
 
             pep_df_need_cols = ["accession", "opt_global_cv_MS:1002217_decoy_peptide", "spectra_ref"] + study_variables
             pep_table = pep_table[pep_df_need_cols].copy()
-            del pep_df_need_cols
 
             pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
                 lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
@@ -1101,7 +1100,10 @@ class QuantMSModule:
                     .sum()
                 )
                 all_sum = group[study_variables].sum(axis=0).sum()
-                self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
+                if all_sum == 0:
+                    self.heatmap_con_score[name] = 0.0
+                else:
+                    self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
 
                 if config.kwargs["remove_decoy"]:
 
@@ -1163,7 +1165,6 @@ class QuantMSModule:
 
         psm_need_cols = ["spectra_ref", "opt_global_cv_MS:1000889_peptidoform_sequence", "sequence", "retention_time"]
         psm = psm[psm_need_cols].copy()
-        del psm_need_cols
 
         psm.loc[:, "stand_spectra_ref"] = psm.apply(
             lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
@@ -1323,7 +1324,6 @@ class QuantMSModule:
                 .agg("min")["best_search_engine_score[1]"]
                 .to_dict()
             )
-            del peptide_score
             counts_per_acc = (
                 pep_table.drop_duplicates("sequence")["accession"]
                 .str.split(",")
@@ -1356,7 +1356,7 @@ class QuantMSModule:
                 return ",".join(set(mod_list))
             return "Unmodified"
 
-        psm["Modifications"] = psm["modifications"].apply(lambda x: get_unimod_modification(x))
+        psm["Modifications"] = psm["modifications"].apply(get_unimod_modification)
 
         mod_plot_by_run = dict()
         modified_cats = list()
@@ -1599,15 +1599,19 @@ class QuantMSModule:
             mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
             table_html = table.plot(mztab_data_psm_init, headers, pconfig)
             pattern = re.compile(r'<small id="peptide_spectrum_matches_numrows_text"')
-            index = re.search(pattern, table_html).span()[0]
+            match = re.search(pattern, table_html)
+            if match is None:
+                log.warning("Could not find expected pattern in table HTML, using default insertion point")
+                index = len(table_html)
+            else:
+                index = match.span()[0]
+            options = "".join(f"<option>{key}</option>" for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"])
             t_html = (
                     table_html[:index]
                     + '<input type="text" placeholder="search..." class="searchInput" '
                       'onkeyup="searchPsmFunction()" id="psm_search">'
-                      '<select name="psm_search_col" id="psm_search_col">'
+                      f'<select name="psm_search_col" id="psm_search_col">{options}</select>'
             )
-            for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"]:
-                t_html += "<option>" + key + "</option>"
             table_html = (
                     t_html + "</select>" + '<button type="button" class="btn btn-default '
                                            'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' + table_html[
@@ -1775,15 +1779,19 @@ class QuantMSModule:
                 mztab_data_dict_prot_init, headers, pconfig=pconfig, max_value=max_prot_intensity
             )
             pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
-            index = re.search(pattern, table_html).span()[0]
+            match = re.search(pattern, table_html)
+            if match is None:
+                log.warning("Could not find expected pattern in protein table HTML, using default insertion point")
+                index = len(table_html)
+            else:
+                index = match.span()[0]
+            options = "".join(f"<option>{key}</option>" for key in ["ProteinName"])
             t_html = (
                     table_html[:index]
                     + '<input type="text" placeholder="search..." class="searchInput" '
                       'onkeyup="searchProtFunction()" id="prot_search">'
-                      '<select name="prot_search_col" id="prot_search_col">'
+                      f'<select name="prot_search_col" id="prot_search_col">{options}</select>'
             )
-            for key in ["ProteinName"]:
-                t_html += "<option>" + key + "</option>"
             table_html = (
                     t_html + "</select>" + '<button type="button" class="btn btn-default '
                                            'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[
@@ -1805,7 +1813,7 @@ class QuantMSModule:
         log.info(f"{timestamp}: Parsing MSstats input file {self.msstats_input_path}...")
         msstats_data = pd.read_csv(self.msstats_input_path)
         # TODO we probably shouldn't even write out 0-intensity values to MSstats csv
-        msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
+        msstats_data = msstats_data[msstats_data["Intensity"] != 0]
         msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[:, "PeptideSequence"].map(
             self.peptide_search_score
         )
@@ -1819,7 +1827,6 @@ class QuantMSModule:
         conditions = list(self.sample_df["MSstats_Condition"].unique())
         conditions_str = [str(c) for c in conditions]
         conditions_dists = [str(c) + "_distribution" for c in conditions]
-        cond_and_dist_cols = conditions_str + conditions_dists
 
         # TODO maybe aggregating in dicts is not the fastest. We also need to parse them again for proteins later.
         #  Maybe we should just introduce new pandas columns for every bioreplicate.
@@ -1853,7 +1860,6 @@ class QuantMSModule:
             get_inty_across_bio_reps_as_str
         )
 
-        del msstats_data
         # TODO Can we guarantee that the score was always PEP? I don't think so!
         msstats_data_pep_agg.reset_index(inplace=True)
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
@@ -1953,7 +1959,7 @@ class QuantMSModule:
 
         # Helper functions for pandas
         def json_to_dict(s):
-            if type(s) is str:
+            if isinstance(s, str):
                 return json.loads(s)
             else:
                 return {}
@@ -2212,6 +2218,14 @@ class QuantMSModule:
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
 
+    def __del__(self):
+        """Cleanup method to close SQLite connection."""
+        if hasattr(self, 'con') and self.con:
+            try:
+                self.con.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+
 
 def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
 
@@ -2285,8 +2299,8 @@ def find_modification(peptide):
     for j in range(1, len(position)):
         position[j] -= j
 
-    for k in range(0, len(original_mods)):
-        original_mods[k] = str(position[k]) + "-" + original_mods[k]
+    for k, mod in enumerate(original_mods):
+        original_mods[k] = str(position[k]) + "-" + mod
 
     original_mods = ",".join(str(i) for i in original_mods) if len(original_mods) > 0 else "nan"
 

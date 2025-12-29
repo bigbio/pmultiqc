@@ -306,7 +306,7 @@ def pg_intensity_distr(mq_data, intensity_cols):
 
     # Take the logarithm and remove zero values
     def box_fun(raw_df):
-        log_df = raw_df.apply(lambda col: col.map(lambda x: 1 if (pd.isna(x) or x == 0) else x))
+        log_df = raw_df.fillna(1).replace(0, 1)
         log_df = np.log2(log_df).reset_index(drop=True)
         log_df_dict = log_df.to_dict(orient="list")
         log_df_dict = {
@@ -386,7 +386,7 @@ def peptide_per_protein(pg_data):
     if "potential contaminant" in pg_data.columns:
         pg_data = pg_data[pg_data["potential contaminant"] != "+"].copy()
 
-    count = pg_data["peptide counts (all)"].apply(lambda x: int(x.split(";")[0]))
+    count = pg_data["peptide counts (all)"].str.split(";", n=1, expand=True)[0].astype(int)
     count = count[count > 0]
 
     count_df = count.value_counts().sort_index().reset_index()
@@ -937,7 +937,7 @@ def evidence_uncalibrated_mass_error(evidence_data):
     uncalibrated_mass_error = {}
     for raw_file, group in evd_df.groupby("raw file"):
         mass_error = list(
-            group["uncalibrated mass error [ppm]"].map(lambda x: 0 if pd.isna(x) else x)
+            group["uncalibrated mass error [ppm]"].fillna(0)
         )
 
         uncalibrated_mass_error[raw_file] = [value for value in mass_error if value != 0]
@@ -1381,7 +1381,7 @@ def get_msms_scans(file_path: Union[Path, str]):
     # TODO check 'Scan event number'
 
     logger.debug("Rounding retention time values")
-    mq_data["round_RT"] = mq_data["retention time"].apply(lambda x: round(x / 2) * 2)
+    mq_data["round_RT"] = (mq_data["retention time"] / 2).round() * 2
 
     # Ion Injection Time over RT
     logger.debug("Calculating ion injection time over retention time")
@@ -1431,7 +1431,7 @@ def msms_scans_ion_injec_time_rt(msms_scans_df):
     )
     mean_ion_injec_time_df["int_mean_ion_injection_time"] = mean_ion_injec_time_df[
         "mean_ion_injection_time"
-    ].apply(lambda x: int(x) if not pd.isna(x) else 0)
+    ].fillna(0).astype(int)
     mean_ion_injec_time_df["int_mean_ion_injection_time"] = mean_ion_injec_time_df[
         "int_mean_ion_injection_time"
     ].astype(str)
@@ -1670,7 +1670,7 @@ def read_sdrf(sdrf_path):
         },
         inplace=True,
     )
-    sdrf_df["file_name"] = sdrf_df["data_file"].apply(lambda x: Path(x).stem)
+    sdrf_df["file_name"] = sdrf_df["data_file"].astype(str).apply(lambda x: Path(x).stem)
     sdrf_df = sdrf_df.drop("data_file", axis=1)
 
     return sdrf_df

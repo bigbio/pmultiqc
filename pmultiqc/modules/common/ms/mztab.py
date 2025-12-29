@@ -126,7 +126,7 @@ class MzTabReader(BaseParser):
 
         prot.dropna(subset=["ambiguity_members"], inplace=True)
 
-        prot["protein_group"] = prot["ambiguity_members"].apply(lambda x: x.replace(",", ";"))
+        prot["protein_group"] = prot["ambiguity_members"].str.replace(",", ";")
 
         self.total_protein_identified = len(prot.index)
 
