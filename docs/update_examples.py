@@ -179,7 +179,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
     # Handle additional flags (e.g., disable_hoverinfo)
     if len(plugin_type) > 1:
         for flag in plugin_type[1:]:
-            if flag and flag == "disable_hoverinfo":  # Only add non-empty flags
+            if flag == "disable_hoverinfo":
                 command.append("--disable-hoverinfo")
 
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
