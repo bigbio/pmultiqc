@@ -5,7 +5,10 @@ from multiqc.plots import bargraph, linegraph, box, scatter, table
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
-from pmultiqc.modules.common.plots.general import plot_html_check
+from pmultiqc.modules.common.plots.general import (
+    plot_html_check,
+    plot_data_check
+)
 from pmultiqc.modules.core.section_groups import add_sub_section
 
 
@@ -247,11 +250,17 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
-            "boxpoints": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
+        # box_html.flat
+        box_html = plot_data_check(
+            plot_data=distribution_box,
+            plot_html=box_html,
+            log_text="pmultiqc.modules.maxquant.maxquant_plots",
+            function_name="draw_intensity_box"
+        )
         box_html = plot_html_check(box_html)
 
         add_sub_section(
@@ -281,11 +290,17 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
-            "boxpoints": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
+        # box_html.flat
+        box_html = plot_data_check(
+            plot_data=distribution_box,
+            plot_html=box_html,
+            log_text="pmultiqc.modules.maxquant.maxquant_plots",
+            function_name="draw_intensity_box"
+        )
         box_html = plot_html_check(box_html)
 
         add_sub_section(
@@ -316,11 +331,17 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
-            "boxpoints": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
+        # box_html.flat
+        box_html = plot_data_check(
+            plot_data=distribution_box,
+            plot_html=box_html,
+            log_text="pmultiqc.modules.maxquant.maxquant_plots",
+            function_name="draw_intensity_box"
+        )
         box_html = plot_html_check(box_html)
 
         add_sub_section(

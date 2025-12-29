@@ -65,7 +65,8 @@ from pmultiqc.modules.common.plots.id import (
 from pmultiqc.modules.common.plots.general import (
     draw_heatmap,
     plot_html_check,
-    draw_exp_design
+    draw_exp_design,
+    plot_data_check
 )
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
@@ -2165,9 +2166,16 @@ class QuantMSModule:
                 "xlab": "log2(Intensity)",
                 "data_labels": ["by Run", "by Sample"],
                 "sort_samples": False,
-                "boxpoints": False,
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
+
+            # box_html.flat
+            box_html = plot_data_check(
+                plot_data=self.quantms_pep_intensity,
+                plot_html=box_html,
+                log_text="pmultiqc.modules.quantms.quantms",
+                function_name="draw_quantms_quantification"
+            )
             box_html = plot_html_check(box_html)
 
             add_sub_section(

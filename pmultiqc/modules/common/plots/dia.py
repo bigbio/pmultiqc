@@ -3,7 +3,10 @@ import pandas as pd
 
 from multiqc.plots import heatmap, box, bargraph, linegraph
 
-from pmultiqc.modules.common.plots.general import plot_html_check
+from pmultiqc.modules.common.plots.general import (
+    plot_html_check,
+    plot_data_check
+)
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots import dia as dia_plots
@@ -113,11 +116,17 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
         "xlab": "log2(Precursor.Quantity)",
         "data_labels": plot_label,
         "sort_samples": False,
-        "boxpoints": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
+    # box_html.flat
+    box_html = plot_data_check(
+        plot_data=box_data,
+        plot_html=box_html,
+        log_text="pmultiqc.modules.common.plots.dia",
+        function_name="draw_dia_intensity_dis"
+    )
     box_html = plot_html_check(box_html)
 
     add_sub_section(
@@ -144,11 +153,17 @@ def draw_dia_ms1_area(sub_section, df):
         "title": "Ms1 Area Distribution",
         "tt_decimals": 5,
         "xlab": "log2(Ms1.Area)",
-        "boxpoints": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
+    # box_html.flat
+    box_html = plot_data_check(
+        plot_data=box_data,
+        plot_html=box_html,
+        log_text="pmultiqc.modules.common.plots.dia",
+        function_name="draw_dia_ms1_area"
+    )
     box_html = plot_html_check(box_html)
 
     add_sub_section(
@@ -281,7 +296,6 @@ def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
         "cpswitch": False,
         "tt_decimals": 5,
         "xlab": "Standard Deviation of log2(Precursor.Quantity)",
-        "boxpoints": False,
     }
 
     box_html = box.plot(
@@ -289,6 +303,13 @@ def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
         pconfig=draw_box_config,
     )
 
+    # box_html.flat
+    box_html = plot_data_check(
+        plot_data=box_data,
+        plot_html=box_html,
+        log_text="pmultiqc.modules.common.plots.dia",
+        function_name="draw_dia_intensity_std"
+    )
     box_html = plot_html_check(box_html)
 
     add_sub_section(
