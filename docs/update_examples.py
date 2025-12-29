@@ -212,7 +212,7 @@ def new_examples(config_file, project_accession=None):
 
         # Validate required fields
         if not accession:
-            print(f"⚠️ Skipping project: missing accession field")
+            print("⚠️ Skipping project: missing accession field")
             continue
         if not urls:
             print(f"⚠️ Skipping project {accession}: missing 'urls' field")
