@@ -20,13 +20,13 @@ def print_version(ctx, params, value):
 pmultiqc_version = click.option(
     "--pmultiqc_version", is_flag=True, callback=print_version, expose_value=False, is_eager=True
 )
-raw = click.option(
-    "--raw", "raw", help="Keep filenames in experimental design output as raw.", default=False
+keep_raw = click.option(
+    "--keep_raw", "keep_raw", is_flag=True, help="Keep filenames in experimental design output as raw.", default=False
 )
 condition = click.option(
     "--condition", "condition", help="Create conditions from provided (e.g., factor) columns."
 )
-remove_decoy = click.option("--remove_decoy", "remove_decoy", default=True)
+remove_decoy = click.option("--remove_decoy", "remove_decoy", is_flag=True, default=True, help="Remove decoy peptides when counting (default: True)")
 decoy_affix = click.option(
     "--decoy_affix",
     "decoy_affix",
