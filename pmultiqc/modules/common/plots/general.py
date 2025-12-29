@@ -49,7 +49,7 @@ def plot_data_check(
             count += 1
 
         return count
-    
+
     data_counts = count_elements(plot_data)
 
     log.info(f"{[function_name]} Plot data count: {data_counts}")
