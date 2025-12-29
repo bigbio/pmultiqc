@@ -35,11 +35,19 @@ def parse_diann_report(
         ms_with_psm,
         quantms_modified,
         ms_paths,
-        file_df=pd.DataFrame(),
+        file_df=None,
         msstats_input_valid=False
 ):
-    """Parse DIA-NN report and generate plots and statistics."""
+    """Parse DIA-NN report and generate plots and statistics.
+    
+    Args:
+        file_df: Optional DataFrame. If None, an empty DataFrame will be used.
+    """
     log.info("Parsing {}...".format(diann_report_path))
+
+    # Convert None to empty DataFrame for consistent handling
+    if file_df is None:
+        file_df = pd.DataFrame()
 
     # Load and preprocess report data
     report_data = _load_and_preprocess_diann_data(diann_report_path)
@@ -836,7 +844,7 @@ def create_protein_table(report_df, sample_df, file_df):
 
 def dia_sample_level_modifications(df, sdrf_file_df):
 
-    if sdrf_file_df.empty:
+    if sdrf_file_df is None or sdrf_file_df.empty:
         return {}
 
     report_data = df.copy()

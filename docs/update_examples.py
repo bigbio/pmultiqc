@@ -143,17 +143,25 @@ def delete_old_examples(folder_path):
 
 
 def run_pmultiqc(download_path, report_path, plugin_type):
+    # Normalize plugin_type to a list if it's a string (backward compatibility)
+    if isinstance(plugin_type, str):
+        plugin_type = [plugin_type]
+    elif not isinstance(plugin_type, list) or len(plugin_type) == 0:
+        raise ValueError(f"Invalid plugin_type format: {plugin_type}. Expected list or string.")
 
-    if plugin_type[0] == "maxquant":
+    plugin_name = plugin_type[0]
+    command = None
+
+    if plugin_name == "maxquant":
         command = ["multiqc", "--maxquant_plugin", download_path, "-o", report_path]
 
-    elif plugin_type[0] == "proteobench":
+    elif plugin_name == "proteobench":
         command = ["multiqc", "--proteobench_plugin", download_path, "-o", report_path]
 
-    elif plugin_type[0] == "mzid":
+    elif plugin_name == "mzid":
         command = ["multiqc", "--mzid_plugin", download_path, "-o", report_path]
 
-    elif plugin_type[0] == "dia" or plugin_type[0] == "tmt" or plugin_type[0] == "lfq":
+    elif plugin_name in ["dia", "tmt", "lfq"]:
         command = [
             "multiqc",
             "--quantms_plugin",
@@ -163,11 +171,16 @@ def run_pmultiqc(download_path, report_path, plugin_type):
             "-o",
             report_path,
         ]
-    elif plugin_type[0] == "diann":
+    elif plugin_name == "diann":
         command = ["multiqc", "--diann_plugin", download_path, "-o", report_path]
+    else:
+        raise ValueError(f"Unknown plugin type: {plugin_name}")
 
-    if len(plugin_type) > 1 and plugin_type[1] == "disable_hoverinfo":
-        command.append("--disable_hoverinfo")
+    # Handle additional flags (e.g., disable_hoverinfo)
+    if len(plugin_type) > 1:
+        for flag in plugin_type[1:]:
+            if flag and flag == "disable_hoverinfo":  # Only add non-empty flags
+                command.append("--disable_hoverinfo")
 
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -196,6 +209,20 @@ def new_examples(config_file, project_accession=None):
         urls = project.get("urls")
         report_path = project.get("path")
         file_type = project.get("file_type")
+
+        # Validate required fields
+        if not accession:
+            print(f"⚠️ Skipping project: missing 'accession' field")
+            continue
+        if not urls:
+            print(f"⚠️ Skipping project {accession}: missing 'urls' field")
+            continue
+        if not report_path:
+            print(f"⚠️ Skipping project {accession}: missing 'path' field")
+            continue
+        if not file_type:
+            print(f"⚠️ Skipping project {accession}: missing 'file_type' field")
+            continue
 
         print(f"\n{'='*60}")
         print(f"Processing project: {accession}")
