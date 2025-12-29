@@ -1392,7 +1392,7 @@ def validate_and_extract_zip(zip_path: str, extract_path: str, file_size: int):
                     status_code=400,
                     detail=f"Too many files in ZIP archive. Maximum is {MAX_UPLOAD_FILES} files"
                 )
-            
+
             # Security: Check for zip bombs and path traversal in zip entries
             total_uncompressed_size = 0
             for file_info in zip_ref.infolist():

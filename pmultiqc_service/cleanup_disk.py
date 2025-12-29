@@ -29,7 +29,7 @@ def cleanup_job_directories(base_dir, max_age_days=7):
             except ValueError:
                 print(f"Skipping non-UUID directory: {item}")
                 continue
-            
+
             try:
                 mtime = os.path.getmtime(item_path)
                 if mtime < cutoff_time:

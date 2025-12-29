@@ -2223,8 +2223,9 @@ class QuantMSModule:
         if hasattr(self, 'con') and self.con:
             try:
                 self.con.close()
-            except Exception:
-                pass  # Ignore errors during cleanup
+            except Exception as e:
+                # Log error but don't raise during cleanup to avoid issues in destructor
+                log.debug(f"Error closing SQLite connection during cleanup: {e}")
 
 
 def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
