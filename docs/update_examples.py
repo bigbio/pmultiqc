@@ -153,18 +153,18 @@ def run_pmultiqc(download_path, report_path, plugin_type):
     command = None
 
     if plugin_name == "maxquant":
-        command = ["multiqc", "--maxquant_plugin", download_path, "-o", report_path]
+        command = ["multiqc", "--maxquant-plugin", download_path, "-o", report_path]
 
     elif plugin_name == "proteobench":
-        command = ["multiqc", "--proteobench_plugin", download_path, "-o", report_path]
+        command = ["multiqc", "--proteobench-plugin", download_path, "-o", report_path]
 
     elif plugin_name == "mzid":
-        command = ["multiqc", "--mzid_plugin", download_path, "-o", report_path]
+        command = ["multiqc", "--mzid-plugin", download_path, "-o", report_path]
 
     elif plugin_name in ["dia", "tmt", "lfq"]:
         command = [
             "multiqc",
-            "--quantms_plugin",
+            "--quantms-plugin",
             download_path,
             "--config",
             os.path.join(download_path, "multiqc_config.yml"),
@@ -172,7 +172,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
             report_path,
         ]
     elif plugin_name == "diann":
-        command = ["multiqc", "--diann_plugin", download_path, "-o", report_path]
+        command = ["multiqc", "--diann-plugin", download_path, "-o", report_path]
     else:
         raise ValueError(f"Unknown plugin type: {plugin_name}")
 
@@ -180,7 +180,7 @@ def run_pmultiqc(download_path, report_path, plugin_type):
     if len(plugin_type) > 1:
         for flag in plugin_type[1:]:
             if flag and flag == "disable_hoverinfo":  # Only add non-empty flags
-                command.append("--disable_hoverinfo")
+                command.append("--disable-hoverinfo")
 
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

@@ -1413,18 +1413,18 @@ def run_pmultiqc_with_progress(
 
         # Add type-specific arguments
         if input_type == "maxquant":
-            args.extend(["--maxquant_plugin", "--ignore", "summary.txt"])
+            args.extend(["--maxquant-plugin", "--ignore", "summary.txt"])
         elif input_type == "quantms":
             if pmultiqc_config:
-                args.extend(["--quantms_plugin", "--config", pmultiqc_config])
+                args.extend(["--quantms-plugin", "--config", pmultiqc_config])
             else:
                 logger.error("The function 'run_pmultiqc_with_progress' is missing the parameter: pmultiqc_config")
         elif input_type == "diann":
             # DIANN files are handled automatically by pmultiqc
             # Add memory optimization arguments for large files
-            args.extend(["--diann_plugin", "--no-megaqc-upload", "--verbose"])
+            args.extend(["--diann-plugin", "--no-megaqc-upload", "--verbose"])
         elif input_type == "mzidentml":
-            args.extend(["--mzid_plugin"])
+            args.extend(["--mzid-plugin"])
 
         # Run MultiQC with pmultiqc plugin
         logger.info(f"Running pmultiqc with args: {args}")

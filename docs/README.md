@@ -124,63 +124,63 @@ Where:
 
 ```bash
 # Basic usage
-multiqc --quantms_plugin /path/to/quantms/results -o ./report
+multiqc --quantms-plugin /path/to/quantms/results -o ./report
 
 # With specific options
-multiqc --quantms_plugin /path/to/quantms/results -o ./report --remove_decoy --condition factor
+multiqc --quantms-plugin /path/to/quantms/results -o ./report --remove-decoy --condition factor
 ```
 
 #### For MaxQuant results
 
 ```bash
-multiqc --maxquant_plugin /path/to/maxquant/results -o ./report
+multiqc --maxquant-plugin /path/to/maxquant/results -o ./report
 ```
 
 #### For DIA-NN results
 
 ```bash
 # Discover report inside a results folder
-multiqc --diann_plugin /path/to/diann/results -o ./report
+multiqc --diann-plugin /path/to/diann/results -o ./report
 
 # Directly pass a DIA-NN report file (TSV or Parquet)
 # Note: MultiQC requires an analysis directory argument; use '.' as a placeholder
-multiqc --diann_plugin --diann_report /path/to/report.tsv . -o ./report
-multiqc --diann_plugin --diann_report /path/to/report.parquet . -o ./report
+multiqc --diann-plugin --diann-report /path/to/report.tsv . -o ./report
+multiqc --diann-plugin --diann-report /path/to/report.parquet . -o ./report
 ```
 
 #### For ProteoBench files
 
 ```bash
-multiqc --proteobench_plugin /path/to/proteobench/files -o ./report
+multiqc --proteobench-plugin /path/to/proteobench/files -o ./report
 ```
 
 #### For mzIdentML files
 
 ```bash
-multiqc --mzid_plugin /path/to/mzid/files -o ./report
+multiqc --mzid-plugin /path/to/mzid/files -o ./report
 ```
 
 ### Command-line Options
 
 | Option | Description | Default |
 |---|---|---|
-| `--raw` | Keep filenames in experimental design output as raw | `False` |
+| `--keep-raw` | Keep filenames in experimental design output as raw | `False` |
 | `--condition` | Create conditions from provided columns | - |
-| `--remove_decoy` | Remove decoy peptides when counting | `True` |
-| `--decoy_affix` | Pre- or suffix of decoy proteins in their accession | `DECOY_` |
-| `--contaminant_affix` | The contaminant prefix or suffix | `CONT` |
-| `--affix_type` | Location of the decoy marker (prefix or suffix) | `prefix` |
-| `--disable_plugin` | Disable pmultiqc plugin | `False` |
-| `--quantification_method` | Quantification method for LFQ experiment | `feature_intensity` |
-| `--disable_table` | Disable protein/peptide table plots for large datasets | `False` |
-| `--ignored_idxml` | Ignore idXML files for faster processing | `False` |
-| `--quantms_plugin` | Generate reports based on Quantms results | `False` |
-| `--diann_plugin` | Generate reports based on DIANN results | `False` |
-| `--diann_report` | Path to DIA-NN main report (.tsv or .parquet). When provided with `--diann_plugin`, you can use `.` as the analysis directory placeholder. | - |
-| `--maxquant_plugin` | Generate reports based on MaxQuant results | `False` |
-| `--proteobench_plugin` | Generate reports based on ProteoBench result | `False` |
-| `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
-| `--disable_hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
+| `--remove-decoy` | Remove decoy peptides when counting | `True` |
+| `--decoy-affix` | Pre- or suffix of decoy proteins in their accession | `DECOY_` |
+| `--contaminant-affix` | The contaminant prefix or suffix | `CONT` |
+| `--affix-type` | Location of the decoy marker (prefix or suffix) | `prefix` |
+| `--disable-plugin` | Disable pmultiqc plugin | `False` |
+| `--quantification-method` | Quantification method for LFQ experiment | `feature_intensity` |
+| `--disable-table` | Disable protein/peptide table plots for large datasets | `False` |
+| `--ignored-idxml` | Ignore idXML files for faster processing | `False` |
+| `--quantms-plugin` | Generate reports based on Quantms results | `False` |
+| `--diann-plugin` | Generate reports based on DIANN results | `False` |
+| `--diann-report` | Path to DIA-NN main report (.tsv or .parquet). When provided with `--diann-plugin`, you can use `.` as the analysis directory placeholder. | - |
+| `--maxquant-plugin` | Generate reports based on MaxQuant results | `False` |
+| `--proteobench-plugin` | Generate reports based on ProteoBench result | `False` |
+| `--mzid-plugin` | Generate reports based on mzIdentML files | `False` |
+| `--disable-hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
 
 ## 📊 QC Metrics and Visualizations
 
