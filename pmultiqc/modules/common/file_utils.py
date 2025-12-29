@@ -51,7 +51,7 @@ def extract_zip(file_path: str, extract_to: str) -> None:
     # Security: Check file size first
     file_size = os.path.getsize(file_path)
     max_size = 10 * 1024 * 1024 * 1024  # 10GB limit
-    
+
     with zipfile.ZipFile(file_path, "r") as zip_ref:
         # Security: Check for path traversal in zip entries
         for member in zip_ref.namelist():
@@ -61,13 +61,13 @@ def extract_zip(file_path: str, extract_to: str) -> None:
                 raise ValueError(f"Attempted path traversal in zip file: {member}")
             if ".." in member or member.startswith("/"):
                 raise ValueError(f"Invalid path in zip file: {member}")
-        
+
         # Security: Check for zip bombs
         total_uncompressed_size = sum(info.file_size for info in zip_ref.infolist())
         compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
         if compression_ratio > 100 or total_uncompressed_size > max_size:
             raise ValueError(f"Suspicious zip file detected (compression ratio: {compression_ratio:.1f}:1)")
-        
+
         zip_ref.extractall(extract_to)
         log.info(f"Extracted {file_path} to {extract_to}")
 
@@ -91,7 +91,7 @@ def extract_tar(file_path: str, extract_to: str) -> None:
                 raise ValueError(f"Attempted path traversal in tar file: {member.name}")
             if ".." in member.name or member.name.startswith("/"):
                 raise ValueError(f"Invalid path in tar file: {member.name}")
-        
+
         tar_ref.extractall(extract_to)
         log.info(f"Extracted {file_path} to {extract_to}")
 

@@ -48,9 +48,8 @@ def read_openms_design(desfile: str) -> tuple[pd.DataFrame, pd.DataFrame]:
             raise ValueError("Cannot find 'MSstats_Condition' header in file!")
 
         f_table = pd.DataFrame(f_table, columns=f_header)
-        f_table["Run"] = f_table.apply(
-            lambda x: file_prefix(x["Spectra_Filepath"]), axis=1
-        )
+        # Vectorized operation is more efficient than apply with lambda
+        f_table["Run"] = f_table["Spectra_Filepath"].apply(file_prefix)
         s_data_frame = pd.DataFrame(s_table, columns=s_header)
 
     return s_data_frame, f_table
@@ -647,5 +646,5 @@ def aggregate_general_stats(
                 )
             group_name: SampleGroup = SampleGroup(sample)
             rows_by_group[group_name] = row_data
-    
+
     return rows_by_group
