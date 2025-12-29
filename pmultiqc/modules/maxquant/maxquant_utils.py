@@ -980,7 +980,7 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
 
     def get_peptide_counts(evd_df):
 
-        peptide_counts = pd.DataFrame()
+        peptide_counts_list = []
         for raw_file, group in evd_df.groupby("raw file"):
             pep_set_genuine_unique = group[~group["is_transferred"]]["modified sequence"].unique()
             pep_set_all_mb_runique = group[group["is_transferred"]]["modified sequence"].unique()
@@ -1029,9 +1029,12 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
                 )
                 categories = ["Genuine"]
 
-            peptide_counts = pd.concat(
-                [peptide_counts, file_peptide_counts], axis=0, ignore_index=True
-            )
+            peptide_counts_list.append(file_peptide_counts)
+        
+        if peptide_counts_list:
+            peptide_counts = pd.concat(peptide_counts_list, axis=0, ignore_index=True)
+        else:
+            peptide_counts = pd.DataFrame()
         return peptide_counts, categories
 
     peptide_counts_df, cats = get_peptide_counts(evid_df)
@@ -1637,8 +1640,11 @@ def parameters_table(parameters_df):
         table_data.loc[table_data["parameter"] == "Fasta file", "value"] = fasta_file_list
 
     parameters_dict = {}
-    for index, row in table_data.iterrows():
-        parameters_dict[index + 1] = row.to_dict()
+    for row in table_data.itertuples(index=True):
+        row_dict = row._asdict()
+        # Remove the Index key from the dict as it's not part of the original row
+        row_dict.pop('Index', None)
+        parameters_dict[row.Index + 1] = row_dict
 
     logger.debug(f"Created parameters table with {len(parameters_dict)} entries")
     return parameters_dict

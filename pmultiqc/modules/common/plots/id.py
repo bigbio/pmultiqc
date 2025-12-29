@@ -663,14 +663,14 @@ def draw_quantms_identi_num(
                     )
                 )
 
-                for _, row in file_df_sample.iterrows():
+                for row in file_df_sample.itertuples():
                     sample_data = {}
                     for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                         sample_data["MSstats_Condition_" + str(k)] = ""
 
-                    sample_data["Fraction"] = row["Fraction"]
+                    sample_data["Fraction"] = row.Fraction
 
-                    run_data_temp = ms_runs_data.get(row["Run"], {})
+                    run_data_temp = ms_runs_data.get(row.Run, {})
                     sample_data["Peptide_Num"] = run_data_temp.get("peptide_num", "")
                     sample_data["Unique_Peptide_Num"] = run_data_temp.get("unique_peptide_num", "")
                     sample_data["Modified_Peptide_Num"] = run_data_temp.get("modified_peptide_num", "")
@@ -678,7 +678,7 @@ def draw_quantms_identi_num(
 
                     row_data.append(
                         InputRow(
-                            sample=SampleName(row["Run"]),
+                            sample=SampleName(row.Run),
                             data=sample_data,
                         )
                     )
@@ -737,16 +737,16 @@ def draw_quantms_identi_num(
                         },
                     )
                 )
-                for _, row in file_df_sample.iterrows():
+                for row in file_df_sample.itertuples():
 
-                    run_data_temp = ms_runs_data.get(row["Run"], {})
+                    run_data_temp = ms_runs_data.get(row.Run, {})
 
                     row_data.append(
                         InputRow(
-                            sample=SampleName(row["Run"]),
+                            sample=SampleName(row.Run),
                             data={
                                 "MSstats_Condition": "",
-                                "Fraction": row["Fraction"],
+                                "Fraction": row.Fraction,
                                 "Peptide_Num": run_data_temp.get("peptide_num", ""),
                                 "Unique_Peptide_Num": run_data_temp.get("unique_peptide_num", ""),
                                 "Modified_Peptide_Num": run_data_temp.get("modified_peptide_num", ""),

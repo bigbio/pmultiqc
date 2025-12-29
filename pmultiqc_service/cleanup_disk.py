@@ -54,7 +54,7 @@ def cleanup_corrupted_zips(base_dir):
 
     total_cleaned = 0
 
-    for root, dirs, files in os.walk(base_dir):
+    for root, _, files in os.walk(base_dir):
         for file in files:
             if file.endswith(".zip"):
                 file_path = os.path.join(root, file)

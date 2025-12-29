@@ -27,14 +27,14 @@ def draw_exp_design(sdrf_df, sub_sections):
         )]
 
         # subrows for each Raw file in the sample group
-        for _, row in group.iterrows():
+        for row in group.itertuples():
             row_data.append(
                 InputRow(
-                    sample=SampleName(row["file_name"]),
+                    sample=SampleName(row.file_name),
                     data={
                         "BioReplicate": "",
-                        "Fraction": row["fraction_identifier"],
-                        "TecReplicate": row["technical_replicate"],
+                        "Fraction": row.fraction_identifier,
+                        "TecReplicate": row.technical_replicate,
                     },
                 )
             )

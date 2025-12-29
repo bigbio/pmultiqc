@@ -170,18 +170,18 @@ def draw_exp_design(sub_sections, exp_design):
                 )
             )
 
-            for _, row in file_df_sample.iterrows():
+            for row in file_df_sample.itertuples():
                 sample_data = {}
                 for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                     sample_data["MSstats_Condition_" + str(k)] = ""
                 sample_data["MSstats_BioReplicate"] = ""
-                sample_data["Fraction_Group"] = row["Fraction_Group"]
-                sample_data["Fraction"] = row["Fraction"]
-                sample_data["Label"] = row["Label"]
+                sample_data["Fraction_Group"] = row.Fraction_Group
+                sample_data["Fraction"] = row.Fraction
+                sample_data["Label"] = row.Label
 
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
+                        sample=SampleName(row.Run),
                         data=sample_data,
                     )
                 )
@@ -238,16 +238,16 @@ def draw_exp_design(sub_sections, exp_design):
                     },
                 )
             )
-            for _, row in file_df_sample.iterrows():
+            for row in file_df_sample.itertuples():
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
+                        sample=SampleName(row.Run),
                         data={
                             "MSstats_Condition": "",
                             "MSstats_BioReplicate": "",
-                            "Fraction_Group": row["Fraction_Group"],
-                            "Fraction": row["Fraction"],
-                            "Label": row["Label"],
+                            "Fraction_Group": row.Fraction_Group,
+                            "Fraction": row.Fraction,
+                            "Label": row.Label,
                         },
                     )
                 )

@@ -1667,7 +1667,8 @@ class QuantMSModule:
                 res["Average Spectrum Counting"] = round(sum(spc) / len(np.nonzero(spc)[0]))
                 return res
 
-            for index, row in prot.iterrows():
+            for row in prot.itertuples(index=True):
+                index = row.Index
                 mztab_data_dict_prot_full[index] = {}
                 for abundance_col in prot_abundance_cols:
                     # map abundance assay to factor value
@@ -1691,18 +1692,20 @@ class QuantMSModule:
                     )
 
                     # Consider technical replicates and biological replicates
+                    # Access column by name using getattr (itertuples uses attribute access)
+                    abundance_value = getattr(row, abundance_col, None)
                     if condition in mztab_data_dict_prot_full[index]:
                         if sample_name in mztab_data_dict_prot_full[index][condition]:
                             mztab_data_dict_prot_full[index][condition][sample_name].append(
-                                row[abundance_col]
+                                abundance_value
                             )
                         else:
                             mztab_data_dict_prot_full[index][condition] = {
-                                sample_name: [row[abundance_col]]
+                                sample_name: [abundance_value]
                             }
                     else:
                         mztab_data_dict_prot_full[index][condition] = {
-                            sample_name: [row[abundance_col]]
+                            sample_name: [abundance_value]
                         }
 
                 mztab_data_dict_prot_full[index] = get_spectrum_count_across_rep(
@@ -2442,9 +2445,9 @@ def aggregate_spectrum_tracking(
                     data=sample_data_temp,
                 )
             )
-            for _, row in file_df_sample.iterrows():
+            for row in file_df_sample.itertuples():
 
-                run_data_temp = mzml_table.get(row["Run"], {})
+                run_data_temp = mzml_table.get(row.Run, {})
 
                 run_data = dict()
                 for h in header_cols:
@@ -2452,7 +2455,7 @@ def aggregate_spectrum_tracking(
 
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
+                        sample=SampleName(row.Run),
                         data=run_data,
                     )
                 )

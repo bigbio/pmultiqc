@@ -630,13 +630,13 @@ def aggregate_general_stats(
                     },
                 )
             )
-            for _, row in file_df_sample.iterrows():
+            for row in file_df_sample.itertuples():
 
-                run_data_temp = ms1_general_stats.get(row["Run"], {})
+                run_data_temp = ms1_general_stats.get(row.Run, {})
 
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
+                        sample=SampleName(row.Run),
                         data={
                             "AcquisitionDateTime": run_data_temp.get("AcquisitionDateTime", ""),
                             "log10(TotalCurrent)": run_data_temp.get("log10(TotalCurrent)", ""),

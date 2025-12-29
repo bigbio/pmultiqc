@@ -750,7 +750,7 @@ def copy_html_report_for_online_viewing(
             f"Output path is directory: {os.path.isdir(output_path) if os.path.exists(output_path) else 'N/A'}"
         )
         if os.path.exists(output_path):
-            for root, dirs, files in os.walk(output_path):
+            for root, _, files in os.walk(output_path):
                 level = root.replace(output_path, "").count(os.sep)
                 indent = " " * 2 * level
                 logger.info(f"{indent}{os.path.basename(root)}/")
@@ -766,7 +766,7 @@ def copy_html_report_for_online_viewing(
         # Look for all HTML report files
         html_reports = []
         logger.info(f"Searching for HTML reports in: {output_path}")
-        for root, dirs, files in os.walk(output_path):
+        for root, _, files in os.walk(output_path):
             logger.info(f"Checking directory: {root}")
             logger.info(f"Files in {root}: {files}")
             for file in files:
@@ -785,7 +785,7 @@ def copy_html_report_for_online_viewing(
         if not html_reports:
             logger.warning(f"No HTML reports found in {output_path}")
             logger.info("Searching for any .html files in the output directory...")
-            for root, dirs, files in os.walk(output_path):
+            for root, _, files in os.walk(output_path):
                 for file in files:
                     if file.endswith(".html"):
                         logger.info(f"Found HTML file: {os.path.join(root, file)}")
@@ -793,7 +793,7 @@ def copy_html_report_for_online_viewing(
 
         # Create a unique hash for the report URL
         hash_input = f"{job_id}_{accession}" if accession else job_id
-        report_hash = hashlib.md5(hash_input.encode()).hexdigest()[:12]
+        report_hash = hashlib.sha256(hash_input.encode()).hexdigest()[:12]
         logger.info(f"Generated report hash: {report_hash} (from input: {hash_input})")
 
         # Create public directory for this report
@@ -824,7 +824,7 @@ def copy_html_report_for_online_viewing(
         # Copy all files from output directory to public directory
         files_copied = 0
         logger.info(f"Starting to copy files from {output_path} to {public_dir}")
-        for root, dirs, files in os.walk(output_path):
+        for root, _, files in os.walk(output_path):
             for file in files:
                 src_path = os.path.join(root, file)
                 rel_path = os.path.relpath(src_path, output_path)
@@ -991,7 +991,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                 if os.path.isdir(downloaded_file):
                     # If it's a directory (from zip extraction), copy all contents
                     logger.info(f"Copying directory contents from {downloaded_file}")
-                    for root, dirs, files in os.walk(downloaded_file):
+                    for root, _, files in os.walk(downloaded_file):
                         for file in files:
                             src_path = os.path.join(root, file)
                             rel_path = os.path.relpath(src_path, downloaded_file)
@@ -1583,7 +1583,6 @@ def run_pmultiqc_with_progress(
             logger.error(f"Error checking pmultiqc plugin: {e}")
 
         # Add timeout for large datasets (30 minutes)
-        import time
 
         # Check if we have a large file and set timeout accordingly
         large_file_detected = False
@@ -1593,7 +1592,7 @@ def run_pmultiqc_with_progress(
             # Check if we have a large file
             input_dir = args[1]
             try:
-                for root, dirs, files in os.walk(input_dir):
+                for root, _, files in os.walk(input_dir):
                     for file in files:
                         if file.endswith(".tsv"):
                             file_path = os.path.join(root, file)
@@ -1669,7 +1668,7 @@ def run_pmultiqc_with_progress(
 
                 # List all files in the input directory
                 all_files = []
-                for root, dirs, files in os.walk(input_dir):
+                for root, _, files in os.walk(input_dir):
                     for file in files:
                         all_files.append(os.path.join(root, file))
                 logger.info(f"All files in input directory: {all_files}")
@@ -1958,7 +1957,7 @@ def create_zip_report(output_path: str, zip_path: str) -> bool:
             return False
 
         files_found = []
-        for root, dirs, files in os.walk(output_path):
+        for root, _, files in os.walk(output_path):
             for file in files:
                 file_path = os.path.join(root, file)
                 # Skip the zip file we're creating to avoid infinite loop
@@ -2390,7 +2389,7 @@ async def serve_html_report(report_hash: str, filename: str):
         report_dir = os.path.join(HTML_REPORTS_FOLDER, report_hash)
         if os.path.exists(report_dir):
             logger.info(f"Report directory exists. Contents:")
-            for root, dirs, files in os.walk(report_dir):
+            for root, _, files in os.walk(report_dir):
                 level = root.replace(report_dir, "").count(os.sep)
                 indent = " " * 2 * level
                 logger.info(f"{indent}{os.path.basename(root)}/")
@@ -3096,7 +3095,7 @@ async def force_complete_job(job_id: str):
 
             # Look for MultiQC HTML reports in output directory
             if os.path.exists(output_dir):
-                for root, dirs, files in os.walk(output_dir):
+                for root, _, files in os.walk(output_dir):
                     for file in files:
                         if file == "multiqc_report.html":
                             html_report_path = os.path.join(root, file)
@@ -3132,7 +3131,7 @@ async def force_complete_job(job_id: str):
                                     stored_job_id = f.read().strip()
                                 if stored_job_id == job_id:
                                     # Check for HTML reports in this directory
-                                    for root, dirs, files in os.walk(hash_dir):
+                                    for root, _, files in os.walk(hash_dir):
                                         for file in files:
                                             if file == "multiqc_report.html":
                                                 completion_indicators[
@@ -3299,7 +3298,7 @@ async def job_diagnostic(job_id: str):
 
         # Scan output directory
         if os.path.exists(output_dir):
-            for root, dirs, files in os.walk(output_dir):
+            for root, _, files in os.walk(output_dir):
                 for file in files:
                     file_path = os.path.join(root, file)
                     rel_path = os.path.relpath(file_path, output_dir)
@@ -3329,7 +3328,7 @@ async def job_diagnostic(job_id: str):
                                 stored_job_id = f.read().strip()
                             if stored_job_id == job_id:
                                 # Found public reports for this job
-                                for root, dirs, files in os.walk(hash_dir):
+                                for root, _, files in os.walk(hash_dir):
                                     for file in files:
                                         if file == "multiqc_report.html":
                                             rel_path = os.path.relpath(root, hash_dir)
