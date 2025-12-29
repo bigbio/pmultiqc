@@ -208,7 +208,7 @@ class QuantMSModule:
 
                 parse_sdrf(
                     self.sdrf,
-                    config.kwargs["raw"],
+                    config.kwargs["keep_raw"],
                     config.kwargs["condition"],
                 )
 

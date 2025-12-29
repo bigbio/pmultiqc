@@ -57,7 +57,7 @@ def plot_data_check(
     if data_counts >= FLAT_THRESHOLD:
         plot_html.flat = True
         log.warning(f"{[function_name]} Number of plotting data points: {data_counts}, exceeds threshold {FLAT_THRESHOLD}, switching to flat plot")
-    
+        
     return plot_html
 
 

@@ -447,7 +447,7 @@ def parse_sdrf(
 ):
     OpenMS().openms_convert(
         sdrf_path,
-        raw_config,  # config.kwargs["raw"],
+        raw_config,  # config.kwargs["keep_raw"],
         False,
         True,
         False,
