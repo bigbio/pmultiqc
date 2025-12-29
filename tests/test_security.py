@@ -6,8 +6,7 @@ import os
 import tempfile
 import zipfile
 import pytest
-from pathlib import Path
-from pmultiqc.modules.common.file_utils import extract_zip, extract_tar
+from pmultiqc.modules.common.file_utils import extract_zip
 
 
 class TestSecurityValidation:
@@ -20,11 +19,11 @@ class TestSecurityValidation:
             zip_path = os.path.join(tmpdir, "malicious.zip")
             extract_to = os.path.join(tmpdir, "extract")
             os.makedirs(extract_to)
-            
+
             with zipfile.ZipFile(zip_path, 'w') as zf:
                 # Try to write outside the extraction directory
                 zf.writestr("../../evil.txt", "malicious content")
-            
+
             # This should raise ValueError due to path traversal
             with pytest.raises(ValueError, match="path traversal|Invalid path"):
                 extract_zip(zip_path, extract_to)
@@ -35,19 +34,19 @@ class TestSecurityValidation:
             zip_path = os.path.join(tmpdir, "bomb.zip")
             extract_to = os.path.join(tmpdir, "extract")
             os.makedirs(extract_to)
-            
+
             # Create a simple zip bomb (large uncompressed content)
             # This creates a 50MB file that compresses well
             large_content = b"0" * (50 * 1024 * 1024)
-            
+
             with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
                 zf.writestr("large.txt", large_content)
-            
+
             # Get the actual compression ratio
             file_size = os.path.getsize(zip_path)
             if file_size > 0:
                 compression_ratio = len(large_content) / file_size
-                
+
                 # Only test if compression ratio is high enough
                 if compression_ratio > 100:
                     # This should raise ValueError due to high compression ratio
@@ -64,15 +63,15 @@ class TestSecurityValidation:
             zip_path = os.path.join(tmpdir, "valid.zip")
             extract_to = os.path.join(tmpdir, "extract")
             os.makedirs(extract_to)
-            
+
             # Create a valid zip file
             test_content = b"valid content"
             with zipfile.ZipFile(zip_path, 'w') as zf:
                 zf.writestr("test.txt", test_content)
-            
+
             # This should work without raising exceptions
             extract_zip(zip_path, extract_to)
-            
+
             # Verify the file was extracted
             extracted_file = os.path.join(extract_to, "test.txt")
             assert os.path.exists(extracted_file)
@@ -85,11 +84,11 @@ class TestSecurityValidation:
             zip_path = os.path.join(tmpdir, "absolute.zip")
             extract_to = os.path.join(tmpdir, "extract")
             os.makedirs(extract_to)
-            
+
             with zipfile.ZipFile(zip_path, 'w') as zf:
                 # Try to write to absolute path
                 zf.writestr("/etc/passwd", "malicious")
-            
+
             # This should raise ValueError due to absolute path
             with pytest.raises(ValueError, match="path traversal|Invalid path"):
                 extract_zip(zip_path, extract_to)

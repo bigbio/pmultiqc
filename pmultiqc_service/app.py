@@ -1363,11 +1363,11 @@ async def validate_and_save_upload(file: UploadFile, upload_dir: str, job_id: st
                 os.remove(zip_path)
                 shutil.rmtree(upload_dir, ignore_errors=True)
                 raise HTTPException(
-                    status_code=413, 
+                    status_code=413,
                     detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024**3):.1f} GB"
                 )
             buffer.write(chunk)
-    
+
     return zip_path, file_size
 
 
