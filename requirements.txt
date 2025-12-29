@@ -1,10 +1,11 @@
-multiqc>=1.29, <=1.32
+multiqc>=1.29, <=1.33
 pandas>=1.5
 pyteomics
-pyopenms
+pyopenms<=3.4.0
 sdrf-pipelines>=0.0.32
 lxml
 numpy>=1.23
 pyarrow
 scikit-learn>=1.2
 statsmodels
+urllib3>=2.6.1

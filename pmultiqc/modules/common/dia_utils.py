@@ -13,7 +13,8 @@ from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.common_utils import (
     evidence_rt_count,
-    mod_group_percentage
+    cal_num_table_at_sample,
+    summarize_modifications
 )
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots.id import draw_ids_rt_count
@@ -31,15 +32,22 @@ def parse_diann_report(
         diann_report_path,
         heatmap_color_list,
         sample_df,
-        file_df,
         ms_with_psm,
-        cal_num_table_data,
         quantms_modified,
         ms_paths,
+        file_df=None,
         msstats_input_valid=False
 ):
-    """Parse DIA-NN report and generate plots and statistics."""
+    """Parse DIA-NN report and generate plots and statistics.
+    
+    Args:
+        file_df: Optional DataFrame. If None, an empty DataFrame will be used.
+    """
     log.info("Parsing {}...".format(diann_report_path))
+
+    # Convert None to empty DataFrame for consistent handling
+    if file_df is None:
+        file_df = pd.DataFrame()
 
     # Load and preprocess report data
     report_data = _load_and_preprocess_diann_data(diann_report_path)
@@ -53,7 +61,7 @@ def parse_diann_report(
     _process_modifications(report_data)
 
     # Process run-specific data
-    _process_run_data(report_data, ms_with_psm, cal_num_table_data, quantms_modified)
+    cal_num_table_data = _process_run_data(report_data, ms_with_psm, quantms_modified, file_df)
 
     # Handle files without PSM
     ms_without_psm = _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data)
@@ -105,7 +113,7 @@ def _draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, 
     """Draw all DIA-NN plots."""
     # Draw intensity plots and heatmap
     if "Precursor.Quantity" in report_data.columns:
-        draw_dia_intensitys(sub_sections["quantification"], report_data)
+        draw_dia_intensitys(sub_sections["quantification"], report_data, file_df)
         _draw_heatmap(sub_sections["summary"], report_data, heatmap_color_list)
 
     # Draw other plots
@@ -113,7 +121,7 @@ def _draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, 
     draw_dia_ms1(sub_sections["ms1"], report_data)
 
     log.info("Draw the DIA MS2 subsection.")
-    draw_dia_ms2s(sub_sections["ms2"], report_data)
+    draw_dia_ms2s(sub_sections["ms2"], report_data, file_df)
 
     log.info("Draw the DIA mass_error subsection.")
     draw_dia_mass_error(sub_sections["mass_error"], report_data)
@@ -209,37 +217,58 @@ def _process_modifications(report_data):
     report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
 
 
-def _process_run_data(report_data, ms_with_psm, cal_num_table_data, quantms_modified):
-    """Process run-specific data including modifications and statistics."""
+def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
+    """
+    Process run-specific data including modifications and statistics.
+    """
+
     log.info("Processing DIA mod_plot_dict.")
-    mod_plot_dict = dict()
+
+    report_data = df[
+        ["Run", "Modified.Sequence", "Modifications", "Protein.Group", "sequence"]
+    ].copy()
+
+    mod_plot_by_run = dict()
     modified_cats = list()
+
+    statistics_at_run = dict()
+    data_per_run = dict()
 
     for run_file, group in report_data.groupby("Run"):
         run_file = str(run_file)
         ms_with_psm.append(run_file)
 
         # Process modifications for this run
-        mod_group_processed = mod_group_percentage(group.drop_duplicates())
-        mod_plot_dict[run_file] = dict(
-            zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
-        )
-        modified_cats.extend(mod_group_processed["modifications"])
+        mod_plot_dict, modified_cat = summarize_modifications(group.drop_duplicates())
+        mod_plot_by_run[run_file] = mod_plot_dict
+        modified_cats.extend(modified_cat)
 
         # Calculate statistics for this run
-        _calculate_run_statistics(group, run_file, cal_num_table_data)
+        statistics_at_run[run_file], data_per_run[run_file] = _calculate_run_statistics(group)
+
+    num_table_at_sample = cal_num_table_at_sample(sdrf_file_df, data_per_run)
+
+    cal_num_table_data = {
+        "sdrf_samples": num_table_at_sample,
+        "ms_runs": statistics_at_run
+    }
+
+    mod_plot_by_sample = dia_sample_level_modifications(
+        df=report_data,
+        sdrf_file_df=sdrf_file_df
+    )
 
     # Update quantms_modified with processed data
-    quantms_modified["plot_data"] = mod_plot_dict
+    quantms_modified["plot_data"] = [mod_plot_by_run, mod_plot_by_sample]
     quantms_modified["cats"] = list(
         sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
     )
 
+    return cal_num_table_data
 
-def _calculate_run_statistics(group, run_file, cal_num_table_data):
+
+def _calculate_run_statistics(group):
     """Calculate statistics for a specific run."""
-    cal_num_table_data[run_file] = {"protein_num": len(set(group["Protein.Group"]))}
-    cal_num_table_data[run_file]["peptide_num"] = len(set(group["sequence"]))
 
     peptides = set(group["Modified.Sequence"])
     modified_pep = list(
@@ -251,8 +280,21 @@ def _calculate_run_statistics(group, run_file, cal_num_table_data):
         pep for pep, prots in group_peptides.items() if len(set(prots)) == 1
     ]
 
-    cal_num_table_data[run_file]["unique_peptide_num"] = len(unique_peptides)
-    cal_num_table_data[run_file]["modified_peptide_num"] = len(modified_pep)
+    stat_run = {
+        "protein_num": len(set(group["Protein.Group"])),
+        "peptide_num": len(set(group["sequence"])),
+        "unique_peptide_num": len(unique_peptides),
+        "modified_peptide_num": len(modified_pep)
+    }
+
+    data_per_run = {
+        "proteins": set(group["Protein.Group"]),
+        "peptides": set(group["sequence"]),
+        "unique_peptides": unique_peptides,
+        "modified_peps": modified_pep
+    }
+
+    return stat_run, data_per_run
 
 
 def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
@@ -261,7 +303,7 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
 
     for i in ms_without_psm:
         log.warning("No PSM found in '{}'!".format(i))
-        cal_num_table_data[i] = {
+        cal_num_table_data["ms_runs"][i] = {
             "protein_num": 0,
             "peptide_num": 0,
             "unique_peptide_num": 0,
@@ -274,14 +316,13 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
 ## Removed draw_dia_heatmap wrapper; call cal_dia_heatmap and dia_plots.draw_heatmap directly.
 
 
-def draw_dia_intensitys(sub_section, report_df):
+def draw_dia_intensitys(sub_section, report_df, sdrf_file_df):
     df_sub = report_df[report_df["Precursor.Quantity"] > 0].copy()
     df_sub["log_intensity"] = np.log2(df_sub["Precursor.Quantity"])
 
-    dia_plots.draw_dia_intensity_dis(sub_section, df_sub)
+    dia_plots.draw_dia_intensity_dis(sub_section, df_sub, sdrf_file_df)
 
-    if dia_plots.can_groupby_for_std(report_df, "Run"):
-        dia_plots.draw_dia_intensity_std(sub_section, df_sub)
+    dia_plots.draw_dia_intensity_std(sub_section, df_sub, sdrf_file_df)
 
 
 def draw_dia_ms1(sub_section, df):
@@ -293,13 +334,13 @@ def draw_dia_ms1(sub_section, df):
             dia_plots.draw_dia_ms1_area(sub_section, df_sub)
 
 
-def draw_dia_ms2s(sub_section, df):
+def draw_dia_ms2s(sub_section, df, sdrf_file_df):
     # Distribution of Precursor Charges
     if "Precursor.Charge" in df.columns:
         dia_plots.draw_dia_whole_exp_charge(sub_section, df)
 
         # Charge-state of Per File
-        dia_plots.draw_dia_ms2_charge(sub_section, df)
+        dia_plots.draw_dia_ms2_charge(sub_section, df, sdrf_file_df)
 
 
 def draw_dia_mass_error(sub_section, df):
@@ -395,6 +436,7 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
         "only_defined_headers": True,
         "col1_header": "PeptideID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     # only use the first 50 lines for the table
@@ -455,6 +497,7 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
         "only_defined_headers": True,
         "col1_header": "ProteinID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     display_rows = 50
@@ -799,3 +842,28 @@ def create_protein_table(report_df, sample_df, file_df):
     result_dict = {i: v for i, (_, v) in enumerate(table_dict.items(), start=1)}
 
     return result_dict, headers
+
+
+def dia_sample_level_modifications(df, sdrf_file_df):
+
+    if sdrf_file_df is None or sdrf_file_df.empty:
+        return {}
+
+    report_data = df.copy()
+
+    report_data = report_data.merge(
+        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+        on="Run"
+    )
+
+    report_data["Sample"] = report_data["Sample"].astype(int)
+
+    mod_plot = dict()
+    for sample, group in report_data.groupby("Sample", sort=True):
+
+        mod_plot_dict, _ = summarize_modifications(
+            group.drop_duplicates()
+        )
+        mod_plot[f"Sample {str(sample)}"] = mod_plot_dict
+
+    return mod_plot

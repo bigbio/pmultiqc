@@ -107,6 +107,7 @@ class IdXMLReader(BaseParser):
         )
         protein_ids: list = []
         peptide_ids: list = []
+        # peptide_ids = PeptideIdentificationList()     # pyopenms >= 3.5.0
         IdXMLFile().load(raw_id, protein_ids, peptide_ids)
         raw_id_name = file_prefix(raw_id)
 

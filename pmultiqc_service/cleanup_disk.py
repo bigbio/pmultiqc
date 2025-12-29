@@ -1,5 +1,5 @@
 """
-Disk cleanup script for PMultiQC service
+Disk cleanup script for pmultiqc service
 Removes old job directories and corrupted files to free up disk space
 """
 
@@ -79,7 +79,7 @@ def main():
     output_dir = "local_outputs"
     html_reports_dir = "local_html_reports"
 
-    print("PMultiQC Disk Cleanup Script")
+    print("pmultiqc Disk Cleanup Script")
     print("=" * 40)
 
     # Clean up old job directories

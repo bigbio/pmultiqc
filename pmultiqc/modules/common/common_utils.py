@@ -5,6 +5,10 @@ import copy
 from collections import OrderedDict
 import numpy as np
 
+from typing import Dict, List
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
+
 from sdrf_pipelines.openms.openms import OpenMS
 
 from pmultiqc.modules.common.histogram import Histogram
@@ -94,6 +98,7 @@ def parse_mzml(
     ms1_bpc = dict()
     ms1_peaks = dict()
     ms1_general_stats = dict()
+    current_sum_by_run = dict()
 
     if is_bruker and read_ms_info:
         for file in ms_info_path:
@@ -108,6 +113,7 @@ def parse_mzml(
                 ms1_bpc[os.path.basename(file).replace("_ms_info.tsv", "")],
                 ms1_peaks[os.path.basename(file).replace("_ms_info.tsv", "")],
                 ms1_general_stats[os.path.basename(file).replace("_ms_info.tsv", "")],
+                _,
             ) = ms_io.get_ms_qc_info(mzml_df)
 
             log.info(
@@ -164,6 +170,7 @@ def parse_mzml(
         ms1_bpc = msinfo_reader.ms1_bpc
         ms1_peaks = msinfo_reader.ms1_peaks
         ms1_general_stats = msinfo_reader.ms1_general_stats
+        current_sum_by_run = msinfo_reader.current_sum_by_run
     else:
         from pmultiqc.modules.common.ms.mzml import MzMLReader
 
@@ -191,6 +198,7 @@ def parse_mzml(
         ms1_bpc = mzml_reader.ms1_bpc
         ms1_peaks = mzml_reader.ms1_peaks
         ms1_general_stats = mzml_reader.ms1_general_stats
+        current_sum_by_run = mzml_reader.current_sum_by_run
 
         if enable_mzid:
             mzml_ms_df = mzml_reader.mzml_ms_df
@@ -265,16 +273,20 @@ def parse_mzml(
         ms1_tic,
         ms1_bpc,
         ms1_peaks,
-        ms1_general_stats
+        ms1_general_stats,
+        current_sum_by_run
     )
 
 
-def mod_group_percentage(group):
-    if "Modifications" in group.columns:
-        group.rename(columns={"Modifications": "modifications"}, inplace=True)
+def mod_group_percentage(df):
 
-    counts = group["modifications"].str.split(",").explode().value_counts()
-    percentage_df = (counts / len(group["modifications"]) * 100).reset_index()
+    df_copy = df.copy()
+
+    if "Modifications" in df_copy.columns and "modifications" not in df_copy.columns:
+        df_copy = df_copy.rename(columns={"Modifications": "modifications"})
+
+    counts = df_copy["modifications"].str.split(",").explode().value_counts()
+    percentage_df = (counts / len(df_copy["modifications"]) * 100).reset_index()
     percentage_df.columns = ["modifications", "percentage"]
 
     # Modified (Total)
@@ -435,9 +447,211 @@ def parse_sdrf(
 ):
     OpenMS().openms_convert(
         sdrf_path,
-        raw_config,  # config.kwargs["raw"],
+        raw_config,  # config.kwargs["keep_raw"],
         False,
         True,
         False,
         condition_config,  # config.kwargs["condition"],
     )
+
+
+def cal_num_table_at_sample(file_df, data_per_run):
+
+    if file_df.empty:
+        return dict()
+
+    sample_file_df = file_df.copy()
+    sample_file_df["Sample"] = sample_file_df["Sample"].astype(int)
+
+    cal_num_table_sample = dict()
+    for sample, group in sample_file_df.groupby("Sample", sort=True):
+        proteins_set = set()
+        peptides_set = set()
+        unique_peptides_set = set()
+        modified_pep_set = set()
+
+        for run in group["Run"].unique():
+
+            run_data = data_per_run.get(run)
+            if not run_data:
+                continue
+
+            proteins_set.update(run_data.get("proteins", []))
+            peptides_set.update(run_data.get("peptides", []))
+            unique_peptides_set.update(run_data.get("unique_peptides", []))
+            modified_pep_set.update(run_data.get("modified_peps", []))
+
+        cal_num_table_sample[str(sample)] = {
+            "protein_num": len(proteins_set),
+            "peptide_num": len(peptides_set),
+            "unique_peptide_num": len(unique_peptides_set),
+            "modified_peptide_num": len(modified_pep_set),
+        }
+
+    return cal_num_table_sample
+
+
+def cal_msms_identified_rate(ms2_num_data, identified_data):
+
+    identified_rate = dict()
+    for m, msms_info in identified_data.items():
+        identified_ms2 = msms_info.get("Identified", 0)
+        all_ms2 = ms2_num_data.get(m, {}).get("MS2_Num", 0)
+        if all_ms2:
+            identified_rate[m] = {
+                "Identified Rate": identified_ms2 / all_ms2 * 100
+            }
+
+    return identified_rate
+
+
+def aggregate_msms_identified_rate(
+    mzml_table,
+    identified_msms_spectra,
+    sdrf_file_df=None
+):
+    identified_rate_by_run = cal_msms_identified_rate(
+            ms2_num_data=mzml_table,
+            identified_data=identified_msms_spectra
+        )
+
+    if sdrf_file_df is None:
+        return identified_rate_by_run
+
+    else:
+        identified_by_sample = dict()
+        ms2_num_by_sample = dict()
+
+        sdrf_file_df = sdrf_file_df.copy()
+        sdrf_file_df["Sample"] = sdrf_file_df["Sample"].astype(int)
+
+        for sample, group in sdrf_file_df.groupby("Sample", sort=True):
+            runs = group["Run"]
+
+            sample_identified_ms2 = sum(
+                identified_msms_spectra.get(run, {}).get("Identified", 0)
+                for run in runs
+            )
+            sample_all_ms2 = sum(
+                mzml_table.get(run, {}).get("MS2_Num", 0)
+                for run in runs
+            )
+
+            sample_key = f"Sample {str(sample)}"
+
+            identified_by_sample[sample_key] = {"Identified": sample_identified_ms2}
+            ms2_num_by_sample[sample_key] = {"MS2_Num": sample_all_ms2}
+
+        identified_rate_by_sample = cal_msms_identified_rate(
+            ms2_num_data=ms2_num_by_sample,
+            identified_data=identified_by_sample
+        )
+
+        return [identified_rate_by_run, identified_rate_by_sample]
+
+def summarize_modifications(df):
+
+    mod_group_processed = mod_group_percentage(df)
+    mod_plot_dict = dict(
+        zip(mod_group_processed["modifications"], mod_group_processed["percentage"])
+    )
+    modified_cat = mod_group_processed["modifications"]
+
+    return mod_plot_dict, modified_cat
+
+
+def group_charge(df, group_col, charge_col):
+
+    table = df.groupby([group_col, charge_col], sort=True).size().unstack(fill_value=0)
+    table.columns = table.columns.astype(str)
+
+    if group_col == "Sample":
+        table.index = [
+            f"Sample {str(i)}" for i in table.index
+        ]
+
+    return table
+
+
+def sum_matching_dict_values(sum_by_run, value_col, file_df_by_sample):
+
+    runs = set(file_df_by_sample["Run"].tolist())
+
+    result = sum(
+        sum_by_run[k][value_col] for k in runs if k in sum_by_run
+    )
+
+    return result
+
+
+def aggregate_general_stats(
+    ms1_general_stats,
+    current_sum_by_run,
+    sdrf_file_df
+):
+
+    if sdrf_file_df.empty:
+
+        rows_by_group = dict()
+
+        for sample, value in ms1_general_stats.items():
+
+            rows_by_group[sample] = {
+                "AcquisitionDateTime": value.get("AcquisitionDateTime", "-"),
+                "log10(TotalCurrent)": value.get("log10(TotalCurrent)", "-"),
+                "log10(ScanCurrent)": value.get("log10(ScanCurrent)", "-"),
+            }
+    else:
+
+        rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
+
+        for sample in sorted(
+            sdrf_file_df["Sample"].drop_duplicates().tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+        ):
+
+            file_df_sample = sdrf_file_df[sdrf_file_df["Sample"] == sample].copy()
+
+            total_curr_sample = sum_matching_dict_values(
+                sum_by_run=current_sum_by_run,
+                value_col="total_curr",
+                file_df_by_sample=file_df_sample
+            )
+            total_curr_sample = float(np.log10(max(total_curr_sample, 1e-12)))
+
+            scan_curr_sample = sum_matching_dict_values(
+                sum_by_run=current_sum_by_run,
+                value_col="scan_curr",
+                file_df_by_sample=file_df_sample
+            )
+            scan_curr_sample = float(np.log10(max(scan_curr_sample, 1e-12)))
+
+            row_data: List[InputRow] = []
+            row_data.append(
+                InputRow(
+                    sample=SampleName(f"Sample {str(sample)}"),
+                    data={
+                        "AcquisitionDateTime": "-",
+                        "log10(TotalCurrent)": total_curr_sample,
+                        "log10(ScanCurrent)": scan_curr_sample,
+                    },
+                )
+            )
+            for _, row in file_df_sample.iterrows():
+
+                run_data_temp = ms1_general_stats.get(row["Run"], {})
+
+                row_data.append(
+                    InputRow(
+                        sample=SampleName(row["Run"]),
+                        data={
+                            "AcquisitionDateTime": run_data_temp.get("AcquisitionDateTime", ""),
+                            "log10(TotalCurrent)": run_data_temp.get("log10(TotalCurrent)", ""),
+                            "log10(ScanCurrent)": run_data_temp.get("log10(ScanCurrent)", ""),
+                        },
+                    )
+                )
+            group_name: SampleGroup = SampleGroup(sample)
+            rows_by_group[group_name] = row_data
+    
+    return rows_by_group

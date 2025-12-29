@@ -9,7 +9,8 @@ from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
     get_ms_path,
-    parse_mzml
+    parse_mzml,
+    aggregate_general_stats
 )
 from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.plots.general import draw_exp_design
@@ -25,8 +26,8 @@ from pmultiqc.modules.common.plots.ms import (
     draw_ms_information
 )
 from pmultiqc.modules.core.section_groups import add_group_modules
-
 from pmultiqc.modules.common.logging import get_logger
+
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.diann.diann")
@@ -107,7 +108,8 @@ class DiannModule:
             self.ms1_tic,
             self.ms1_bpc,
             self.ms1_peaks,
-            self.ms1_general_stats
+            self.ms1_general_stats,
+            self.current_sum_by_run
         ) = parse_mzml(
             is_bruker=self.is_bruker,
             read_ms_info=self.read_ms_info,
@@ -128,12 +130,18 @@ class DiannModule:
         self.cal_num_table_data = dict()
         self.quantms_modified = dict()
 
+        general_stats_data = aggregate_general_stats(
+            ms1_general_stats=self.ms1_general_stats,
+            current_sum_by_run=self.current_sum_by_run,
+            sdrf_file_df=self.file_df
+        )
+
         draw_ms_information(
             self.sub_sections["ms1"],
             self.ms1_tic,
             self.ms1_bpc,
             self.ms1_peaks,
-            self.ms1_general_stats
+            general_stats_data
         )
 
         (
@@ -152,7 +160,6 @@ class DiannModule:
             sample_df=self.sample_df,
             file_df=self.file_df,
             ms_with_psm=self.ms_with_psm,
-            cal_num_table_data=self.cal_num_table_data,
             quantms_modified=self.quantms_modified,
             ms_paths=self.ms_paths
         )
@@ -195,7 +202,6 @@ class DiannModule:
         draw_quantms_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
-            mzml_table=self.mzml_table,
             quantms_modified=self.quantms_modified
         )
 

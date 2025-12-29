@@ -41,16 +41,17 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.10"
-multiqc = ">=1.29, <=1.32"
+multiqc = ">=1.29, <=1.33"
 pandas = ">=1.5"
 pyteomics = "*"
-pyopenms = "*"
+pyopenms = "<=3.4.0"
 sdrf-pipelines = ">=0.0.32"
 lxml = "*"
 numpy = ">=1.23"
 pyarrow = "*"
 scikit-learn = ">=1.2"
 statsmodels = "*"
+urllib3 = ">=2.6.1"
 
 [tool.poetry.urls]
 GitHub = "https://github.com/bigbio/pmultiqc"
@@ -62,7 +63,7 @@ pmultiqc = "pmultiqc.modules.core:PMultiQC"
 
 [tool.poetry.plugins."multiqc.cli_options.v1"]
 pmultiqc_version = "pmultiqc.cli:pmultiqc_version"
-raw = "pmultiqc.cli:raw"
+keep_raw = "pmultiqc.cli:keep_raw"
 condition = "pmultiqc.cli:condition"
 remove_decoy = "pmultiqc.cli:remove_decoy"
 decoy_affix = "pmultiqc.cli:decoy_affix"
@@ -76,6 +77,7 @@ maxquant_plugin = "pmultiqc.cli:maxquant_plugin"
 proteobench_plugin = "pmultiqc.cli:proteobench_plugin"
 diann_plugin = "pmultiqc.cli:diann_plugin"
 quantms_plugin = "pmultiqc.cli:quantms_plugin"
+disable_hoverinfo = "pmultiqc.cli:disable_hoverinfo"
 
 
 [tool.poetry.plugins."multiqc.hooks.v1"]

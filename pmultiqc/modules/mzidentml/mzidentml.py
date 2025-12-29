@@ -30,7 +30,7 @@ from pmultiqc.modules.common.plots.ms import (
     draw_ms_information,
 )
 from pmultiqc.modules.common.plots.general import (
-    remove_subtitle,
+    plot_html_check,
     draw_heatmap
 )
 from pmultiqc.modules.common.file_utils import file_prefix
@@ -40,6 +40,7 @@ from pmultiqc.modules.core.section_groups import (
     add_group_modules,
     add_sub_section
 )
+from pmultiqc.modules.common.common_utils import aggregate_msms_identified_rate
 
 
 class MzIdentMLModule(BasePMultiqcModule):
@@ -139,21 +140,21 @@ class MzIdentMLModule(BasePMultiqcModule):
                     self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
                 )
 
-                (self.cal_num_table_data, self.identified_msms_spectra) = get_mzid_num_data(
-                    mzidentml_df
+                msms_identified_rate = aggregate_msms_identified_rate(
+                    mzml_table=mt,
+                    identified_msms_spectra=self.identified_msms_spectra,
+                    sdrf_file_df=None
                 )
-                # self.draw_quantms_identification(mt)
+
+                self.mzid_cal_heat_map_score(mzidentml_df)
 
                 id_plots.draw_quantms_identification(
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
-                    mzml_table=mt,
                     quantms_missed_cleavages=self.quantms_missed_cleavages,
                     quantms_modified=self.quantms_modified,
-                    identified_msms_spectra=self.identified_msms_spectra,
+                    msms_identified_rate=msms_identified_rate
                 )
-
-                self.mzid_cal_heat_map_score(mzidentml_df)
 
         return True
 
@@ -288,6 +289,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             "only_defined_headers": False,  # Only show columns that are defined in the headers config
             "col1_header": "Spectra File",
             "no_violin": True,
+            "save_data_file": False,
             # 'format': '{:,.0f}'  # The header used for the first column
         }
         headers = {
@@ -308,7 +310,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                 "description": "The number of identified protein(group)s in the pipeline",
             },
         }
-        table_html = table.plot(self.cal_num_table_data, headers, pconfig)
+        table_html = table.plot(self.cal_num_table_data["ms_runs"], headers, pconfig)
         add_sub_section(
             sub_section=self.sub_sections["summary"],
             plot=table_html,
@@ -320,512 +322,6 @@ class MzIdentMLModule(BasePMultiqcModule):
                 You can also remove the decoy with the `remove_decoy` parameter.
                 """,
         )
-
-    def draw_mzml_ms(self):
-
-        pconfig = {
-            "id": "pipeline_spectrum_tracking",  # ID used for the table
-            "title": "Pipeline Spectrum Tracking",  # Title of the table. Used in the column config modal
-            "save_file": False,  # Whether to save the table data to a file
-            "raw_data_fn": "multiqc_spectrum_tracking_table",  # File basename to use for raw data file
-            "sort_rows": False,  # Whether to sort rows alphabetically
-            "only_defined_headers": True,  # Only show columns that are defined in the headers config
-            "col1_header": "Spectra File",
-            # 'format': '{:,.0f}'  # The header used for the first column
-        }
-
-        headers = OrderedDict()
-        headers["MS1_Num"] = {
-            "title": "#MS1 Spectra",
-            "description": "Number of MS1 spectra",
-            "color": "#ffffff",
-        }
-        headers["MS2_Num"] = {
-            "title": "#MS2 Spectra",
-            "description": "Number of MS2 spectra",
-            "color": "#ffffff",
-        }
-
-        if any(["MSGF" in v for k, v in self.mzml_table.items()]):
-            headers["MSGF"] = {
-                "description": "Number of spectra identified by MSGF search engine",
-                "color": "#ffffff",
-            }
-        if any(["Comet" in v for k, v in self.mzml_table.items()]):
-            headers["Comet"] = {
-                "description": "Number of spectra identified by Comet search engine",
-                "color": "#ffffff",
-            }
-        if any(["Sage" in v for k, v in self.mzml_table.items()]):
-            headers["Sage"] = {
-                "description": "Number of spectra identified by Sage search engine",
-                "color": "#ffffff",
-            }
-        headers["num_quant_psms"] = {
-            "title": "#PSMs from quant. peptides",
-            "description": "Number of reliable PSMs from peptides IDs used in quantification",
-            "color": "#ffffff",
-        }
-        headers["num_quant_peps"] = {
-            "title": "#Peptides quantified",
-            "description": "Number of quantified peptides that passed final protein and peptide FDR thresholds.",
-            "color": "#ffffff",
-        }
-        table_html = table.plot(self.mzml_table, headers, pconfig)
-
-        add_sub_section(
-            sub_section=self.sub_sections["ms2"],
-            plot=table_html,
-            order=4,
-            description="This plot shows the tracking of the number of spectra along the quantms pipeline",
-            helptext="""
-                This table shows the changes in the number of spectra corresponding to each input file 
-                during the pipeline operation. And the number of peptides finally identified and quantified is obtained from 
-                the PSM table in the mzTab file. You can also remove decoys with the `remove_decoy` parameter.:
-
-                * MS1_Num: The number of MS1 spectra extracted from mzMLs
-                * MS2_Num: The number of MS2 spectra extracted from mzMLs
-                * MSGF: The Number of spectra identified by MSGF search engine
-                * Comet: The Number of spectra identified by Comet search engine
-                * Sage: The Number of spectra identified by Sage search engine
-                * PSMs from quant. peptides: extracted from PSM table in mzTab file
-                * Peptides quantified: extracted from PSM table in mzTab file
-                """,
-        )
-
-    def draw_delta_mass(self):
-
-        delta_mass = self.delta_mass
-        delta_mass_percent = {
-            "target": {
-                k: v / sum(delta_mass["target"].values()) for k, v in delta_mass["target"].items()
-            }
-        }
-
-        if delta_mass["decoy"]:
-
-            delta_mass_percent["decoy"] = {
-                k: v / sum(delta_mass["decoy"].values()) for k, v in delta_mass["decoy"].items()
-            }
-
-            x_values = list(delta_mass["target"].keys()) + list(delta_mass["decoy"].keys())
-
-            range_threshold = 10
-            if max(abs(x) for x in x_values) > range_threshold:
-                range_abs = range_threshold
-            else:
-                range_abs = 1
-            range_step = (max(x_values) - min(x_values)) * 0.05
-
-            if max(abs(x) for x in x_values) > range_abs:
-
-                delta_mass_range = dict()
-                delta_mass_range["target"] = {
-                    k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs
-                }
-                delta_mass_range["decoy"] = {
-                    k: v for k, v in delta_mass["decoy"].items() if abs(k) <= range_abs
-                }
-
-                delta_mass_percent_range = dict()
-                delta_mass_percent_range["target"] = {
-                    k: v for k, v in delta_mass_percent["target"].items() if abs(k) <= range_abs
-                }
-                delta_mass_percent_range["decoy"] = {
-                    k: v for k, v in delta_mass_percent["decoy"].items() if abs(k) <= range_abs
-                }
-
-                x_values_adj = list(delta_mass_range["target"].keys()) + list(
-                    delta_mass_range["decoy"].keys()
-                )
-                range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
-
-                data_label = [
-                    {
-                        "name": f"Count (range: -{range_abs} to {range_abs})",
-                        "ylab": "Count",
-                        "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
-                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
-                        "ymin": 0,
-                    },
-                    {
-                        "name": f"Relative Frequency (range: -{range_abs} to {range_abs})",
-                        "ylab": "Relative Frequency",
-                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
-                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
-                        "ymin": 0,
-                    },
-                    {
-                        "name": "Count (All Data)",
-                        "ylab": "Count",
-                        "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": max(abs(x) for x in x_values) + range_step,
-                        "xmin": -(max(abs(x) for x in x_values) + range_step),
-                        "ymin": 0,
-                    },
-                    {
-                        "name": "Relative Frequency (All Data)",
-                        "ylab": "Relative Frequency",
-                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": max(abs(x) for x in x_values) + range_step,
-                        "xmin": -(max(abs(x) for x in x_values) + range_step),
-                        "ymin": 0,
-                    },
-                ]
-                pconfig = {
-                    "id": "delta_mass",
-                    "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
-                    "title": "Delta m/z",
-                    "xlab": "Experimental m/z - Theoretical m/z",
-                    "data_labels": data_label,
-                    "style": "lines+markers",
-                    "showlegend": True,
-                }
-                line_html = linegraph.plot(
-                    [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
-                    pconfig,
-                )
-
-            else:
-                data_label = [
-                    {
-                        "name": "Count (All Data)",
-                        "ylab": "Count",
-                        "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": max(abs(x) for x in x_values) + range_step,
-                        "xmin": -(max(abs(x) for x in x_values) + range_step),
-                        "ymin": 0,
-                    },
-                    {
-                        "name": "Relative Frequency (All Data)",
-                        "ylab": "Relative Frequency",
-                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": max(abs(x) for x in x_values) + range_step,
-                        "xmin": -(max(abs(x) for x in x_values) + range_step),
-                        "ymin": 0,
-                    },
-                ]
-                pconfig = {
-                    "id": "delta_mass",
-                    "colors": {"target": "#b2df8a", "decoy": "#DC143C"},
-                    "title": "Delta m/z",
-                    "xlab": "Experimental m/z - Theoretical m/z",
-                    "data_labels": data_label,
-                    "style": "lines+markers",
-                    "showlegend": True,
-                }
-                line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
-        # no decoy
-        else:
-            delta_mass = {k: v for k, v in delta_mass.items() if k not in ["decoy"]}
-
-            x_values = list(delta_mass["target"].keys())
-
-            range_threshold = 10
-            if max(abs(x) for x in x_values) > range_threshold:
-                range_abs = range_threshold
-            else:
-                range_abs = 1
-            range_step = (max(x_values) - min(x_values)) * 0.05
-
-            if max(abs(x) for x in x_values) > range_abs:
-
-                delta_mass_range = {
-                    "target": {
-                        k: v for k, v in delta_mass["target"].items() if abs(k) <= range_abs
-                    }
-                }
-
-                delta_mass_percent_range = {
-                    "target": {
-                        k: v
-                        for k, v in delta_mass_percent["target"].items()
-                        if abs(k) <= range_abs
-                    }
-                }
-
-                x_values_adj = list(delta_mass_range["target"].keys())
-                range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
-
-                data_label = [
-                    {
-                        "name": f"Count (range: -{range_abs} to {range_abs})",
-                        "ylab": "Count",
-                        "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
-                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
-                        "ymin": 0,
-                    },
-                    {
-                        "name": f"Relative Frequency (range: -{range_abs} to {range_abs})",
-                        "ylab": "Relative Frequency",
-                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": max(abs(x) for x in x_values_adj) + range_step_adj,
-                        "xmin": -(max(abs(x) for x in x_values_adj) + range_step_adj),
-                        "ymin": 0,
-                    },
-                    {
-                        "name": "Count (All Data)",
-                        "ylab": "Count",
-                        "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": max(abs(x) for x in x_values) + range_step,
-                        "xmin": -(max(abs(x) for x in x_values) + range_step),
-                        "ymin": 0,
-                    },
-                    {
-                        "name": "Relative Frequency (All Data)",
-                        "ylab": "Relative Frequency",
-                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": max(abs(x) for x in x_values) + range_step,
-                        "xmin": -(max(abs(x) for x in x_values) + range_step),
-                        "ymin": 0,
-                    },
-                ]
-                pconfig = {
-                    "id": "delta_mass_da",
-                    "colors": {"target": "#b2df8a"},
-                    "title": "Delta Mass [Da]",
-                    "xlab": "Experimental m/z - Theoretical m/z",
-                    "data_labels": data_label,
-                    "style": "lines+markers",
-                }
-                line_html = linegraph.plot(
-                    [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
-                    pconfig,
-                )
-
-            else:
-                data_label = [
-                    {
-                        "name": "Count (All Data)",
-                        "ylab": "Count",
-                        "tt_label": "{point.x} Mass delta counts: {point.y}",
-                        "xmax": max(abs(x) for x in x_values) + range_step,
-                        "xmin": -(max(abs(x) for x in x_values) + range_step),
-                        "ymin": 0,
-                    },
-                    {
-                        "name": "Relative Frequency (All Data)",
-                        "ylab": "Relative Frequency",
-                        "tt_label": "{point.x} Mass delta relative frequency: {point.y}",
-                        "xmax": max(abs(x) for x in x_values) + range_step,
-                        "xmin": -(max(abs(x) for x in x_values) + range_step),
-                        "ymin": 0,
-                    },
-                ]
-                pconfig = {
-                    "id": "delta_mass_da",
-                    "colors": {"target": "#b2df8a"},
-                    "title": "Delta Mass [Da]",
-                    "xlab": "Experimental m/z - Theoretical m/z",
-                    "data_labels": data_label,
-                    "style": "lines+markers",
-                }
-                line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
-
-        add_sub_section(
-            sub_section=self.sub_sections["mass_error"],
-            plot=line_html,
-            order=1,
-            description="""
-                This chart represents the distribution of the relative frequency of experimental 
-                precursor ion mass (m/z) - theoretical precursor ion mass (m/z).
-                """,
-            helptext="""
-                Mass deltas close to zero reflect more accurate identifications and also 
-                that the reporting of the amino acid modifications and charges have been done accurately. 
-                This plot can highlight systematic bias if not centered on zero. 
-                Other distributions can reflect modifications not being reported properly. 
-                Also it is easy to see the different between the target and the decoys identifications.
-                """,
-        )
-
-    def draw_search_engine(self):
-
-        # Create scores summary plot
-        [msgf_labels, comet_labels, sage_labels] = self.search_engine["data_label"]["score_label"]
-
-        spec_e_pconfig = {
-            "id": "spectral_e_values",  # ID used for the table
-            "cpswitch": True,
-            "title": "Summary of Spectral E-values",
-            "xlab": "MSGF -lg(SpecEvalue) ranges",
-            "stacking": "normal",
-            "height": 550,
-            "tt_suffix": "",
-            "tt_decimals": 0,
-            "data_labels": msgf_labels,
-        }
-
-        xcorr_pconfig = {
-            "id": "cross_correlation_scores",  # ID used for the table
-            "cpswitch": True,
-            "title": "Summary of cross-correlation scores",
-            "xlab": "Comet xcorr ranges",
-            "stacking": "normal",
-            "height": 550,
-            "tt_suffix": "",
-            "tt_decimals": 0,
-            "data_labels": comet_labels,
-        }
-
-        hyper_pconfig = {
-            "id": "summary_of_hyperscore",  # ID used for the table
-            "cpswitch": True,
-            "title": "Summary of Hyperscore",
-            "xlab": "Sage hyperscore ranges",
-            "stacking": "normal",
-            "height": 550,
-            "tt_suffix": "",
-            "tt_decimals": 0,
-            "data_labels": sage_labels,
-        }
-
-        bar_cats = OrderedDict()
-        bar_cats["target"] = {"name": "target"}
-        bar_cats["decoy"] = {"name": "decoy"}
-        bar_cats["target+decoy"] = {"name": "target+decoy"}
-
-        spec_e_cats = [bar_cats] * len(self.search_engine["SpecE"])
-        xcorr_cats = [bar_cats] * len(self.search_engine["xcorr"])
-        hyper_cats = [bar_cats] * len(self.search_engine["hyper"])
-        pep_cats = [bar_cats] * len(self.search_engine["PEPs"])
-
-        xcorr_bar_html = (
-            bargraph.plot(list(self.search_engine["xcorr"].values()), xcorr_cats, xcorr_pconfig)
-            if self.Comet_label
-            else ""
-        )
-        spec_e_bar_html = (
-            bargraph.plot(list(self.search_engine["SpecE"].values()), spec_e_cats, spec_e_pconfig)
-            if self.MSGF_label
-            else ""
-        )
-        hyper_bar_html = (
-            bargraph.plot(list(self.search_engine["hyper"].values()), hyper_cats, hyper_pconfig)
-            if self.Sage_label
-            else ""
-        )
-
-        if spec_e_bar_html != "":
-            spec_e_bar_html = remove_subtitle(spec_e_bar_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["search_engine"],
-                plot=spec_e_bar_html,
-                order=1,
-                description="",
-                helptext="""
-                        This statistic is extracted from idXML files. SpecEvalue: Spectral E-values, 
-                        the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
-                        """,
-            )
-
-        if xcorr_bar_html != "":
-            xcorr_bar_html = remove_subtitle(xcorr_bar_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["search_engine"],
-                plot=xcorr_bar_html,
-                order=2,
-                description="",
-                helptext="""
-                        This statistic is extracted from idXML files. xcorr: cross-correlation scores, 
-                        the search score of Comet. The value used for plotting is xcorr.
-                        """,
-            )
-
-        if hyper_bar_html != "":
-            hyper_bar_html = remove_subtitle(hyper_bar_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["search_engine"],
-                plot=hyper_bar_html,
-                order=3,
-                description="",
-                helptext="""
-                        This statistic is extracted from idXML files. hyperscore: Hyperscore, the search 
-                        score of Sage. The value used for plotting is hyperscore.
-                        """,
-            )
-
-        # Create PEPs summary plot
-        pep_pconfig = {
-            "id": "search_engine_pep",  # ID used for the table
-            "cpswitch": True,
-            "title": "Summary of Search Engine PEP",
-            "xlab": "PEP ranges",
-            "stacking": "normal",
-            "height": 550,
-            "tt_suffix": "",
-            "tt_decimals": 0,
-            "data_labels": self.search_engine["data_label"]["peps_label"],
-        }
-
-        pep_bar_html = bargraph.plot(
-            list(self.search_engine["PEPs"].values()), pep_cats, pep_pconfig
-        )
-
-        pep_bar_html = remove_subtitle(pep_bar_html)
-
-        add_sub_section(
-            sub_section=self.sub_sections["search_engine"],
-            plot=pep_bar_html,
-            order=4,
-            description="",
-            helptext="This statistic is extracted from idXML files.",
-        )
-
-        # Create identified number plot
-        if len(self.search_engine["data_label"]["consensus_label"]) != 0:
-            consensus_pconfig = {
-                "id": "consensus_summary",
-                "cpswitch": True,
-                "title": "Consensus Across Search Engines",
-                "stacking": "normal",
-                "height": 256,
-                "tt_suffix": "",
-                "tt_decimals": 0,
-            }
-
-            consensus_bar_html = bargraph.plot(
-                self.search_engine["consensus_support"],
-                bar_cats,
-                consensus_pconfig,
-            )
-            consensus_bar_html = remove_subtitle(consensus_bar_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["search_engine"],
-                plot=consensus_bar_html,
-                order=5,
-                description="",
-                helptext="""
-                    Consensus support is a measure of agreement between search engines. 
-                    Every peptide sequence in the analysis has been identified by at least one search run. 
-                    The consensus support defines which fraction (between 0 and 1) of the remaining search 
-                    runs "supported" a peptide identification that was kept. 
-                    The meaning of "support" differs slightly between algorithms: For best, worst, average 
-                    and rank, each search run supports peptides that it has also identified among its top 
-                    considered_hits candidates. So the "consensus support" simply gives the fraction of 
-                    additional search engines that have identified a peptide. (For example, if there are 
-                    three search runs, peptides identified by two of them will have a "support" of 0.5.) 
-                    For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide 
-                    is the average similarity of the most-similar peptide from each (other) search run.
-                    """,
-            )
-
-        # TODO
-        # else:
-        #     self.add_section(
-        #         name="Summary of consensus PSMs",
-        #         anchor="summary_of_consensus_PSMs",
-        #         description="""#### Summary of consensus PSMs
-        #         No Consensus PSMs data because of single search engine!
-        #         """,
-        #     )
 
     def mzid_cal_heat_map_score(self, psm):
         self.log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
@@ -863,10 +359,12 @@ class MzIdentMLModule(BasePMultiqcModule):
                 how="left",
             )
 
+        missed_cleavages_by_run = dict()
+
         for name, group in psm.groupby("filename"):
             sc = group["missed_cleavages"].value_counts()
 
-            self.quantms_missed_cleavages[name] = sc.to_dict()
+            missed_cleavages_by_run[name] = sc.to_dict()
 
             mis_0 = sc.get(0, 0)
             self.missed_clevages_heatmap_score[name] = mis_0 / sc[:].sum()
@@ -889,6 +387,10 @@ class MzIdentMLModule(BasePMultiqcModule):
                     / global_peps_count
             )
             self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
+
+        self.quantms_missed_cleavages = {
+            "ms_runs": missed_cleavages_by_run,
+        }
 
         median = np.median(list(self.missed_clevages_heatmap_score.values()))
         self.missed_cleavages_var_score = dict(
@@ -1207,6 +709,9 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         psm = mzid_table[psm_cols].drop_duplicates().reset_index(drop=True)
 
+        num_table_at_run = dict()
+        identified_msms_spectra = dict()
+
         for m, group in psm.groupby("filename"):
             self.oversampling_plot = Histogram(
                 "MS/MS counts per 3D-peak", plot_category="frequency", breaks=[1, 2, 3]
@@ -1228,12 +733,16 @@ class MzIdentMLModule(BasePMultiqcModule):
             if None in proteins:
                 proteins.remove(None)
 
-            self.cal_num_table_data[m] = {"protein_num": len(proteins)}
-            self.cal_num_table_data[m]["peptide_num"] = len(peptides)
-            self.cal_num_table_data[m]["unique_peptide_num"] = len(unique_peptides)
+            num_table_at_run[m] = {"protein_num": len(proteins)}
+            num_table_at_run[m]["peptide_num"] = len(peptides)
+            num_table_at_run[m]["unique_peptide_num"] = len(unique_peptides)
 
             modified_pep = peptides.dropna(subset=["Modifications"])
-            self.cal_num_table_data[m]["modified_peptide_num"] = len(modified_pep)
+            num_table_at_run[m]["modified_peptide_num"] = len(modified_pep)
+
+            identified_msms_spectra[m] = {"Identified": len(set(group["spectrumID"]))}
+
+        self.identified_msms_spectra = identified_msms_spectra
 
         if self.mgf_paths:
             self.ms_without_psm = set([file_prefix(i) for i in self.mgf_paths]) - set(
@@ -1244,34 +753,18 @@ class MzIdentMLModule(BasePMultiqcModule):
                 self.ms_with_psm
             )
         for i in self.ms_without_psm:
-            self.cal_num_table_data[file_prefix(i)] = {
+            num_table_at_run[file_prefix(i)] = {
                 "protein_num": 0,
                 "peptide_num": 0,
                 "unique_peptide_num": 0,
                 "modified_peptide_num": 0,
             }
 
+        self.cal_num_table_data = {
+            "ms_runs": num_table_at_run
+        }
+
         self.total_ms2_spectra_identified = psm["spectrumID"].nunique()
         self.total_peptide_count = psm["PeptideSequence"].nunique()
 
         return psm
-
-    def cal_quantms_contaminant_percent(self, pep_df):
-
-        group_stats = pep_df.groupby("stand_spectra_ref").agg(
-            total_intensity=("average_intensity", "sum"),
-            cont_intensity=(
-                "average_intensity",
-                lambda x: x[pep_df["accession"].str.contains("CONT")].sum(),
-            ),
-        )
-
-        group_stats["contaminant_percent"] = (
-                group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
-        )
-
-        result_dict = dict()
-        for k, v in dict(zip(group_stats.index, group_stats["contaminant_percent"])).items():
-            result_dict[k] = {"Potential Contaminants": v}
-
-        return result_dict

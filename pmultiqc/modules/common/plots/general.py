@@ -2,14 +2,65 @@ from multiqc.plots import heatmap, table
 from pmultiqc.modules.core.section_groups import add_sub_section
 from multiqc.types import SampleGroup, SampleName
 from multiqc.plots.table_object import InputRow
+from multiqc import config
 from typing import Dict, List
-import numpy as np
 import re
 
 from pmultiqc.modules.common.common_utils import (
     read_openms_design,
     condition_split
 )
+
+
+FLAT_THRESHOLD = 100000
+
+def plot_html_check(plot_html):
+
+    checked_html = remove_subtitle(plot_html)
+    checked_html = apply_hoverinfo_config(checked_html)
+
+    return checked_html
+
+
+def plot_data_check(
+    plot_data,
+    plot_html,
+    log_text,
+    function_name
+):
+
+    from collections.abc import Mapping
+    from pmultiqc.modules.common.logging import get_logger
+
+    log = get_logger(log_text)
+
+    def count_elements(plot_data):
+
+        count = 0
+        if isinstance(plot_data, list):
+            for item in plot_data:
+                count += count_elements(item)
+
+        elif isinstance(plot_data, Mapping):
+            for v in plot_data.values():
+                count += count_elements(v)
+
+        else:
+            count += 1
+
+        return count
+
+    data_counts = count_elements(plot_data)
+
+    log.info(f"{function_name}: Plot data count: {data_counts}")
+
+    if data_counts >= FLAT_THRESHOLD:
+        plot_html.flat = True
+        log.warning(
+            f"{function_name}: Number of plotting data points: {data_counts}, exceeds threshold {FLAT_THRESHOLD}, switching to flat plot"
+        )
+
+    return plot_html
 
 
 def remove_subtitle(plot_html):
@@ -23,13 +74,26 @@ def remove_subtitle(plot_html):
     return plot_html
 
 
+def apply_hoverinfo_config(plot_html):
+
+    if config.kwargs.get("disable_hoverinfo", False):
+        for dataset in plot_html.datasets:
+
+            dataset.trace_params["hoverinfo"] = "skip"
+
+            if "hovertemplate" in dataset.trace_params:
+                dataset.trace_params["hovertemplate"] = ""
+
+    return plot_html
+
+
 def draw_heatmap(
-        sub_sections,
-        hm_colors,
-        heatmap_data,
-        heatmap_xnames,
-        heatmap_ynames,
-        is_maxquant
+    sub_sections,
+    hm_colors,
+    heatmap_data,
+    heatmap_xnames,
+    heatmap_ynames,
+    is_maxquant
 ):
     pconfig = {
         "id": "heatmap",
@@ -42,6 +106,9 @@ def draw_heatmap(
         "tt_decimals": 4,
         "square": False,
         "colstops": hm_colors,
+        "cluster_rows": False,
+        "cluster_cols": False,
+        "save_data_file": False,
     }
     if is_maxquant:
         hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
@@ -50,7 +117,8 @@ def draw_heatmap(
         hm_html = heatmap.plot(heatmap_data, heatmap_xnames, heatmap_ynames, pconfig)
         description_text = "This heatmap provides an overview of the performance of quantms."
 
-    hm_html = remove_subtitle(hm_html)
+    hm_html = plot_html_check(hm_html)
+
     add_sub_section(
         sub_section=sub_sections,
         plot=hm_html,
@@ -80,8 +148,8 @@ def draw_exp_design(sub_sections, exp_design):
 
     if is_multi_conditions:
         for sample in sorted(
-                sample_df["Sample"].tolist(),
-                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+            sample_df["Sample"].tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
         ):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
@@ -97,7 +165,7 @@ def draw_exp_design(sub_sections, exp_design):
 
             row_data.append(
                 InputRow(
-                    sample=SampleName(sample),
+                    sample=SampleName(f"Sample {str(sample)}"),
                     data=sample_data,
                 )
             )
@@ -152,15 +220,15 @@ def draw_exp_design(sub_sections, exp_design):
         }
     else:
         for sample in sorted(
-                sample_df["Sample"].tolist(),
-                key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
+            sample_df["Sample"].tolist(),
+            key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
         ):
             file_df_sample = file_df[file_df["Sample"] == sample].copy()
             sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
             row_data: List[InputRow] = []
             row_data.append(
                 InputRow(
-                    sample=SampleName(sample),
+                    sample=SampleName(f"Sample {str(sample)}"),
                     data={
                         "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
                         "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
@@ -225,7 +293,9 @@ def draw_exp_design(sub_sections, exp_design):
         "save_file": False,
         "raw_data_fn": "multiqc_Experimental_Design_table",
         "no_violin": True,
+        "save_data_file": False,
     }
+
     table_html = table.plot(rows_by_group, headers, pconfig)
     add_sub_section(
         sub_section=sub_sections,
