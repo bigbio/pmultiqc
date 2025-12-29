@@ -52,7 +52,7 @@ def plot_data_check(
 
     data_counts = count_elements(plot_data)
 
-    log.info(f"{[function_name]} Plot data count: {data_counts}")
+    log.info(f"[{function_name}] Plot data count: {data_counts}")
 
     if data_counts >= FLAT_THRESHOLD:
         plot_html.flat = True
