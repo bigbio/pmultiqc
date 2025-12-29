@@ -19,7 +19,7 @@ from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.common.common_utils")
 
 
-def read_openms_design(desfile):
+def read_openms_design(desfile: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     with open(desfile, "r") as f:
 
         data = f.readlines()
@@ -56,7 +56,7 @@ def read_openms_design(desfile):
     return s_data_frame, f_table
 
 
-def condition_split(conditions):
+def condition_split(conditions: str) -> dict[str, str]:
     items = conditions.split(';')
     key_value_pairs = [item.split('=') for item in items if '=' in item]
 
@@ -64,7 +64,7 @@ def condition_split(conditions):
     return result_dict
 
 
-def get_ms_path(find_log_files):
+def get_ms_path(find_log_files) -> tuple[list[str], bool, list[str]]:
     ms_paths = []
     for mzml_current_file in find_log_files("pmultiqc/mzML", filecontents=False):
         ms_paths.append(os.path.join(mzml_current_file["root"], mzml_current_file["fn"]))
@@ -102,11 +102,8 @@ def parse_mzml(
 
     if is_bruker and read_ms_info:
         for file in ms_info_path:
-            log.info(
-                "{}: Parsing ms_statistics dataframe {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), file
-                )
-            )
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log.info(f"{timestamp}: Parsing ms_statistics dataframe {file}...")
             mzml_df = pd.read_csv(file, sep="\t")
             (
                 ms1_tic[os.path.basename(file).replace("_ms_info.tsv", "")],
@@ -116,11 +113,8 @@ def parse_mzml(
                 _,
             ) = ms_io.get_ms_qc_info(mzml_df)
 
-            log.info(
-                "{}: Done aggregating ms_statistics dataframe {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), file
-                )
-            )
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log.info(f"{timestamp}: Done aggregating ms_statistics dataframe {file}...")
         return None
 
     mzml_peak_distribution_plot = Histogram(
@@ -204,7 +198,7 @@ def parse_mzml(
             mzml_ms_df = mzml_reader.mzml_ms_df
 
     for i in sorted(set(ms_without_psm)):
-        log.warning("No PSM found in '{}'!".format(i))
+        log.warning(f"No PSM found in '{i}'!")
 
     mzml_peaks_ms2_plot.to_dict()
     mzml_peak_distribution_plot.to_dict()

@@ -58,7 +58,7 @@ def pmultiqc_plugin_execution_start():
     # Configure centralized package logging once
     configure_package_logging()
 
-    log.warning("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
+    log.warning(f"Running pmultiqc Plugin v{config.pmultiqc_version}")
 
     # If a compressed file is submitted, extract it first.
     analysis_dir_new = list()

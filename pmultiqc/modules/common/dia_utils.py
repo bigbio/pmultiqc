@@ -43,7 +43,7 @@ def parse_diann_report(
     Args:
         file_df: Optional DataFrame. If None, an empty DataFrame will be used.
     """
-    log.info("Parsing {}...".format(diann_report_path))
+    log.info(f"Parsing {diann_report_path}...")
 
     # Convert None to empty DataFrame for consistent handling
     if file_df is None:
@@ -302,7 +302,7 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
     ms_without_psm = set([file_prefix(i) for i in ms_paths]) - set(ms_with_psm)
 
     for i in ms_without_psm:
-        log.warning("No PSM found in '{}'!".format(i))
+        log.warning(f"No PSM found in '{i}'!")
         cal_num_table_data["ms_runs"][i] = {
             "protein_num": 0,
             "peptide_num": 0,

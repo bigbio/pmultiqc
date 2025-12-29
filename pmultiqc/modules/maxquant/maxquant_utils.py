@@ -1040,11 +1040,9 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
     for raw_file, group in peptide_counts_df.groupby("raw file"):
         plot_data[raw_file] = dict(zip(group["category"], group["counts"]))
 
-    peptide_id_count = {"plot_data": plot_data, "cats": cats, "title_value": (
-        "MBR gain: +{}%".format(round(peptide_counts_df["MBRgain"].mean(), 2))
-        if any(evid_df["is_transferred"])
-        else ""
-    )}
+    mbr_gain = round(peptide_counts_df["MBRgain"].mean(), 2) if any(evid_df["is_transferred"]) else None
+    title_value = f"MBR gain: +{mbr_gain}%" if mbr_gain is not None else ""
+    peptide_id_count = {"plot_data": plot_data, "cats": cats, "title_value": title_value}
 
     return peptide_id_count
 
@@ -1155,11 +1153,9 @@ def evidence_protein_count(evidence_df, evidence_df_tf):
     for raw_file, group in protein_group_counts_df.groupby("raw file"):
         plot_data[raw_file] = dict(zip(group["category"], group["counts"]))
 
-    protein_group_count = {"plot_data": plot_data, "cats": cats, "title_value": (
-        "MBR gain: +{}%".format(round(protein_group_counts_df["MBRgain"].mean(), 2))
-        if any(evid_df["is_transferred"])
-        else ""
-    )}
+    mbr_gain = round(protein_group_counts_df["MBRgain"].mean(), 2) if any(evid_df["is_transferred"]) else None
+    title_value = f"MBR gain: +{mbr_gain}%" if mbr_gain is not None else ""
+    protein_group_count = {"plot_data": plot_data, "cats": cats, "title_value": title_value}
 
     return protein_group_count
 

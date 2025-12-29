@@ -13,7 +13,7 @@ from multiqc.utils import config
 def print_version(ctx, params, value):
     if not value or ctx.resilient_parsing:
         return
-    click.echo("pmultiqc, version " + config.pmultiqc_version)
+    click.echo(f"pmultiqc, version {config.pmultiqc_version}")
     ctx.exit()
 
 

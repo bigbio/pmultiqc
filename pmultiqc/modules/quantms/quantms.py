@@ -1048,7 +1048,8 @@ class QuantMSModule:
         #     )
 
     def cal_heat_map_score(self):
-        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log.info(f"{timestamp}: Calculating Heatmap Scores...")
 
         psm = self.mztab_data.spectrum_match_table
         meta_data = dict(self.mztab_data.metadata)
@@ -1232,9 +1233,8 @@ class QuantMSModule:
                 ),
             )
         )
-        log.info(
-            "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
-        )
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log.info(f"{timestamp}: Done calculating Heatmap Scores.")
 
     # if missed.cleavages is not given, it is assumed that Trypsin was used for digestion
     @staticmethod
@@ -1498,12 +1498,9 @@ class QuantMSModule:
             for index in decoy_bin.index:
                 decoy_bin_data[float(index.mid)] = int(decoy_bin[index])
             self.delta_mass["decoy"] = decoy_bin_data
-        except Exception:
-            log.info(
-                "{}: No decoy peptides found -> only showing target peptides.".format(
-                    datetime.now().strftime("%H:%M:%S")
-                )
-            )
+        except (KeyError, IndexError, ValueError) as e:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log.info(f"{timestamp}: No decoy peptides found -> only showing target peptides. Error: {e}")
 
         target_bin = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1][
             "relative_diff"
@@ -1709,11 +1706,8 @@ class QuantMSModule:
                 )
                 mztab_data_dict_prot_full[index]["Peptides_Number"] = int(counts_per_acc[index])
 
-            log.info(
-                "{}: Done aggregating mzTab file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
-                )
-            )
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log.info(f"{timestamp}: Done aggregating mzTab file {self.out_mztab_path}...")
 
             headers = OrderedDict()
             headers["Peptides_Number"] = {
@@ -1807,11 +1801,8 @@ class QuantMSModule:
             self.protein_quantification_table_html = table_html
 
     def parse_msstats_input(self):
-        log.info(
-            "{}: Parsing MSstats input file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.msstats_input_path
-            )
-        )
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log.info(f"{timestamp}: Parsing MSstats input file {self.msstats_input_path}...")
         msstats_data = pd.read_csv(self.msstats_input_path)
         # TODO we probably shouldn't even write out 0-intensity values to MSstats csv
         msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
