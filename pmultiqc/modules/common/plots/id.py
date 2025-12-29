@@ -25,6 +25,7 @@ def draw_ms_ms_identified(sub_section, msms_identified_percent):
         "tt_decimals": 2,
         "ylab": "MS/MS Identified [%]",
         "data_labels": plot_labels,
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(data=msms_identified_percent, pconfig=draw_config)
@@ -47,6 +48,7 @@ def draw_potential_contaminants(sub_section, contaminant_percent, is_maxquant):
         "title": "Potential Contaminants Per File",
         "tt_decimals": 2,
         "ylab": "Percent [%]",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(data=contaminant_percent, pconfig=draw_config)
@@ -95,6 +97,7 @@ def draw_charge_state(sub_section, charge_data, report_type):
         "tt_decimals": 0,
         "ylab": "Count",
         "data_labels": plot_label,
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -138,6 +141,7 @@ def draw_top_n_contaminants(sub_section, top_contaminants_data):
         "title": "Top5 Contaminants Per Raw File",
         "tt_decimals": 2,
         "ylab": "Identified [%]",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -173,7 +177,8 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
         "title": "Missed Cleavages",
         "tt_decimals": 2,
         "ylab": "Missed Cleavages [%]",
-        "data_labels": ["by Run", "by Sample"]
+        "data_labels": ["by Run", "by Sample"],
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -316,6 +321,7 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
             "xlab": plot_xlab,
             "data_labels": data_label,
             "style": "lines+markers",
+            "save_data_file": False,
         }
 
         line_html = linegraph.plot(
@@ -356,6 +362,7 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
             "xlab": plot_xlab,
             "data_labels": data_label,
             "style": "lines+markers",
+            "save_data_file": False,
         }
 
         line_html = linegraph.plot(
@@ -394,6 +401,7 @@ def draw_quantms_identification(
         "tt_decimals": 0,
         "ylab": "Count",
         "data_labels": plot_label,
+        "save_data_file": False,
     }
 
     def build_count(data, value_key, sources):
@@ -465,6 +473,7 @@ def draw_quantms_identification(
         "tt_decimals": 0,
         "ylab": "Count",
         "data_labels": plot_label,
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -582,6 +591,7 @@ def draw_summary_protein_ident_table(
         "only_defined_headers": False,
         "col1_header": col_header,
         "scale": "Set1",
+        "save_data_file": False,
     }
     table_html = table.plot(summary_table, headers, pconfig)
 
@@ -809,6 +819,7 @@ def draw_quantms_identi_num(
         "save_file": False,
         "raw_data_fn": "multiqc_pipeline_result_statistics",
         "no_violin": True,
+        "save_data_file": False,
     }
     table_html = table.plot(rows_by_group, headers, pconfig)
     add_sub_section(
@@ -840,6 +851,7 @@ def draw_modifications(sub_section, modified_data):
         "tt_decimals": 3,
         "ylab": "Occurence [%]",
         "data_labels": plot_label,
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -889,6 +901,7 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
             "title": "MS/MS Counts Per 3D-peak",
             "tt_decimals": 2,
             "ylab": "MS/MS Counts Per 3D-peak [%]",
+            "save_data_file": False,
         }
 
         bar_html = bargraph.plot(
@@ -902,6 +915,7 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
             "title": "MS/MS Counts Per 3D-peak",
             "ylab": "MS/MS Counts Per 3D-peak [%]",
             "tt_decimals": 0,
+            "save_data_file": False,
         }
 
         bar_html = bargraph.plot(data=oversampling, cats=oversampling_plot, pconfig=draw_config)
@@ -958,6 +972,7 @@ def draw_num_pep_per_protein(
         "cpswitch": False,
         "title": "Number of Peptides identified Per Protein",
         "data_labels": data_labels,
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -1001,6 +1016,7 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
         "ylab": "Count",
         "xlab": "Retention time [min]",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=rt_count_data, pconfig=draw_config)

@@ -106,6 +106,7 @@ def draw_heatmap(
         "colstops": hm_colors,
         "cluster_rows": False,
         "cluster_cols": False,
+        "save_data_file": False,
     }
     if is_maxquant:
         hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
@@ -290,6 +291,7 @@ def draw_exp_design(sub_sections, exp_design):
         "save_file": False,
         "raw_data_fn": "multiqc_Experimental_Design_table",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     table_html = table.plot(rows_by_group, headers, pconfig)

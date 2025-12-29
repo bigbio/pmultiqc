@@ -71,6 +71,7 @@ def draw_exp_design(sdrf_df, sub_sections):
         "save_file": False,
         "raw_data_fn": "multiqc_Experimental_Design_table",
         "no_violin": True,
+        "save_data_file": False,
     }
     table_html = table.plot(rows_by_group, headers, pconfig)
     add_sub_section(
@@ -98,6 +99,7 @@ def draw_parameters(sub_section, parameter_table):
         "only_defined_headers": True,
         "col1_header": "No.",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     headers = {"parameter": {"title": "Parameter"}, "value": {"title": "Value"}}

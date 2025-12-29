@@ -691,6 +691,7 @@ class QuantMSModule:
                     "data_labels": data_label,
                     "style": "lines+markers",
                     "showlegend": True,
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot(
                     [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
@@ -724,6 +725,7 @@ class QuantMSModule:
                     "data_labels": data_label,
                     "style": "lines+markers",
                     "showlegend": True,
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
         # no decoy
@@ -799,6 +801,7 @@ class QuantMSModule:
                     "xlab": "Experimental m/z - Theoretical m/z",
                     "data_labels": data_label,
                     "style": "lines+markers",
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot(
                     [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
@@ -831,6 +834,7 @@ class QuantMSModule:
                     "xlab": "Experimental m/z - Theoretical m/z",
                     "data_labels": data_label,
                     "style": "lines+markers",
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
 
@@ -868,6 +872,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": msgf_labels,
+            "save_data_file": False,
         }
 
         xcorr_pconfig = {
@@ -880,6 +885,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": comet_labels,
+            "save_data_file": False,
         }
 
         hyper_pconfig = {
@@ -892,6 +898,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": sage_labels,
+            "save_data_file": False,
         }
 
         bar_cats = OrderedDict()
@@ -973,6 +980,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": self.search_engine["data_label"]["peps_label"],
+            "save_data_file": False,
         }
 
         pep_bar_html = bargraph.plot(
@@ -999,6 +1007,7 @@ class QuantMSModule:
                 "height": 256,
                 "tt_suffix": "",
                 "tt_decimals": 0,
+                "save_data_file": False,
             }
 
             consensus_bar_html = bargraph.plot(
@@ -1581,14 +1590,13 @@ class QuantMSModule:
 
             pconfig = {
                 "id": "peptide spectrum matches",  # ID used for the table
-                "table_title": "information of peptide spectrum matches",
-                # Title of the table. Used in the column config modal
-                "save_file": False,  # Whether to save the table data to a file
+                "table_title": "information of peptide spectrum matches",   # Title of the table. Used in the column config modal
                 "sortRows": False,  # Whether to sort rows alphabetically
                 "only_defined_headers": False,  # Only show columns that are defined in the headers config
                 "col1_header": "PSM_ID",
                 "format": "{:,.0f}",
                 "no_violin": True,
+                "save_data_file": False,
             }
 
             mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
@@ -1754,14 +1762,14 @@ class QuantMSModule:
             pconfig = {
                 "id": "quantification_of_protein",  # ID used for the table
                 "title": "quantification information of protein",
-                "anchor": "",
-                # Title of the table. Used in the column config modal
+                "anchor": "",   # Title of the table. Used in the column config modal
                 "save_file": False,  # Whether to save the table data to a file
                 "raw_data_fn": "multiqc_quantification_of_protein_table",  # File basename to use for raw data file
                 "sort_rows": False,  # Whether to sort rows alphabetically
                 "only_defined_headers": False,  # Only show columns that are defined in the headers config
                 "col1_header": "ProteinName",
                 "no_violin": True,
+                "save_data_file": False,
             }
 
             max_prot_intensity = 0
@@ -1915,11 +1923,11 @@ class QuantMSModule:
             "namespace": "",
             "id": "peptides_quantification_table",
             "title": "Peptides Quantification Table",
-            "save_file": False,
             "sort_rows": False,
             "only_defined_headers": True,
             "col1_header": "PeptideID",
             "no_violin": True,
+            "save_data_file": False,
         }
 
         # only use the first 50 lines for the table
@@ -2050,6 +2058,7 @@ class QuantMSModule:
             "only_defined_headers": True,
             "col1_header": "ProteinID",
             "no_violin": True,
+            "save_data_file": False,
         }
         table_html = table.plot(msstats_data_dict_prot_init, headers=headers, pconfig=draw_config)
         add_sub_section(
@@ -2168,6 +2177,7 @@ class QuantMSModule:
                 "xlab": "log2(Intensity)",
                 "data_labels": ["by Run", "by Sample"],
                 "sort_samples": False,
+                "save_data_file": False,
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
 
@@ -2219,6 +2229,7 @@ def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
         "title": "Pipeline Spectrum Tracking",  # Title of the table. Used in the column config modal
         "save_file": False,  # Whether to save the table data to a file
         "raw_data_fn": "multiqc_spectrum_tracking_table",  # File basename to use for raw data file
+        "save_data_file": False,
     }
 
     headers = OrderedDict()

@@ -31,6 +31,7 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
         "colstops": hm_colors,
         "cluster_rows": False,
         "cluster_cols": False,
+        "save_data_file": False,
     }
 
     hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
@@ -116,6 +117,7 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
         "xlab": "log2(Precursor.Quantity)",
         "data_labels": plot_label,
         "sort_samples": False,
+        "save_data_file": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
@@ -154,6 +156,7 @@ def draw_dia_ms1_area(sub_section, df):
         "title": "Ms1 Area Distribution",
         "tt_decimals": 5,
         "xlab": "log2(Ms1.Area)",
+        "save_data_file": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
@@ -194,6 +197,7 @@ def draw_dia_whole_exp_charge(sub_section, df):
         "title": "Distribution of Precursor Charges",
         "tt_decimals": 0,
         "ylab": "Count",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -251,6 +255,7 @@ def draw_dia_ms2_charge(sub_section, df, sdrf_file_df):
         "tt_decimals": 0,
         "ylab": "Count",
         "data_labels": plot_label,
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -297,6 +302,7 @@ def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
         "cpswitch": False,
         "tt_decimals": 5,
         "xlab": "Standard Deviation of log2(Precursor.Quantity)",
+        "save_data_file": False,
     }
 
     box_html = box.plot(
@@ -363,6 +369,7 @@ def draw_dia_delta_mass(sub_section, df):
         "xlab": "Ms1.Apex.Mz.Delta",
         "data_labels": data_label,
         "style": "lines",
+        "save_data_file": False,
     }
 
     line_html = linegraph.plot(
@@ -397,6 +404,7 @@ def draw_norm_factor_rt(sub_section, plot_data):
         "ylab": "Normalisation Factor",
         "xlab": "Retention time [min]",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
@@ -432,6 +440,7 @@ def draw_fwhm_rt(sub_section, plot_data):
         "ylab": "FWHM",
         "xlab": "Retention time [min]",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
@@ -470,6 +479,7 @@ def draw_peak_width_rt(sub_section, plot_data):
         "ylab": "Peak Width",
         "xlab": "Retention time [min]",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
@@ -504,6 +514,7 @@ def draw_rt_error_rt(sub_section, plot_data):
         "ylab": "|RT - Predicted.RT|",
         "xlab": "Retention time [min]",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
@@ -538,6 +549,7 @@ def draw_loess_rt_irt(sub_section, plot_data):
         "ylab": "RT",
         "xlab": "iRT",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=plot_data, pconfig=draw_config)
