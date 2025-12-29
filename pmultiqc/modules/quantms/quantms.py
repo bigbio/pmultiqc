@@ -1101,16 +1101,17 @@ class QuantMSModule:
                         ].to_numpy()
                     )
 
-                    pep_intensity_by_run[name] = group[
-                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
-                    ]["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_run[name] = stat_pep_intensity(
+                        group[
+                            group["opt_global_cv_MS:1002217_decoy_peptide"] == 0
+                        ]["average_intensity"]
                     )
+
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
 
-                    pep_intensity_by_run[name] = group["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_run[name] = stat_pep_intensity(
+                        group["average_intensity"]
                     )
 
                 self.heatmap_pep_intensity[name] = np.minimum(
@@ -1128,14 +1129,15 @@ class QuantMSModule:
             for name, group in pep_table.groupby("Sample", sort=True):
 
                 if config.kwargs["remove_decoy"]:
-                    pep_intensity_by_sample[f"Sample {str(name)}"] = group[
-                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
-                    ]["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_sample[f"Sample {str(name)}"] = stat_pep_intensity(
+                        group[
+                            group["opt_global_cv_MS:1002217_decoy_peptide"] == 0
+                        ]["average_intensity"]
                     )
+
                 else:
-                    pep_intensity_by_sample[f"Sample {str(name)}"] = group["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_sample[f"Sample {str(name)}"] = stat_pep_intensity(
+                        group["average_intensity"]
                     )
 
             self.quantms_pep_intensity = [pep_intensity_by_run, pep_intensity_by_sample]
@@ -1144,8 +1146,8 @@ class QuantMSModule:
         global_peps = set(psm["opt_global_cv_MS:1000889_peptidoform_sequence"])
         global_peps_count = len(global_peps)
         if (
-                config.kwargs["remove_decoy"]
-                and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
+            config.kwargs["remove_decoy"]
+            and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
         ):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
 
@@ -2441,3 +2443,14 @@ def aggregate_spectrum_tracking(
             rows_by_group[group_name] = row_data
 
     return rows_by_group, header_cols
+
+
+def stat_pep_intensity(intensities: pd.Series):
+
+    stat_result = np.where(
+        (intensities.notna()) & (intensities > 0),
+        np.log2(intensities).astype(float),
+        1.0
+    )
+
+    return stat_result.tolist()

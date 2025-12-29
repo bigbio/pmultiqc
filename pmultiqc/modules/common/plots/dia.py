@@ -143,7 +143,8 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
 def draw_dia_ms1_area(sub_section, df):
 
     box_data = {
-        str(run): group["log_ms1_area"].dropna().tolist() for run, group in df.groupby("Run")
+        str(run): group["log_ms1_area"].dropna().tolist()
+        for run, group in df.groupby("Run")
     }
 
     draw_config = {
