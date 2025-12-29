@@ -234,6 +234,7 @@ def _create_bar_plot(df, plot_config):
         "title": plot_config["bar_plot_title"],
         "tt_decimals": 0,
         "ylab": "Count",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(data=bar_data, pconfig=draw_bar_config)
@@ -260,6 +261,7 @@ def _create_line_plot(df, plot_config, plot_type):
         "ylab": "Count",
         "xlab": plot_config["line_plot_xlab"],
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=linegraph_data, pconfig=draw_line_config)
@@ -279,6 +281,7 @@ def _create_box_plot(df, plot_config):
         "title": plot_config["box_plot_title"],
         "tt_decimals": 5,
         "xlab": plot_config["box_plot_xlab"],
+        "save_data_file": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_box_config)
@@ -364,6 +367,7 @@ def intensity_count_per_file(df, runs_col=None):
         "title": "Number of Detected Features per Run",
         "tt_decimals": 0,
         "ylab": "Count",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -396,6 +400,7 @@ def draw_precursor_ion_charge(df):
         "title": "Distribution of Precursor Charges",
         "tt_decimals": 0,
         "ylab": "Count",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -431,6 +436,7 @@ def draw_logintensitymean_vs_logfc(df):
         "xlab": "log2FC(A:B)",
         "ylab": "logIntensityMean",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     scatter_html = scatter.plot(data=plot_data, pconfig=draw_config)

@@ -284,8 +284,6 @@ def mod_group_percentage(df):
 
     if "Modifications" in df_copy.columns and "modifications" not in df_copy.columns:
         df_copy = df_copy.rename(columns={"Modifications": "modifications"})
-    else:
-        raise ValueError('Detected both "Modifications" and "modifications" columns.')
 
     counts = df_copy["modifications"].str.split(",").explode().value_counts()
     percentage_df = (counts / len(df_copy["modifications"]) * 100).reset_index()

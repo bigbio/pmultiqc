@@ -436,6 +436,7 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
         "only_defined_headers": True,
         "col1_header": "PeptideID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     # only use the first 50 lines for the table
@@ -496,6 +497,7 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
         "only_defined_headers": True,
         "col1_header": "ProteinID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     display_rows = 50

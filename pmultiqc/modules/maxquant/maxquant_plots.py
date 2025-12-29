@@ -5,7 +5,10 @@ from multiqc.plots import bargraph, linegraph, box, scatter, table
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
-from pmultiqc.modules.common.plots.general import plot_html_check
+from pmultiqc.modules.common.plots.general import (
+    plot_html_check,
+    plot_data_check
+)
 from pmultiqc.modules.core.section_groups import add_sub_section
 
 
@@ -68,6 +71,7 @@ def draw_exp_design(sdrf_df, sub_sections):
         "save_file": False,
         "raw_data_fn": "multiqc_Experimental_Design_table",
         "no_violin": True,
+        "save_data_file": False,
     }
     table_html = table.plot(rows_by_group, headers, pconfig)
     add_sub_section(
@@ -95,6 +99,7 @@ def draw_parameters(sub_section, parameter_table):
         "only_defined_headers": True,
         "col1_header": "No.",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     headers = {"parameter": {"title": "Parameter"}, "value": {"title": "Value"}}
@@ -126,6 +131,7 @@ def draw_peptide_table(sub_section, table_data):
         "only_defined_headers": True,
         "col1_header": "PeptideID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     headers = {
@@ -181,6 +187,7 @@ def draw_protein_table(sub_section, table_data):
         "only_defined_headers": True,
         "col1_header": "ProteinID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     headers = {
@@ -247,11 +254,18 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
-            "boxpoints": False,
+            "save_data_file": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
+        # box_html.flat
+        box_html = plot_data_check(
+            plot_data=distribution_box,
+            plot_html=box_html,
+            log_text="pmultiqc.modules.maxquant.maxquant_plots",
+            function_name="draw_intensity_box"
+        )
         box_html = plot_html_check(box_html)
 
         add_sub_section(
@@ -281,11 +295,18 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
-            "boxpoints": False,
+            "save_data_file": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
+        # box_html.flat
+        box_html = plot_data_check(
+            plot_data=distribution_box,
+            plot_html=box_html,
+            log_text="pmultiqc.modules.maxquant.maxquant_plots",
+            function_name="draw_intensity_box"
+        )
         box_html = plot_html_check(box_html)
 
         add_sub_section(
@@ -316,11 +337,18 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             "tt_decimals": 2,
             "data_labels": boxplot_label,
             "xlab": "log2(Intensity)",
-            "boxpoints": False,
+            "save_data_file": False,
         }
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 
+        # box_html.flat
+        box_html = plot_data_check(
+            plot_data=distribution_box,
+            plot_html=box_html,
+            log_text="pmultiqc.modules.maxquant.maxquant_plots",
+            function_name="draw_intensity_box"
+        )
         box_html = plot_html_check(box_html)
 
         add_sub_section(
@@ -364,6 +392,7 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
         "title": fig_title,
         "xlab": "PC #1",
         "ylab": "PC #2",
+        "save_data_file": False,
     }
 
     scatter_html = scatter.plot(data=pca_data, pconfig=draw_config)
@@ -403,6 +432,7 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
         "title": fig_title,
         "tt_decimals": 0,
         "ylab": "Count",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -451,6 +481,7 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
         "title": fig_title,
         "tt_decimals": 0,
         "ylab": "Count",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -498,6 +529,7 @@ def draw_evidence_peak_width_rt(sub_section, peak_rt_data):
         "ylab": "Retention length [median]",
         "xlab": "Retention time [min]",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=peak_rt_data, pconfig=draw_config)
@@ -542,6 +574,7 @@ def draw_mass_error_box(sub_section, mass_error_data):
         "xlab": "Mass Error [ppm]",
         "xmax": xmax_value,
         "xmin": xmin_value,
+        "save_data_file": False,
     }
 
     box_html = box.plot(list_of_data_by_sample=mass_error_data, pconfig=draw_config)
@@ -603,6 +636,7 @@ def draw_maxquant_summary_table(
         "only_defined_headers": False,
         "col1_header": "#MS2 Spectra",
         "scale": "Set1",
+        "save_data_file": False,
     }
 
     table_html = table.plot(summary_table, headers, pconfig)
@@ -644,6 +678,7 @@ def draw_maxquant_num_pep_pro(sub_section, num_pep_per_protein):
         "cpswitch": False,
         "title": "Number of Peptides identified Per Protein",
         "data_labels": data_labels,
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -675,6 +710,7 @@ def draw_maxquant_scores(sub_section, maxquant_scores):
         "tt_suffix": "",
         "tt_decimals": 0,
         "data_labels": maxquant_scores["data_labels"],
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(data=maxquant_scores["plot_data"], pconfig=pconfig)
@@ -702,6 +738,7 @@ def draw_msms_scans_top_n(sub_section, top_n_data):
         "stacking": "group",
         "tt_decimals": 0,
         "ylab": "Highest Scan Event",
+        "save_data_file": False,
     }
 
     bar_html = bargraph.plot(
@@ -735,6 +772,7 @@ def draw_msms_scans_top_over_rt(sub_section, top_over_rt_data):
         "ylab": "Highest N [median per RT bin]",
         "xlab": "Retention time [min]",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=top_over_rt_data, pconfig=draw_config)
@@ -767,6 +805,7 @@ def draw_msms_scans_ion_injec_time_rt(sub_section, ion_injec_time_rt_data):
         "ylab": "Ion injection time [ms]",
         "xlab": "Retention time [min]",
         "showlegend": True,
+        "save_data_file": False,
     }
 
     linegraph_html = linegraph.plot(data=ion_injec_time_rt_data, pconfig=draw_config)

@@ -65,7 +65,8 @@ from pmultiqc.modules.common.plots.id import (
 from pmultiqc.modules.common.plots.general import (
     draw_heatmap,
     plot_html_check,
-    draw_exp_design
+    draw_exp_design,
+    plot_data_check
 )
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
@@ -690,6 +691,7 @@ class QuantMSModule:
                     "data_labels": data_label,
                     "style": "lines+markers",
                     "showlegend": True,
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot(
                     [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
@@ -723,6 +725,7 @@ class QuantMSModule:
                     "data_labels": data_label,
                     "style": "lines+markers",
                     "showlegend": True,
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
         # no decoy
@@ -798,6 +801,7 @@ class QuantMSModule:
                     "xlab": "Experimental m/z - Theoretical m/z",
                     "data_labels": data_label,
                     "style": "lines+markers",
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot(
                     [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
@@ -830,6 +834,7 @@ class QuantMSModule:
                     "xlab": "Experimental m/z - Theoretical m/z",
                     "data_labels": data_label,
                     "style": "lines+markers",
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
 
@@ -867,6 +872,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": msgf_labels,
+            "save_data_file": False,
         }
 
         xcorr_pconfig = {
@@ -879,6 +885,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": comet_labels,
+            "save_data_file": False,
         }
 
         hyper_pconfig = {
@@ -891,6 +898,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": sage_labels,
+            "save_data_file": False,
         }
 
         bar_cats = OrderedDict()
@@ -972,6 +980,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": self.search_engine["data_label"]["peps_label"],
+            "save_data_file": False,
         }
 
         pep_bar_html = bargraph.plot(
@@ -998,6 +1007,7 @@ class QuantMSModule:
                 "height": 256,
                 "tt_suffix": "",
                 "tt_decimals": 0,
+                "save_data_file": False,
             }
 
             consensus_bar_html = bargraph.plot(
@@ -1100,16 +1110,17 @@ class QuantMSModule:
                         ].to_numpy()
                     )
 
-                    pep_intensity_by_run[name] = group[
-                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
-                    ]["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_run[name] = stat_pep_intensity(
+                        group[
+                            group["opt_global_cv_MS:1002217_decoy_peptide"] == 0
+                        ]["average_intensity"]
                     )
+
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
 
-                    pep_intensity_by_run[name] = group["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_run[name] = stat_pep_intensity(
+                        group["average_intensity"]
                     )
 
                 self.heatmap_pep_intensity[name] = np.minimum(
@@ -1127,14 +1138,15 @@ class QuantMSModule:
             for name, group in pep_table.groupby("Sample", sort=True):
 
                 if config.kwargs["remove_decoy"]:
-                    pep_intensity_by_sample[f"Sample {str(name)}"] = group[
-                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
-                    ]["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_sample[f"Sample {str(name)}"] = stat_pep_intensity(
+                        group[
+                            group["opt_global_cv_MS:1002217_decoy_peptide"] == 0
+                        ]["average_intensity"]
                     )
+
                 else:
-                    pep_intensity_by_sample[f"Sample {str(name)}"] = group["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_sample[f"Sample {str(name)}"] = stat_pep_intensity(
+                        group["average_intensity"]
                     )
 
             self.quantms_pep_intensity = [pep_intensity_by_run, pep_intensity_by_sample]
@@ -1143,8 +1155,8 @@ class QuantMSModule:
         global_peps = set(psm["opt_global_cv_MS:1000889_peptidoform_sequence"])
         global_peps_count = len(global_peps)
         if (
-                config.kwargs["remove_decoy"]
-                and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
+            config.kwargs["remove_decoy"]
+            and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
         ):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
 
@@ -1578,14 +1590,13 @@ class QuantMSModule:
 
             pconfig = {
                 "id": "peptide spectrum matches",  # ID used for the table
-                "table_title": "information of peptide spectrum matches",
-                # Title of the table. Used in the column config modal
-                "save_file": False,  # Whether to save the table data to a file
+                "table_title": "information of peptide spectrum matches",   # Title of the table. Used in the column config modal
                 "sortRows": False,  # Whether to sort rows alphabetically
                 "only_defined_headers": False,  # Only show columns that are defined in the headers config
                 "col1_header": "PSM_ID",
                 "format": "{:,.0f}",
                 "no_violin": True,
+                "save_data_file": False,
             }
 
             mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
@@ -1751,14 +1762,14 @@ class QuantMSModule:
             pconfig = {
                 "id": "quantification_of_protein",  # ID used for the table
                 "title": "quantification information of protein",
-                "anchor": "",
-                # Title of the table. Used in the column config modal
+                "anchor": "",   # Title of the table. Used in the column config modal
                 "save_file": False,  # Whether to save the table data to a file
                 "raw_data_fn": "multiqc_quantification_of_protein_table",  # File basename to use for raw data file
                 "sort_rows": False,  # Whether to sort rows alphabetically
                 "only_defined_headers": False,  # Only show columns that are defined in the headers config
                 "col1_header": "ProteinName",
                 "no_violin": True,
+                "save_data_file": False,
             }
 
             max_prot_intensity = 0
@@ -1912,11 +1923,11 @@ class QuantMSModule:
             "namespace": "",
             "id": "peptides_quantification_table",
             "title": "Peptides Quantification Table",
-            "save_file": False,
             "sort_rows": False,
             "only_defined_headers": True,
             "col1_header": "PeptideID",
             "no_violin": True,
+            "save_data_file": False,
         }
 
         # only use the first 50 lines for the table
@@ -2047,6 +2058,7 @@ class QuantMSModule:
             "only_defined_headers": True,
             "col1_header": "ProteinID",
             "no_violin": True,
+            "save_data_file": False,
         }
         table_html = table.plot(msstats_data_dict_prot_init, headers=headers, pconfig=draw_config)
         add_sub_section(
@@ -2165,9 +2177,17 @@ class QuantMSModule:
                 "xlab": "log2(Intensity)",
                 "data_labels": ["by Run", "by Sample"],
                 "sort_samples": False,
-                "boxpoints": False,
+                "save_data_file": False,
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
+
+            # box_html.flat
+            box_html = plot_data_check(
+                plot_data=self.quantms_pep_intensity,
+                plot_html=box_html,
+                log_text="pmultiqc.modules.quantms.quantms",
+                function_name="draw_quantms_quantification"
+            )
             box_html = plot_html_check(box_html)
 
             add_sub_section(
@@ -2209,6 +2229,7 @@ def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
         "title": "Pipeline Spectrum Tracking",  # Title of the table. Used in the column config modal
         "save_file": False,  # Whether to save the table data to a file
         "raw_data_fn": "multiqc_spectrum_tracking_table",  # File basename to use for raw data file
+        "save_data_file": False,
     }
 
     headers = OrderedDict()
@@ -2433,3 +2454,14 @@ def aggregate_spectrum_tracking(
             rows_by_group[group_name] = row_data
 
     return rows_by_group, header_cols
+
+
+def stat_pep_intensity(intensities: pd.Series):
+
+    stat_result = np.where(
+        (intensities.notna()) & (intensities > 0),
+        np.log2(intensities).astype(float),
+        1.0
+    )
+
+    return stat_result.tolist()
