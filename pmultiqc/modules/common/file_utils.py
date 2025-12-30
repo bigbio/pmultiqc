@@ -64,7 +64,7 @@ def extract_zip(file_path: str, extract_to: str) -> None:
                 raise ValueError(f"Invalid path in zip file: {member}")
             # Check for absolute paths
             if member.startswith("/") or (os.name == "nt" and len(member) > 1 and member[1] == ":"):
-                raise ValueError(f"Invalid absolute path in zip file: {member}")
+                raise ValueError(f"Invalid path in zip file: {member}")
 
             # Normalize the member path (remove leading slashes and normalize)
             member_normalized = os.path.normpath(member.lstrip("/"))
@@ -108,7 +108,7 @@ def extract_tar(file_path: str, extract_to: str) -> None:
                 raise ValueError(f"Invalid path in tar file: {member.name}")
             # Check for absolute paths
             if member.name.startswith("/") or (os.name == "nt" and len(member.name) > 1 and member.name[1] == ":"):
-                raise ValueError(f"Invalid absolute path in tar file: {member.name}")
+                raise ValueError(f"Invalid path in tar file: {member.name}")
 
             # Normalize the member path (remove leading slashes and normalize)
             member_normalized = os.path.normpath(member.name.lstrip("/"))
