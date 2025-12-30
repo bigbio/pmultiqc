@@ -1030,7 +1030,7 @@ def evidence_peptide_count(evidence_df, evidence_df_tf):
                 categories = ["Genuine"]
 
             peptide_counts_list.append(file_peptide_counts)
-        
+
         if peptide_counts_list:
             peptide_counts = pd.concat(peptide_counts_list, axis=0, ignore_index=True)
         else:
