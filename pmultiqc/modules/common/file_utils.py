@@ -58,9 +58,13 @@ def extract_zip(file_path: str, extract_to: str) -> None:
 
         # Security: Check for path traversal in zip entries
         for member in zip_ref.namelist():
-            # Check for explicit path traversal attempts first
-            if ".." in member or member.startswith("/"):
+            # Check for explicit path traversal attempts (../ or ..\ patterns)
+            # Allow filenames containing ".." as a substring (e.g., "file..name.txt")
+            if "../" in member or "..\\" in member or member.startswith("../") or member.startswith("..\\"):
                 raise ValueError(f"Invalid path in zip file: {member}")
+            # Check for absolute paths
+            if member.startswith("/") or (os.name == "nt" and len(member) > 1 and member[1] == ":"):
+                raise ValueError(f"Invalid absolute path in zip file: {member}")
 
             # Normalize the member path (remove leading slashes and normalize)
             member_normalized = os.path.normpath(member.lstrip("/"))
@@ -98,9 +102,13 @@ def extract_tar(file_path: str, extract_to: str) -> None:
 
         # Security: Check for path traversal in tar entries
         for member in tar_ref.getmembers():
-            # Check for explicit path traversal attempts first
-            if ".." in member.name or member.name.startswith("/"):
+            # Check for explicit path traversal attempts (../ or ..\ patterns)
+            # Allow filenames containing ".." as a substring (e.g., "file..name.txt")
+            if "../" in member.name or "..\\" in member.name or member.name.startswith("../") or member.name.startswith("..\\"):
                 raise ValueError(f"Invalid path in tar file: {member.name}")
+            # Check for absolute paths
+            if member.name.startswith("/") or (os.name == "nt" and len(member.name) > 1 and member.name[1] == ":"):
+                raise ValueError(f"Invalid absolute path in tar file: {member.name}")
 
             # Normalize the member path (remove leading slashes and normalize)
             member_normalized = os.path.normpath(member.name.lstrip("/"))
