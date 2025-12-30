@@ -53,14 +53,24 @@ def extract_zip(file_path: str, extract_to: str) -> None:
     max_size = 10 * 1024 * 1024 * 1024  # 10GB limit
 
     with zipfile.ZipFile(file_path, "r") as zip_ref:
+        # Get absolute path of extract_to for proper comparison
+        extract_to_abs = os.path.abspath(extract_to)
+
         # Security: Check for path traversal in zip entries
         for member in zip_ref.namelist():
-            # Normalize the path and check for path traversal attempts
-            member_path = os.path.normpath(os.path.join(extract_to, member))
-            if not member_path.startswith(os.path.abspath(extract_to)):
-                raise ValueError(f"Attempted path traversal in zip file: {member}")
+            # Check for explicit path traversal attempts first
             if ".." in member or member.startswith("/"):
                 raise ValueError(f"Invalid path in zip file: {member}")
+
+            # Normalize the member path (remove leading slashes and normalize)
+            member_normalized = os.path.normpath(member.lstrip("/"))
+
+            # Join with extract_to and normalize to get the full path
+            member_path = os.path.normpath(os.path.join(extract_to_abs, member_normalized))
+
+            # Check if the resolved path is within extract_to directory
+            if not member_path.startswith(extract_to_abs + os.sep) and member_path != extract_to_abs:
+                raise ValueError(f"Attempted path traversal in zip file: {member}")
 
         # Security: Check for zip bombs
         total_uncompressed_size = sum(info.file_size for info in zip_ref.infolist())
@@ -83,14 +93,24 @@ def extract_gz(file_path: str, extract_to: str) -> None:
 def extract_tar(file_path: str, extract_to: str) -> None:
     """Extract a tar file with security checks against path traversal."""
     with tarfile.open(file_path, "r:*") as tar_ref:
+        # Get absolute path of extract_to for proper comparison
+        extract_to_abs = os.path.abspath(extract_to)
+
         # Security: Check for path traversal in tar entries
         for member in tar_ref.getmembers():
-            # Normalize the path and check for path traversal attempts
-            member_path = os.path.normpath(os.path.join(extract_to, member.name))
-            if not member_path.startswith(os.path.abspath(extract_to)):
-                raise ValueError(f"Attempted path traversal in tar file: {member.name}")
+            # Check for explicit path traversal attempts first
             if ".." in member.name or member.name.startswith("/"):
                 raise ValueError(f"Invalid path in tar file: {member.name}")
+
+            # Normalize the member path (remove leading slashes and normalize)
+            member_normalized = os.path.normpath(member.name.lstrip("/"))
+
+            # Join with extract_to and normalize to get the full path
+            member_path = os.path.normpath(os.path.join(extract_to_abs, member_normalized))
+
+            # Check if the resolved path is within extract_to directory
+            if not member_path.startswith(extract_to_abs + os.sep) and member_path != extract_to_abs:
+                raise ValueError(f"Attempted path traversal in tar file: {member.name}")
 
         tar_ref.extractall(extract_to)
         log.info(f"Extracted {file_path} to {extract_to}")
