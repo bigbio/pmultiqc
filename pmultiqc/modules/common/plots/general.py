@@ -12,12 +12,55 @@ from pmultiqc.modules.common.common_utils import (
 )
 
 
+FLAT_THRESHOLD = 100000
+
 def plot_html_check(plot_html):
 
     checked_html = remove_subtitle(plot_html)
     checked_html = apply_hoverinfo_config(checked_html)
 
     return checked_html
+
+
+def plot_data_check(
+    plot_data,
+    plot_html,
+    log_text,
+    function_name
+):
+
+    from collections.abc import Mapping
+    from pmultiqc.modules.common.logging import get_logger
+
+    log = get_logger(log_text)
+
+    def count_elements(plot_data):
+
+        count = 0
+        if isinstance(plot_data, list):
+            for item in plot_data:
+                count += count_elements(item)
+
+        elif isinstance(plot_data, Mapping):
+            for v in plot_data.values():
+                count += count_elements(v)
+
+        else:
+            count += 1
+
+        return count
+
+    data_counts = count_elements(plot_data)
+
+    log.info(f"{function_name}: Plot data count: {data_counts}")
+
+    if data_counts >= FLAT_THRESHOLD:
+        plot_html.flat = True
+        log.warning(
+            f"{function_name}: Number of plotting data points: {data_counts}, exceeds threshold {FLAT_THRESHOLD}, switching to flat plot"
+        )
+
+    return plot_html
 
 
 def remove_subtitle(plot_html):
@@ -45,12 +88,12 @@ def apply_hoverinfo_config(plot_html):
 
 
 def draw_heatmap(
-        sub_sections,
-        hm_colors,
-        heatmap_data,
-        heatmap_xnames,
-        heatmap_ynames,
-        is_maxquant
+    sub_sections,
+    hm_colors,
+    heatmap_data,
+    heatmap_xnames,
+    heatmap_ynames,
+    is_maxquant
 ):
     pconfig = {
         "id": "heatmap",
@@ -65,6 +108,7 @@ def draw_heatmap(
         "colstops": hm_colors,
         "cluster_rows": False,
         "cluster_cols": False,
+        "save_data_file": False,
     }
     if is_maxquant:
         hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
@@ -126,18 +170,18 @@ def draw_exp_design(sub_sections, exp_design):
                 )
             )
 
-            for _, row in file_df_sample.iterrows():
+            for row in file_df_sample.itertuples():
                 sample_data = {}
                 for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
                     sample_data["MSstats_Condition_" + str(k)] = ""
                 sample_data["MSstats_BioReplicate"] = ""
-                sample_data["Fraction_Group"] = row["Fraction_Group"]
-                sample_data["Fraction"] = row["Fraction"]
-                sample_data["Label"] = row["Label"]
+                sample_data["Fraction_Group"] = row.Fraction_Group
+                sample_data["Fraction"] = row.Fraction
+                sample_data["Label"] = row.Label
 
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
+                        sample=SampleName(row.Run),
                         data=sample_data,
                     )
                 )
@@ -194,16 +238,16 @@ def draw_exp_design(sub_sections, exp_design):
                     },
                 )
             )
-            for _, row in file_df_sample.iterrows():
+            for row in file_df_sample.itertuples():
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
+                        sample=SampleName(row.Run),
                         data={
                             "MSstats_Condition": "",
                             "MSstats_BioReplicate": "",
-                            "Fraction_Group": row["Fraction_Group"],
-                            "Fraction": row["Fraction"],
-                            "Label": row["Label"],
+                            "Fraction_Group": row.Fraction_Group,
+                            "Fraction": row.Fraction,
+                            "Label": row.Label,
                         },
                     )
                 )
@@ -249,6 +293,7 @@ def draw_exp_design(sub_sections, exp_design):
         "save_file": False,
         "raw_data_fn": "multiqc_Experimental_Design_table",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     table_html = table.plot(rows_by_group, headers, pconfig)
@@ -260,7 +305,7 @@ def draw_exp_design(sub_sections, exp_design):
             This table shows the design of the experiment. I.e., which files and channels correspond to which sample/condition/fraction.
             """,
         helptext="""
-            You can see details about it in 
+            You can see details about it in
             https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
             """
     )

@@ -65,7 +65,8 @@ from pmultiqc.modules.common.plots.id import (
 from pmultiqc.modules.common.plots.general import (
     draw_heatmap,
     plot_html_check,
-    draw_exp_design
+    draw_exp_design,
+    plot_data_check
 )
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
@@ -207,7 +208,7 @@ class QuantMSModule:
 
                 parse_sdrf(
                     self.sdrf,
-                    config.kwargs["raw"],
+                    config.kwargs["keep_raw"],
                     config.kwargs["condition"],
                 )
 
@@ -500,7 +501,7 @@ class QuantMSModule:
                     This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
                     """,
                 helptext="""
-                    The quantification information (Spectral Counting) of proteins is obtained from the mzTab file. 
+                    The quantification information (Spectral Counting) of proteins is obtained from the mzTab file.
                     The table shows the quantitative level and distribution of proteins in different study variables and run.
 
                     * Peptides_Number: The number of peptides for each protein.
@@ -690,6 +691,7 @@ class QuantMSModule:
                     "data_labels": data_label,
                     "style": "lines+markers",
                     "showlegend": True,
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot(
                     [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
@@ -723,6 +725,7 @@ class QuantMSModule:
                     "data_labels": data_label,
                     "style": "lines+markers",
                     "showlegend": True,
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
         # no decoy
@@ -798,6 +801,7 @@ class QuantMSModule:
                     "xlab": "Experimental m/z - Theoretical m/z",
                     "data_labels": data_label,
                     "style": "lines+markers",
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot(
                     [delta_mass_range, delta_mass_percent_range, delta_mass, delta_mass_percent],
@@ -830,6 +834,7 @@ class QuantMSModule:
                     "xlab": "Experimental m/z - Theoretical m/z",
                     "data_labels": data_label,
                     "style": "lines+markers",
+                    "save_data_file": False,
                 }
                 line_html = linegraph.plot([delta_mass, delta_mass_percent], pconfig)
 
@@ -840,14 +845,14 @@ class QuantMSModule:
             plot=line_html,
             order=1,
             description="""
-                This chart represents the distribution of the relative frequency of experimental 
+                This chart represents the distribution of the relative frequency of experimental
                 precursor ion mass (m/z) - theoretical precursor ion mass (m/z).
                 """,
             helptext="""
-                Mass deltas close to zero reflect more accurate identifications and also 
-                that the reporting of the amino acid modifications and charges have been done accurately. 
-                This plot can highlight systematic bias if not centered on zero. 
-                Other distributions can reflect modifications not being reported properly. 
+                Mass deltas close to zero reflect more accurate identifications and also
+                that the reporting of the amino acid modifications and charges have been done accurately.
+                This plot can highlight systematic bias if not centered on zero.
+                Other distributions can reflect modifications not being reported properly.
                 Also it is easy to see the different between the target and the decoys identifications.
                 """,
         )
@@ -867,6 +872,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": msgf_labels,
+            "save_data_file": False,
         }
 
         xcorr_pconfig = {
@@ -879,6 +885,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": comet_labels,
+            "save_data_file": False,
         }
 
         hyper_pconfig = {
@@ -891,6 +898,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": sage_labels,
+            "save_data_file": False,
         }
 
         bar_cats = OrderedDict()
@@ -928,7 +936,7 @@ class QuantMSModule:
                 order=1,
                 description="",
                 helptext="""
-                        This statistic is extracted from idXML files. SpecEvalue: Spectral E-values, 
+                        This statistic is extracted from idXML files. SpecEvalue: Spectral E-values,
                         the search score of MSGF. The value used for plotting is -lg(SpecEvalue).
                         """,
             )
@@ -942,7 +950,7 @@ class QuantMSModule:
                 order=2,
                 description="",
                 helptext="""
-                        This statistic is extracted from idXML files. xcorr: cross-correlation scores, 
+                        This statistic is extracted from idXML files. xcorr: cross-correlation scores,
                         the search score of Comet. The value used for plotting is xcorr.
                         """,
             )
@@ -956,7 +964,7 @@ class QuantMSModule:
                 order=3,
                 description="",
                 helptext="""
-                        This statistic is extracted from idXML files. hyperscore: Hyperscore, the search 
+                        This statistic is extracted from idXML files. hyperscore: Hyperscore, the search
                         score of Sage. The value used for plotting is hyperscore.
                         """,
             )
@@ -972,6 +980,7 @@ class QuantMSModule:
             "tt_suffix": "",
             "tt_decimals": 0,
             "data_labels": self.search_engine["data_label"]["peps_label"],
+            "save_data_file": False,
         }
 
         pep_bar_html = bargraph.plot(
@@ -998,6 +1007,7 @@ class QuantMSModule:
                 "height": 256,
                 "tt_suffix": "",
                 "tt_decimals": 0,
+                "save_data_file": False,
             }
 
             consensus_bar_html = bargraph.plot(
@@ -1013,16 +1023,16 @@ class QuantMSModule:
                 order=5,
                 description="",
                 helptext="""
-                    Consensus support is a measure of agreement between search engines. 
-                    Every peptide sequence in the analysis has been identified by at least one search run. 
-                    The consensus support defines which fraction (between 0 and 1) of the remaining search 
-                    runs "supported" a peptide identification that was kept. 
-                    The meaning of "support" differs slightly between algorithms: For best, worst, average 
-                    and rank, each search run supports peptides that it has also identified among its top 
-                    considered_hits candidates. So the "consensus support" simply gives the fraction of 
-                    additional search engines that have identified a peptide. (For example, if there are 
-                    three search runs, peptides identified by two of them will have a "support" of 0.5.) 
-                    For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide 
+                    Consensus support is a measure of agreement between search engines.
+                    Every peptide sequence in the analysis has been identified by at least one search run.
+                    The consensus support defines which fraction (between 0 and 1) of the remaining search
+                    runs "supported" a peptide identification that was kept.
+                    The meaning of "support" differs slightly between algorithms: For best, worst, average
+                    and rank, each search run supports peptides that it has also identified among its top
+                    considered_hits candidates. So the "consensus support" simply gives the fraction of
+                    additional search engines that have identified a peptide. (For example, if there are
+                    three search runs, peptides identified by two of them will have a "support" of 0.5.)
+                    For the similarity-based algorithms PEPMatrix and PEPIons, the "support" for a peptide
                     is the average similarity of the most-similar peptide from each (other) search run.
                     """,
             )
@@ -1038,7 +1048,8 @@ class QuantMSModule:
         #     )
 
     def cal_heat_map_score(self):
-        log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log.info(f"{timestamp}: Calculating Heatmap Scores...")
 
         psm = self.mztab_data.spectrum_match_table
         meta_data = dict(self.mztab_data.metadata)
@@ -1057,7 +1068,6 @@ class QuantMSModule:
 
             pep_df_need_cols = ["accession", "opt_global_cv_MS:1002217_decoy_peptide", "spectra_ref"] + study_variables
             pep_table = pep_table[pep_df_need_cols].copy()
-            del pep_df_need_cols
 
             pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
                 lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
@@ -1090,7 +1100,10 @@ class QuantMSModule:
                     .sum()
                 )
                 all_sum = group[study_variables].sum(axis=0).sum()
-                self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
+                if all_sum == 0:
+                    self.heatmap_con_score[name] = 0.0
+                else:
+                    self.heatmap_con_score[name] = 1.0 - (contaminant_sum / all_sum)
 
                 if config.kwargs["remove_decoy"]:
 
@@ -1100,16 +1113,17 @@ class QuantMSModule:
                         ].to_numpy()
                     )
 
-                    pep_intensity_by_run[name] = group[
-                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
-                    ]["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_run[name] = stat_pep_intensity(
+                        group[
+                            group["opt_global_cv_MS:1002217_decoy_peptide"] == 0
+                        ]["average_intensity"]
                     )
+
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
 
-                    pep_intensity_by_run[name] = group["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_run[name] = stat_pep_intensity(
+                        group["average_intensity"]
                     )
 
                 self.heatmap_pep_intensity[name] = np.minimum(
@@ -1127,14 +1141,15 @@ class QuantMSModule:
             for name, group in pep_table.groupby("Sample", sort=True):
 
                 if config.kwargs["remove_decoy"]:
-                    pep_intensity_by_sample[f"Sample {str(name)}"] = group[
-                        (group["opt_global_cv_MS:1002217_decoy_peptide"] == 0)
-                    ]["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_sample[f"Sample {str(name)}"] = stat_pep_intensity(
+                        group[
+                            group["opt_global_cv_MS:1002217_decoy_peptide"] == 0
+                        ]["average_intensity"]
                     )
+
                 else:
-                    pep_intensity_by_sample[f"Sample {str(name)}"] = group["average_intensity"].apply(
-                        lambda x: np.log2(x) if pd.notnull(x) and x > 0 else 1
+                    pep_intensity_by_sample[f"Sample {str(name)}"] = stat_pep_intensity(
+                        group["average_intensity"]
                     )
 
             self.quantms_pep_intensity = [pep_intensity_by_run, pep_intensity_by_sample]
@@ -1143,14 +1158,13 @@ class QuantMSModule:
         global_peps = set(psm["opt_global_cv_MS:1000889_peptidoform_sequence"])
         global_peps_count = len(global_peps)
         if (
-                config.kwargs["remove_decoy"]
-                and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
+            config.kwargs["remove_decoy"]
+            and "opt_global_cv_MS:1002217_decoy_peptide" in psm.columns
         ):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
 
         psm_need_cols = ["spectra_ref", "opt_global_cv_MS:1000889_peptidoform_sequence", "sequence", "retention_time"]
         psm = psm[psm_need_cols].copy()
-        del psm_need_cols
 
         psm.loc[:, "stand_spectra_ref"] = psm.apply(
             lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
@@ -1220,9 +1234,8 @@ class QuantMSModule:
                 ),
             )
         )
-        log.info(
-            "{}: Done calculating Heatmap Scores.".format(datetime.now().strftime("%H:%M:%S"))
-        )
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log.info(f"{timestamp}: Done calculating Heatmap Scores.")
 
     # if missed.cleavages is not given, it is assumed that Trypsin was used for digestion
     @staticmethod
@@ -1311,7 +1324,6 @@ class QuantMSModule:
                 .agg("min")["best_search_engine_score[1]"]
                 .to_dict()
             )
-            del peptide_score
             counts_per_acc = (
                 pep_table.drop_duplicates("sequence")["accession"]
                 .str.split(",")
@@ -1344,7 +1356,7 @@ class QuantMSModule:
                 return ",".join(set(mod_list))
             return "Unmodified"
 
-        psm["Modifications"] = psm["modifications"].apply(lambda x: get_unimod_modification(x))
+        psm["Modifications"] = psm["modifications"].apply(get_unimod_modification)
 
         mod_plot_by_run = dict()
         modified_cats = list()
@@ -1486,12 +1498,9 @@ class QuantMSModule:
             for index in decoy_bin.index:
                 decoy_bin_data[float(index.mid)] = int(decoy_bin[index])
             self.delta_mass["decoy"] = decoy_bin_data
-        except Exception:
-            log.info(
-                "{}: No decoy peptides found -> only showing target peptides.".format(
-                    datetime.now().strftime("%H:%M:%S")
-                )
-            )
+        except (KeyError, IndexError, ValueError) as e:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log.info(f"{timestamp}: No decoy peptides found -> only showing target peptides. Error: {e}")
 
         target_bin = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1][
             "relative_diff"
@@ -1578,28 +1587,31 @@ class QuantMSModule:
 
             pconfig = {
                 "id": "peptide spectrum matches",  # ID used for the table
-                "table_title": "information of peptide spectrum matches",
-                # Title of the table. Used in the column config modal
-                "save_file": False,  # Whether to save the table data to a file
+                "table_title": "information of peptide spectrum matches",   # Title of the table. Used in the column config modal
                 "sortRows": False,  # Whether to sort rows alphabetically
                 "only_defined_headers": False,  # Only show columns that are defined in the headers config
                 "col1_header": "PSM_ID",
                 "format": "{:,.0f}",
                 "no_violin": True,
+                "save_data_file": False,
             }
 
             mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
             table_html = table.plot(mztab_data_psm_init, headers, pconfig)
             pattern = re.compile(r'<small id="peptide_spectrum_matches_numrows_text"')
-            index = re.search(pattern, table_html).span()[0]
+            match = re.search(pattern, table_html)
+            if match is None:
+                log.warning("Could not find expected pattern in table HTML, using default insertion point")
+                index = len(table_html)
+            else:
+                index = match.span()[0]
+            options = "".join(f"<option>{key}</option>" for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"])
             t_html = (
                     table_html[:index]
                     + '<input type="text" placeholder="search..." class="searchInput" '
                       'onkeyup="searchPsmFunction()" id="psm_search">'
-                      '<select name="psm_search_col" id="psm_search_col">'
+                      f'<select name="psm_search_col" id="psm_search_col">{options}</select>'
             )
-            for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"]:
-                t_html += "<option>" + key + "</option>"
             table_html = (
                     t_html + "</select>" + '<button type="button" class="btn btn-default '
                                            'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' + table_html[
@@ -1608,9 +1620,9 @@ class QuantMSModule:
             table_html = (
                     table_html
                     + """<div class="page_control"><span id="psmFirst">First Page</span><span
-            id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last 
-            Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input 
-            type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+            id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last
+            Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input
+            type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);"
             onkeydown="psm_page_jump()" min="1"/> </div> """
             )
 
@@ -1655,7 +1667,8 @@ class QuantMSModule:
                 res["Average Spectrum Counting"] = round(sum(spc) / len(np.nonzero(spc)[0]))
                 return res
 
-            for index, row in prot.iterrows():
+            for row in prot.itertuples(index=True):
+                index = row.Index
                 mztab_data_dict_prot_full[index] = {}
                 for abundance_col in prot_abundance_cols:
                     # map abundance assay to factor value
@@ -1679,18 +1692,20 @@ class QuantMSModule:
                     )
 
                     # Consider technical replicates and biological replicates
+                    # Access column by name using getattr (itertuples uses attribute access)
+                    abundance_value = getattr(row, abundance_col, None)
                     if condition in mztab_data_dict_prot_full[index]:
                         if sample_name in mztab_data_dict_prot_full[index][condition]:
                             mztab_data_dict_prot_full[index][condition][sample_name].append(
-                                row[abundance_col]
+                                abundance_value
                             )
                         else:
                             mztab_data_dict_prot_full[index][condition] = {
-                                sample_name: [row[abundance_col]]
+                                sample_name: [abundance_value]
                             }
                     else:
                         mztab_data_dict_prot_full[index][condition] = {
-                            sample_name: [row[abundance_col]]
+                            sample_name: [abundance_value]
                         }
 
                 mztab_data_dict_prot_full[index] = get_spectrum_count_across_rep(
@@ -1698,11 +1713,8 @@ class QuantMSModule:
                 )
                 mztab_data_dict_prot_full[index]["Peptides_Number"] = int(counts_per_acc[index])
 
-            log.info(
-                "{}: Done aggregating mzTab file {}...".format(
-                    datetime.now().strftime("%H:%M:%S"), self.out_mztab_path
-                )
-            )
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log.info(f"{timestamp}: Done aggregating mzTab file {self.out_mztab_path}...")
 
             headers = OrderedDict()
             headers["Peptides_Number"] = {
@@ -1751,14 +1763,14 @@ class QuantMSModule:
             pconfig = {
                 "id": "quantification_of_protein",  # ID used for the table
                 "title": "quantification information of protein",
-                "anchor": "",
-                # Title of the table. Used in the column config modal
+                "anchor": "",   # Title of the table. Used in the column config modal
                 "save_file": False,  # Whether to save the table data to a file
                 "raw_data_fn": "multiqc_quantification_of_protein_table",  # File basename to use for raw data file
                 "sort_rows": False,  # Whether to sort rows alphabetically
                 "only_defined_headers": False,  # Only show columns that are defined in the headers config
                 "col1_header": "ProteinName",
                 "no_violin": True,
+                "save_data_file": False,
             }
 
             max_prot_intensity = 0
@@ -1770,15 +1782,19 @@ class QuantMSModule:
                 mztab_data_dict_prot_init, headers, pconfig=pconfig, max_value=max_prot_intensity
             )
             pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
-            index = re.search(pattern, table_html).span()[0]
+            match = re.search(pattern, table_html)
+            if match is None:
+                log.warning("Could not find expected pattern in protein table HTML, using default insertion point")
+                index = len(table_html)
+            else:
+                index = match.span()[0]
+            options = "".join(f"<option>{key}</option>" for key in ["ProteinName"])
             t_html = (
                     table_html[:index]
                     + '<input type="text" placeholder="search..." class="searchInput" '
                       'onkeyup="searchProtFunction()" id="prot_search">'
-                      '<select name="prot_search_col" id="prot_search_col">'
+                      f'<select name="prot_search_col" id="prot_search_col">{options}</select>'
             )
-            for key in ["ProteinName"]:
-                t_html += "<option>" + key + "</option>"
             table_html = (
                     t_html + "</select>" + '<button type="button" class="btn btn-default '
                                            'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[
@@ -1787,23 +1803,20 @@ class QuantMSModule:
             table_html = (
                     table_html
                     + """<div class="page_control"><span id="protFirst">First Page</span><span
-            id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last 
-            Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input 
-            type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);" 
+            id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last
+            Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input
+            type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);"
             onkeydown="prot_page_jump()" min="1"/> </div> """
             )
 
             self.protein_quantification_table_html = table_html
 
     def parse_msstats_input(self):
-        log.info(
-            "{}: Parsing MSstats input file {}...".format(
-                datetime.now().strftime("%H:%M:%S"), self.msstats_input_path
-            )
-        )
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log.info(f"{timestamp}: Parsing MSstats input file {self.msstats_input_path}...")
         msstats_data = pd.read_csv(self.msstats_input_path)
         # TODO we probably shouldn't even write out 0-intensity values to MSstats csv
-        msstats_data = msstats_data[-(msstats_data["Intensity"] == 0)]
+        msstats_data = msstats_data[msstats_data["Intensity"] != 0]
         msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[:, "PeptideSequence"].map(
             self.peptide_search_score
         )
@@ -1817,7 +1830,6 @@ class QuantMSModule:
         conditions = list(self.sample_df["MSstats_Condition"].unique())
         conditions_str = [str(c) for c in conditions]
         conditions_dists = [str(c) + "_distribution" for c in conditions]
-        cond_and_dist_cols = conditions_str + conditions_dists
 
         # TODO maybe aggregating in dicts is not the fastest. We also need to parse them again for proteins later.
         #  Maybe we should just introduce new pandas columns for every bioreplicate.
@@ -1851,7 +1863,6 @@ class QuantMSModule:
             get_inty_across_bio_reps_as_str
         )
 
-        del msstats_data
         # TODO Can we guarantee that the score was always PEP? I don't think so!
         msstats_data_pep_agg.reset_index(inplace=True)
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
@@ -1912,11 +1923,11 @@ class QuantMSModule:
             "namespace": "",
             "id": "peptides_quantification_table",
             "title": "Peptides Quantification Table",
-            "save_file": False,
             "sort_rows": False,
             "only_defined_headers": True,
             "col1_header": "PeptideID",
             "no_violin": True,
+            "save_data_file": False,
         }
 
         # only use the first 50 lines for the table
@@ -1935,23 +1946,23 @@ class QuantMSModule:
                 This plot shows the quantification information of peptides in the final result (mainly the mzTab file).
                 """,
             helptext="""
-                The quantification information of peptides is obtained from the MSstats input file. 
-                The table shows the quantitative level and distribution of peptides in different study variables, 
-                run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+                The quantification information of peptides is obtained from the MSstats input file.
+                The table shows the quantitative level and distribution of peptides in different study variables,
+                run and peptiforms. The distribution show all the intensity values in a bar plot above and below
                 the average intensity for all the fractions, runs and peptiforms.
 
-                * BestSearchScore: It is equal to 1 - min(Q.Value) for DIA datasets. Then it is equal to 
-                1 - min(best_search_engine_score[1]), which is from best_search_engine_score[1] column in mzTab 
+                * BestSearchScore: It is equal to 1 - min(Q.Value) for DIA datasets. Then it is equal to
+                1 - min(best_search_engine_score[1]), which is from best_search_engine_score[1] column in mzTab
                 peptide table for DDA datasets.
                 * Average Intensity: Average intensity of each peptide sequence across all conditions with NA=0 or NA ignored.
-                * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions, 
+                * Peptide intensity in each condition (Eg. `CT=Mixture;CN=UPS1;QY=0.1fmol`): Summarize intensity of fractions,
                 and then mean intensity in technical replicates/biological replicates separately.
                 """,
         )
 
         # Helper functions for pandas
         def json_to_dict(s):
-            if type(s) is str:
+            if isinstance(s, str):
                 return json.loads(s)
             else:
                 return {}
@@ -2047,6 +2058,7 @@ class QuantMSModule:
             "only_defined_headers": True,
             "col1_header": "ProteinID",
             "no_violin": True,
+            "save_data_file": False,
         }
         table_html = table.plot(msstats_data_dict_prot_init, headers=headers, pconfig=draw_config)
         add_sub_section(
@@ -2057,7 +2069,7 @@ class QuantMSModule:
                 This plot shows the quantification information of proteins in the final result (mainly the mzTab file).
                 """,
             helptext="""
-                The quantification information of proteins is obtained from the msstats input file. 
+                The quantification information of proteins is obtained from the msstats input file.
                 The table shows the quantitative level and distribution of proteins in different study variables and run.
 
                 * Peptides_Number: The number of peptides for each protein.
@@ -2165,9 +2177,17 @@ class QuantMSModule:
                 "xlab": "log2(Intensity)",
                 "data_labels": ["by Run", "by Sample"],
                 "sort_samples": False,
-                "boxpoints": False,
+                "save_data_file": False,
             }
             box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
+
+            # box_html.flat
+            box_html = plot_data_check(
+                plot_data=self.quantms_pep_intensity,
+                plot_html=box_html,
+                log_text="pmultiqc.modules.quantms.quantms",
+                function_name="draw_quantms_quantification"
+            )
             box_html = plot_html_check(box_html)
 
             add_sub_section(
@@ -2176,7 +2196,7 @@ class QuantMSModule:
                 order=5,
                 description="Peptide intensity per file from mzTab.",
                 helptext="""
-                    Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the 
+                    Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the
                     peptide table in the mzTab file, and then apply a log2 transformation.
                     """,
             )
@@ -2201,6 +2221,15 @@ class QuantMSModule:
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
 
+    def __del__(self):
+        """Cleanup method to close SQLite connection."""
+        if hasattr(self, 'con') and self.con:
+            try:
+                self.con.close()
+            except Exception as e:
+                # Log error but don't raise during cleanup to avoid issues in destructor
+                log.debug(f"Error closing SQLite connection during cleanup: {e}")
+
 
 def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
 
@@ -2209,6 +2238,7 @@ def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
         "title": "Pipeline Spectrum Tracking",  # Title of the table. Used in the column config modal
         "save_file": False,  # Whether to save the table data to a file
         "raw_data_fn": "multiqc_spectrum_tracking_table",  # File basename to use for raw data file
+        "save_data_file": False,
     }
 
     headers = OrderedDict()
@@ -2249,8 +2279,8 @@ def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
         order=4,
         description="This plot shows the tracking of the number of spectra along the quantms pipeline",
         helptext="""
-            This table shows the changes in the number of spectra corresponding to each input file 
-            during the pipeline operation. And the number of peptides finally identified and quantified is obtained from 
+            This table shows the changes in the number of spectra corresponding to each input file
+            during the pipeline operation. And the number of peptides finally identified and quantified is obtained from
             the PSM table in the mzTab file. You can also remove decoys with the `remove_decoy` parameter.:
 
             * MS1_Num: The number of MS1 spectra extracted from mzMLs
@@ -2273,8 +2303,8 @@ def find_modification(peptide):
     for j in range(1, len(position)):
         position[j] -= j
 
-    for k in range(0, len(original_mods)):
-        original_mods[k] = str(position[k]) + "-" + original_mods[k]
+    for k, mod in enumerate(original_mods):
+        original_mods[k] = str(position[k]) + "-" + mod
 
     original_mods = ",".join(str(i) for i in original_mods) if len(original_mods) > 0 else "nan"
 
@@ -2415,9 +2445,9 @@ def aggregate_spectrum_tracking(
                     data=sample_data_temp,
                 )
             )
-            for _, row in file_df_sample.iterrows():
+            for row in file_df_sample.itertuples():
 
-                run_data_temp = mzml_table.get(row["Run"], {})
+                run_data_temp = mzml_table.get(row.Run, {})
 
                 run_data = dict()
                 for h in header_cols:
@@ -2425,7 +2455,7 @@ def aggregate_spectrum_tracking(
 
                 row_data.append(
                     InputRow(
-                        sample=SampleName(row["Run"]),
+                        sample=SampleName(row.Run),
                         data=run_data,
                     )
                 )
@@ -2433,3 +2463,14 @@ def aggregate_spectrum_tracking(
             rows_by_group[group_name] = row_data
 
     return rows_by_group, header_cols
+
+
+def stat_pep_intensity(intensities: pd.Series):
+
+    stat_result = np.where(
+        (intensities.notna()) & (intensities > 0),
+        np.log2(intensities).astype(float),
+        1.0
+    )
+
+    return stat_result.tolist()

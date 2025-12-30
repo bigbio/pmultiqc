@@ -236,23 +236,23 @@
         padding: 20px;
         margin: 10px;
     }
-    
+
     .logo {
         font-size: 2em;
     }
-    
+
     .upload-btn, .process-btn, .check-btn, .submit-btn {
         padding: 12px 25px;
         font-size: 1em;
     }
-    
+
     .btn {
         padding: 10px 20px;
         font-size: 0.9em;
     }
-    
+
     .pmultiqc-footer {
         max-width: 100%;
         margin: 10px;
     }
-} 
+}

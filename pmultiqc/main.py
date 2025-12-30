@@ -58,7 +58,7 @@ def pmultiqc_plugin_execution_start():
     # Configure centralized package logging once
     configure_package_logging()
 
-    log.warning("Running pmultiqc Plugin v{}".format(config.pmultiqc_version))
+    log.warning(f"Running pmultiqc Plugin v{config.pmultiqc_version}")
 
     # If a compressed file is submitted, extract it first.
     analysis_dir_new = list()
@@ -74,7 +74,7 @@ def pmultiqc_plugin_execution_start():
             if os.path.exists(output_dir):
                 analysis_dir_new.append(output_dir)
             else:
-                raise SystemExit(f"Illegal file path: {output_dir}")
+                raise ValueError(f"Illegal file path: {output_dir}")
         else:
             analysis_dir_new.append(anal_dir)
     config.analysis_dir = analysis_dir_new

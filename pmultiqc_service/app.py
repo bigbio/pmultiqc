@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -37,6 +38,10 @@ HTML_REPORTS_FOLDER = os.environ.get(
     "HTML_REPORTS_FOLDER", os.path.join(os.getcwd(), "pmultiqc_html_reports")
 )
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
+
+# Security: File upload limits
+MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE", str(10 * 1024 * 1024 * 1024)))  # 10GB default
+MAX_UPLOAD_FILES = int(os.environ.get("MAX_UPLOAD_FILES", "100"))  # Max files in a zip
 
 
 # PRIDE button visibility configuration
@@ -159,6 +164,7 @@ def get_redis_client():
         logger.info(f"Redis password provided: {REDIS_PASSWORD is not None}")
         logger.info(f"Redis username provided: {REDIS_USERNAME is not None}")
         logger.info(f"Redis database: {REDIS_DB}")
+        # Security: Never log actual credentials
 
         if REDIS_PASSWORD:
             if REDIS_USERNAME:
@@ -355,12 +361,20 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# Security: Configure CORS based on environment
+# Get allowed origins from environment variable or use secure defaults
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").split(",")
+if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
+    # Default to localhost for development
+    ALLOWED_ORIGINS = ["http://localhost", "http://localhost:5000", "http://127.0.0.1", "http://127.0.0.1:5000"]
+    logger.warning("Using default CORS origins for development. Set ALLOWED_ORIGINS environment variable for production.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],  # Restrict to only needed methods
+    allow_headers=["Content-Type", "Authorization"],  # Restrict to only needed headers
 )
 
 # Mount static files
@@ -736,7 +750,7 @@ def copy_html_report_for_online_viewing(
             f"Output path is directory: {os.path.isdir(output_path) if os.path.exists(output_path) else 'N/A'}"
         )
         if os.path.exists(output_path):
-            for root, dirs, files in os.walk(output_path):
+            for root, _, files in os.walk(output_path):
                 level = root.replace(output_path, "").count(os.sep)
                 indent = " " * 2 * level
                 logger.info(f"{indent}{os.path.basename(root)}/")
@@ -752,7 +766,7 @@ def copy_html_report_for_online_viewing(
         # Look for all HTML report files
         html_reports = []
         logger.info(f"Searching for HTML reports in: {output_path}")
-        for root, dirs, files in os.walk(output_path):
+        for root, _, files in os.walk(output_path):
             logger.info(f"Checking directory: {root}")
             logger.info(f"Files in {root}: {files}")
             for file in files:
@@ -771,7 +785,7 @@ def copy_html_report_for_online_viewing(
         if not html_reports:
             logger.warning(f"No HTML reports found in {output_path}")
             logger.info("Searching for any .html files in the output directory...")
-            for root, dirs, files in os.walk(output_path):
+            for root, _, files in os.walk(output_path):
                 for file in files:
                     if file.endswith(".html"):
                         logger.info(f"Found HTML file: {os.path.join(root, file)}")
@@ -779,7 +793,7 @@ def copy_html_report_for_online_viewing(
 
         # Create a unique hash for the report URL
         hash_input = f"{job_id}_{accession}" if accession else job_id
-        report_hash = hashlib.md5(hash_input.encode()).hexdigest()[:12]
+        report_hash = hashlib.sha256(hash_input.encode()).hexdigest()[:12]
         logger.info(f"Generated report hash: {report_hash} (from input: {hash_input})")
 
         # Create public directory for this report
@@ -810,7 +824,7 @@ def copy_html_report_for_online_viewing(
         # Copy all files from output directory to public directory
         files_copied = 0
         logger.info(f"Starting to copy files from {output_path} to {public_dir}")
-        for root, dirs, files in os.walk(output_path):
+        for root, _, files in os.walk(output_path):
             for file in files:
                 src_path = os.path.join(root, file)
                 rel_path = os.path.relpath(src_path, output_path)
@@ -977,7 +991,7 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                 if os.path.isdir(downloaded_file):
                     # If it's a directory (from zip extraction), copy all contents
                     logger.info(f"Copying directory contents from {downloaded_file}")
-                    for root, dirs, files in os.walk(downloaded_file):
+                    for root, _, files in os.walk(downloaded_file):
                         for file in files:
                             src_path = os.path.join(root, file)
                             rel_path = os.path.relpath(src_path, downloaded_file)
@@ -1310,6 +1324,104 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+async def validate_and_save_upload(file: UploadFile, upload_dir: str, job_id: str) -> tuple[str, int]:
+    """
+    Validate and save an uploaded file with security checks.
+
+    Args:
+        file: The uploaded file
+        upload_dir: Directory to save the file
+        job_id: Job ID for error reporting
+
+    Returns:
+        tuple: (file_path, file_size)
+
+    Raises:
+        HTTPException: If validation fails
+    """
+    # Check file extension
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only ZIP files are allowed")
+
+    # Security: Validate filename to prevent path traversal
+    if ".." in file.filename or "/" in file.filename or "\\" in file.filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    filename = file.filename
+    zip_path = os.path.join(upload_dir, filename)
+
+    # Security: Check file size while saving
+    file_size = 0
+    with open(zip_path, "wb") as buffer:
+        chunk_size = 8192
+        while chunk := await file.read(chunk_size):
+            file_size += len(chunk)
+            # Security: Enforce maximum file size
+            if file_size > MAX_FILE_SIZE:
+                # Clean up partial file
+                buffer.close()
+                os.remove(zip_path)
+                shutil.rmtree(upload_dir, ignore_errors=True)
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024**3):.1f} GB"
+                )
+            buffer.write(chunk)
+
+    return zip_path, file_size
+
+
+def validate_and_extract_zip(zip_path: str, extract_path: str, file_size: int):
+    """
+    Validate and extract a ZIP file with security checks.
+
+    Args:
+        zip_path: Path to the ZIP file
+        extract_path: Directory to extract to
+        file_size: Size of the ZIP file
+
+    Raises:
+        HTTPException: If validation fails
+    """
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            # Security: Check number of files in zip
+            file_list = zip_ref.namelist()
+            if len(file_list) > MAX_UPLOAD_FILES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Too many files in ZIP archive. Maximum is {MAX_UPLOAD_FILES} files"
+                )
+
+            # Security: Check for zip bombs and path traversal in zip entries
+            total_uncompressed_size = 0
+            for file_info in zip_ref.infolist():
+                # Check for path traversal in zip entry names
+                if ".." in file_info.filename or file_info.filename.startswith("/"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="ZIP file contains invalid file paths"
+                    )
+                total_uncompressed_size += file_info.file_size
+
+            # Check for zip bombs (compression ratio > 100:1)
+            compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
+            if compression_ratio > 100:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Suspicious ZIP file detected (possible zip bomb)"
+                )
+
+            zip_ref.extractall(extract_path)
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting ZIP file: {e}")
+        raise HTTPException(status_code=400, detail=f"Error extracting ZIP file: {str(e)}")
+
+
 def current_time():
     now = int(time.time())
     dt = datetime.fromtimestamp(now)
@@ -1408,23 +1520,53 @@ def run_pmultiqc_with_progress(
     Run pmultiqc with real-time progress updates stored in job_status_dict.
     """
     try:
+        # Security: Validate input_type to prevent command injection
+        allowed_input_types = ["maxquant", "quantms", "diann", "mzidentml"]
+        if input_type not in allowed_input_types:
+            logger.error(f"Invalid input_type: {input_type}")
+            return {
+                "success": False,
+                "message": f"Invalid input type: {input_type}",
+                "output": [],
+                "errors": []
+            }
+
+        # Security: Validate paths to ensure they don't contain injection attempts
+        if not os.path.exists(input_path):
+            logger.error(f"Input path does not exist: {input_path}")
+            return {
+                "success": False,
+                "message": "Input path does not exist",
+                "output": [],
+                "errors": []
+            }
+
         # Set up MultiQC arguments based on input type
         args = ["multiqc", input_path, "-o", output_path, "--force"]
 
         # Add type-specific arguments
         if input_type == "maxquant":
-            args.extend(["--maxquant_plugin", "--ignore", "summary.txt"])
+            args.extend(["--maxquant-plugin", "--ignore", "summary.txt"])
         elif input_type == "quantms":
             if pmultiqc_config:
-                args.extend(["--quantms_plugin", "--config", pmultiqc_config])
+                # Security: Validate config file path
+                if not os.path.exists(pmultiqc_config):
+                    logger.error(f"Config file does not exist: {pmultiqc_config}")
+                    return {
+                        "success": False,
+                        "message": "Config file does not exist",
+                        "output": [],
+                        "errors": []
+                    }
+                args.extend(["--quantms-plugin", "--config", pmultiqc_config])
             else:
                 logger.error("The function 'run_pmultiqc_with_progress' is missing the parameter: pmultiqc_config")
         elif input_type == "diann":
             # DIANN files are handled automatically by pmultiqc
             # Add memory optimization arguments for large files
-            args.extend(["--diann_plugin", "--no-megaqc-upload", "--verbose"])
+            args.extend(["--diann-plugin", "--no-megaqc-upload", "--verbose"])
         elif input_type == "mzidentml":
-            args.extend(["--mzid_plugin"])
+            args.extend(["--mzid-plugin"])
 
         # Run MultiQC with pmultiqc plugin
         logger.info(f"Running pmultiqc with args: {args}")
@@ -1441,7 +1583,6 @@ def run_pmultiqc_with_progress(
             logger.error(f"Error checking pmultiqc plugin: {e}")
 
         # Add timeout for large datasets (30 minutes)
-        import time
 
         # Check if we have a large file and set timeout accordingly
         large_file_detected = False
@@ -1451,7 +1592,7 @@ def run_pmultiqc_with_progress(
             # Check if we have a large file
             input_dir = args[1]
             try:
-                for root, dirs, files in os.walk(input_dir):
+                for root, _, files in os.walk(input_dir):
                     for file in files:
                         if file.endswith(".tsv"):
                             file_path = os.path.join(root, file)
@@ -1527,7 +1668,7 @@ def run_pmultiqc_with_progress(
 
                 # List all files in the input directory
                 all_files = []
-                for root, dirs, files in os.walk(input_dir):
+                for root, _, files in os.walk(input_dir):
                     for file in files:
                         all_files.append(os.path.join(root, file))
                 logger.info(f"All files in input directory: {all_files}")
@@ -1816,7 +1957,7 @@ def create_zip_report(output_path: str, zip_path: str) -> bool:
             return False
 
         files_found = []
-        for root, dirs, files in os.walk(output_path):
+        for root, _, files in os.walk(output_path):
             for file in files:
                 file_path = os.path.join(root, file)
                 # Skip the zip file we're creating to avoid infinite loop
@@ -2011,14 +2152,14 @@ async def submit_pride(request: Request):
             "index.html", {"request": request, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}}
         )
 
-    # Validate accession format
-    if not accession.startswith("PXD"):
+    # Security: Validate accession format (PXD followed by 6 digits)
+    if not re.match(r'^PXD\d{6}$', accession):
         return templates.TemplateResponse(
             "index.html",
             {
                 "request": request,
                 "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
-                "error": f"Invalid PRIDE accession format: {accession}. Should start with PXD.",
+                "error": f"Invalid PRIDE accession format: {accession}. Should be PXD followed by 6 digits (e.g., PXD012345).",
             },
         )
 
@@ -2234,6 +2375,12 @@ async def serve_html_report(report_hash: str, filename: str):
             logger.error(f"Invalid report hash format: {report_hash}")
             raise HTTPException(status_code=400, detail="Invalid report hash")
 
+        # Security: Validate filename to prevent path traversal
+        # Reject any filename containing path traversal patterns
+        if ".." in filename or filename.startswith("/") or "\\" in filename:
+            logger.error(f"Potential path traversal attempt detected: {filename}")
+            raise HTTPException(status_code=400, detail="Invalid filename")
+
         # Construct file path
         file_path = os.path.join(HTML_REPORTS_FOLDER, report_hash, filename)
         logger.info(f"Looking for file at: {file_path}")
@@ -2242,7 +2389,7 @@ async def serve_html_report(report_hash: str, filename: str):
         report_dir = os.path.join(HTML_REPORTS_FOLDER, report_hash)
         if os.path.exists(report_dir):
             logger.info(f"Report directory exists. Contents:")
-            for root, dirs, files in os.walk(report_dir):
+            for root, _, files in os.walk(report_dir):
                 level = root.replace(report_dir, "").count(os.sep)
                 indent = " " * 2 * level
                 logger.info(f"{indent}{os.path.basename(root)}/")
@@ -2366,10 +2513,10 @@ async def process_pride(request: Request):
     data = await request.json()
     accession = data.get("accession", "").strip().upper()
 
-    # Validate accession format
-    if not accession.startswith("PXD"):
+    # Security: Validate accession format (PXD followed by 6 digits)
+    if not re.match(r'^PXD\d{6}$', accession):
         raise HTTPException(
-            status_code=400, detail="Invalid PRIDE accession format. Should start with PXD"
+            status_code=400, detail="Invalid PRIDE accession format. Should be PXD followed by 6 digits (e.g., PXD012345)"
         )
 
     # Generate unique job ID
@@ -2403,10 +2550,6 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     The job will be processed asynchronously and you can check the status
     using the returned job_id.
     """
-    # Check file extension
-    if not file.filename or not file.filename.lower().endswith(".zip"):
-        raise HTTPException(status_code=400, detail="Only ZIP files are allowed")
-
     # Generate unique job ID
     job_id = str(uuid.uuid4())
 
@@ -2416,11 +2559,7 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     os.makedirs(upload_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save uploaded file
-    filename = file.filename
-    zip_path = os.path.join(upload_dir, filename)
-
-    logger.info(f"Starting async upload for job {job_id}: {filename}")
+    logger.info(f"Starting async upload for job {job_id}: {file.filename}")
 
     # Initialize job in database
     initial_job_data = {
@@ -2431,11 +2570,8 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     }
     save_job_to_db(job_id, initial_job_data)
 
-    # Save the uploaded file
-    with open(zip_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    file_size = os.path.getsize(zip_path)
+    # Validate and save uploaded file
+    zip_path, file_size = await validate_and_save_upload(file, upload_dir, job_id)
     logger.info(f"Upload completed for job {job_id}: {file_size} bytes")
 
     # Extract the zip file
@@ -2446,8 +2582,7 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
     update_job_progress(job_id, "extracting", 25)
     logger.info(f"Extracting ZIP file for job {job_id}")
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(extract_path)
+    validate_and_extract_zip(zip_path, extract_path, file_size)
 
     # Detect input type
     input_type, quantms_config = detect_input_type(extract_path)
@@ -2739,10 +2874,6 @@ async def generate_report(file: UploadFile = File(...)):
     - JSON response with job ID and status
     """
     try:
-        # Check file extension
-        if not file.filename or not file.filename.lower().endswith(".zip"):
-            raise HTTPException(status_code=400, detail="Only ZIP files are allowed")
-
         # Generate unique job ID
         job_id = str(uuid.uuid4())
 
@@ -2752,19 +2883,14 @@ async def generate_report(file: UploadFile = File(...)):
         os.makedirs(upload_dir, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
 
-        # Save uploaded file
-        filename = file.filename
-        zip_path = os.path.join(upload_dir, filename)
-
-        with open(zip_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # Validate and save uploaded file
+        zip_path, file_size = await validate_and_save_upload(file, upload_dir, job_id)
 
         # Extract the zip file
         extract_path = os.path.join(upload_dir, "extracted")
         os.makedirs(extract_path, exist_ok=True)
 
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(extract_path)
+        validate_and_extract_zip(zip_path, extract_path, file_size)
 
         # Detect input type
         input_type, quantms_config = detect_input_type(extract_path)
@@ -2849,10 +2975,10 @@ async def api_submit_pride(request: Request):
 
         accession = data["accession"].strip().upper()
 
-        # Validate accession format
-        if not accession.startswith("PXD"):
+        # Security: Validate accession format (PXD followed by 6 digits)
+        if not re.match(r'^PXD\d{6}$', accession):
             raise HTTPException(
-                status_code=400, detail="Invalid PRIDE accession format. Should start with PXD"
+                status_code=400, detail="Invalid PRIDE accession format. Should be PXD followed by 6 digits (e.g., PXD012345)"
             )
 
         # Generate unique job ID
@@ -2969,7 +3095,7 @@ async def force_complete_job(job_id: str):
 
             # Look for MultiQC HTML reports in output directory
             if os.path.exists(output_dir):
-                for root, dirs, files in os.walk(output_dir):
+                for root, _, files in os.walk(output_dir):
                     for file in files:
                         if file == "multiqc_report.html":
                             html_report_path = os.path.join(root, file)
@@ -3005,7 +3131,7 @@ async def force_complete_job(job_id: str):
                                     stored_job_id = f.read().strip()
                                 if stored_job_id == job_id:
                                     # Check for HTML reports in this directory
-                                    for root, dirs, files in os.walk(hash_dir):
+                                    for root, _, files in os.walk(hash_dir):
                                         for file in files:
                                             if file == "multiqc_report.html":
                                                 completion_indicators[
@@ -3172,7 +3298,7 @@ async def job_diagnostic(job_id: str):
 
         # Scan output directory
         if os.path.exists(output_dir):
-            for root, dirs, files in os.walk(output_dir):
+            for root, _, files in os.walk(output_dir):
                 for file in files:
                     file_path = os.path.join(root, file)
                     rel_path = os.path.relpath(file_path, output_dir)
@@ -3202,7 +3328,7 @@ async def job_diagnostic(job_id: str):
                                 stored_job_id = f.read().strip()
                             if stored_job_id == job_id:
                                 # Found public reports for this job
-                                for root, dirs, files in os.walk(hash_dir):
+                                for root, _, files in os.walk(hash_dir):
                                     for file in files:
                                         if file == "multiqc_report.html":
                                             rel_path = os.path.relpath(root, hash_dir)

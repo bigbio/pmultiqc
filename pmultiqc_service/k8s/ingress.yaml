@@ -26,4 +26,4 @@ spec:
   tls:
   - hosts:
     - pmultiqc.your-domain.com  # Replace with your domain
-    secretName: pmultiqc-tls 
+    secretName: pmultiqc-tls

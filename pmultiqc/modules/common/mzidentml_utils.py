@@ -161,6 +161,7 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
         "only_defined_headers": True,
         "col1_header": "PeptideID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     # only use the first 50 lines for the table
@@ -176,9 +177,9 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
             This plot shows the quantification information of peptides in the final result (DIA-NN report).
             """
         helptext_text = """
-            The quantification information of peptides is obtained from the DIA-NN output file. 
-            The table shows the quantitative level and distribution of peptides in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            The quantification information of peptides is obtained from the DIA-NN output file.
+            The table shows the quantitative level and distribution of peptides in different study variables,
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below
             the average intensity for all the fractions, runs and peptiforms.
 
             * BestSearchScore: It is equal to min(1 - Q.Value) for DIA-NN datasets.
@@ -190,9 +191,9 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
             This plot shows the quantification information of peptides in the final result (mzIdentML).
             """
         helptext_text = """
-            The quantification information of peptides is obtained from the mzIdentML. 
-            The table shows the quantitative level and distribution of peptides in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            The quantification information of peptides is obtained from the mzIdentML.
+            The table shows the quantitative level and distribution of peptides in different study variables,
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below
             the average intensity for all the fractions, runs and peptiforms.
 
             * BestSearchScore: It is equal to max(search_engine_score) for mzIdentML datasets.
@@ -222,6 +223,7 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
         "only_defined_headers": True,
         "col1_header": "ProteinID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     # only use the first 50 lines for the table
@@ -237,9 +239,9 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
             This plot shows the quantification information of proteins in the final result (DIA-NN report).
             """
         helptext_text = """
-            The quantification information of proteins is obtained from the DIA-NN output file. 
-            The table shows the quantitative level and distribution of proteins in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            The quantification information of proteins is obtained from the DIA-NN output file.
+            The table shows the quantitative level and distribution of proteins in different study variables,
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below
             the average intensity for all the fractions, runs and peptiforms.
 
             * Peptides_Number: Number of peptides per protein.
@@ -251,9 +253,9 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
             This plot shows the quantification information of proteins in the final result (mzIdentML).
             """
         helptext_text = """
-            The quantification information of proteins is obtained from the mzIdentML. 
-            The table shows the quantitative level and distribution of proteins in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            The quantification information of proteins is obtained from the mzIdentML.
+            The table shows the quantitative level and distribution of proteins in different study variables,
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below
             the average intensity for all the fractions, runs and peptiforms.
 
             * Peptides_Number: Number of peptides per protein.

@@ -4,4 +4,4 @@ metadata:
   name: pmultiqc
   labels:
     name: pmultiqc
-    app: pmultiqc-service 
+    app: pmultiqc-service

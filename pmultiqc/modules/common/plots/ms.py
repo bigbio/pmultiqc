@@ -20,6 +20,7 @@ def draw_ms_information(
             "xlab": "Retention Time (seconds)",
             "ymin": 0,
             "showlegend": True,
+            "save_data_file": False,
         }
         ms1_tic_html = linegraph.plot(ms1_tic, ms1_tic_config)
         ms1_tic_html = plot_html_check(ms1_tic_html)
@@ -29,10 +30,10 @@ def draw_ms_information(
             order=1,
             description="MS1 quality control information extracted from the spectrum files.",
             helptext="""
-                This plot displays Total Ion Chromatograms (TICs) derived from MS1 scans across all analyzed samples. 
-                The x-axis represents retention time, and the y-axis shows the total ion intensity at each time point. 
+                This plot displays Total Ion Chromatograms (TICs) derived from MS1 scans across all analyzed samples.
+                The x-axis represents retention time, and the y-axis shows the total ion intensity at each time point.
                 Each colored trace corresponds to a different sample. The TIC provides a global view of the ion signal
-                throughout the LC-MS/MS run, reflecting when compounds elute from the chromatography column. 
+                throughout the LC-MS/MS run, reflecting when compounds elute from the chromatography column.
             """,
         )
 
@@ -45,6 +46,7 @@ def draw_ms_information(
             "xlab": "Retention Time (seconds)",
             "ymin": 0,
             "showlegend": True,
+            "save_data_file": False,
         }
         ms1_bpc_html = linegraph.plot(ms1_bpc, ms1_bpc_config)
         ms1_bpc_html = plot_html_check(ms1_bpc_html)
@@ -67,6 +69,7 @@ def draw_ms_information(
             "xlab": "Retention Time (seconds)",
             "ymin": 0,
             "showlegend": True,
+            "save_data_file": False,
         }
         ms1_peaks_html = linegraph.plot(ms1_peaks, ms1_peaks_config)
         ms1_peaks_html = plot_html_check(ms1_peaks_html)
@@ -87,6 +90,7 @@ def draw_ms_information(
             "save_file": False,
             "raw_data_fn": "ms_general_stats_table",
             "no_violin": True,
+            "save_data_file": False,
         }
         headers = {
             "Sample": {
@@ -134,6 +138,7 @@ def draw_peak_intensity_distribution(
         "logswitch_label": "Log10 Scale",
         "ylab": "Count",
         "tt_decimals": 0,
+        "save_data_file": False,
     }
     cats = peak_distribution_plot.dict["cats"]
     bar_html = bargraph.plot(ms_info["peak_distribution"], cats, pconfig)
@@ -161,6 +166,7 @@ def draw_precursor_charge_distribution(sub_sections, charge_plot=None, ms_info=N
         "cpswitch": True,
         "tt_decimals": 0,
         "ylab": "Count",
+        "save_data_file": False,
     }
     cats = charge_plot.dict["cats"]
     bar_html = bargraph.plot(ms_info["charge_distribution"], cats, pconfig)
@@ -185,6 +191,7 @@ def draw_peaks_per_ms2(sub_sections, peaks_ms2_plot, ms_info):
         "logswitch_label": "Log10 Scale",
         "ylab": "Count",
         "tt_decimals": 0,
+        "save_data_file": False,
     }
     cats = peaks_ms2_plot.dict["cats"]
     bar_html = bargraph.plot(ms_info["peaks_per_ms2"], cats, pconfig)

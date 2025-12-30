@@ -52,7 +52,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/LFQ_PXD007683.zip
           unzip -d ./lfq LFQ_PXD007683.zip
-          multiqc --quantms_plugin ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
+          multiqc --quantms-plugin ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -75,7 +75,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip
           unzip -d ./tmt TMT_PXD007683.zip
-          multiqc --quantms_plugin ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
+          multiqc --quantms-plugin ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -98,7 +98,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia.zip
           unzip -d ./dia dia.zip
-          multiqc --quantms_plugin ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
+          multiqc --quantms-plugin ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -121,7 +121,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip
           unzip PXD063291.zip
-          multiqc --diann_plugin ./PXD063291 -o ./results_diann
+          multiqc --diann-plugin ./PXD063291 -o ./results_diann
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -154,7 +154,7 @@ jobs:
           # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/Insulin-2.mzML
           # wget -nv -P ~/mzid_mzML https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/insulin-2.mzid.gz
           gunzip ~/mzid_mzML/*.mzid.gz
-          multiqc --mzid_plugin ~/mzid_mzML -o ./results_mzid_mzML
+          multiqc --mzid-plugin ~/mzid_mzML -o ./results_mzid_mzML
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -181,7 +181,7 @@ jobs:
           wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001234.mzid.gz
           wget -nv -P ~/mzid_mgf https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/F001235.mzid.gz
           gunzip ~/mzid_mgf/*mzid.gz
-          multiqc --mzid_plugin ~/mzid_mgf -o ./results_mzid_mgf
+          multiqc --mzid-plugin ~/mzid_mgf -o ./results_mzid_mgf
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -204,7 +204,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip
           unzip -d ./maxquant txt_20min.zip
-          multiqc --maxquant_plugin ./maxquant -o ./results_maxquant
+          multiqc --maxquant-plugin ./maxquant -o ./results_maxquant
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -228,7 +228,7 @@ jobs:
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/maxquant/MaxDIA_txt.zip
           mkdir -p ./maxdia
           unzip -d ./maxdia MaxDIA_txt.zip
-          multiqc --maxquant_plugin ./maxdia -o ./results_maxquant_dia
+          multiqc --maxquant-plugin ./maxdia -o ./results_maxquant_dia
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -251,7 +251,7 @@ jobs:
         run: |
           wget -nv --no-check-certificate https://proteobench.cubimed.rub.de/datasets/d01e87b997b84c985868204b1ed26749902fd7f9/d01e87b997b84c985868204b1ed26749902fd7f9_data.zip
           unzip -d ./proteobench d01e87b997b84c985868204b1ed26749902fd7f9_data.zip
-          multiqc --proteobench_plugin ./proteobench -o ./results_proteobench
+          multiqc --proteobench-plugin ./proteobench -o ./results_proteobench
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results

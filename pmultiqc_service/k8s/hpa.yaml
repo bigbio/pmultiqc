@@ -58,4 +58,4 @@ spec:
         periodSeconds: 60
       - type: Pods
         value: 2  # Add at least 2 pods when scaling up
-        periodSeconds: 60 
+        periodSeconds: 60

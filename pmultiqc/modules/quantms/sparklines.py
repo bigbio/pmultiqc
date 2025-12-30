@@ -44,12 +44,12 @@ def plot(data, headers=None, pconfig=None, max_value=0.0):
 
     # Make a violin plot if we have lots of samples
     if len(s_names) >= config.max_table_rows and pconfig.no_violin is not True:
-        logger.debug("Plotting violin instead of table, {} samples".format(len(s_names)))
+        logger.debug(f"Plotting violin instead of table, {len(s_names)} samples")
         warning = (
             '<p class="text-muted"><span class="glyphicon glyphicon-exclamation-sign" '
             'title="A violin plot has been generated instead because of the large number of samples. '
             'See http://multiqc.info/docs/#tables--beeswarm-plots"'
-            ' data-toggle="tooltip"></span> Showing {} samples.</p>'.format(len(s_names))
+            f' data-toggle="tooltip"></span> Showing {len(s_names)} samples.</p>'
         )
         return warning + violin.plot(data, headers, pconfig)
     else:
@@ -266,11 +266,9 @@ def make_table(dt, max_value):
                                         cmatches[ftype] = True
                                     if "lt" in cmp and float(cmp["lt"]) > float(val):
                                         cmatches[ftype] = True
-                                except:
+                                except (ValueError, TypeError, KeyError) as e:
                                     logger.warning(
-                                        "Not able to apply table conditional formatting to '{}' ({})".format(
-                                            val, cmp
-                                        )
+                                        f"Not able to apply table conditional formatting to '{val}' ({cmp}): {e}"
                                     )
                 # Apply HTML in order of config keys
                 badge_col = None

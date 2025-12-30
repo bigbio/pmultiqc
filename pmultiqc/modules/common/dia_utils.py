@@ -35,11 +35,19 @@ def parse_diann_report(
         ms_with_psm,
         quantms_modified,
         ms_paths,
-        file_df=pd.DataFrame(),
+        file_df=None,
         msstats_input_valid=False
 ):
-    """Parse DIA-NN report and generate plots and statistics."""
-    log.info("Parsing {}...".format(diann_report_path))
+    """Parse DIA-NN report and generate plots and statistics.
+
+    Args:
+        file_df: Optional DataFrame. If None, an empty DataFrame will be used.
+    """
+    log.info(f"Parsing {diann_report_path}...")
+
+    # Convert None to empty DataFrame for consistent handling
+    if file_df is None:
+        file_df = pd.DataFrame()
 
     # Load and preprocess report data
     report_data = _load_and_preprocess_diann_data(diann_report_path)
@@ -294,7 +302,7 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
     ms_without_psm = set([file_prefix(i) for i in ms_paths]) - set(ms_with_psm)
 
     for i in ms_without_psm:
-        log.warning("No PSM found in '{}'!".format(i))
+        log.warning(f"No PSM found in '{i}'!")
         cal_num_table_data["ms_runs"][i] = {
             "protein_num": 0,
             "peptide_num": 0,
@@ -428,6 +436,7 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
         "only_defined_headers": True,
         "col1_header": "PeptideID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     # only use the first 50 lines for the table
@@ -443,9 +452,9 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
             This plot shows the quantification information of peptides in the final result (DIA-NN report).
             """
         helptext_text = """
-            The quantification information of peptides is obtained from the DIA-NN output file. 
-            The table shows the quantitative level and distribution of peptides in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            The quantification information of peptides is obtained from the DIA-NN output file.
+            The table shows the quantitative level and distribution of peptides in different study variables,
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below
             the average intensity for all the fractions, runs and peptiforms.
 
             * BestSearchScore: It is equal to min(1 - Q.Value) for DIA-NN datasets.
@@ -457,9 +466,9 @@ def draw_peptides_table(sub_section, table_data, headers, report_type):
             This plot shows the quantification information of peptides in the final result (mzIdentML).
             """
         helptext_text = """
-            The quantification information of peptides is obtained from the mzIdentML. 
-            The table shows the quantitative level and distribution of peptides in different study variables, 
-            run and peptiforms. The distribution show all the intensity values in a bar plot above and below 
+            The quantification information of peptides is obtained from the mzIdentML.
+            The table shows the quantitative level and distribution of peptides in different study variables,
+            run and peptiforms. The distribution show all the intensity values in a bar plot above and below
             the average intensity for all the fractions, runs and peptiforms.
 
             * BestSearchScore: It is equal to max(search_engine_score) for mzIdentML datasets.
@@ -488,6 +497,7 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
         "only_defined_headers": True,
         "col1_header": "ProteinID",
         "no_violin": True,
+        "save_data_file": False,
     }
 
     display_rows = 50
@@ -635,7 +645,7 @@ def cal_feature_avg_rt(report_data, col):
         duplicates="drop"
     )
     sub_df = sub_df.dropna(subset=["RT_bin"])
-    sub_df["RT_bin_mid"] = sub_df["RT_bin"].apply(lambda x: x.mid)
+    sub_df["RT_bin_mid"] = sub_df["RT_bin"].apply(lambda x: x.mid if hasattr(x, 'mid') else x)
 
     result = sub_df.groupby(["Run", "RT_bin_mid"], observed=False)[col].mean().reset_index()
     result[col] = result[col].fillna(0)
@@ -836,7 +846,7 @@ def create_protein_table(report_df, sample_df, file_df):
 
 def dia_sample_level_modifications(df, sdrf_file_df):
 
-    if sdrf_file_df.empty:
+    if sdrf_file_df is None or sdrf_file_df.empty:
         return {}
 
     report_data = df.copy()

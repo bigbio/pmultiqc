@@ -25,7 +25,7 @@ jobs:
           python << 'EOF'
           import json
           import os
-          
+
           try:
               with open('docs/config.json', 'r') as f:
                   config = json.load(f)
@@ -67,7 +67,10 @@ jobs:
       - name: Prepare artifact for upload
         run: |
           mkdir -p artifact_stage
+          # Copy the entire docs directory structure maintaining relative paths
           rsync -avR "${{ matrix.path }}" artifact_stage/
+          # Ensure the parent directory structure exists
+          mkdir -p artifact_stage/$(dirname "${{ matrix.path }}")
 
       - name: Upload changed files as artifact
         uses: actions/upload-artifact@v4
@@ -91,11 +94,31 @@ jobs:
           merge-multiple: true
           path: .
 
+      - name: Restore artifact files to correct location
+        run: |
+          # Move files from artifact_stage/ back to their original locations
+          if [ -d "artifact_stage" ]; then
+            echo "=== Restoring artifacts ==="
+            # Copy all files from artifact_stage maintaining directory structure
+            # rsync -R creates relative paths, so artifact_stage/docs/... should become docs/...
+            if [ -d "artifact_stage/docs" ]; then
+              cp -r artifact_stage/docs/* docs/ 2>/dev/null || true
+            fi
+            # Also handle direct paths if they exist
+            find artifact_stage -mindepth 1 -maxdepth 1 -type d ! -name "docs" | while read dir; do
+              dirname=$(basename "$dir")
+              if [ -d "docs/$dirname" ]; then
+                cp -r "$dir"/* "docs/$dirname/" 2>/dev/null || true
+              fi
+            done
+            echo "=== Files restored ==="
+          fi
+
       - name: Check if any changes were made
         id: check_changes
         run: |
           echo "=== Debug: Files in docs/ after download ==="
-          ls -R docs/
+          ls -R docs/ 2>/dev/null || echo "docs/ directory not found or empty"
           echo "============================================"
 
           if [[ -n $(git status --porcelain docs/) ]]; then
