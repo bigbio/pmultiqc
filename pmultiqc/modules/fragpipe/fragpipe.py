@@ -33,17 +33,16 @@ log = get_logger("pmultiqc.modules.fragpipe.fragpipe")
 
 
 class FragPipeModule(BasePMultiqcModule):
+    """pmultiqc module for FragPipe results."""
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
-        self.heatmap_color_list = heatmap_colors
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
 
-        self.delta_masses = list()
-        self.charge_states = list()
-        self.pipeline_stats = list()
-        self.rt_df = list()
+        self.delta_masses = []
+        self.charge_states = []
+        self.pipeline_stats = []
+        self.retentions = []
 
 
     def get_data(self):
@@ -51,9 +50,6 @@ class FragPipeModule(BasePMultiqcModule):
         log.info("Starting data recognition and processing...")
 
         self.fragpipe_files = fragpipe_io.get_fragpipe_files(self.find_log_files)
-
-        if not self.fragpipe_files:
-            return False
 
         if self.fragpipe_files["psm"]:
             (
@@ -146,14 +142,18 @@ class FragPipeModule(BasePMultiqcModule):
     @staticmethod
     def parse_psm(fragpipe_files):
 
-        delta_masses = list()
-        charge_states = list()
-        pipeline_stats = list()
-        retentions = list()
+        delta_masses = []
+        charge_states = []
+        pipeline_stats = []
+        retentions = []
 
         for psm in fragpipe_files.get("psm", []):
 
             psm_df = fragpipe_io.psm_reader(psm)
+
+            if psm_df is None or psm_df.empty:
+                log.warning(f"Skipping unreadable/empty FragPipe PSM file: {psm}")
+                continue
 
             if "Delta Mass" in psm_df.columns:
                 delta_masses.append(psm_df["Delta Mass"].copy())
@@ -191,6 +191,10 @@ class FragPipeModule(BasePMultiqcModule):
             pd.concat(delta_masses, ignore_index=True)
             .to_frame(name="Delta Mass")
         )
+
+        df["Delta Mass"] = pd.to_numeric(df["Delta Mass"], errors="coerce")
+        df = df.dropna(subset=["Delta Mass"])
+
         log.info(f"Number of delta mass data points: {len(df)}")
 
         delta_mass_da = cal_delta_mass_dict(df, "Delta Mass")
@@ -258,6 +262,9 @@ class FragPipeModule(BasePMultiqcModule):
             inplace=True
         )
 
+        df["retention time"] = pd.to_numeric(df["retention time"], errors="coerce") / 60.0
+        df = df.dropna(subset=["retention time"])
+
         plot_data = evidence_rt_count(df)
 
         draw_ids_rt_count(
@@ -280,7 +287,7 @@ def _calculate_statistics(pipeline_stats: list):
     stats_by_run = dict()
     for run, group in df.groupby("Run"):
 
-        unique_group = group.loc[group["Is Unique"].astype(bool)]
+        unique_group = group.loc[group["Is Unique"]]
 
         modified_peptides = group.loc[
             group["Modified Peptide"].notna() & (group["Modified Peptide"] != ""),
