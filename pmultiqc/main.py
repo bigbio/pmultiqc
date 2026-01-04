@@ -120,9 +120,9 @@ def pmultiqc_plugin_execution_start():
             config.sp, {"pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0}}
         )
 
-    if "pmultiqc/msstats_in" not in config.sp:
+    if "pmultiqc/msstats" not in config.sp:
         config.update_dict(
-            config.sp, {"pmultiqc/msstats_in": {"fn": "*msstats_in.csv", "num_lines": 0}}
+            config.sp, {"pmultiqc/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}}
         )
 
     if "pmultiqc/diann_report_tsv" not in config.sp:

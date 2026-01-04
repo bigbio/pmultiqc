@@ -282,9 +282,11 @@ class QuantMSModule:
         for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
             self.idx_paths.append(os.path.join(idx_file["root"], idx_file["fn"]))
 
-        for msstats_input in self.find_log_files("pmultiqc/msstats_in", filecontents=False):
+        for msstats_input in self.find_log_files("pmultiqc/msstats", filecontents=False):
             self.msstats_input_path = os.path.join(msstats_input["root"], msstats_input["fn"])
             self.msstats_input_valid = True
+        
+        print(f"\n self.msstats_input_valid: {self.msstats_input_valid} \n")
 
         log.info("Data recognition and processing completed.")
 
