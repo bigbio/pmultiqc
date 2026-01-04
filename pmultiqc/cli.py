@@ -76,5 +76,8 @@ diann_plugin = click.option(
 quantms_plugin = click.option(
     "--quantms-plugin", "quantms_plugin", is_flag=True, help="Enable quantms plugin"
 )
+fragpipe_plugin = click.option(
+    "--fragpipe-plugin", "fragpipe_plugin", is_flag=True, help="Enable FragPipe plugin"
+)
 disable_hoverinfo = click.option(
     "--disable-hoverinfo", "disable_hoverinfo", is_flag=True, help="Disable hoverinfo")
