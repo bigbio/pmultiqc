@@ -76,7 +76,7 @@ class FragPipeModule(BasePMultiqcModule):
                 sub_sections=self.sub_sections["mass_error"],
                 delta_masses=self.delta_masses
             )
-        
+
         # Charge-state
         if self.charge_states:
             self.draw_charge_state(
