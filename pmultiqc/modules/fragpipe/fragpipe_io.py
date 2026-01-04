@@ -80,7 +80,7 @@ def psm_reader(file_path: str):
 
     psm_df["Run"] = psm_df["Spectrum"].astype(str).str.rsplit(".", n=3).str[0]
     required_cols.append("Run")
-    
+
     return psm_df[required_cols].copy()
 
 

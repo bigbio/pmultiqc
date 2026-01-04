@@ -81,7 +81,7 @@ pmultiqc supports the following data sources:
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
 ### 6. [FragPipe](https://fragpipe.nesvilab.org) files:
-   - `psm.tsv`: FragPipe report files
+   - `psm.tsv`: FragPipe report file
 
 ## 💾 Installation
 
