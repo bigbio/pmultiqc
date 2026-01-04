@@ -5,6 +5,7 @@ import os
 
 import pandas as pd
 
+from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
@@ -14,10 +15,10 @@ from pmultiqc.modules.common.common_utils import (
 )
 from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.plots.general import draw_exp_design
-from pmultiqc.modules.common.plots.id import draw_quantms_identification
+from pmultiqc.modules.common.plots.id import draw_identification
 from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
-    draw_quantms_identi_num,
+    draw_identi_num,
     draw_num_pep_per_protein
 )
 from pmultiqc.modules.common.plots.ms import (
@@ -33,13 +34,12 @@ from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.diann.diann")
 
 
-class DiannModule:
+class DiannModule(BasePMultiqcModule):
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
-        self.heatmap_color_list = heatmap_colors
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
+
 
     def get_data(self):
 
@@ -166,12 +166,12 @@ class DiannModule:
 
         draw_summary_protein_ident_table(
             sub_sections=self.sub_sections["summary"],
-            enable_dia=self.enable_dia,
+            use_two_columns=self.enable_dia,
             total_peptide_count=self.total_peptide_count,
             total_protein_quantified=self.total_protein_quantified
         )
 
-        draw_quantms_identi_num(
+        draw_identi_num(
             sub_sections=self.sub_sections["summary"],
             enable_sdrf=self.enable_sdrf,
             is_multi_conditions=self.is_multi_conditions,
@@ -199,7 +199,7 @@ class DiannModule:
                 self.ms_info
             )
 
-        draw_quantms_identification(
+        draw_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
             quantms_modified=self.quantms_modified

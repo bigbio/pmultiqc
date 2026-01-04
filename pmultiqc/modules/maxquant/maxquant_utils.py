@@ -404,8 +404,8 @@ def peptide_per_protein(pg_data):
         final_count_df = count_df.copy()
 
     final_count_df["percentage"] = (
-                                           final_count_df["frequency"] / final_count_df["frequency"].sum()
-                                   ) * 100
+        final_count_df["frequency"] / final_count_df["frequency"].sum()
+    ) * 100
 
     result = [
         {

@@ -80,6 +80,9 @@ pmultiqc supports the following data sources:
    - `*.mzid`: Identification results
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
+### 6. [FragPipe](https://fragpipe.nesvilab.org) files:
+   - `psm.tsv`: FragPipe report file
+
 ## 💾 Installation
 
 ### Install from PyPI
@@ -160,6 +163,12 @@ multiqc --proteobench-plugin /path/to/proteobench/files -o ./report
 multiqc --mzid-plugin /path/to/mzid/files -o ./report
 ```
 
+#### For FragPipe files
+
+```bash
+multiqc --fragpipe-plugin /path/to/fragpipe/files -o ./report
+```
+
 ### Command-line Options
 
 | Option | Description | Default |
@@ -180,6 +189,7 @@ multiqc --mzid-plugin /path/to/mzid/files -o ./report
 | `--maxquant-plugin` | Generate reports based on MaxQuant results | `False` |
 | `--proteobench-plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid-plugin` | Generate reports based on mzIdentML files | `False` |
+| `--fragpipe-plugin` | Generate reports based on FragPipe files | `False` |
 | `--disable-hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
 
 ## 📊 QC Metrics and Visualizations
@@ -233,6 +243,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | ProteoBench | ProteoBench results | [ProteoBench Example](https://pmultiqc.quantms.org/ProteoBench/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/ProteoBench_disable_hoverinfo/multiqc_report.html)) |
 | mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://pmultiqc.quantms.org/PXD053068/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD053068_disable_hoverinfo/multiqc_report.html)) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) |
+| FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD070239/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD070239_disable_hoverinfo/multiqc_report.html)) |
 
 ## 👥 Contributing
 

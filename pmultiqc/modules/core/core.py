@@ -10,6 +10,15 @@ from pmultiqc.modules.common.logging import get_logger
 logger = get_logger("pmultiqc.modules.core")
 
 
+PLUGIN_MAP = {
+    "quantms_plugin": ("quantms", "QuantMSModule"),
+    "diann_plugin": ("diann", "DiannModule"),
+    "maxquant_plugin": ("maxquant", "MaxQuantModule"),
+    "mzid_plugin": ("mzidentml", "MzIdentMLModule"),
+    "proteobench_plugin": ("proteobench", "ProteoBenchModule"),
+    "fragpipe_plugin": ("fragpipe", "FragPipeModule"),
+}
+
 class PMultiQC(BaseMultiqcModule):
 
     def __init__(self):
@@ -24,7 +33,8 @@ class PMultiQC(BaseMultiqcModule):
                 is a MultiQC module to show the pipeline performance of mass spectrometry based quantification
                 pipelines such as <a href='https://nf-co.re/quantms'>nf-core/quantms</a>,
                 <a href='https://www.maxquant.org'>MaxQuant</a>,
-                and <a href='https://aptila.bio'>DIA-NN</a>
+                <a href='https://aptila.bio'>DIA-NN</a>,
+                and <a href='https://fragpipe.nesvilab.org/'>FragPipe</a>
                 """,
         )
 
@@ -37,7 +47,7 @@ class PMultiQC(BaseMultiqcModule):
 
         # HeatMap color list
         color_map = LinearSegmentedColormap.from_list("red_green", ["#ff0000", "#00ff00"])
-        heatmap_color_list = [
+        self.heatmap_color_list = [
             [s, to_hex(color_map(s))] for s in [round(i * 0.1, 1) for i in range(11)]
         ]
 
@@ -59,50 +69,36 @@ class PMultiQC(BaseMultiqcModule):
         if config.kwargs.get("disable_hoverinfo", False):
             logger.info("disable_hoverinfo has been enabled by the user; hoverinfo will no longer be displayed.")
 
-        # Parse ProteoBench results
-        if config.kwargs.get("proteobench_plugin", False):
+        # Run
+        self.load_and_run_plugin()
 
-            ProteoBenchModule = get_module("proteobench", "ProteoBenchModule")
-            pb = ProteoBenchModule(self.find_log_files, None, None)
+    def load_and_run_plugin(self):
 
-            if pb.get_data():
-                pb.draw_plots()
+        plugin_loaded = False
 
-        # Parse MaxQuant results
-        elif config.kwargs.get("maxquant_plugin", False):
+        for flag, (module_name, class_name) in PLUGIN_MAP.items():
 
-            MaxQuantModule = get_module("maxquant", "MaxQuantModule")
-            mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+            if config.kwargs.get(flag, False):
 
-            if mq.get_data():
-                mq.draw_plots()
+                ModuleClass = get_module(module_name, class_name)
 
-        # Parse mzIdentML results
-        elif config.kwargs.get("mzid_plugin", False):
+                if "proteobench_plugin" == flag:
+                    plugin = ModuleClass(self.find_log_files, None, None)
+                else:
+                    plugin = ModuleClass(
+                        self.find_log_files,
+                        self.sub_sections,
+                        self.heatmap_color_list
+                    )
 
-            MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
-            mzid = MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list)
-            if mzid.get_data():
-                mzid.draw_plots()
+                if plugin.get_data():
+                    plugin.draw_plots()
 
-        # Parse DIA-NN results
-        elif config.kwargs.get("diann_plugin", False):
-            DiannModule = get_module("diann", "DiannModule")
-            diann = DiannModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+                plugin_loaded = True
+                return
 
-            if diann.get_data():
-                diann.draw_plots()
-
-        # quantms, DIA-NN results
-        elif config.kwargs.get("quantms_plugin", False):
-            QuantMSModule = get_module("quantms", "QuantMSModule")
-            quantms = QuantMSModule(self.find_log_files, self.sub_sections, heatmap_color_list)
-
-            if quantms.get_data():
-                quantms.draw_plots()
-        else:
+        if not plugin_loaded:
             raise ValueError("No pmultiqc plugin selected; skipping.")
-
 
 def get_module(module_name, class_name):
     module = import_module(f"..{module_name}", __package__)
