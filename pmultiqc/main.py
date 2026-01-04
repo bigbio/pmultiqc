@@ -86,19 +86,29 @@ def pmultiqc_plugin_execution_start():
         )
 
     if "pmultiqc/sdrf" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0}}
+        )
 
     if "pmultiqc/mztab" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0}}
+        )
 
     if "pmultiqc/mzML" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/mzML": {"fn": "*.mzML", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/mzML": {"fn": "*.mzML", "num_lines": 0}}
+        )
 
     if "pmultiqc/mgf" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/mgf": {"fn": "*.mgf", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/mgf": {"fn": "*.mgf", "num_lines": 0}}
+        )
 
     if "pmultiqc/mzid" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0}}
+        )
 
     if "pmultiqc/ms_info" not in config.sp:
         config.update_dict(
@@ -106,11 +116,13 @@ def pmultiqc_plugin_execution_start():
         )
 
     if "pmultiqc/idXML" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0}})
-
-    if "pmultiqc/msstats" not in config.sp:
         config.update_dict(
-            config.sp, {"pmultiqc/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}}
+            config.sp, {"pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0}}
+        )
+
+    if "pmultiqc/msstats_in" not in config.sp:
+        config.update_dict(
+            config.sp, {"pmultiqc/msstats_in": {"fn": "*msstats_in.csv", "num_lines": 0}}
         )
 
     if "pmultiqc/diann_report_tsv" not in config.sp:
@@ -132,6 +144,12 @@ def pmultiqc_plugin_execution_start():
         config.update_dict(
             config.sp,
             {"pmultiqc/proteobench_result": {"fn": "result_performance.*", "num_lines": 0}},
+        )
+
+    if "pmultiqc/tsv" not in config.sp:
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/tsv": {"fn": "*.tsv", "num_lines": 0}},
         )
 
     config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})

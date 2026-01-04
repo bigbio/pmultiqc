@@ -221,7 +221,7 @@ def draw_dia_whole_exp_charge(sub_section, df):
     )
 
 
-# Charge-state of Per File
+# Charge-state
 def draw_dia_ms2_charge(sub_section, df, sdrf_file_df):
 
     df = df[["Precursor.Charge", "Run"]].copy()
@@ -249,9 +249,10 @@ def draw_dia_ms2_charge(sub_section, df, sdrf_file_df):
         plot_label = ["by Run", "by Sample"]
 
     draw_config = {
-        "id": "charge_state_of_per_file",
+        "id": "charge_state",
         "cpswitch": True,
-        "title": "Charge-state of Per File",
+        "cpswitch_c_active": False,
+        "title": "Charge-state",
         "tt_decimals": 0,
         "ylab": "Count",
         "data_labels": plot_label,
@@ -337,7 +338,7 @@ def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
 # DIA-NN: Delta Mass
 def draw_dia_delta_mass(sub_section, df):
 
-    delta_df = df[df["Ms1.Apex.Mz.Delta"] != 0][["Ms1.Apex.Mz.Delta", "Run"]].copy()
+    delta_df = df[["Ms1.Apex.Mz.Delta", "Run"]].copy()
     delta_mass = cal_delta_mass_dict(delta_df, "Ms1.Apex.Mz.Delta")
 
     x_values = list(delta_mass["count"].keys())
@@ -375,6 +376,8 @@ def draw_dia_delta_mass(sub_section, df):
     line_html = linegraph.plot(
         [{"count": delta_mass["count"]}, {"relative_frequency": delta_mass["frequency"]}], pconfig
     )
+
+    line_html = plot_html_check(line_html)
 
     add_sub_section(
         sub_section=sub_section,

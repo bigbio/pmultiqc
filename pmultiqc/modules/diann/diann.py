@@ -14,10 +14,10 @@ from pmultiqc.modules.common.common_utils import (
 )
 from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.plots.general import draw_exp_design
-from pmultiqc.modules.common.plots.id import draw_quantms_identification
+from pmultiqc.modules.common.plots.id import draw_identification
 from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
-    draw_quantms_identi_num,
+    draw_identi_num,
     draw_num_pep_per_protein
 )
 from pmultiqc.modules.common.plots.ms import (
@@ -166,12 +166,12 @@ class DiannModule:
 
         draw_summary_protein_ident_table(
             sub_sections=self.sub_sections["summary"],
-            enable_dia=self.enable_dia,
+            use_two_columns=self.enable_dia,
             total_peptide_count=self.total_peptide_count,
             total_protein_quantified=self.total_protein_quantified
         )
 
-        draw_quantms_identi_num(
+        draw_identi_num(
             sub_sections=self.sub_sections["summary"],
             enable_sdrf=self.enable_sdrf,
             is_multi_conditions=self.is_multi_conditions,
@@ -199,7 +199,7 @@ class DiannModule:
                 self.ms_info
             )
 
-        draw_quantms_identification(
+        draw_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
             quantms_modified=self.quantms_modified

@@ -24,7 +24,8 @@ class PMultiQC(BaseMultiqcModule):
                 is a MultiQC module to show the pipeline performance of mass spectrometry based quantification
                 pipelines such as <a href='https://nf-co.re/quantms'>nf-core/quantms</a>,
                 <a href='https://www.maxquant.org'>MaxQuant</a>,
-                and <a href='https://aptila.bio'>DIA-NN</a>
+                <a href='https://aptila.bio'>DIA-NN</a>,
+                and <a href='https://fragpipe.nesvilab.org/'>FragPipe</a>
                 """,
         )
 
@@ -100,6 +101,16 @@ class PMultiQC(BaseMultiqcModule):
 
             if quantms.get_data():
                 quantms.draw_plots()
+
+        # Parse FragPipe results
+        elif config.kwargs.get("fragpipe_plugin", False):
+
+            FragPipeModule = get_module("fragpipe", "FragPipeModule")
+            fragpipe = FragPipeModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+
+            if fragpipe.get_data():
+                fragpipe.draw_plots()
+
         else:
             raise ValueError("No pmultiqc plugin selected; skipping.")
 

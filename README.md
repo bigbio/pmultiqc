@@ -60,6 +60,9 @@ pmultiqc supports the following data sources:
    - `*.mzid`: Identification results
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
+6. **[FragPipe](https://fragpipe.nesvilab.org)** files:
+   - `psm.tsv`: FragPipe report files
+
 ## Installation
 
 ### Install from PyPI
@@ -134,6 +137,12 @@ multiqc --proteobench-plugin /path/to/proteobench/files -o ./report
 multiqc --mzid-plugin /path/to/mzid/files -o ./report
 ```
 
+#### For FragPipe files
+
+```bash
+multiqc --fragpipe-plugin /path/to/fragpipe/files -o ./report
+```
+
 
 ### Command-line Options
 
@@ -154,6 +163,7 @@ multiqc --mzid-plugin /path/to/mzid/files -o ./report
 | `--maxquant-plugin` | Generate reports based on MaxQuant results | `False` |
 | `--proteobench-plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid-plugin` | Generate reports based on mzIdentML files | `False` |
+| `--fragpipe-plugin` | Generate reports based on FragPipe files | `False` |
 | `--disable-hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
 
 ## QC Metrics and Visualizations
