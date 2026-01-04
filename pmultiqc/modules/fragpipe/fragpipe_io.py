@@ -55,7 +55,7 @@ def get_fragpipe_files(find_log_files):
 
                 fragpipe_files[req].append(full_path)
 
-    if fragpipe_files:
+    if any(fragpipe_files.values()):
 
         for k, v in fragpipe_files.items():
             log.info(f"FragPipe data loaded: {k} ({len(v)} files).")
@@ -72,42 +72,40 @@ def get_fragpipe_files(find_log_files):
 def psm_reader(file_path: str):
 
     psm_df = pd.read_csv(file_path, sep="\t")
-    psm_df["Run"] = psm_df["Spectrum"].astype(str).apply(
-        lambda x: x.rsplit(".", 3)[0]
-    )
 
-    if check_columns(file_path=file_path, data_type="psm"):
+    if "Spectrum" not in psm_df.columns:
+        raise ValueError("psm.tsv must contain a 'Spectrum' column")
 
-        required_cols = REQUIRED_COLS["psm"].copy()
-        required_cols.append("Run")
+    required_cols = [c for c in REQUIRED_COLS["psm"] if c in psm_df.columns]
 
-        return psm_df[required_cols].copy()
-
-    return psm_df
+    psm_df["Run"] = psm_df["Spectrum"].astype(str).str.rsplit(".", n=3).str[0]
+    required_cols.append("Run")
+    
+    return psm_df[required_cols].copy()
 
 
-def check_columns(file_path: str, data_type: str):
+# def check_columns(file_path: str, data_type: str):
 
-    try:
-        df_header = pd.read_csv(file_path, sep="\t", nrows=0)
-        actual_columns = set(df_header.columns.str.strip())
+#     try:
+#         df_header = pd.read_csv(file_path, sep="\t", nrows=0)
+#         actual_columns = set(df_header.columns.str.strip())
 
-        missing_columns = [
-            col
-            for col in REQUIRED_COLS[data_type]
-            if col not in actual_columns
-        ]
+#         missing_columns = [
+#             col
+#             for col in REQUIRED_COLS[data_type]
+#             if col not in actual_columns
+#         ]
 
-        if not missing_columns:
-            log.info("Check passed: All required columns are present.")
-            return True
-        else:
-            log.info(
-                f"Check failed: {file_path}. Missing the following columns: {missing_columns}"
-            )
-            return False
+#         if not missing_columns:
+#             log.info("Check passed: All required columns are present.")
+#             return True
+#         else:
+#             log.info(
+#                 f"Check failed: {file_path}. Missing the following columns: {missing_columns}"
+#             )
+#             return False
 
-    except Exception as e:
-        log.warning(f"Check failed: Unable to read file: {e}")
-        return False
+#     except Exception as e:
+#         log.warning(f"Check failed: Unable to read file: {e}")
+#         return False
 

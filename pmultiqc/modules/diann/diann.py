@@ -5,6 +5,7 @@ import os
 
 import pandas as pd
 
+from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
@@ -33,13 +34,12 @@ from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.diann.diann")
 
 
-class DiannModule:
+class DiannModule(BasePMultiqcModule):
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
-        self.heatmap_color_list = heatmap_colors
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
+
 
     def get_data(self):
 

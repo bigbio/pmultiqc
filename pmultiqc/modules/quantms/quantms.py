@@ -28,6 +28,8 @@ from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
 from . import sparklines
+
+from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
@@ -80,13 +82,11 @@ from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.quantms")
 
 
-class QuantMSModule:
+class QuantMSModule(BasePMultiqcModule):
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
-        self.heatmap_color_list = heatmap_colors
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
 
         self.exp_design_runs = None
         self.mzml_peak_distribution_plot = None
