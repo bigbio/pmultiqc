@@ -28,6 +28,8 @@ from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
 from . import sparklines
+
+from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
@@ -55,12 +57,12 @@ from pmultiqc.modules.common.plots.id import (
     draw_top_n_contaminants,
     draw_ids_rt_count,
     draw_delta_mass_da_ppm,
-    draw_quantms_identification,
+    draw_identification,
     draw_oversampling,
     draw_num_pep_per_protein,
     draw_charge_state,
     draw_summary_protein_ident_table,
-    draw_quantms_identi_num
+    draw_identi_num
 )
 from pmultiqc.modules.common.plots.general import (
     draw_heatmap,
@@ -80,13 +82,11 @@ from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.quantms")
 
 
-class QuantMSModule:
+class QuantMSModule(BasePMultiqcModule):
 
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
-        self.find_log_files = find_log_files_func
-        self.sub_sections = sub_sections
-        self.heatmap_color_list = heatmap_colors
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
 
         self.exp_design_runs = None
         self.mzml_peak_distribution_plot = None
@@ -332,12 +332,12 @@ class QuantMSModule:
 
             draw_summary_protein_ident_table(
                 sub_sections=self.sub_sections["summary"],
-                enable_dia=self.enable_dia,
+                use_two_columns=self.enable_dia,
                 total_peptide_count=self.total_peptide_count,
                 total_protein_quantified=self.total_protein_quantified
             )
 
-            draw_quantms_identi_num(
+            draw_identi_num(
                 sub_sections=self.sub_sections["summary"],
                 enable_exp=self.enable_exp,
                 enable_sdrf=self.enable_sdrf,
@@ -383,7 +383,7 @@ class QuantMSModule:
 
             draw_summary_protein_ident_table(
                 sub_sections=self.sub_sections["summary"],
-                enable_dia=self.enable_dia,
+                use_two_columns=self.enable_dia,
                 total_peptide_count=self.total_peptide_count,
                 total_protein_quantified=self.total_protein_quantified,
                 total_ms2_spectra_identified=self.total_ms2_spectra_identified,
@@ -391,7 +391,7 @@ class QuantMSModule:
                 total_protein_identified=self.total_protein_identified
             )
 
-            draw_quantms_identi_num(
+            draw_identi_num(
                 self.sub_sections["summary"],
                 self.enable_exp,
                 self.enable_sdrf,
@@ -455,7 +455,7 @@ class QuantMSModule:
                 self.file_df
             )
 
-        draw_quantms_identification(
+        draw_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
             quantms_missed_cleavages=self.quantms_missed_cleavages,
@@ -1471,9 +1471,9 @@ class QuantMSModule:
         # Delta Mass [ppm]
         mass_error = psm[["filename", "calc_mass_to_charge", "exp_mass_to_charge"]].copy()
         mass_error["mass error [ppm]"] = (
-                                                 (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"])
-                                                 / mass_error["calc_mass_to_charge"]
-                                         ) * 1e6
+            (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"])
+            / mass_error["calc_mass_to_charge"]
+        ) * 1e6
         mass_error.rename(columns={"filename": "raw file"}, inplace=True)
         self.quantms_mass_error = evidence_calibrated_mass_error(mass_error)
 

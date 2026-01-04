@@ -148,7 +148,7 @@ class MzIdentMLModule(BasePMultiqcModule):
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
 
-                id_plots.draw_quantms_identification(
+                id_plots.draw_identification(
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
                     quantms_missed_cleavages=self.quantms_missed_cleavages,
