@@ -11,7 +11,7 @@ log = get_logger("pmultiqc.modules.fragpipe.fragpipe_io")
 REQUIRED_COLS = {
     "psm": [
         "Spectrum", "Peptide", "Modified Peptide", "Charge", "Retention", "Intensity", 
-        "Delta Mass", "Number of Missed Cleavages", "Is Unique", "Protein"
+        "Delta Mass", "Number of Missed Cleavages", "Is Unique", "Protein", "Hyperscore"
     ],
     "peptide": []
 }
