@@ -373,7 +373,7 @@ class FragPipeModule(BasePMultiqcModule):
 
         df = pd.concat(hyperscores, ignore_index=True)
         log.info(f"Number of hyperscore rows in DataFrame: {len(df)}")
-        log.info(f"Maximum Hyperscore value: {df["Hyperscore"].max()}")
+        log.info(f"Maximum Hyperscore value: {df['Hyperscore'].max()}")
 
         plot_data = search_engine_score_bins(
             bins_start=0,
