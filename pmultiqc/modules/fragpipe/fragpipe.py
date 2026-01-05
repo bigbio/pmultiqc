@@ -192,9 +192,9 @@ class FragPipeModule(BasePMultiqcModule):
 
             psm_df = fragpipe_io.psm_reader(psm)
 
-            # contaminant_affix: default="CONT"
+            contaminant_affix = config.kwargs.get("contaminant_affix", "CONT")
             contaminants = psm_df["Protein"].str.contains(
-                config.kwargs["contaminant_affix"], case=False, na=False
+                contaminant_affix, case=False, na=False
             )
 
             psm_cont_df = psm_df[contaminants].copy()
@@ -471,36 +471,3 @@ def _has_valid_intensity(df: pd.DataFrame):
     values = df["Intensity"].dropna()
 
     return not (values == 0).all()
-
-
-def _search_engine_scores(df: pd.DataFrame):
-
-    bins_start = 0
-    bins_end = 300
-    bins_step = 6
-
-    bins = list(range(bins_start, bins_end + 1, bins_step)) + [float("inf")]
-    labels = [f"{i} ~ {i + bins_step}" for i in range(bins_start, bins_end, bins_step)] + [
-        f"{bins_end} ~ inf"
-    ]
-
-    plot_data = list()
-    data_labels = list()
-    for name, group in df.groupby("Run"):
-        group["score_bin"] = pd.cut(group["score"], bins=bins, labels=labels, right=False)
-        score_dist = group["score_bin"].value_counts().sort_index().reset_index()
-
-        plot_data.append(
-            {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)}
-        )
-        data_labels.append({"name": name, "ylab": "Counts"})
-
-    result = {
-        "plot_data": plot_data,
-        "data_labels": data_labels,
-    }
-
-    return result
-
-
-
