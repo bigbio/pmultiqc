@@ -18,7 +18,6 @@ from multiqc.plots import (
     table,
     bargraph,
     linegraph,
-    box
 )
 from pyopenms import AASequence
 from sdrf_pipelines.openms.openms import UnimodDatabase
@@ -62,13 +61,14 @@ from pmultiqc.modules.common.plots.id import (
     draw_num_pep_per_protein,
     draw_charge_state,
     draw_summary_protein_ident_table,
-    draw_identi_num
+    draw_identi_num,
+    draw_peptide_intensity
 )
 from pmultiqc.modules.common.plots.general import (
     draw_heatmap,
     plot_html_check,
     draw_exp_design,
-    plot_data_check
+    stat_pep_intensity
 )
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
@@ -464,7 +464,13 @@ class QuantMSModule(BasePMultiqcModule):
         )
 
         self.draw_quantms_contaminants()
-        self.draw_quantms_quantification()
+
+        if self.quantms_pep_intensity:
+            draw_peptide_intensity(
+                sub_section=self.sub_sections["quantification"],
+                plot_data=self.quantms_pep_intensity
+            )
+
         self.draw_quantms_msms_section()
         self.draw_quantms_time_section()
 
@@ -2164,43 +2170,6 @@ class QuantMSModule(BasePMultiqcModule):
                 self.sub_sections["contaminants"], self.quantms_top_contaminant_percent
             )
 
-    def draw_quantms_quantification(self):
-
-        # 1.Peptide Intensity Distribution
-        if self.quantms_pep_intensity:
-            draw_config = {
-                "id": "peptide_intensity_distribution_box",
-                "cpswitch": False,
-                "cpswitch_c_active": False,
-                "title": "Peptide Intensity Distribution",
-                "tt_decimals": 2,
-                "xlab": "log2(Intensity)",
-                "data_labels": ["by Run", "by Sample"],
-                "sort_samples": False,
-                "save_data_file": False,
-            }
-            box_html = box.plot(self.quantms_pep_intensity, pconfig=draw_config)
-
-            # box_html.flat
-            box_html = plot_data_check(
-                plot_data=self.quantms_pep_intensity,
-                plot_html=box_html,
-                log_text="pmultiqc.modules.quantms.quantms",
-                function_name="draw_quantms_quantification"
-            )
-            box_html = plot_html_check(box_html)
-
-            add_sub_section(
-                sub_section=self.sub_sections["quantification"],
-                plot=box_html,
-                order=5,
-                description="Peptide intensity per file from mzTab.",
-                helptext="""
-                    Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the
-                    peptide table in the mzTab file, and then apply a log2 transformation.
-                    """,
-            )
-
     def draw_quantms_msms_section(self):
 
         # 1.Charge-state of Per File
@@ -2463,14 +2432,3 @@ def aggregate_spectrum_tracking(
             rows_by_group[group_name] = row_data
 
     return rows_by_group, header_cols
-
-
-def stat_pep_intensity(intensities: pd.Series):
-
-    stat_result = np.where(
-        (intensities.notna()) & (intensities > 0),
-        np.log2(intensities).astype(float),
-        1.0
-    )
-
-    return stat_result.tolist()

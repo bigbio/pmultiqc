@@ -1,13 +1,16 @@
 from typing import Dict, List
 from collections import OrderedDict
 
-from multiqc.plots import bargraph, linegraph, table
+from multiqc.plots import bargraph, linegraph, table, box
 from multiqc.types import SampleGroup, SampleName
 from multiqc.plots.table_object import InputRow
 
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
-from pmultiqc.modules.common.plots.general import plot_html_check
+from pmultiqc.modules.common.plots.general import (
+    plot_html_check,
+    plot_data_check
+)
 
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
@@ -202,6 +205,8 @@ def draw_msms_missed_cleavages(sub_section, missed_cleavages_data, is_maxquant):
 
                 If MC>=1 is high (>20%) you should re-analyse with increased missed cleavages parameters and compare the number of peptides.
                 Usually high MC correlates with bad identification rates, since many spectra cannot be matched to the forward database.
+
+                FragPipe: (Number of Missed Cleavages) number of potential enzymatic cleavage sites within the identified sequence.
                 """
 
     if is_maxquant:
@@ -1066,4 +1071,42 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
         order=1,
         description=description_text,
         helptext=help_text,
+    )
+
+
+# Peptide Intensity Distribution
+def draw_peptide_intensity(sub_section, plot_data):
+
+    draw_config = {
+        "id": "peptide_intensity_distribution_box",
+        "cpswitch": False,
+        "cpswitch_c_active": False,
+        "title": "Peptide Intensity Distribution",
+        "tt_decimals": 2,
+        "xlab": "log2(Intensity)",
+        "data_labels": ["by Run", "by Sample"],
+        "sort_samples": False,
+        "save_data_file": False,
+    }
+    box_html = box.plot(plot_data, pconfig=draw_config)
+
+    # box_html.flat
+    box_html = plot_data_check(
+        plot_data=plot_data,
+        plot_html=box_html,
+        log_text="pmultiqc.modules.common.plots.id",
+        function_name="draw_peptide_intensity"
+    )
+    box_html = plot_html_check(box_html)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=box_html,
+        order=5,
+        description="Peptide intensity per Run.",
+        helptext="""
+            quantms: Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the
+            peptide table in the 'mzTab', and then apply a log2 transformation.
+            FragPipe: Use the 'Intensity' column from psm.tsv and apply a log2 transformation.
+            """,
     )

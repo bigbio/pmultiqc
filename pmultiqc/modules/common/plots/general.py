@@ -5,6 +5,8 @@ from multiqc.plots.table_object import InputRow
 from multiqc import config
 from typing import Dict, List
 import re
+import pandas as pd
+import numpy as np
 
 from pmultiqc.modules.common.common_utils import (
     read_openms_design,
@@ -311,3 +313,9 @@ def draw_exp_design(sub_sections, exp_design):
     )
 
     return sample_df, file_df, exp_design_runs, is_bruker, is_multi_conditions
+
+def stat_pep_intensity(intensities: pd.Series):
+
+    stat_result = np.log2(intensities[intensities > 1])
+
+    return stat_result.tolist()
