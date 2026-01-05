@@ -243,7 +243,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | ProteoBench | ProteoBench results | [ProteoBench Example](https://pmultiqc.quantms.org/ProteoBench/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/ProteoBench_disable_hoverinfo/multiqc_report.html)) |
 | mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://pmultiqc.quantms.org/PXD053068/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD053068_disable_hoverinfo/multiqc_report.html)) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) |
-| FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD070239/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD070239_disable_hoverinfo/multiqc_report.html)) |
+| FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD066146/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD066146_disable_hoverinfo/multiqc_report.html)) |
 
 ## 👥 Contributing
 
