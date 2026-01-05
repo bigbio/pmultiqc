@@ -317,7 +317,7 @@ def draw_exp_design(sub_sections, exp_design):
 
 def stat_pep_intensity(intensities: pd.Series):
 
-    stat_result = np.log2(intensities[intensities > 1])
+    stat_result = np.log2(intensities[intensities > 0])
 
     return stat_result.tolist()
 
@@ -341,6 +341,8 @@ def search_engine_score_bins(
     plot_data = []
     data_labels = []
     for name, group in df.groupby(groupby_col):
+
+        group = group.copy()
         group["score_bin"] = pd.cut(group[score_col], bins=bins, labels=labels, right=False)
         score_dist = group["score_bin"].value_counts().sort_index().reset_index()
 
