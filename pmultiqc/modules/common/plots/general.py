@@ -317,7 +317,7 @@ def draw_exp_design(sub_sections, exp_design):
 
 def stat_pep_intensity(intensities: pd.Series):
 
-    stat_result = np.log2(intensities[intensities > 0])
+    stat_result = np.log2(intensities[intensities >= 1])
 
     return stat_result.tolist()
 
