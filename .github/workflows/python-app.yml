@@ -273,7 +273,7 @@ jobs:
         run: pip install .
       - name: Test FragPipe file
         run: |
-          wget -nv -P ./fragpipe https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/12/PXD070239/psm.tsv
+          wget -nv -P ./fragpipe https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD066146/psm.tsv
           multiqc --fragpipe-plugin ./fragpipe -o ./results_fragpipe
       - uses: actions/upload-artifact@v4
         if: always()

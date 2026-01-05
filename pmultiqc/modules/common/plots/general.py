@@ -1,10 +1,12 @@
-from multiqc.plots import heatmap, table
+from multiqc.plots import heatmap, table, bargraph
 from pmultiqc.modules.core.section_groups import add_sub_section
 from multiqc.types import SampleGroup, SampleName
 from multiqc.plots.table_object import InputRow
 from multiqc import config
 from typing import Dict, List
 import re
+import pandas as pd
+import numpy as np
 
 from pmultiqc.modules.common.common_utils import (
     read_openms_design,
@@ -311,3 +313,92 @@ def draw_exp_design(sub_sections, exp_design):
     )
 
     return sample_df, file_df, exp_design_runs, is_bruker, is_multi_conditions
+
+
+def stat_pep_intensity(intensities: pd.Series):
+
+    stat_result = np.log2(intensities[intensities > 1])
+
+    return stat_result.tolist()
+
+
+def search_engine_score_bins(
+    bins_start: int,
+    bins_end: int,
+    bins_step: int,
+    df: pd.DataFrame,
+    groupby_col: str,
+    score_col: str
+):
+
+    bins = list(range(bins_start, bins_end + 1, bins_step)) + [float("inf")]
+    labels = [
+        f"{i} ~ {i + bins_step}" for i in range(bins_start, bins_end, bins_step)
+    ] + [
+        f"{bins_end} ~ inf"
+    ]
+
+    plot_data = []
+    data_labels = []
+    for name, group in df.groupby(groupby_col):
+        group["score_bin"] = pd.cut(group[score_col], bins=bins, labels=labels, right=False)
+        score_dist = group["score_bin"].value_counts().sort_index().reset_index()
+
+        plot_data.append(
+            {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)}
+        )
+        data_labels.append({"name": name, "ylab": "Counts"})
+
+    result = {
+        "plot_data": plot_data,
+        "data_labels": data_labels,
+    }
+
+    return result
+
+
+# Search Engine Scores
+def draw_search_engine_scores(sub_section, plot_data, plot_type):
+
+    if plot_type == "maxquant":
+        plot_config = {
+            "id": "summary_of_andromeda_scores",
+            "title": "Summary of Andromeda Scores",
+            "helptext": """
+                    This statistic is extracted from msms.txt. Andromeda score for the best associated MS/MS spectrum.
+                    """,
+        }
+    elif plot_type == "fragpipe":
+        plot_config = {
+            "id": "summary_of_hyperscore",
+            "title": "Summary of Hyperscore",
+            "helptext": """
+                    This statistic is extracted from psm.tsv.
+                    Similarity score between observed and theoretical spectra, higher values indicate greater similarity.
+                    """,
+        }
+    else:
+        raise ValueError("[draw_search_engine_scores] Please check the plot type.")
+
+    pconfig = {
+        "id": plot_config["id"],
+        "cpswitch": False,
+        "title": plot_config["title"],
+        "ylab": "Counts",
+        "tt_suffix": "",
+        "tt_decimals": 0,
+        "data_labels": plot_data["data_labels"],
+        "save_data_file": False,
+    }
+
+    bar_html = bargraph.plot(data=plot_data["plot_data"], pconfig=pconfig)
+
+    bar_html = plot_html_check(bar_html)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=bar_html,
+        order=1,
+        description="",
+        helptext=plot_config["helptext"],
+    )

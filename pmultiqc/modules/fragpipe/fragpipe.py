@@ -9,7 +9,10 @@ from pmultiqc.modules.common.plots.id import (
     draw_identi_num,
     draw_identification,
     draw_ids_rt_count,
-    draw_num_pep_per_protein
+    draw_num_pep_per_protein,
+    draw_peptide_intensity,
+    draw_msms_missed_cleavages,
+    rebuild_dict_structure
 )
 from pmultiqc.modules.core.section_groups import (
     add_group_modules,
@@ -19,10 +22,16 @@ from pmultiqc.modules.common.common_utils import (
     group_charge,
     evidence_rt_count
 )
-from pmultiqc.modules.common.plots.general import plot_html_check
+from pmultiqc.modules.common.plots.general import (
+    plot_html_check,
+    stat_pep_intensity,
+    search_engine_score_bins,
+    draw_search_engine_scores
+)
 from collections import OrderedDict
 from pmultiqc.modules.common.histogram import Histogram
 
+from multiqc import config
 from multiqc.plots import bargraph
 
 from pmultiqc.modules.common.logging import get_logger
@@ -43,6 +52,9 @@ class FragPipeModule(BasePMultiqcModule):
         self.charge_states = []
         self.pipeline_stats = []
         self.retentions = []
+        self.intensities = []
+        self.missed_cleavages = []
+        self.hyperscores = []
 
 
     def get_data(self):
@@ -56,7 +68,10 @@ class FragPipeModule(BasePMultiqcModule):
                 self.delta_masses,
                 self.charge_states,
                 self.pipeline_stats,
-                self.retentions
+                self.retentions,
+                self.intensities,
+                self.missed_cleavages,
+                self.hyperscores
             ) = self.parse_psm(
                 fragpipe_files=self.fragpipe_files
             )
@@ -83,7 +98,7 @@ class FragPipeModule(BasePMultiqcModule):
                 sub_section=self.sub_sections["ms2"],
                 charge_states=self.charge_states
             )
-        
+
         if self.pipeline_stats:
             
             # Statistics
@@ -119,7 +134,28 @@ class FragPipeModule(BasePMultiqcModule):
                 self.sub_sections["identification"],
                 cal_num_table_data=statistics_result,
             )
-        
+
+        # Peptide Intensity Distribution
+        if self.intensities:
+            self.draw_intensity(
+                sub_section=self.sub_sections["quantification"],
+                intensities=self.intensities
+            )
+
+        # Missed Cleavages
+        if self.missed_cleavages:
+            self.draw_missed_cleavages(
+                sub_section=self.sub_sections["identification"],
+                missed_cleavages=self.missed_cleavages
+            )
+
+        # Summary of Hyperscore
+        if self.hyperscores:
+            self.draw_hyperscore(
+                sub_section=self.sub_sections["search_engine"],
+                hyperscores=self.hyperscores
+            )
+
         if self.retentions:
             self.draw_ids_over_rt(
                 sub_section=self.sub_sections["rt_qc"],
@@ -129,6 +165,8 @@ class FragPipeModule(BasePMultiqcModule):
         section_group_dict = {
             "summary_sub_section": self.sub_sections["summary"],
             "identification_sub_section": self.sub_sections["identification"],
+            "search_engine_sub_section": self.sub_sections["search_engine"],
+            "quantification_sub_section": self.sub_sections["quantification"],
             "ms2_sub_section": self.sub_sections["ms2"],
             "mass_error_sub_section": self.sub_sections["mass_error"],
             "rt_qc_sub_section": self.sub_sections["rt_qc"],
@@ -146,10 +184,24 @@ class FragPipeModule(BasePMultiqcModule):
         charge_states = []
         pipeline_stats = []
         retentions = []
+        intensities = []
+        missed_cleavages = []
+        hyperscores = []
 
         for psm in fragpipe_files.get("psm", []):
 
             psm_df = fragpipe_io.psm_reader(psm)
+
+            # contaminant_affix: default="CONT"
+            contaminants = psm_df["Protein"].str.contains(
+                config.kwargs["contaminant_affix"], case=False, na=False
+            )
+
+            psm_cont_df = psm_df[contaminants].copy()
+            psm_df = psm_df[~contaminants].copy()
+
+            log.info(f"Number of contaminant rows in {psm}: {len(psm_cont_df)}")
+            log.info(f"Number of non-contaminant rows in {psm}: {len(psm_df)}")
 
             if psm_df is None or psm_df.empty:
                 log.warning(f"Skipping unreadable/empty FragPipe PSM file: {psm}")
@@ -171,6 +223,25 @@ class FragPipeModule(BasePMultiqcModule):
             ):
                 pipeline_stats.append(psm_df[stats_requires].copy())
 
+            # Peptide Intensity Distribution
+            if _has_valid_intensity(psm_df):
+                log.info(f"Intensity in {psm} is available.")
+
+                intensities.append(psm_df[["Run", "Intensity"]].copy())
+
+            else:
+                log.info(f"All intensity values in {psm} are 0 and not available")
+
+            # Missed Cleavages
+            if "Number of Missed Cleavages" in psm_df.columns:
+                missed_cleavages.append(
+                    psm_df[["Run", "Number of Missed Cleavages"]].copy()
+                )
+
+            # Summary of Hyperscore
+            if "Hyperscore" in psm_df.columns:
+                hyperscores.append(psm_df[["Run", "Hyperscore"]].copy())
+
             # Retention: MS2 scan's precursor retention time (in seconds)
             if "Retention" in psm_df.columns:
                 retentions.append(psm_df[["Run", "Retention"]].copy())
@@ -179,7 +250,10 @@ class FragPipeModule(BasePMultiqcModule):
             delta_masses,
             charge_states,
             pipeline_stats,
-            retentions
+            retentions,
+            intensities,
+            missed_cleavages,
+            hyperscores
         )
 
     # Delta Mass
@@ -248,6 +322,73 @@ class FragPipeModule(BasePMultiqcModule):
         )
 
         log.info("Charge-state plot generated.")
+
+
+    # Peptide Intensity Distribution
+    @staticmethod
+    def draw_intensity(sub_section, intensities: list):
+
+        df = pd.concat(intensities, ignore_index=True)
+        log.info(f"Number of intensity rows in DataFrame: {len(df)}")
+
+        intensity_by_run = {}
+        for run, group in df.groupby("Run"):
+            intensity_by_run[run] = stat_pep_intensity(group["Intensity"])
+
+        plot_data = [intensity_by_run]
+
+        draw_peptide_intensity(
+            sub_section=sub_section,
+            plot_data=plot_data
+        )
+
+
+    # Missed Cleavages
+    @staticmethod
+    def draw_missed_cleavages(sub_section, missed_cleavages: list):
+
+        df = pd.concat(missed_cleavages, ignore_index=True)
+        log.info(f"Number of missed cleavages rows in DataFrame: {len(df)}")
+
+        mc_by_run = {}
+        for run, group in df.groupby("Run", sort=True):
+            mc = group["Number of Missed Cleavages"].value_counts()
+            mc_by_run[run] = mc.to_dict()
+
+        mc_plot = {
+            "plot_data": [rebuild_dict_structure(mc_by_run)],
+            "cats": ["0", "1", ">=2"]
+        }
+
+        draw_msms_missed_cleavages(
+            sub_section=sub_section,
+            missed_cleavages_data=mc_plot,
+            is_maxquant=False
+        )
+
+
+    # Summary of Hyperscore
+    @staticmethod
+    def draw_hyperscore(sub_section, hyperscores: list):
+
+        df = pd.concat(hyperscores, ignore_index=True)
+        log.info(f"Number of hyperscore rows in DataFrame: {len(df)}")
+        log.info(f"Maximum Hyperscore value: {df['Hyperscore'].max()}")
+
+        plot_data = search_engine_score_bins(
+            bins_start=0,
+            bins_end=120,
+            bins_step=3,
+            df=df,
+            groupby_col="Run",
+            score_col="Hyperscore"
+        )
+
+        draw_search_engine_scores(
+            sub_section=sub_section,
+            plot_data=plot_data,
+            plot_type="fragpipe"
+        )
 
 
     # IDs over RT
@@ -320,3 +461,46 @@ def _calculate_statistics(pipeline_stats: list):
     pep_plot.to_dict(percentage=True, cats=categorys)
 
     return summary_data, statistics_data, pep_plot
+
+
+def _has_valid_intensity(df: pd.DataFrame):
+
+    if "Intensity" not in df.columns:
+        return False
+
+    values = df["Intensity"].dropna()
+
+    return not (values == 0).all()
+
+
+def _search_engine_scores(df: pd.DataFrame):
+
+    bins_start = 0
+    bins_end = 300
+    bins_step = 6
+
+    bins = list(range(bins_start, bins_end + 1, bins_step)) + [float("inf")]
+    labels = [f"{i} ~ {i + bins_step}" for i in range(bins_start, bins_end, bins_step)] + [
+        f"{bins_end} ~ inf"
+    ]
+
+    plot_data = list()
+    data_labels = list()
+    for name, group in df.groupby("Run"):
+        group["score_bin"] = pd.cut(group["score"], bins=bins, labels=labels, right=False)
+        score_dist = group["score_bin"].value_counts().sort_index().reset_index()
+
+        plot_data.append(
+            {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)}
+        )
+        data_labels.append({"name": name, "ylab": "Counts"})
+
+    result = {
+        "plot_data": plot_data,
+        "data_labels": data_labels,
+    }
+
+    return result
+
+
+
