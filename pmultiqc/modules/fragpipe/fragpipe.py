@@ -24,7 +24,9 @@ from pmultiqc.modules.common.common_utils import (
 )
 from pmultiqc.modules.common.plots.general import (
     plot_html_check,
-    stat_pep_intensity
+    stat_pep_intensity,
+    search_engine_score_bins,
+    draw_search_engine_scores
 )
 from collections import OrderedDict
 from pmultiqc.modules.common.histogram import Histogram
@@ -52,6 +54,7 @@ class FragPipeModule(BasePMultiqcModule):
         self.retentions = []
         self.intensities = []
         self.missed_cleavages = []
+        self.hyperscores = []
 
 
     def get_data(self):
@@ -67,7 +70,8 @@ class FragPipeModule(BasePMultiqcModule):
                 self.pipeline_stats,
                 self.retentions,
                 self.intensities,
-                self.missed_cleavages
+                self.missed_cleavages,
+                self.hyperscores
             ) = self.parse_psm(
                 fragpipe_files=self.fragpipe_files
             )
@@ -145,6 +149,13 @@ class FragPipeModule(BasePMultiqcModule):
                 missed_cleavages=self.missed_cleavages
             )
 
+        # Summary of Hyperscore
+        if self.hyperscores:
+            self.draw_hyperscore(
+                sub_section=self.sub_sections["search_engine"],
+                hyperscores=self.hyperscores
+            )
+
         if self.retentions:
             self.draw_ids_over_rt(
                 sub_section=self.sub_sections["rt_qc"],
@@ -154,6 +165,7 @@ class FragPipeModule(BasePMultiqcModule):
         section_group_dict = {
             "summary_sub_section": self.sub_sections["summary"],
             "identification_sub_section": self.sub_sections["identification"],
+            "search_engine_sub_section": self.sub_sections["search_engine"],
             "quantification_sub_section": self.sub_sections["quantification"],
             "ms2_sub_section": self.sub_sections["ms2"],
             "mass_error_sub_section": self.sub_sections["mass_error"],
@@ -174,6 +186,7 @@ class FragPipeModule(BasePMultiqcModule):
         retentions = []
         intensities = []
         missed_cleavages = []
+        hyperscores = []
 
         for psm in fragpipe_files.get("psm", []):
 
@@ -225,6 +238,10 @@ class FragPipeModule(BasePMultiqcModule):
                     psm_df[["Run", "Number of Missed Cleavages"]].copy()
                 )
 
+            # Summary of Hyperscore
+            if "Hyperscore" in psm_df.columns:
+                hyperscores.append(psm_df[["Run", "Hyperscore"]].copy())
+
             # Retention: MS2 scan's precursor retention time (in seconds)
             if "Retention" in psm_df.columns:
                 retentions.append(psm_df[["Run", "Retention"]].copy())
@@ -235,7 +252,8 @@ class FragPipeModule(BasePMultiqcModule):
             pipeline_stats,
             retentions,
             intensities,
-            missed_cleavages
+            missed_cleavages,
+            hyperscores
         )
 
     # Delta Mass
@@ -349,6 +367,30 @@ class FragPipeModule(BasePMultiqcModule):
         )
 
 
+    # Summary of Hyperscore
+    @staticmethod
+    def draw_hyperscore(sub_section, hyperscores: list):
+
+        df = pd.concat(hyperscores, ignore_index=True)
+        log.info(f"Number of hyperscore rows in DataFrame: {len(df)}")
+        log.info(f"Maximum Hyperscore value: {df["Hyperscore"].max()}")
+
+        plot_data = search_engine_score_bins(
+            bins_start=0,
+            bins_end=120,
+            bins_step=3,
+            df=df,
+            groupby_col="Run",
+            score_col="Hyperscore"
+        )
+
+        draw_search_engine_scores(
+            sub_section=sub_section,
+            plot_data=plot_data,
+            plot_type="fragpipe"
+        )
+
+
     # IDs over RT
     @staticmethod
     def draw_ids_over_rt(sub_section, retentions: list):
@@ -429,4 +471,36 @@ def _has_valid_intensity(df: pd.DataFrame):
     values = df["Intensity"].dropna()
 
     return not (values == 0).all()
+
+
+def _search_engine_scores(df: pd.DataFrame):
+
+    bins_start = 0
+    bins_end = 300
+    bins_step = 6
+
+    bins = list(range(bins_start, bins_end + 1, bins_step)) + [float("inf")]
+    labels = [f"{i} ~ {i + bins_step}" for i in range(bins_start, bins_end, bins_step)] + [
+        f"{bins_end} ~ inf"
+    ]
+
+    plot_data = list()
+    data_labels = list()
+    for name, group in df.groupby("Run"):
+        group["score_bin"] = pd.cut(group["score"], bins=bins, labels=labels, right=False)
+        score_dist = group["score_bin"].value_counts().sort_index().reset_index()
+
+        plot_data.append(
+            {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)}
+        )
+        data_labels.append({"name": name, "ylab": "Counts"})
+
+    result = {
+        "plot_data": plot_data,
+        "data_labels": data_labels,
+    }
+
+    return result
+
+
 
