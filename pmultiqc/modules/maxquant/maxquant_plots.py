@@ -699,35 +699,6 @@ def draw_maxquant_num_pep_pro(sub_section, num_pep_per_protein):
     )
 
 
-# Search Engine Scores
-def draw_maxquant_scores(sub_section, maxquant_scores):
-
-    pconfig = {
-        "id": "summary_of_andromeda_scores",
-        "cpswitch": False,
-        "title": "Summary of Andromeda Scores",
-        "ylab": "Counts",
-        "tt_suffix": "",
-        "tt_decimals": 0,
-        "data_labels": maxquant_scores["data_labels"],
-        "save_data_file": False,
-    }
-
-    bar_html = bargraph.plot(data=maxquant_scores["plot_data"], pconfig=pconfig)
-
-    bar_html = plot_html_check(bar_html)
-
-    add_sub_section(
-        sub_section=sub_section,
-        plot=bar_html,
-        order=1,
-        description="",
-        helptext="""
-                This statistic is extracted from msms.txt. Andromeda score for the best associated MS/MS spectrum.
-                """,
-    )
-
-
 # TopN
 def draw_msms_scans_top_n(sub_section, top_n_data):
 

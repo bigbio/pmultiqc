@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 
 from pmultiqc.modules.common.file_utils import get_filename, drop_empty_row
 from pmultiqc.modules.common.stats import nanmedian
+from pmultiqc.modules.common.plots.general import search_engine_score_bins
 from pmultiqc.modules.common.stats import (
     qual_uniform,
     cal_delta_mass_dict
@@ -1327,35 +1328,20 @@ def msms_missed_cleavages(msms_df: pd.DataFrame, evidence_df: pd.DataFrame):
 
 # 4-2.msms.txt: Search Engine Scores
 def search_engine_scores(msms_df):
+
     if any(column not in msms_df.columns for column in ["score", "raw file"]):
         return None
 
-    bins_start = 0
-    bins_end = 300
-    bins_step = 6
+    results = search_engine_score_bins(
+        bins_start=0,
+        bins_end=300,
+        bins_step=6,
+        df=msms_df,
+        groupby_col="raw file",
+        score_col="score"
+    )
 
-    bins = list(range(bins_start, bins_end + 1, bins_step)) + [float("inf")]
-    labels = [f"{i} ~ {i + bins_step}" for i in range(bins_start, bins_end, bins_step)] + [
-        f"{bins_end} ~ inf"
-    ]
-
-    plot_data = list()
-    data_labels = list()
-    for name, group in msms_df.groupby("raw file"):
-        group["score_bin"] = pd.cut(group["score"], bins=bins, labels=labels, right=False)
-        score_dist = group["score_bin"].value_counts().sort_index().reset_index()
-
-        plot_data.append(
-            {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)}
-        )
-        data_labels.append({"name": name, "ylab": "Counts"})
-
-    result = {
-        "plot_data": plot_data,
-        "data_labels": data_labels,
-    }
-
-    return result
+    return results
 
 
 # 5.msScans.txt

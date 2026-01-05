@@ -7,7 +7,10 @@ from pmultiqc.modules.maxquant import (
     maxquant_plots
 )
 from pmultiqc.modules.common.plots import id as id_plots
-from pmultiqc.modules.common.plots.general import draw_heatmap
+from pmultiqc.modules.common.plots.general import (
+    draw_heatmap,
+    draw_search_engine_scores
+)
 from pmultiqc.modules.core.section_groups import add_group_modules
 from pmultiqc.modules.base import BasePMultiqcModule
 
@@ -495,10 +498,11 @@ class MaxQuantModule(BasePMultiqcModule):
 
         # Search engine scores
         self._safe_draw_if_exists(
-            maxquant_plots.draw_maxquant_scores,
+            draw_search_engine_scores,
             self.sub_sections["search_engine"],
             self.mq_results["get_msms_dicts"].get("search_engine_scores"),
-            error_name="draw_maxquant_scores"
+            "maxquant",
+            error_name="draw_search_engine_scores"
         )
 
     def _draw_contaminant_plots(self):
