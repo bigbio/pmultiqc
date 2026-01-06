@@ -226,7 +226,7 @@ class FragPipeModule(BasePMultiqcModule):
 
             psm_df, psm_cont_df = _mark_contaminants(
                 df=psm_df,
-                contam_affix=config.kwargs.get("contaminant_affix", "CONT")
+                contam_affix=config.kwargs["contaminant_affix"]
             )
             log.info(f"Number of non-contaminant rows in {psm}: {len(psm_df)}")
 
@@ -455,7 +455,7 @@ class FragPipeModule(BasePMultiqcModule):
             protein_col="Protein",
             intensity_col="Intensity",
             run_col="Run",
-            contam_affix=config.kwargs.get("contaminant_affix", "CONT")
+            contam_affix=config.kwargs["contaminant_affix"]
         )
 
         draw_potential_contaminants(
@@ -620,5 +620,7 @@ def _extract_modifications(x):
         if site not in mod_types:
             mod_types.append(site)
 
-    return ",".join(mod_types)
+    if not mod_types:
+        return "Unmodified"
 
+    return ",".join(mod_types)

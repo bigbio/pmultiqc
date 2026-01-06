@@ -825,12 +825,12 @@ def evidence_modified(evidence_data):
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
-        modified = mods_statistics(
-            df=evidence_data,
-            run_col="raw file"
-        )
+    modified = mods_statistics(
+        df=evidence_data,
+        run_col="raw file"
+    )
 
-        return modified
+    return modified
 
 
 # 3-5.evidence.txt: IDs over RT
