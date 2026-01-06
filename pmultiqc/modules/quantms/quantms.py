@@ -1096,7 +1096,9 @@ class QuantMSModule(BasePMultiqcModule):
                 )
 
                 self.quantms_top_contaminant_percent = self.cal_top_contam_percent(
-                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(), 5
+                    pep_df=pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(),
+                    top_n=5,
+                    contam_affix=config.kwargs["contaminant_affix"]
                 )
             else:
                 log.warning(f"No contaminants found matching affix '{config.kwargs['contaminant_affix']}'")
@@ -2090,12 +2092,12 @@ class QuantMSModule(BasePMultiqcModule):
                 """,
         )
 
-    def cal_top_contam_percent(self, pep_df, top_n):
+    def cal_top_contam_percent(self, pep_df, top_n, contam_affix):
 
         df = pep_df.copy()
 
         not_cont_tag = "NOT_CONTAM"
-        is_contaminant = df["accession"].str.contains(config.kwargs["contaminant_affix"], na=False)
+        is_contaminant = df["accession"].str.contains(contam_affix, na=False)
         df.loc[:, "cont_accession"] = np.where(is_contaminant, df["accession"], not_cont_tag)
 
         contam_percent = top_n_contaminant_percent(
