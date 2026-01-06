@@ -11,9 +11,9 @@ log = get_logger("pmultiqc.modules.fragpipe.fragpipe_io")
 REQUIRED_COLS = {
     "psm": [
         "Spectrum", "Peptide", "Modified Peptide", "Charge", "Retention", "Intensity", 
-        "Delta Mass", "Number of Missed Cleavages", "Is Unique", "Protein", "Hyperscore"
-    ],
-    "peptide": []
+        "Delta Mass", "Number of Missed Cleavages", "Is Unique", "Protein", "Hyperscore",
+        "Assigned Modifications"
+    ]
 }
 
 
@@ -45,13 +45,13 @@ def get_fragpipe_files(find_log_files):
         for req in req_set:
             if req in filename:
 
-                if req == "protein" and "combined_protein" in filename:
-                    continue
+                # if req == "protein" and ("combined_protein" in filename):
+                #     continue
 
-                if req == "peptide" and (
-                    "combined_peptide" in filename or "combined_modified_peptide" in filename
-                ):
-                    continue
+                # if req == "peptide" and (
+                #     "combined_peptide" in filename or "combined_modified_peptide" in filename
+                # ):
+                #     continue
 
                 fragpipe_files[req].append(full_path)
 
@@ -82,30 +82,4 @@ def psm_reader(file_path: str):
     required_cols.append("Run")
 
     return psm_df[required_cols].copy()
-
-
-# def check_columns(file_path: str, data_type: str):
-
-#     try:
-#         df_header = pd.read_csv(file_path, sep="\t", nrows=0)
-#         actual_columns = set(df_header.columns.str.strip())
-
-#         missing_columns = [
-#             col
-#             for col in REQUIRED_COLS[data_type]
-#             if col not in actual_columns
-#         ]
-
-#         if not missing_columns:
-#             log.info("Check passed: All required columns are present.")
-#             return True
-#         else:
-#             log.info(
-#                 f"Check failed: {file_path}. Missing the following columns: {missing_columns}"
-#             )
-#             return False
-
-#     except Exception as e:
-#         log.warning(f"Check failed: Unable to read file: {e}")
-#         return False
 

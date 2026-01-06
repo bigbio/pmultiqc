@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+import re
 
 from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.fragpipe import fragpipe_io
@@ -12,7 +14,10 @@ from pmultiqc.modules.common.plots.id import (
     draw_num_pep_per_protein,
     draw_peptide_intensity,
     draw_msms_missed_cleavages,
-    rebuild_dict_structure
+    rebuild_dict_structure,
+    draw_top_n_contaminants,
+    draw_potential_contaminants,
+    draw_modifications
 )
 from pmultiqc.modules.core.section_groups import (
     add_group_modules,
@@ -20,7 +25,10 @@ from pmultiqc.modules.core.section_groups import (
 )
 from pmultiqc.modules.common.common_utils import (
     group_charge,
-    evidence_rt_count
+    evidence_rt_count,
+    top_n_contaminant_percent,
+    cal_contaminant_percent,
+    mods_statistics
 )
 from pmultiqc.modules.common.plots.general import (
     plot_html_check,
@@ -41,6 +49,8 @@ from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.fragpipe.fragpipe")
 
 
+NOT_CONT_TAG = "NOT_CONT"
+
 class FragPipeModule(BasePMultiqcModule):
     """pmultiqc module for FragPipe results."""
 
@@ -55,6 +65,8 @@ class FragPipeModule(BasePMultiqcModule):
         self.intensities = []
         self.missed_cleavages = []
         self.hyperscores = []
+        self.contam_df = []
+        self.mods = []
 
 
     def get_data(self):
@@ -71,7 +83,9 @@ class FragPipeModule(BasePMultiqcModule):
                 self.retentions,
                 self.intensities,
                 self.missed_cleavages,
-                self.hyperscores
+                self.hyperscores,
+                self.contam_df,
+                self.mods
             ) = self.parse_psm(
                 fragpipe_files=self.fragpipe_files
             )
@@ -156,6 +170,21 @@ class FragPipeModule(BasePMultiqcModule):
                 hyperscores=self.hyperscores
             )
 
+        # Contaminants
+        if self.contam_df:
+            self.draw_contaminants(
+                sub_section=self.sub_sections["contaminants"],
+                contam_df=self.contam_df
+            )
+
+        # Modifications
+        if self.mods:
+            self.draw_mods(
+                sub_section=self.sub_sections["identification"],
+                mods=self.mods
+            )
+
+        # IDs over RT
         if self.retentions:
             self.draw_ids_over_rt(
                 sub_section=self.sub_sections["rt_qc"],
@@ -166,6 +195,7 @@ class FragPipeModule(BasePMultiqcModule):
             "summary_sub_section": self.sub_sections["summary"],
             "identification_sub_section": self.sub_sections["identification"],
             "search_engine_sub_section": self.sub_sections["search_engine"],
+            "contaminants_sub_section": self.sub_sections["contaminants"],
             "quantification_sub_section": self.sub_sections["quantification"],
             "ms2_sub_section": self.sub_sections["ms2"],
             "mass_error_sub_section": self.sub_sections["mass_error"],
@@ -187,20 +217,17 @@ class FragPipeModule(BasePMultiqcModule):
         intensities = []
         missed_cleavages = []
         hyperscores = []
+        contam_df = []
+        mods = []
 
         for psm in fragpipe_files.get("psm", []):
 
             psm_df = fragpipe_io.psm_reader(psm)
 
-            contaminant_affix = config.kwargs.get("contaminant_affix", "CONT")
-            contaminants = psm_df["Protein"].str.contains(
-                contaminant_affix, case=False, na=False
+            psm_df, psm_cont_df = _mark_contaminants(
+                df=psm_df,
+                contam_affix=config.kwargs["contaminant_affix"]
             )
-
-            psm_cont_df = psm_df[contaminants].copy()
-            psm_df = psm_df[~contaminants].copy()
-
-            log.info(f"Number of contaminant rows in {psm}: {len(psm_cont_df)}")
             log.info(f"Number of non-contaminant rows in {psm}: {len(psm_df)}")
 
             if psm_df is None or psm_df.empty:
@@ -246,6 +273,27 @@ class FragPipeModule(BasePMultiqcModule):
             if "Retention" in psm_df.columns:
                 retentions.append(psm_df[["Run", "Retention"]].copy())
 
+            # Contaminants
+            if _has_valid_contaminant(psm_cont_df):
+                log.info(f"{psm} contains contaminants.")
+
+                if _has_valid_intensity(psm_cont_df):
+                    log.info("Contaminant analysis...")
+
+                    contam_df.append(
+                        psm_cont_df[["Run", "Intensity", "cont_protein", "Protein"]].copy()
+                    )
+                else:
+                    log.warning(
+                        f"All intensity values in {psm} are unavailable; skipping contaminant analysis."
+                    )
+            else:
+                log.info(f"No contaminants found in {psm}; skipping contaminant analysis.")
+
+            # Modifications
+            if "Assigned Modifications" in psm_df.columns:
+                mods.append(psm_df[["Run", "Assigned Modifications"]].copy())
+
         return (
             delta_masses,
             charge_states,
@@ -253,7 +301,9 @@ class FragPipeModule(BasePMultiqcModule):
             retentions,
             intensities,
             missed_cleavages,
-            hyperscores
+            hyperscores,
+            contam_df,
+            mods
         )
 
     # Delta Mass
@@ -391,6 +441,70 @@ class FragPipeModule(BasePMultiqcModule):
         )
 
 
+    # Contaminants
+    @staticmethod
+    def draw_contaminants(sub_section, contam_df: list):
+
+        df = pd.concat(contam_df, ignore_index=True)
+
+        num_cont = (df["cont_protein"] != NOT_CONT_TAG).sum()
+        log.info(f"Number of contaminants rows in DataFrame: {num_cont}")
+
+        contam_percent = cal_contaminant_percent(
+            df=df[["Run", "Intensity", "Protein"]].copy(),
+            protein_col="Protein",
+            intensity_col="Intensity",
+            run_col="Run",
+            contam_affix=config.kwargs["contaminant_affix"]
+        )
+
+        draw_potential_contaminants(
+            sub_section=sub_section,
+            contaminant_percent=contam_percent,
+            report_type="fragpipe"
+        )
+
+        top_contams = top_n_contaminant_percent(
+            df=df,
+            not_cont_tag=NOT_CONT_TAG,
+            cont_tag_col="cont_protein",
+            intensity_col="Intensity",
+            run_col="Run",
+            top_n=5,
+        )
+
+        draw_top_n_contaminants(
+            sub_section=sub_section,
+            top_contaminants_data=top_contams
+        )
+
+
+    # Modifications
+    @staticmethod
+    def draw_mods(sub_section, mods: list):
+
+        df = pd.concat(mods, ignore_index=True)
+
+        num_mods = df["Assigned Modifications"].notna().sum()
+        log.info(f"Number of modifications rows in DataFrame: {num_mods}")
+
+        if num_mods == 0:
+            log.info("No modification data found; skipping modifications analysis.")
+            return
+
+        df["modifications"] = df["Assigned Modifications"].apply(_extract_modifications)
+
+        modified_data = mods_statistics(
+            df=df,
+            run_col="Run"
+        )
+        
+        draw_modifications(
+            sub_section=sub_section,
+            modified_data=modified_data
+        )
+
+
     # IDs over RT
     @staticmethod
     def draw_ids_over_rt(sub_section, retentions: list):
@@ -471,3 +585,42 @@ def _has_valid_intensity(df: pd.DataFrame):
     values = df["Intensity"].dropna()
 
     return not (values == 0).all()
+
+
+def _mark_contaminants(df, contam_affix="CONT"):
+
+    is_contaminant = df["Protein"].str.contains(contam_affix, na=False, case=False)
+    
+    psm_cont_df = df.copy()
+    psm_cont_df["cont_protein"] = np.where(is_contaminant, psm_cont_df["Protein"], NOT_CONT_TAG)
+    
+    psm_df = df[~is_contaminant].copy()
+    
+    return psm_df, psm_cont_df
+
+
+def _has_valid_contaminant(df: pd.DataFrame):
+    return not (df["cont_protein"] == NOT_CONT_TAG).all()
+
+
+def _extract_modifications(x):
+
+    if pd.isna(x):
+        return "Unmodified"
+    
+    pattern = re.compile(r"N-term|\d+([A-Z])\(")
+
+    mod_types = []
+    for m in pattern.finditer(x):
+        if m.group(0).startswith("N-term"):
+            site = "N-term"
+        else:
+            site = m.group(1)
+
+        if site not in mod_types:
+            mod_types.append(site)
+
+    if not mod_types:
+        return "Unmodified"
+
+    return ",".join(mod_types)

@@ -349,7 +349,7 @@ def search_engine_score_bins(
         plot_data.append(
             {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)}
         )
-        data_labels.append({"name": name, "ylab": "Counts"})
+        data_labels.append(name)
 
     result = {
         "plot_data": plot_data,
@@ -367,17 +367,17 @@ def draw_search_engine_scores(sub_section, plot_data, plot_type):
             "id": "summary_of_andromeda_scores",
             "title": "Summary of Andromeda Scores",
             "helptext": """
-                    This statistic is extracted from msms.txt. Andromeda score for the best associated MS/MS spectrum.
-                    """,
+                This statistic is extracted from msms.txt. Andromeda score for the best associated MS/MS spectrum.
+                """,
         }
     elif plot_type == "fragpipe":
         plot_config = {
             "id": "summary_of_hyperscore",
             "title": "Summary of Hyperscore",
             "helptext": """
-                    This statistic is extracted from psm.tsv.
-                    Similarity score between observed and theoretical spectra, higher values indicate greater similarity.
-                    """,
+                This statistic is extracted from psm.tsv.<br>
+                [Hyperscore] Similarity score between observed and theoretical spectra, higher values indicate greater similarity.
+                """,
         }
     else:
         raise ValueError("[draw_search_engine_scores] Please check the plot type.")

@@ -511,7 +511,7 @@ class MaxQuantModule(BasePMultiqcModule):
             id_plots.draw_potential_contaminants,
             self.sub_sections["contaminants"],
             self.mq_results["get_protegroups_dicts"].get("pg_contaminant"),
-            True,
+            "maxquant",
             error_name="draw_potential_contaminants"
         )
 
