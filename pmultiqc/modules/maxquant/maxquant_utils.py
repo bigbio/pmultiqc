@@ -17,7 +17,7 @@ from pmultiqc.modules.common.stats import (
     cal_delta_mass_dict
 )
 from pmultiqc.modules.common.common_utils import (
-    mod_group_percentage,
+    mods_statistics,
     evidence_rt_count,
     recommpute_mass_error,
     evidence_calibrated_mass_error
@@ -825,20 +825,12 @@ def evidence_modified(evidence_data):
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
-    plot_dict = {}
-    modified_cats = []
-
-    for raw_file, group in evidence_data.groupby("raw file"):
-        group_processed = mod_group_percentage(group)
-        plot_dict[raw_file] = dict(
-            zip(group_processed["modifications"], group_processed["percentage"])
+        modified = mods_statistics(
+            df=evidence_data,
+            run_col="raw file"
         )
-        modified_cats.extend(group_processed["modifications"])
 
-    modified_dict = {"plot_data": plot_dict,
-                     "cats": list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))}
-
-    return modified_dict
+        return modified
 
 
 # 3-5.evidence.txt: IDs over RT
