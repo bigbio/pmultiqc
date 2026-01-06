@@ -657,16 +657,35 @@ def cal_contaminant_percent(
     run_col: str,
     contam_affix: str
 ):
+    """
+    Calculate the percentage of potential contaminant signal per run.
+    df : pandas.DataFrame
+        Long-form table containing at least the columns referenced by
+        ``protein_col``, ``intensity_col`` and ``run_col``. Each row
+        typically represents a quantified peptide or protein feature.
+    protein_col : str
+        Name of the column in ``df`` that contains protein or protein group
+        identifiers.
+    intensity_col : str
+        Name of the numeric column in ``df`` that holds the intensity.
+    run_col : str
+        Name of the column in ``df`` that identifies the run / raw file.
+    contam_affix : str
+        Substring or pattern used to flag contaminants in ``protein_col``.
+    """
 
+    df = df.copy()
     df["is_contaminant"] = df[protein_col].str.contains(contam_affix, case=False, na=False)
 
+    df["cont_intensity"] = df[intensity_col].where(df["is_contaminant"], 0)
     group_stats = df.groupby(run_col).agg(
         total_intensity=(intensity_col, "sum"),
-        cont_intensity=(intensity_col, lambda x: x[df.loc[x.index, "is_contaminant"]].sum()),
+        cont_intensity=("cont_intensity", "sum"),
     )
-
-    group_stats["contaminant_percent"] = (
-            group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
+    group_stats["contaminant_percent"] = np.where(
+        group_stats["total_intensity"] > 0,
+        group_stats["cont_intensity"] / group_stats["total_intensity"] * 100,
+        0
     )
 
     result_dict = dict()
@@ -684,6 +703,23 @@ def top_n_contaminant_percent(
     run_col: str,
     top_n: int = 5,
 ):
+    """
+    Calculate per-run intensity percentages for the top N contaminant categories.
+    df : pandas.DataFrame
+        Input peptide- or feature-level table.
+    not_cont_tag : str
+        Tag or label used in ``cont_tag_col`` to mark rows that are *not*
+        contaminants.
+    cont_tag_col : str
+        Name of the column in ``df`` that contains contaminant category labels.
+    intensity_col : str
+        Name of the numeric column in ``df`` that holds intensity values used to
+        quantify contaminants.
+    run_col : str
+        Name of the column in ``df`` that identifies runs.
+    top_n : int, optional
+        Number of contaminant categories to retain as explicit categories.
+    """
 
     pep_contaminant_df = df[df[cont_tag_col] != not_cont_tag].copy()
     contaminant_df = (
@@ -724,7 +760,7 @@ def top_n_contaminant_percent(
         return None
 
     plot_cats = sorted(list(set(plot_cats)))
-    
+
     if "Other" in plot_cats:
         plot_cats = [x for x in plot_cats if x != "Other"] + ["Other"]
 
@@ -736,6 +772,14 @@ def top_n_contaminant_percent(
 
 
 def mods_statistics(df: pd.DataFrame, run_col: str):
+    """
+    Compute per-run modification statistics formatted for plotting.
+    df : pandas.DataFrame
+        Input table containing identification-level data.
+    run_col : str
+        Name of the column in ``df`` used to group rows by run or raw
+        file.
+    """
 
     plot_dict = {}
     modified_cats = []
@@ -751,4 +795,3 @@ def mods_statistics(df: pd.DataFrame, run_col: str):
                     "cats": list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))}
 
     return modified_dict
-
