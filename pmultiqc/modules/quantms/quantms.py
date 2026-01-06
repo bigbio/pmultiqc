@@ -41,7 +41,9 @@ from pmultiqc.modules.common.common_utils import (
     summarize_modifications,
     group_charge,
     aggregate_general_stats,
-    sum_matching_dict_values
+    sum_matching_dict_values,
+    top_n_contaminant_percent,
+    cal_contaminant_percent
 )
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.ms import idxml as ms_idxml
@@ -1085,11 +1087,15 @@ class QuantMSModule(BasePMultiqcModule):
             # Contaminants
             if len(pep_table[pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])]) > 0:
 
-                self.quantms_contaminant_percent = self.cal_quantms_contaminant_percent(
-                    pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy()
+                self.quantms_contaminant_percent = cal_contaminant_percent(
+                    df=pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(),
+                    protein_col="accession",
+                    intensity_col="average_intensity",
+                    run_col="stand_spectra_ref",
+                    contam_affix=config.kwargs["contaminant_affix"]
                 )
 
-                self.quantms_top_contaminant_percent = self.top_n_contaminant_percent(
+                self.quantms_top_contaminant_percent = self.cal_top_contam_percent(
                     pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(), 5
                 )
             else:
@@ -2084,90 +2090,39 @@ class QuantMSModule(BasePMultiqcModule):
                 """,
         )
 
-    def cal_quantms_contaminant_percent(self, pep_df):
-
-        pep_df["is_contaminant"] = pep_df["accession"].str.contains(config.kwargs["contaminant_affix"], na=False)
-        group_stats = pep_df.groupby("stand_spectra_ref").agg(
-            total_intensity=("average_intensity", "sum"),
-            cont_intensity=("average_intensity", lambda x: x[pep_df.loc[x.index, "is_contaminant"]].sum()),
-        )
-
-        group_stats["contaminant_percent"] = (
-                group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
-        )
-
-        result_dict = dict()
-        for k, v in dict(zip(group_stats.index, group_stats["contaminant_percent"])).items():
-            result_dict[k] = {"Potential Contaminants": v}
-
-        return result_dict
-
-    def top_n_contaminant_percent(self, pep_df, top_n):
+    @staticmethod
+    def cal_top_contam_percent(pep_df, top_n):
 
         not_cont_tag = "NOT_CONTAM"
         is_contaminant = pep_df["accession"].str.contains(config.kwargs["contaminant_affix"], na=False)
         pep_df.loc[:, "cont_accession"] = np.where(is_contaminant, pep_df["accession"], not_cont_tag)
 
-        pep_contaminant_df = pep_df[pep_df["cont_accession"] != not_cont_tag].copy()
-        contaminant_df = (
-            pep_contaminant_df.groupby("cont_accession", as_index=False)["average_intensity"]
-            .sum()
-            .sort_values(by="average_intensity", ascending=False)
+        contam_percent = top_n_contaminant_percent(
+            df=pep_df,
+            not_cont_tag=not_cont_tag,
+            cont_tag_col="cont_accession",
+            intensity_col="average_intensity",
+            run_col="stand_spectra_ref",
+            top_n=top_n,
         )
 
-        top_contaminants = list(contaminant_df.head(top_n).cont_accession)
-
-        plot_dict = dict()
-        plot_cats = list()
-
-        for file_name, group in pep_df.groupby("stand_spectra_ref"):
-            contaminant_rows = group[group["cont_accession"] != not_cont_tag].copy()
-            contaminant_rows.loc[
-                ~contaminant_rows["cont_accession"].isin(top_contaminants), "cont_accession"
-            ] = "Other"
-
-            cont_df = (
-                contaminant_rows.groupby("cont_accession", as_index=False)["average_intensity"]
-                .sum()
-                .sort_values(by="average_intensity", ascending=False)
-                .reset_index(drop=True)
-            )
-            cont_df["contaminant_percent"] = (
-                                                     cont_df["average_intensity"] / group["average_intensity"].sum()
-                                             ) * 100
-
-            plot_dict[file_name] = dict(
-                zip(cont_df["cont_accession"], cont_df["contaminant_percent"])
-            )
-            plot_cats.extend(cont_df["cont_accession"].tolist())
-
-        plot_dict = {k: v for k, v in plot_dict.items() if v}
-
-        if not plot_dict:
-            return None
-
-        plot_cats = list(set(plot_cats))
-        if "Other" in plot_cats:
-            plot_cats = [x for x in plot_cats if x != "Other"] + ["Other"]
-
-        result_dict = dict()
-        result_dict["plot_data"] = plot_dict
-        result_dict["cats"] = plot_cats
-
-        return result_dict
+        return contam_percent
 
     def draw_quantms_contaminants(self):
 
         # 1.Potential Contaminants per Group
         if self.quantms_contaminant_percent:
             draw_potential_contaminants(
-                self.sub_sections["contaminants"], self.quantms_contaminant_percent, False
+                sub_section=self.sub_sections["contaminants"],
+                contaminant_percent=self.quantms_contaminant_percent,
+                report_type="quantms"
             )
 
         # 2.Top5 Contaminants per Raw file
         if self.quantms_top_contaminant_percent:
             draw_top_n_contaminants(
-                self.sub_sections["contaminants"], self.quantms_top_contaminant_percent
+                sub_section=self.sub_sections["contaminants"],
+                top_contaminants_data=self.quantms_top_contaminant_percent
             )
 
     def draw_quantms_msms_section(self):

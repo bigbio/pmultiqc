@@ -648,3 +648,107 @@ def aggregate_general_stats(
             rows_by_group[group_name] = row_data
 
     return rows_by_group
+
+
+def cal_contaminant_percent(
+    df: pd.DataFrame,
+    protein_col: str,
+    intensity_col: str,
+    run_col: str,
+    contam_affix: str
+):
+
+    df["is_contaminant"] = df[protein_col].str.contains(contam_affix, case=False, na=False)
+
+    group_stats = df.groupby(run_col).agg(
+        total_intensity=(intensity_col, "sum"),
+        cont_intensity=(intensity_col, lambda x: x[df.loc[x.index, "is_contaminant"]].sum()),
+    )
+
+    group_stats["contaminant_percent"] = (
+            group_stats["cont_intensity"] / group_stats["total_intensity"] * 100
+    )
+
+    result_dict = dict()
+    for k, v in dict(zip(group_stats.index, group_stats["contaminant_percent"])).items():
+        result_dict[k] = {"Potential Contaminants": v}
+
+    return result_dict
+
+
+def top_n_contaminant_percent(
+    df: pd.DataFrame,
+    not_cont_tag: str,
+    cont_tag_col: str,
+    intensity_col: str,
+    run_col: str,
+    top_n: int = 5,
+):
+
+    pep_contaminant_df = df[df[cont_tag_col] != not_cont_tag].copy()
+    contaminant_df = (
+        pep_contaminant_df.groupby(cont_tag_col, as_index=False)[intensity_col]
+        .sum()
+        .sort_values(by=[intensity_col, cont_tag_col], ascending=[False, True])
+    )
+
+    top_contaminants = contaminant_df[cont_tag_col].iloc[:top_n].tolist()
+
+    plot_dict = dict()
+    plot_cats = list()
+
+    for file_name, group in df.groupby(run_col):
+        contaminant_rows = group[group[cont_tag_col] != not_cont_tag].copy()
+        contaminant_rows.loc[
+            ~contaminant_rows[cont_tag_col].isin(top_contaminants), cont_tag_col
+        ] = "Other"
+
+        cont_df = (
+            contaminant_rows.groupby(cont_tag_col, as_index=False)[intensity_col]
+            .sum()
+            .sort_values(by=[intensity_col, cont_tag_col], ascending=[False, True])
+            .reset_index(drop=True)
+        )
+        cont_df["contaminant_percent"] = (
+            cont_df[intensity_col] / group[intensity_col].sum()
+        ) * 100
+
+        plot_dict[file_name] = dict(
+            zip(cont_df[cont_tag_col], cont_df["contaminant_percent"])
+        )
+        plot_cats.extend(cont_df[cont_tag_col].tolist())
+
+    plot_dict = {k: v for k, v in plot_dict.items() if v}
+
+    if not plot_dict:
+        return None
+
+    plot_cats = sorted(list(set(plot_cats)))
+    
+    if "Other" in plot_cats:
+        plot_cats = [x for x in plot_cats if x != "Other"] + ["Other"]
+
+    result_dict = dict()
+    result_dict["plot_data"] = plot_dict
+    result_dict["cats"] = plot_cats
+
+    return result_dict
+
+
+def mods_statistics(df: pd.DataFrame, run_col: str):
+
+    plot_dict = {}
+    modified_cats = []
+
+    for raw_file, group in df.groupby(run_col):
+        group_processed = mod_group_percentage(group)
+        plot_dict[raw_file] = dict(
+            zip(group_processed["modifications"], group_processed["percentage"])
+        )
+        modified_cats.extend(group_processed["modifications"])
+
+    modified_dict = {"plot_data": plot_dict,
+                    "cats": list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))}
+
+    return modified_dict
+
