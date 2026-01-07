@@ -4,7 +4,12 @@ import re
 
 from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.fragpipe import fragpipe_io
-from pmultiqc.modules.common.stats import cal_delta_mass_dict
+from pmultiqc.modules.common.stats import (
+    cal_delta_mass_dict,
+    nanmedian,
+    cal_hm_charge,
+    qual_uniform
+)
 from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
     draw_delta_mass_da_ppm,
@@ -34,8 +39,10 @@ from pmultiqc.modules.common.plots.general import (
     plot_html_check,
     stat_pep_intensity,
     search_engine_score_bins,
-    draw_search_engine_scores
+    draw_search_engine_scores,
+    draw_heatmap
 )
+
 from collections import OrderedDict
 from pmultiqc.modules.common.histogram import Histogram
 
@@ -67,6 +74,7 @@ class FragPipeModule(BasePMultiqcModule):
         self.hyperscores = []
         self.contam_df = []
         self.mods = []
+        self.hm_data = []
 
 
     def get_data(self):
@@ -85,7 +93,8 @@ class FragPipeModule(BasePMultiqcModule):
                 self.missed_cleavages,
                 self.hyperscores,
                 self.contam_df,
-                self.mods
+                self.mods,
+                self.hm_data
             ) = self.parse_psm(
                 fragpipe_files=self.fragpipe_files
             )
@@ -156,9 +165,11 @@ class FragPipeModule(BasePMultiqcModule):
                 intensities=self.intensities
             )
 
+        mc_plot_data = {}
+
         # Missed Cleavages
         if self.missed_cleavages:
-            self.draw_missed_cleavages(
+            mc_plot_data = self.draw_missed_cleavages(
                 sub_section=self.sub_sections["identification"],
                 missed_cleavages=self.missed_cleavages
             )
@@ -182,6 +193,15 @@ class FragPipeModule(BasePMultiqcModule):
             self.draw_mods(
                 sub_section=self.sub_sections["identification"],
                 mods=self.mods
+            )
+
+        # self.hm_data
+        if self.hm_data:
+            self.draw_fragpipe_heatmap(
+                sub_section=self.sub_sections["summary"],
+                hm=self.hm_data,
+                hm_color=self.heatmap_color_list,
+                missed_cleavages=mc_plot_data
             )
 
         # IDs over RT
@@ -219,20 +239,21 @@ class FragPipeModule(BasePMultiqcModule):
         hyperscores = []
         contam_df = []
         mods = []
+        hm_data = []
 
         for psm in fragpipe_files.get("psm", []):
 
             psm_df = fragpipe_io.psm_reader(psm)
+
+            if psm_df is None or psm_df.empty:
+                log.warning(f"Skipping unreadable/empty FragPipe PSM file: {psm}")
+                continue
 
             psm_df, psm_cont_df = _mark_contaminants(
                 df=psm_df,
                 contam_affix=config.kwargs["contaminant_affix"]
             )
             log.info(f"Number of non-contaminant rows in {psm}: {len(psm_df)}")
-
-            if psm_df is None or psm_df.empty:
-                log.warning(f"Skipping unreadable/empty FragPipe PSM file: {psm}")
-                continue
 
             if "Delta Mass" in psm_df.columns:
                 delta_masses.append(psm_df["Delta Mass"].copy())
@@ -251,7 +272,7 @@ class FragPipeModule(BasePMultiqcModule):
                 pipeline_stats.append(psm_df[stats_requires].copy())
 
             # Peptide Intensity Distribution
-            if _has_valid_intensity(psm_df):
+            if _has_valid_column(psm_df, "Intensity"):
                 log.info(f"Intensity in {psm} is available.")
 
                 intensities.append(psm_df[["Run", "Intensity"]].copy())
@@ -273,11 +294,26 @@ class FragPipeModule(BasePMultiqcModule):
             if "Retention" in psm_df.columns:
                 retentions.append(psm_df[["Run", "Retention"]].copy())
 
+            # Modifications
+            if "Assigned Modifications" in psm_df.columns:
+                mods.append(psm_df[["Run", "Assigned Modifications"]].copy())
+
+            # HeatMap
+            hm_requires = [
+                "Run", "Modified Peptide", "Protein", "Peptide",
+                "Intensity", "Retention", "Charge"
+            ]
+            if all(
+                col in psm_cont_df.columns
+                for col in hm_requires
+            ):
+                hm_data.append(psm_cont_df[hm_requires].copy())
+
             # Contaminants
             if _has_valid_contaminant(psm_cont_df):
                 log.info(f"{psm} contains contaminants.")
 
-                if _has_valid_intensity(psm_cont_df):
+                if _has_valid_column(psm_cont_df, "Intensity"):
                     log.info("Contaminant analysis...")
 
                     contam_df.append(
@@ -290,10 +326,6 @@ class FragPipeModule(BasePMultiqcModule):
             else:
                 log.info(f"No contaminants found in {psm}; skipping contaminant analysis.")
 
-            # Modifications
-            if "Assigned Modifications" in psm_df.columns:
-                mods.append(psm_df[["Run", "Assigned Modifications"]].copy())
-
         return (
             delta_masses,
             charge_states,
@@ -303,7 +335,8 @@ class FragPipeModule(BasePMultiqcModule):
             missed_cleavages,
             hyperscores,
             contam_df,
-            mods
+            mods,
+            hm_data
         )
 
     # Delta Mass
@@ -406,7 +439,7 @@ class FragPipeModule(BasePMultiqcModule):
             mc_by_run[run] = mc.to_dict()
 
         mc_plot = {
-            "plot_data": [rebuild_dict_structure(mc_by_run)],
+            "plot_data": rebuild_dict_structure(mc_by_run),
             "cats": ["0", "1", ">=2"]
         }
 
@@ -415,6 +448,8 @@ class FragPipeModule(BasePMultiqcModule):
             missed_cleavages_data=mc_plot,
             is_maxquant=False
         )
+
+        return mc_plot["plot_data"]
 
 
     # Summary of Hyperscore
@@ -505,6 +540,135 @@ class FragPipeModule(BasePMultiqcModule):
         )
 
 
+    # HeatMap
+    @staticmethod
+    def draw_fragpipe_heatmap(sub_section, hm: list, hm_color: list, missed_cleavages: dict):
+
+        df = pd.concat(hm, ignore_index=True)
+        log.info(f"Number of HeatMap rows in DataFrame: {len(df)}")
+
+        heatmap_cols = [
+            "Contaminants",
+            "Peptide Intensity",
+            "Charge",
+            "Missed Cleavages",
+            "Missed Cleavages Var",
+            "ID rate over RT",
+            "Pep Missing Values",
+        ]
+
+        if not _has_valid_column(df, "Intensity"):
+            heatmap_cols = [
+                x
+                for x in heatmap_cols
+                if x not in ["Contaminants", "Peptide Intensity"]
+            ]
+
+        # Charge
+        if "Charge" in heatmap_cols:
+            hm_charge_all = cal_hm_charge(
+                df=df,
+                run_col="Run",
+                charge_col="Charge"
+            )
+
+        if missed_cleavages:
+
+            # Missed Cleavages
+            mc = {
+                key: value["0"] / 100
+                for key, value in missed_cleavages.items()
+            }
+
+            # Missed Cleavages Var
+            mc_median = np.median(list(mc.values()))
+            mc_var = dict(
+                zip(
+                    mc.keys(),
+                    list(map(lambda v: 1 - np.abs(v - mc_median), mc.values())),
+                )
+            )
+        else:
+            heatmap_cols = [
+                x
+                for x in heatmap_cols
+                if x not in ["Missed Cleavages", "Missed Cleavages Var"]
+            ]
+
+        # 8. Pep Missing Values
+        global_peps = df["Modified Peptide"].unique()
+        global_peps_count = len(global_peps)
+
+        contam_affix = config.kwargs["contaminant_affix"]
+
+        heatmap_plot = {}
+        for run, group in df.groupby("Run"):
+
+            heatmap_plot[run] = {}
+
+            # 1. Contaminants
+            if "Contaminants" in heatmap_cols:
+
+                is_contam = group["Protein"].str.contains(contam_affix, na=False, case=False)
+                cont_intensity = group[is_contam]["Intensity"].sum()
+                all_intensity = group["Intensity"].sum()
+
+                if np.isnan(cont_intensity) or np.isnan(all_intensity) or all_intensity == 0:
+                    hm_contam = 1
+                else:
+                    hm_contam = 1 - cont_intensity / all_intensity
+                
+                heatmap_plot[run]["Contaminants"] = hm_contam
+
+            # 2. Peptide Intensity
+            if "Peptide Intensity" in heatmap_cols:
+                median_int = nanmedian(group["Intensity"], 0)  # if everything is NaN, use 0
+                hm_intensity = np.minimum(
+                    1.0, median_int / (2 ** 23)
+                )  # score = 1, if intensity >= 2**23
+
+                heatmap_plot[run]["Peptide Intensity"] = hm_intensity
+
+            # 3. Charge
+            if "Charge" in heatmap_cols:
+                heatmap_plot[run]["Charge"] = hm_charge_all.get(run, 0)
+
+            # 4. Missed Cleavages
+            if "Missed Cleavages" in heatmap_cols:
+                heatmap_plot[run]["Missed Cleavages"] = mc.get(run, 0)
+            
+            # 5. Missed Cleavages Var
+            if "Missed Cleavages Var" in heatmap_cols:
+                heatmap_plot[run]["Missed Cleavages Var"] = mc_var.get(run, 0)
+
+            # 6. ID rate over RT
+            if "ID rate over RT" in heatmap_cols:
+                hm_rt = qual_uniform(group["Retention"])
+                heatmap_plot[run]["ID rate over RT"] = hm_rt
+
+            # 7. Pep Missing Values
+            if "Pep Missing Values" in heatmap_cols:
+
+                if global_peps_count > 0:
+                    hm_pep_missing_values = np.minimum(
+                        1.0,
+                        len(set(global_peps) & set(group["Modified Peptide"].unique())) / global_peps_count,
+                    )
+                else:
+                    hm_pep_missing_values = 0
+
+                heatmap_plot[run]["Pep Missing Values"] = hm_pep_missing_values
+
+        draw_heatmap(
+            sub_sections=sub_section,
+            hm_colors=hm_color,
+            heatmap_data=heatmap_plot,
+            heatmap_xnames="",
+            heatmap_ynames="",
+            report_type="fragpipe"
+        )
+
+
     # IDs over RT
     @staticmethod
     def draw_ids_over_rt(sub_section, retentions: list):
@@ -577,12 +741,12 @@ def _calculate_statistics(pipeline_stats: list):
     return summary_data, statistics_data, pep_plot
 
 
-def _has_valid_intensity(df: pd.DataFrame):
+def _has_valid_column(df: pd.DataFrame, col: str):
 
-    if "Intensity" not in df.columns:
+    if col not in df.columns:
         return False
 
-    values = df["Intensity"].dropna()
+    values = df[col].dropna()
 
     return not (values == 0).all()
 

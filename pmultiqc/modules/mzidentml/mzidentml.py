@@ -29,10 +29,7 @@ from pmultiqc.modules.common.plots.ms import (
     draw_peaks_per_ms2,
     draw_ms_information,
 )
-from pmultiqc.modules.common.plots.general import (
-    plot_html_check,
-    draw_heatmap
-)
+from pmultiqc.modules.common.plots.general import draw_heatmap
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.stats import qual_uniform
@@ -168,7 +165,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             heatmap_data,
             heatmap_xnames,
             heatmap_ynames,
-            False,
+            "",
         )
 
         draw_ms_information(
