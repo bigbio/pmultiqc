@@ -165,6 +165,8 @@ class FragPipeModule(BasePMultiqcModule):
                 intensities=self.intensities
             )
 
+        mc_plot_data = {}
+
         # Missed Cleavages
         if self.missed_cleavages:
             mc_plot_data = self.draw_missed_cleavages(
@@ -570,20 +572,28 @@ class FragPipeModule(BasePMultiqcModule):
                 charge_col="Charge"
             )
 
-        # Missed Cleavages
-        mc = {
-            key: value["0"] / 100
-            for key, value in missed_cleavages.items()
-        }
+        if missed_cleavages:
 
-        # Missed Cleavages Var
-        mc_median = np.median(list(mc.values()))
-        mc_var = dict(
-            zip(
-                mc.keys(),
-                list(map(lambda v: 1 - np.abs(v - mc_median), mc.values())),
+            # Missed Cleavages
+            mc = {
+                key: value["0"] / 100
+                for key, value in missed_cleavages.items()
+            }
+
+            # Missed Cleavages Var
+            mc_median = np.median(list(mc.values()))
+            mc_var = dict(
+                zip(
+                    mc.keys(),
+                    list(map(lambda v: 1 - np.abs(v - mc_median), mc.values())),
+                )
             )
-        )
+        else:
+            heatmap_cols = [
+                x
+                for x in heatmap_cols
+                if x not in ["Missed Cleavages", "Missed Cleavages Var"]
+            ]
 
         # 8. Pep Missing Values
         global_peps = df["Modified Peptide"].unique()
@@ -638,10 +648,15 @@ class FragPipeModule(BasePMultiqcModule):
 
             # 7. Pep Missing Values
             if "Pep Missing Values" in heatmap_cols:
-                hm_pep_missing_values = np.minimum(
-                    1.0,
-                    len(set(global_peps) & set(group["Modified Peptide"].unique())) / global_peps_count,
-                )
+
+                if global_peps_count > 0:
+                    hm_pep_missing_values = np.minimum(
+                        1.0,
+                        len(set(global_peps) & set(group["Modified Peptide"].unique())) / global_peps_count,
+                    )
+                else:
+                    hm_pep_missing_values = 0
+
                 heatmap_plot[run]["Pep Missing Values"] = hm_pep_missing_values
 
         draw_heatmap(

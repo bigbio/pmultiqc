@@ -62,6 +62,9 @@ def cal_delta_mass_dict(df, col):
 
 def cal_hm_charge(df: pd.DataFrame, run_col: str, charge_col: str):
 
+    if run_col not in df.columns or charge_col not in df.columns:
+        return {}
+
     charge = dict()
 
     for raw_file, group in df[[run_col, charge_col]].groupby(run_col):
@@ -69,8 +72,7 @@ def cal_hm_charge(df: pd.DataFrame, run_col: str, charge_col: str):
         charge[raw_file] = vc.get(2, 0)
     charge_median = np.median(list(charge.values())) if charge else 0
 
-    heatmap_charge = {
-        k: float(max(0.0, 1.0 - abs(v - charge_median))) for k, v in charge.items()
+    return {
+        k: float(max(0.0, 1.0 - abs(v - charge_median)))
+        for k, v in charge.items()
     }
-
-    return heatmap_charge
