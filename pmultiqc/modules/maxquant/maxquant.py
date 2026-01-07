@@ -359,7 +359,7 @@ class MaxQuantModule(BasePMultiqcModule):
                 self.mq_results["maxquant_heatmap"],
                 "",
                 "",
-                True,
+                "maxquant",
                 error_name="draw_heatmap"
             )
 
