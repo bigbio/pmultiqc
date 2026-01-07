@@ -380,7 +380,7 @@ class QuantMSModule(BasePMultiqcModule):
                 heatmap_data,
                 heatmap_xnames,
                 heatmap_ynames,
-                False,
+                "",
             )
 
             draw_summary_protein_ident_table(

@@ -95,7 +95,7 @@ def draw_heatmap(
     heatmap_data,
     heatmap_xnames,
     heatmap_ynames,
-    is_maxquant
+    report_type
 ):
     pconfig = {
         "id": "heatmap",
@@ -112,9 +112,12 @@ def draw_heatmap(
         "cluster_cols": False,
         "save_data_file": False,
     }
-    if is_maxquant:
+    if report_type == "maxquant":
         hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
         description_text = "This heatmap provides an overview of the performance of MaxQuant."
+    elif report_type == "fragpipe":
+        hm_html = heatmap.plot(data=heatmap_data, pconfig=pconfig)
+        description_text = "This heatmap provides an overview of the performance of FragPipe."
     else:
         hm_html = heatmap.plot(heatmap_data, heatmap_xnames, heatmap_ynames, pconfig)
         description_text = "This heatmap provides an overview of the performance of quantms."

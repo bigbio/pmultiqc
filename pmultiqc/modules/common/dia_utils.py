@@ -8,7 +8,10 @@ from sdrf_pipelines.openms.openms import UnimodDatabase
 from multiqc.plots import table
 
 from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.stats import qual_uniform
+from pmultiqc.modules.common.stats import (
+    qual_uniform,
+    cal_hm_charge
+)
 from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.common_utils import (
@@ -576,14 +579,11 @@ def heatmap_cont_pep_intensity(report_df):
     df["is_contaminant"] = df["Protein.Names"].str.startswith("CON", na=False)
 
     # 3. "Charge"
-    charge = dict()
-    for raw_file, group in df[["Run", "Precursor.Charge"]].groupby("Run"):
-        vc = group["Precursor.Charge"].value_counts(dropna=True, normalize=True)
-        charge[raw_file] = vc.get(2, 0)
-    charge_median = np.median(list(charge.values())) if charge else 0
-    heatmap_charge = {
-        k: float(max(0.0, 1.0 - abs(v - charge_median))) for k, v in charge.items()
-    }
+    heatmap_charge = cal_hm_charge(
+        df=df,
+        run_col="Run",
+        charge_col="Precursor.Charge"
+    )
 
     heatmap_dict = {}
     for run, group in df.groupby("Run"):

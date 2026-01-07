@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def nanmedian(values: np.ndarray, all_nan_fallback: np.float64) -> np.float64:
@@ -57,3 +58,19 @@ def cal_delta_mass_dict(df, col):
     }
 
     return delta_mass
+
+
+def cal_hm_charge(df: pd.DataFrame, run_col: str, charge_col: str):
+
+    charge = dict()
+
+    for raw_file, group in df[[run_col, charge_col]].groupby(run_col):
+        vc = group[charge_col].value_counts(dropna=True, normalize=True)
+        charge[raw_file] = vc.get(2, 0)
+    charge_median = np.median(list(charge.values())) if charge else 0
+
+    heatmap_charge = {
+        k: float(max(0.0, 1.0 - abs(v - charge_median))) for k, v in charge.items()
+    }
+
+    return heatmap_charge
