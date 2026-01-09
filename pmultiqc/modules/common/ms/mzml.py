@@ -11,7 +11,7 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.ms_io import (
     get_ms_qc_info,
-    get_ms_long_trends
+    process_long_trends
 )
 
 
@@ -89,10 +89,12 @@ class MzMLReader(BaseParser):
         ms1_general_stats = {}
         current_sum_by_run = {}
 
-        trends_time = {}
-        trends_rt = {}
-        trends_ms2_prec_intensity = {}
-        trends_ms1_summed_intensity = {}
+        trends_data = {
+            "time": {},
+            "rt": {},
+            "ms2_prec_intensity": {},
+            "ms1_summed_intensity": {}
+        }
 
         for file_name in self.file_paths:
             ms1_number = 0
@@ -158,7 +160,7 @@ class MzMLReader(BaseParser):
                 elif ms_level == 2:
                     ms2_number += 1
 
-                    charge_state = precursors[0].getCharge()
+                    charge_state = precursors[0].getCharge() if precursors else 0
 
                     if self.enable_mzid:
                         # retention_time: minute
@@ -219,13 +221,7 @@ class MzMLReader(BaseParser):
                 current_sum_by_run[m_name],
             ) = get_ms_qc_info(spectrums_df)
 
-            run_trends = get_ms_long_trends(df=spectrums_df)
-
-            if run_trends:
-                trends_time[m_name] = run_trends["time"]
-                trends_rt.update(run_trends["rt"])
-                trends_ms2_prec_intensity.update(run_trends["ms2_prec_intensity"])
-                trends_ms1_summed_intensity.update(run_trends["ms1_summed_intensity"])
+            process_long_trends(spectrums_df, m_name, trends_data)
 
         self.mzml_table = mzml_table
         self.heatmap_charge = heatmap_charge
@@ -243,11 +239,6 @@ class MzMLReader(BaseParser):
         self.ms1_general_stats = ms1_general_stats
         self.current_sum_by_run = current_sum_by_run
 
-        self.long_trends = {
-            "time": trends_time,
-            "rt": trends_rt,
-            "ms2_prec_intensity": trends_ms2_prec_intensity,
-            "ms1_summed_intensity": trends_ms1_summed_intensity
-        }
+        self.long_trends = trends_data
 
         return None
