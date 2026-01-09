@@ -12,6 +12,11 @@ from pmultiqc.modules.common.plots.general import (
     plot_data_check
 )
 
+from pmultiqc.modules.common.logging import get_logger
+
+
+# Initialise the module logger via centralized logger
+log = get_logger("pmultiqc.modules.common.plots.id")
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
 
@@ -1117,4 +1122,161 @@ def draw_peptide_intensity(sub_section, plot_data):
             peptide table in the 'mzTab', and then apply a log2 transformation.
             <br>FragPipe: Use the 'Intensity' column from psm.tsv and apply a log2 transformation.
             """,
+    )
+
+def draw_long_trends(sub_section, long_trends_data):
+
+    plot_ac_datetime = long_trends_data["time"]
+    plot_rt = long_trends_data["rt"]
+    plot_ms2_prec_intensity = long_trends_data["ms2_prec_intensity"]
+    plot_ms1_summed_intensity = long_trends_data["ms1_summed_intensity"]
+
+    if plot_ac_datetime:
+        draw_filename_datetime_table(
+            sub_section=sub_section,
+            ac_datetime=plot_ac_datetime
+        )
+
+    if plot_rt:
+        draw_long_trends_linegraph(
+            sub_section=sub_section,
+            plot_data=plot_rt,
+            report_type="rt"
+        )
+
+    if plot_ms1_summed_intensity:
+        draw_long_trends_linegraph(
+            sub_section=sub_section,
+            plot_data=plot_ms1_summed_intensity,
+            report_type="ms1_summed_intensity"
+        )
+
+    if plot_ms2_prec_intensity:
+        draw_long_trends_linegraph(
+            sub_section=sub_section,
+            plot_data=plot_ms2_prec_intensity,
+            report_type="ms2_prec_intensity"
+        )
+
+
+def draw_filename_datetime_table(sub_section, ac_datetime: dict):
+
+    ac_datetime_data = dict(
+        sorted(ac_datetime.items(), key=lambda x: x[1]["acquisition_datetime"])
+    )
+
+    log.info("Generating: File Names vs. Acquisition Times")
+
+    draw_config = {
+        "namespace": "",
+        "id": "filename_datetime",
+        "title": "File Names vs. Acquisition Times",
+        "save_file": False,
+        "sort_rows": False,
+        "only_defined_headers": True,
+        "no_violin": True,
+        "col1_header": "File Name",
+        "save_data_file": False,
+    }
+
+    headers = {
+        "run": {"title": "Run File"},
+        "acquisition_datetime": {"title": "Acquisition Datetime"}
+    }
+
+    table_html = table.plot(data=ac_datetime_data, headers=headers, pconfig=draw_config)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=table_html,
+        order=1,
+        description="",
+        helptext="""
+            This table provides the mapping between file names and their corresponding acquisition times.
+            """,
+    )
+
+
+def draw_long_trends_linegraph(sub_section, plot_data: dict, report_type: str):
+
+    plot_data = dict(sorted(plot_data.items(), key=lambda item: item[0]))
+
+    plot_data_dict = {
+        "data": plot_data
+    }
+
+    plot_config = {
+        "rt": {
+            "id": "longitudinal_trends_rt",
+            "title": "MS1 Retention Time Trend",
+            "xlab": "Acquisition Datetime",
+            "ylab": "Retention Time [min]",
+            "description": """
+                This plot displays the median retention time (RT) of MS1 spectra for each file, ordered by their acquisition datetime.
+                """,
+            "helptext": """
+                This plot tracks LC stability by extracting RTs from all ms_level: 1 spectra.
+                For each run, the median RT is calculated as a robust representative value and plotted chronologically by acquisition datetime.
+                """,
+            "order": 4,
+        },
+        "ms1_summed_intensity": {
+            "id": "ms1_tic_proxy",
+            "title": "MS1 TIC Proxy",
+            "xlab": "Acquisition Datetime",
+            "ylab": "log2(Summed Peak Intensity)",
+            "description": """
+                This plot monitors sample loading consistency by tracking the log2-transformed median of summed peak intensities for MS1 spectra,
+                ordered by acquisition time.
+                """,
+            "helptext": """
+                For each run, the summed_peak_intensities from all ms_level: 1 spectra are extracted.
+                The median value is calculated and log2-transformed to provide a robust representative of the Total Ion Current (TIC) per run.
+                """,
+            "order": 2,
+        },
+        "ms2_prec_intensity": {
+            "id": "ms2_precursor_intensity_trend",
+            "title": "MS2 Precursor Intensity Trend",
+            "xlab": "Acquisition Datetime",
+            "ylab": "log2(Precursor Intensity)",
+            "description": """
+                This plot monitors instrument sensitivity by tracking the median intensity of all MS2 precursor ions per run.
+                """,
+            "helptext": """
+                This plot tracks instrument sensitivity by extracting intensities from all ms_level: 2 precursor ions.
+                For each run, the median intensity is calculated as a robust representative value and plotted chronologically by acquisition datetime.
+                """,
+            "order": 3,
+        },
+    }
+
+    log.info(f"Generating: {plot_config[report_type]['title']}")
+
+    draw_config = {
+        "id": plot_config[report_type]["id"],
+        "title": plot_config[report_type]["title"],
+        "xlab": plot_config[report_type]["xlab"],
+        "ylab": plot_config[report_type]["ylab"],
+        "cpswitch": False,
+        "cpswitch_c_active": False,
+        "ymax": max(plot_data.values()) + 1,
+        "ymin": min(plot_data.values()) - 1,
+        "tt_decimals": 3,
+        "showlegend": False,
+        "save_data_file": False,
+        "categories": True,
+        "style": "lines+markers",
+    }
+
+    linegraph_html = linegraph.plot(data=plot_data_dict, pconfig=draw_config)
+
+    linegraph_html = plot_html_check(linegraph_html)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=linegraph_html,
+        order=plot_config[report_type]["order"],
+        description=plot_config[report_type]["description"],
+        helptext=plot_config[report_type]["helptext"],
     )

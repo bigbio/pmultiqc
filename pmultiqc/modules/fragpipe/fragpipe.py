@@ -438,8 +438,10 @@ class FragPipeModule(BasePMultiqcModule):
             mc = group["Number of Missed Cleavages"].value_counts()
             mc_by_run[run] = mc.to_dict()
 
+        re_mc_by_run = rebuild_dict_structure(mc_by_run)
+
         mc_plot = {
-            "plot_data": rebuild_dict_structure(mc_by_run),
+            "plot_data": re_mc_by_run,
             "cats": ["0", "1", ">=2"]
         }
 
@@ -449,7 +451,7 @@ class FragPipeModule(BasePMultiqcModule):
             is_maxquant=False
         )
 
-        return mc_plot["plot_data"]
+        return re_mc_by_run
 
 
     # Summary of Hyperscore
@@ -544,7 +546,16 @@ class FragPipeModule(BasePMultiqcModule):
     @staticmethod
     def draw_fragpipe_heatmap(sub_section, hm: list, hm_color: list, missed_cleavages: dict):
 
+        if not hm:
+            log.warning("No heatmap data; skipping heatmap.")
+            return
+
         df = pd.concat(hm, ignore_index=True)
+
+        if df.empty:
+            log.warning("Heatmap DataFrame is empty; skipping heatmap.")
+            return
+
         log.info(f"Number of HeatMap rows in DataFrame: {len(df)}")
 
         heatmap_cols = [
@@ -576,7 +587,7 @@ class FragPipeModule(BasePMultiqcModule):
 
             # Missed Cleavages
             mc = {
-                key: value["0"] / 100
+                key: value.get("0", 0) / 100
                 for key, value in missed_cleavages.items()
             }
 

@@ -10,6 +10,7 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.ms.base import BaseParser
 from pmultiqc.modules.common.ms_io import (
     get_ms_qc_info,
+    process_long_trends,
     add_ms_values,
     spectra_ref_check,
 )
@@ -43,14 +44,15 @@ class MsInfoReader(BaseParser):
         self.enable_dia = enable_dia
 
         # Outputs populated by parse()
-        self.mzml_table: dict = {}
-        self.heatmap_charge: dict = {}
-        self.total_ms2_spectra: int = 0
-        self.ms1_tic: dict = {}
-        self.ms1_bpc: dict = {}
-        self.ms1_peaks: dict = {}
-        self.ms1_general_stats: dict = {}
-        self.current_sum_by_run: dict = {}
+        self.mzml_table = {}
+        self.heatmap_charge = {}
+        self.total_ms2_spectra = 0
+        self.ms1_tic = {}
+        self.ms1_bpc = {}
+        self.ms1_peaks = {}
+        self.ms1_general_stats = {}
+        self.current_sum_by_run = {}
+        self.long_trends = {}
 
         self.log = get_logger("pmultiqc.modules.common.ms.msinfo")
 
@@ -63,6 +65,13 @@ class MsInfoReader(BaseParser):
         ms1_peaks = {}
         ms1_general_stats = {}
         current_sum_by_run = {}
+
+        trends_data = {
+            "time": {},
+            "rt": {},
+            "ms2_prec_intensity": {},
+            "ms1_summed_intensity": {}
+        }
 
         for file in self.file_paths:
             self.log.info(
@@ -92,6 +101,8 @@ class MsInfoReader(BaseParser):
                 ms1_general_stats[m_name],
                 current_sum_by_run[m_name],
             ) = get_ms_qc_info(mzml_df)
+
+            process_long_trends(mzml_df, m_name, trends_data)
 
             group = mzml_df[mzml_df["ms_level"] == 2]
             del mzml_df
@@ -158,5 +169,7 @@ class MsInfoReader(BaseParser):
         }
 
         self.current_sum_by_run = current_sum_by_run
+
+        self.long_trends = trends_data
 
         return None

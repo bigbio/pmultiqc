@@ -175,3 +175,46 @@ def del_openms_convert_tsv():
         if os.path.exists(file_path):
             os.remove(file_path)
             log.info(f"{file_path} has been deleted.")
+
+
+def get_ms_long_trends(df: pd.DataFrame):
+
+    if df.empty or "acquisition_datetime" not in df.columns:
+        log.warning("No acquisition_datetime found; skipping long trends.")
+        return {}
+
+    ac_time = df["acquisition_datetime"].iloc[0]
+
+    ms1_rts = df.loc[df["ms_level"] == 1, "rt"]
+    if not ms1_rts.empty and (m_rt := ms1_rts.median()) > 0:
+        rt = float(m_rt / 60)
+    else:
+        rt = 0
+
+    ms2_pre_int = df.loc[df["ms_level"] == 2, "precursor_intensity"].dropna()
+    if not ms2_pre_int.empty and (m_pre_int := ms2_pre_int.median()) > 0:
+        prec_intensity = float(np.log2(m_pre_int))
+    else:
+        prec_intensity = 0
+
+    ms1_sum_int = df.loc[df["ms_level"] == 1, "summed_peak_intensities"].dropna()
+    if not ms1_sum_int.empty and (m_sum_int := ms1_sum_int.median()) > 0:
+        ms1_intensity = float(np.log2(m_sum_int))
+    else:
+        ms1_intensity = 0
+
+    return {
+        "time": {"acquisition_datetime": ac_time},
+        "rt": {ac_time: rt},
+        "ms2_prec_intensity": {ac_time: prec_intensity},
+        "ms1_summed_intensity": {ac_time: ms1_intensity}
+    }
+
+def process_long_trends(df, m_name, trends_data):
+
+    run_trends = get_ms_long_trends(df=df)
+    if run_trends:
+        trends_data["time"][m_name] = run_trends["time"]
+        trends_data["rt"].update(run_trends["rt"])
+        trends_data["ms2_prec_intensity"].update(run_trends["ms2_prec_intensity"])
+        trends_data["ms1_summed_intensity"].update(run_trends["ms1_summed_intensity"])

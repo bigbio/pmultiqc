@@ -64,7 +64,8 @@ from pmultiqc.modules.common.plots.id import (
     draw_charge_state,
     draw_summary_protein_ident_table,
     draw_identi_num,
-    draw_peptide_intensity
+    draw_peptide_intensity,
+    draw_long_trends
 )
 from pmultiqc.modules.common.plots.general import (
     draw_heatmap,
@@ -174,6 +175,7 @@ class QuantMSModule(BasePMultiqcModule):
         self.is_multi_conditions = False
         self.sample_df = pd.DataFrame()
         self.file_df = pd.DataFrame()
+        self.long_trends = {}
 
     def get_data(self):
 
@@ -269,7 +271,8 @@ class QuantMSModule(BasePMultiqcModule):
             self.ms1_bpc,
             self.ms1_peaks,
             self.ms1_general_stats,
-            self.current_sum_by_run
+            self.current_sum_by_run,
+            self.long_trends
         ) = parse_mzml(
             is_bruker=self.is_bruker,
             read_ms_info=self.read_ms_info,
@@ -467,6 +470,12 @@ class QuantMSModule(BasePMultiqcModule):
 
         self.draw_quantms_contaminants()
 
+        if self.long_trends:
+            draw_long_trends(
+                sub_section=self.sub_sections["long_trends"],
+                long_trends_data=self.long_trends
+            )
+
         if self.quantms_pep_intensity:
             draw_peptide_intensity(
                 sub_section=self.sub_sections["quantification"],
@@ -531,6 +540,7 @@ class QuantMSModule(BasePMultiqcModule):
             "ms2_sub_section": self.sub_sections["ms2"],
             "mass_error_sub_section": self.sub_sections["mass_error"],
             "rt_qc_sub_section": self.sub_sections["rt_qc"],
+            "long_trends_sub_section": self.sub_sections["long_trends"],
         }
 
         add_group_modules(self.section_group_dict, "")
