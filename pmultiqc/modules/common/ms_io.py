@@ -194,7 +194,7 @@ def get_ms_long_trends(df: pd.DataFrame):
         prec_intensity = float(np.log2(m2))
     else:
         prec_intensity = 0
-    
+
     ms1_vals = df.loc[df["ms_level"] == 1, "summed_peak_intensities"].dropna()
     if not ms1_vals.empty and (m1 := ms1_vals.median()) > 0:
         ms1_intensity = float(np.log2(m1))
