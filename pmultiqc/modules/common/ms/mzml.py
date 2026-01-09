@@ -219,14 +219,13 @@ class MzMLReader(BaseParser):
                 current_sum_by_run[m_name],
             ) = get_ms_qc_info(spectrums_df)
 
-            (
-                trends_time[m_name]
-            ) = get_ms_long_trends(
-                df=spectrums_df,
-                long_trends_rt=trends_rt,
-                log2_median_prec_intensity=trends_ms2_prec_intensity,
-                log2_median_ms1_summed_intensity=trends_ms1_summed_intensity
-            )
+            run_trends = get_ms_long_trends(df=spectrums_df)
+
+            if run_trends:
+                trends_time[m_name] = run_trends["time"]
+                trends_rt.update(run_trends["rt"])
+                trends_ms2_prec_intensity.update(run_trends["ms2_prec_intensity"])
+                trends_ms1_summed_intensity.update(run_trends["ms1_summed_intensity"])
 
         self.mzml_table = mzml_table
         self.heatmap_charge = heatmap_charge

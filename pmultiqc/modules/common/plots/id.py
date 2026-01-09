@@ -1136,7 +1136,7 @@ def draw_long_trends(sub_section, long_trends_data):
             sub_section=sub_section,
             ac_datetime=plot_ac_datetime
         )
-    
+
     if plot_rt:
         draw_long_trends_linegraph(
             sub_section=sub_section,
@@ -1226,7 +1226,8 @@ def draw_long_trends_linegraph(sub_section, plot_data: dict, report_type: str):
             "xlab": "Acquisition Datetime",
             "ylab": "log2(Summed Peak Intensity)",
             "description": """
-                This plot monitors sample loading consistency by tracking the log2-transformed median of summed peak intensities for MS1 spectra, ordered by acquisition time.
+                This plot monitors sample loading consistency by tracking the log2-transformed median of summed peak intensities for MS1 spectra,
+                ordered by acquisition time.
                 """,
             "helptext": """
                 For each run, the summed_peak_intensities from all ms_level: 1 spectra are extracted.
