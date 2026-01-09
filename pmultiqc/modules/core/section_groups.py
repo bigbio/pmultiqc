@@ -167,6 +167,12 @@ def add_group_modules(groups_dict, analysis_type):
                 "name": "RT Quality Control",
                 "description": "",
             },
+            {
+                "id": "longitudinal_trends",
+                "key": "long_trends_sub_section",
+                "name": "Longitudinal Trends",
+                "description": "",
+            },
         ]
 
     for group in group_configs:
@@ -195,17 +201,18 @@ def add_group_modules(groups_dict, analysis_type):
 
     else:
         config.report_section_order = {
-            "pmultiqc": {"order": 20},
-            "experiment_setup": {"order": 19},
-            "summary_and_heatmap": {"order": 18},
-            "identification_summary": {"order": 17},
-            "search_engine_scores": {"order": 16},
-            "contaminants": {"order": 15},
-            "quantification_analysis": {"order": 14},
-            "ms1_analysis": {"order": 13},
-            "ms2_and_spectral_stats": {"order": 12},
-            "mass_error_trends": {"order": 11},
-            "rt_quality_control": {"order": 10},
+            "pmultiqc": {"order": 21},
+            "experiment_setup": {"order": 20},
+            "summary_and_heatmap": {"order": 19},
+            "identification_summary": {"order": 18},
+            "search_engine_scores": {"order": 17},
+            "contaminants": {"order": 16},
+            "quantification_analysis": {"order": 15},
+            "ms1_analysis": {"order": 14},
+            "ms2_and_spectral_stats": {"order": 13},
+            "mass_error_trends": {"order": 12},
+            "rt_quality_control": {"order": 11},
+            "longitudinal_trends": {"order": 10},
             "software_versions": {"order": 9},
             "multiqc_software_versions": {"order": 8},
             "nf_core_quantms_software": {"order": 7},

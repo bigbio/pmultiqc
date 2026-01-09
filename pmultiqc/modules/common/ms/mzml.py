@@ -9,7 +9,10 @@ import numpy as np
 from pmultiqc.modules.common.ms.base import BaseParser
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.common.ms_io import get_ms_qc_info
+from pmultiqc.modules.common.ms_io import (
+    get_ms_qc_info,
+    get_ms_long_trends
+)
 
 
 class MzMLReader(BaseParser):
@@ -61,15 +64,16 @@ class MzMLReader(BaseParser):
         self.enable_mzid = enable_mzid
 
         # Outputs populated by parse()
-        self.mzml_table: dict = {}
-        self.heatmap_charge: dict = {}
-        self.total_ms2_spectra: int = 0
-        self.ms1_tic: dict = {}
-        self.ms1_bpc: dict = {}
-        self.ms1_peaks: dict = {}
-        self.ms1_general_stats: dict = {}
-        self.current_sum_by_run: dict = {}
-        self.mzml_ms_df: pd.DataFrame = pd.DataFrame()
+        self.mzml_table = {}
+        self.heatmap_charge = {}
+        self.total_ms2_spectra = 0
+        self.ms1_tic = {}
+        self.ms1_bpc = {}
+        self.ms1_peaks = {}
+        self.ms1_general_stats = {}
+        self.current_sum_by_run = {}
+        self.mzml_ms_df = pd.DataFrame()
+        self.long_trends = {}
 
         self.log = get_logger("pmultiqc.modules.common.ms.mzml")
 
@@ -79,11 +83,16 @@ class MzMLReader(BaseParser):
         total_ms2_spectra = 0
 
         mzml_ms_dicts = list()
-        ms1_tic = dict()
-        ms1_bpc = dict()
-        ms1_peaks = dict()
-        ms1_general_stats = dict()
-        current_sum_by_run = dict()
+        ms1_tic = {}
+        ms1_bpc = {}
+        ms1_peaks = {}
+        ms1_general_stats = {}
+        current_sum_by_run = {}
+
+        trends_time = {}
+        trends_rt = {}
+        trends_ms2_prec_intensity = {}
+        trends_ms1_summed_intensity = {}
 
         for file_name in self.file_paths:
             ms1_number = 0
@@ -128,6 +137,9 @@ class MzMLReader(BaseParser):
                 rt = spectrum.getRT()
                 scan_id = spectrum.getNativeID()
 
+                precursors = spectrum.getPrecursors()
+                precursor_intensity = precursors[0].getIntensity() if precursors else None
+
                 spectrums_data.append(
                     {
                         "scan_id": scan_id,
@@ -136,6 +148,7 @@ class MzMLReader(BaseParser):
                         "rt": rt,
                         "num_peaks": num_peaks,
                         "acquisition_datetime": acquisition_datetime,
+                        "precursor_intensity": precursor_intensity,
                     }
                 )
 
@@ -145,7 +158,7 @@ class MzMLReader(BaseParser):
                 elif ms_level == 2:
                     ms2_number += 1
 
-                    charge_state = spectrum.getPrecursors()[0].getCharge()
+                    charge_state = precursors[0].getCharge()
 
                     if self.enable_mzid:
                         # retention_time: minute
@@ -206,6 +219,15 @@ class MzMLReader(BaseParser):
                 current_sum_by_run[m_name],
             ) = get_ms_qc_info(spectrums_df)
 
+            (
+                trends_time[m_name]
+            ) = get_ms_long_trends(
+                df=spectrums_df,
+                long_trends_rt=trends_rt,
+                log2_median_prec_intensity=trends_ms2_prec_intensity,
+                log2_median_ms1_summed_intensity=trends_ms1_summed_intensity
+            )
+
         self.mzml_table = mzml_table
         self.heatmap_charge = heatmap_charge
         self.total_ms2_spectra = total_ms2_spectra
@@ -221,5 +243,12 @@ class MzMLReader(BaseParser):
         self.ms1_peaks = ms1_peaks
         self.ms1_general_stats = ms1_general_stats
         self.current_sum_by_run = current_sum_by_run
+
+        self.long_trends = {
+            "time": trends_time,
+            "rt": trends_rt,
+            "ms2_prec_intensity": trends_ms2_prec_intensity,
+            "ms1_summed_intensity": trends_ms1_summed_intensity
+        }
 
         return None

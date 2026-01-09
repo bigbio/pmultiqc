@@ -175,3 +175,37 @@ def del_openms_convert_tsv():
         if os.path.exists(file_path):
             os.remove(file_path)
             log.info(f"{file_path} has been deleted.")
+
+
+def get_ms_long_trends(
+    df: pd.DataFrame,
+    long_trends_rt: dict,
+    log2_median_prec_intensity: dict,
+    log2_median_ms1_summed_intensity: dict
+):
+
+    ac_time = df["acquisition_datetime"].iloc[0]
+
+    long_trends_time = {
+        "acquisition_datetime": ac_time
+    }
+
+    long_trends_rt[ac_time] = float(
+            df.loc[df["ms_level"] == 1, "rt"].median() / 60
+        )
+
+    ms2_prec_intensity = df.loc[
+        df["ms_level"] == 2, "precursor_intensity"
+    ]
+    log2_median_prec_intensity[ac_time] = float(
+        np.log2(ms2_prec_intensity.median())
+    )
+
+    ms1_summed_intensity = df.loc[
+        df["ms_level"] == 1, "summed_peak_intensities"
+    ]
+    log2_median_ms1_summed_intensity[ac_time] = float(
+        np.log2(ms1_summed_intensity.median())
+    )
+
+    return long_trends_time
