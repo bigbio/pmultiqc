@@ -52,7 +52,7 @@ class PMultiQC(BaseMultiqcModule):
         ]
 
         # section groups
-        self.section_group_dict = dict()
+        self.section_group_dict = {}
         self.sub_sections = {
             "experiment": [],
             "summary": [],
@@ -64,6 +64,7 @@ class PMultiQC(BaseMultiqcModule):
             "ms2": [],
             "mass_error": [],
             "rt_qc": [],
+            "long_trends": [],
         }
 
         if config.kwargs.get("disable_hoverinfo", False):

@@ -93,11 +93,13 @@ def parse_mzml(
         ms_paths: list[str] | None = None,
         enable_mzid: bool = False,
 ):
-    ms1_tic = dict()
-    ms1_bpc = dict()
-    ms1_peaks = dict()
-    ms1_general_stats = dict()
-    current_sum_by_run = dict()
+
+    ms1_tic = {}
+    ms1_bpc = {}
+    ms1_peaks = {}
+    ms1_general_stats = {}
+    current_sum_by_run = {}
+    long_trends = {}
 
     if is_bruker and read_ms_info:
         for file in ms_info_path:
@@ -164,6 +166,7 @@ def parse_mzml(
         ms1_peaks = msinfo_reader.ms1_peaks
         ms1_general_stats = msinfo_reader.ms1_general_stats
         current_sum_by_run = msinfo_reader.current_sum_by_run
+        long_trends = msinfo_reader.long_trends
     else:
         from pmultiqc.modules.common.ms.mzml import MzMLReader
 
@@ -192,6 +195,7 @@ def parse_mzml(
         ms1_peaks = mzml_reader.ms1_peaks
         ms1_general_stats = mzml_reader.ms1_general_stats
         current_sum_by_run = mzml_reader.current_sum_by_run
+        long_trends = mzml_reader.long_trends
 
         if enable_mzid:
             mzml_ms_df = mzml_reader.mzml_ms_df
@@ -267,7 +271,8 @@ def parse_mzml(
         ms1_bpc,
         ms1_peaks,
         ms1_general_stats,
-        current_sum_by_run
+        current_sum_by_run,
+        long_trends
     )
 
 

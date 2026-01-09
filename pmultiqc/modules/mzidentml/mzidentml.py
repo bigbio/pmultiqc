@@ -10,19 +10,27 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from multiqc import config
-from multiqc.plots import table, bargraph, linegraph
+from multiqc.plots import table
 from pyteomics import mzid, mgf
 
 from pmultiqc.modules.common.mzidentml_utils import (
     get_mzidentml_mzml_df,
     get_mzidentml_charge,
     get_mzid_rt_id,
-    get_mzid_num_data,
     draw_mzid_quant_table,
 )
 
 from pmultiqc.modules.base import BasePMultiqcModule
-from pmultiqc.modules.common.plots import id as id_plots
+from pmultiqc.modules.common.plots.id import (
+    draw_charge_state,
+    draw_ids_rt_count,
+    draw_identification,
+    draw_summary_protein_ident_table,
+    draw_num_pep_per_protein,
+    draw_oversampling,
+    draw_long_trends
+)
+
 from pmultiqc.modules.common.plots.ms import (
     draw_precursor_charge_distribution,
     draw_peak_intensity_distribution,
@@ -63,37 +71,38 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.mzml_charge_plot = None
         self.mzml_peak_distribution_plot = None
         self.section_group_dict = None
-        self.mzid_paths = list()
+        self.mzid_paths = []
         self.ms_without_psm = None
         self.mzid_peptide_map = None
         self.mgf_paths = None
         self.ms_paths = None
-        self.ms_with_psm = list()
+        self.ms_with_psm = []
         self.total_protein_identified = 0
-        self.cal_num_table_data = dict()
-        self.oversampling = dict()
-        self.identified_spectrum = dict()
-        self.delta_mass = dict()
+        self.cal_num_table_data = {}
+        self.oversampling = {}
+        self.identified_spectrum = {}
+        self.delta_mass = {}
         self.total_ms2_spectra_identified = 0
         self.total_peptide_count = 0
         self.total_ms2_spectra = 0
-        self.heatmap_charge_score = dict()
-        self.missed_clevages_heatmap_score = dict()
-        self.id_rt_score = dict()
-        self.heatmap_over_sampling_score = dict()
-        self.heatmap_pep_missing_score = dict()
-        self.missed_cleavages_var_score = dict()
-        self.ms_info = dict()
-        self.ms_info["charge_distribution"] = dict()
-        self.ms_info["peaks_per_ms2"] = dict()
-        self.ms_info["peak_distribution"] = dict()
-        self.quantms_missed_cleavages = dict()
-        self.quantms_modified = dict()
-        self.identified_msms_spectra = dict()
-        self.ms1_tic: dict = {}
-        self.ms1_bpc: dict = {}
-        self.ms1_peaks: dict = {}
-        self.ms1_general_stats: dict = {}
+        self.heatmap_charge_score = {}
+        self.missed_clevages_heatmap_score = {}
+        self.id_rt_score = {}
+        self.heatmap_over_sampling_score = {}
+        self.heatmap_pep_missing_score = {}
+        self.missed_cleavages_var_score = {}
+        self.ms_info = {}
+        self.ms_info["charge_distribution"] = {}
+        self.ms_info["peaks_per_ms2"] = {}
+        self.ms_info["peak_distribution"] = {}
+        self.quantms_missed_cleavages = {}
+        self.quantms_modified = {}
+        self.identified_msms_spectra = {}
+        self.ms1_tic = {}
+        self.ms1_bpc = {}
+        self.ms1_peaks = {}
+        self.ms1_general_stats = {}
+        self.long_trends = {}
 
     def get_data(self) -> bool | None:
         self.log.info("Start parsing the MzIdentML results and spectra files...")
@@ -128,12 +137,12 @@ class MzIdentMLModule(BasePMultiqcModule):
                 draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
 
                 mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
-                id_plots.draw_charge_state(
+                draw_charge_state(
                     self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
                 )
 
                 mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
-                id_plots.draw_ids_rt_count(
+                draw_ids_rt_count(
                     self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
                 )
 
@@ -145,7 +154,7 @@ class MzIdentMLModule(BasePMultiqcModule):
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
 
-                id_plots.draw_identification(
+                draw_identification(
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
                     quantms_missed_cleavages=self.quantms_missed_cleavages,
@@ -176,7 +185,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             self.ms1_general_stats
         )
 
-        id_plots.draw_summary_protein_ident_table(
+        draw_summary_protein_ident_table(
             sub_sections=self.sub_sections["summary"],
             total_peptide_count=self.total_peptide_count,
             total_ms2_spectra_identified=self.total_ms2_spectra_identified,
@@ -187,7 +196,7 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         self.draw_mzid_identi_num()
 
-        id_plots.draw_num_pep_per_protein(
+        draw_num_pep_per_protein(
             self.sub_sections["identification"],
             self.pep_plot,
             True
@@ -230,9 +239,15 @@ class MzIdentMLModule(BasePMultiqcModule):
                 self.ms_info
             )
 
-        id_plots.draw_oversampling(
+        draw_oversampling(
             self.sub_sections["ms2"], self.oversampling, self.oversampling_plot.dict["cats"], False
         )
+
+        if self.long_trends:
+            draw_long_trends(
+                sub_section=self.sub_sections["long_trends"],
+                long_trends_data=self.long_trends
+            )
 
         self.section_group_dict = {
             "experiment_sub_section": self.sub_sections["experiment"],
@@ -245,6 +260,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             "ms2_sub_section": self.sub_sections["ms2"],
             "mass_error_sub_section": self.sub_sections["mass_error"],
             "rt_qc_sub_section": self.sub_sections["rt_qc"],
+            "long_trends_sub_section": self.sub_sections["long_trends"],
         }
 
         add_group_modules(self.section_group_dict, "")
@@ -482,6 +498,7 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.ms1_bpc = mzml_reader.ms1_bpc
         self.ms1_peaks = mzml_reader.ms1_peaks
         self.ms1_general_stats = mzml_reader.ms1_general_stats
+        self.long_trends = mzml_reader.long_trends
 
         for i in self.ms_without_psm:
             self.log.warning("No PSM found in '{}'!".format(i))

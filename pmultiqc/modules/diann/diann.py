@@ -15,11 +15,12 @@ from pmultiqc.modules.common.common_utils import (
 )
 from pmultiqc.modules.common.dia_utils import parse_diann_report
 from pmultiqc.modules.common.plots.general import draw_exp_design
-from pmultiqc.modules.common.plots.id import draw_identification
 from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
     draw_identi_num,
-    draw_num_pep_per_protein
+    draw_num_pep_per_protein,
+    draw_identification,
+    draw_long_trends
 )
 from pmultiqc.modules.common.plots.ms import (
     draw_peak_intensity_distribution,
@@ -109,7 +110,8 @@ class DiannModule(BasePMultiqcModule):
             self.ms1_bpc,
             self.ms1_peaks,
             self.ms1_general_stats,
-            self.current_sum_by_run
+            self.current_sum_by_run,
+            self.long_trends
         ) = parse_mzml(
             is_bruker=self.is_bruker,
             read_ms_info=self.read_ms_info,
@@ -127,8 +129,8 @@ class DiannModule(BasePMultiqcModule):
 
         self.total_peptide_count = 0
         self.total_protein_quantified = 0
-        self.cal_num_table_data = dict()
-        self.quantms_modified = dict()
+        self.cal_num_table_data = {}
+        self.quantms_modified = {}
 
         general_stats_data = aggregate_general_stats(
             ms1_general_stats=self.ms1_general_stats,
@@ -205,6 +207,12 @@ class DiannModule(BasePMultiqcModule):
             quantms_modified=self.quantms_modified
         )
 
+        if self.long_trends:
+            draw_long_trends(
+                sub_section=self.sub_sections["long_trends"],
+                long_trends_data=self.long_trends
+            )
+
         if self.enable_sdrf:
             ms_io.del_openms_convert_tsv()
 
@@ -219,6 +227,7 @@ class DiannModule(BasePMultiqcModule):
             "ms2_sub_section": self.sub_sections["ms2"],
             "mass_error_sub_section": self.sub_sections["mass_error"],
             "rt_qc_sub_section": self.sub_sections["rt_qc"],
+            "long_trends_sub_section": self.sub_sections["long_trends"],
         }
 
         add_group_modules(self.section_group_dict, "")
