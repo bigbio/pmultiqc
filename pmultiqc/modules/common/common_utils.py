@@ -329,7 +329,7 @@ def evidence_rt_count(evidence_data):
 
 def evidence_calibrated_mass_error(
     evidence_data,
-    recommpute=False,
+    recompute=False,
     filter_outliers_ppm: bool = False
 ):
     # filter_outliers_ppm (if True): Remove rows with mass error [ppm] greater than 1000 (Default: False)
@@ -337,8 +337,8 @@ def evidence_calibrated_mass_error(
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
-    if recommpute:
-        evd_df = recommpute_mass_error(evidence_data)
+    if recompute:
+        evd_df = recompute_mass_error(evidence_data)
     else:
         evd_df = evidence_data.copy()
 
@@ -395,7 +395,7 @@ def evidence_calibrated_mass_error(
     return result_dict
 
 # re-compute mass error
-def recommpute_mass_error(evidence_df):
+def recompute_mass_error(evidence_df):
     required_cols = [
         "mass error [ppm]",
         "uncalibrated mass error [ppm]",
@@ -407,7 +407,7 @@ def recommpute_mass_error(evidence_df):
     ]
 
     if not all(col in evidence_df.columns for col in required_cols):
-        log.info("Evidence is missing one or more required columns in recommpute_mass_error.")
+        log.info("Evidence is missing one or more required columns in recompute_mass_error.")
         return None
 
     df = evidence_df[required_cols].copy()

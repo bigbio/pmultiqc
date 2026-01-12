@@ -574,7 +574,21 @@ def draw_loess_rt_irt(sub_section, plot_data):
     )
 
 def calculate_dia_intensity_std(df, sdrf_file_df):
+    """
+    Calculate standard deviation of intensity for DIA data.
 
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        DataFrame with Run, Modified.Sequence, Protein.Group, and log_intensity columns.
+    sdrf_file_df : pd.DataFrame
+        SDRF file DataFrame (can be empty).
+
+    Returns:
+    --------
+    dict or None: Dictionary mapping sample/condition to list of log intensity std values,
+                  or None if calculation cannot be performed.
+    """
     df_sub = df[["Run", "Modified.Sequence", "Protein.Group", "log_intensity"]].copy()
 
     if not sdrf_file_df.empty:
@@ -617,8 +631,9 @@ def calculate_dia_intensity_std(df, sdrf_file_df):
         }
 
         return plot_data
-    else:
-        log.warning("No SDRF available; failed to parse experimental groups; SD Intensity not generated.")
+
+    log.warning("No SDRF available; failed to parse experimental groups; SD Intensity not generated.")
+    return None
 
 def extract_condition_and_replicate(run_name):
 

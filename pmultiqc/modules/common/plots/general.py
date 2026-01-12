@@ -197,7 +197,9 @@ def draw_exp_design(sub_sections, exp_design):
             "description": "",
             "scale": False,
         }}
-        for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
+        # Use first row of sample_df for condition keys (safer than relying on loop variable)
+        first_condition = sample_df["MSstats_Condition"].iloc[0] if not sample_df.empty else ""
+        for k, _ in condition_split(first_condition).items():
             headers["MSstats_Condition_" + str(k)] = {
                 "title": "MSstats Condition: " + str(k),
                 "description": "",

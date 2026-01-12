@@ -19,7 +19,7 @@ from pmultiqc.modules.common.stats import (
 from pmultiqc.modules.common.common_utils import (
     mods_statistics,
     evidence_rt_count,
-    recommpute_mass_error,
+    recompute_mass_error,
     evidence_calibrated_mass_error
 )
 
@@ -910,7 +910,7 @@ def evidence_uncalibrated_mass_error(evidence_data):
     if "potential contaminant" in evidence_data.columns:
         evidence_data = evidence_data[evidence_data["potential contaminant"] != "+"].copy()
 
-    evd_df = recommpute_mass_error(evidence_data)
+    evd_df = recompute_mass_error(evidence_data)
 
     if evd_df is None:
         if any(
