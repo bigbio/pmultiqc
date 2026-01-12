@@ -155,7 +155,7 @@ def draw_dia_ms1_area(sub_section, df):
         "cpswitch_c_active": False,
         "title": "MS1 Area Distribution",
         "tt_decimals": 5,
-        "xlab": "log2(Ms1.Area)",
+        "xlab": "log2(MS1.Area)",
         "save_data_file": False,
     }
 
