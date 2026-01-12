@@ -1205,7 +1205,7 @@ def draw_long_trends_linegraph(sub_sections, plot_data: dict, report_type: str):
         "data": plot_data
     }
 
-    plot_config = {
+    plot_configs = {
         "rt": {
             "id": "longitudinal_trends_rt",
             "title": "MS1 Retention Time Trend",
@@ -1254,13 +1254,14 @@ def draw_long_trends_linegraph(sub_sections, plot_data: dict, report_type: str):
         },
     }
 
-    log.info(f"Generating: {plot_config[report_type]['title']}")
+    plot_config = plot_configs[report_type]
+    log.info(f"Generating: {plot_config['title']}")
 
     draw_config = {
-        "id": plot_config[report_type]["id"],
-        "title": plot_config[report_type]["title"],
-        "xlab": plot_config[report_type]["xlab"],
-        "ylab": plot_config[report_type]["ylab"],
+        "id": plot_config["id"],
+        "title": plot_config["title"],
+        "xlab": plot_config["xlab"],
+        "ylab": plot_config["ylab"],
         "cpswitch": False,
         "cpswitch_c_active": False,
         "ymax": max(plot_data.values()) + 1,
@@ -1277,9 +1278,9 @@ def draw_long_trends_linegraph(sub_sections, plot_data: dict, report_type: str):
     linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
-        sub_section=sub_sections[plot_config[report_type]["sub_section"]],
+        sub_section=sub_sections[plot_config["sub_section"]],
         plot=linegraph_html,
-        order=plot_config[report_type]["order"],
-        description=plot_config[report_type]["description"],
-        helptext=plot_config[report_type]["helptext"],
+        order=plot_config["order"],
+        description=plot_config["description"],
+        helptext=plot_config["helptext"],
     )
