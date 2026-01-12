@@ -3,11 +3,15 @@ Test module for FragPipe module functions.
 
 These tests verify that the FragPipe ion.tsv parsing and intensity plot
 generation functions work correctly.
+
+Test data is from PRIDE dataset PXD066146:
+https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD066146/
+
+The test data files (ion.tsv, psm.tsv) are subsets (first 1000 rows)
+of the full dataset to keep test execution fast.
 """
 
 import os
-import re
-import sys
 
 import numpy as np
 import pandas as pd
@@ -254,3 +258,103 @@ class TestFragpipeDataQuality:
             charges = fragpipe_ion_df["Charge"].dropna()
             assert charges.min() >= 1, "Charge should be at least 1"
             assert charges.max() <= 10, "Charge should be at most 10 for typical data"
+
+
+class TestPXD066146Data:
+    """Test class specific to PXD066146 dataset characteristics."""
+
+    def test_tmt_channels_detected(self, fragpipe_ion_file):
+        """Test that TMT channels from PXD066146 are correctly detected."""
+        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
+
+        # PXD066146 uses TMT labeling with 33075_TMT_* pattern
+        tmt_cols = [col for col in sample_cols if "33075_TMT" in col]
+        assert len(tmt_cols) >= 10, f"Expected at least 10 TMT channels, found {len(tmt_cols)}"
+
+        # Check for specific TMT channels
+        expected_channels = ["33075_TMT_126", "33075_TMT_127N", "33075_TMT_127C"]
+        for channel in expected_channels:
+            assert channel in sample_cols, f"Expected TMT channel {channel} not found"
+
+    def test_ion_count_reasonable(self, fragpipe_ion_file):
+        """Test that ion.tsv has reasonable number of ions."""
+        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
+
+        # Test data has 1000 rows (subset of full dataset)
+        assert len(ion_df) == 1000, f"Expected 1000 ions in test data, found {len(ion_df)}"
+
+    def test_protein_identifiers_format(self, fragpipe_ion_df):
+        """Test that protein identifiers follow UniProt format."""
+        assert fragpipe_ion_df is not None, "Could not load ion.tsv"
+
+        proteins = fragpipe_ion_df["Protein"].dropna().unique()
+
+        # Check for UniProt accession pattern (sp|XXXXX|YYYY_SPECIES)
+        uniprot_pattern_count = sum(1 for p in proteins if "sp|" in str(p) or "tr|" in str(p))
+        assert uniprot_pattern_count > 0, "No UniProt-style protein identifiers found"
+
+    def test_intensity_distribution_statistics(self, fragpipe_ion_file):
+        """Test intensity distribution statistics for PXD066146 data."""
+        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
+        intensity_data = get_ion_intensity_data(ion_df, sample_cols)
+
+        summary = intensity_data["intensity_summary"]
+
+        # Check that median intensities are in typical proteomics range
+        # log2(1000) ~ 10, log2(1e9) ~ 30
+        for sample, stats in summary.items():
+            median = stats["median"]
+            assert 8 < median < 25, f"Median intensity {median} outside typical range for {sample}"
+
+    def test_cv_values_realistic(self, fragpipe_ion_file):
+        """Test that CV values are in realistic range for TMT data."""
+        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
+        intensity_data = get_ion_intensity_data(ion_df, sample_cols)
+
+        cv_data = intensity_data.get("intensity_cv", {})
+
+        if cv_data:
+            all_cvs = []
+            for values in cv_data.values():
+                all_cvs.extend(values)
+
+            if all_cvs:
+                median_cv = np.median(all_cvs)
+                # TMT data typically has CV < 50% for most peptides
+                assert median_cv < 100, f"Median CV {median_cv}% seems too high for TMT data"
+
+    def test_modified_sequences_present(self, fragpipe_ion_df):
+        """Test that modified sequences are properly formatted."""
+        assert fragpipe_ion_df is not None, "Could not load ion.tsv"
+
+        if "Modified Sequence" in fragpipe_ion_df.columns:
+            mod_seqs = fragpipe_ion_df["Modified Sequence"].dropna()
+            assert len(mod_seqs) > 0, "No modified sequences found"
+
+            # Check for typical modification patterns (e.g., n[43] for N-term acetyl)
+            has_modifications = any("[" in str(seq) for seq in mod_seqs.head(100))
+            assert has_modifications, "No modification annotations found in sequences"
+
+    def test_psm_spectrum_format(self, fragpipe_psm_df):
+        """Test that PSM spectrum identifiers follow FragPipe format."""
+        assert fragpipe_psm_df is not None, "Could not load psm.tsv"
+
+        spectra = fragpipe_psm_df["Spectrum"].dropna()
+        assert len(spectra) > 0, "No spectra found"
+
+        # FragPipe spectrum format: filename.scan.scan.charge
+        sample_spectrum = str(spectra.iloc[0])
+        parts = sample_spectrum.split(".")
+        assert len(parts) >= 3, f"Spectrum format unexpected: {sample_spectrum}"
+
+    def test_run_extraction_from_spectrum(self, fragpipe_psm_file):
+        """Test that run names are correctly extracted from spectrum IDs."""
+        psm_df = psm_reader(str(fragpipe_psm_file))
+
+        runs = psm_df["Run"].unique()
+        assert len(runs) >= 1, "No runs extracted from spectra"
+
+        # Check that run names don't contain scan numbers
+        for run in runs:
+            # Run should not be just numbers
+            assert not str(run).isdigit(), f"Run name {run} appears to be just a scan number"
