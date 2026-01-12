@@ -13,6 +13,7 @@ import pytest
 
 # Define the path to the test data
 COMPRESSED_DATA_DIR = Path("tests/resources/maxquant/PXD003133-22min")
+FRAGPIPE_DATA_DIR = Path("tests/resources/fragpipe")
 
 
 @pytest.fixture
@@ -84,4 +85,41 @@ def summary_df():
     if os.path.exists(file_path):
         with gzip.open(file_path, "rt") as f:
             return pd.read_csv(f, sep="\t", low_memory=False)
+    return None
+
+
+# FragPipe fixtures
+@pytest.fixture
+def fragpipe_test_data_dir():
+    """Return the path to the FragPipe test data directory."""
+    return FRAGPIPE_DATA_DIR
+
+
+@pytest.fixture
+def fragpipe_ion_file():
+    """Return the path to the ion.tsv file."""
+    return FRAGPIPE_DATA_DIR / "ion.tsv"
+
+
+@pytest.fixture
+def fragpipe_psm_file():
+    """Return the path to the psm.tsv file."""
+    return FRAGPIPE_DATA_DIR / "psm.tsv"
+
+
+@pytest.fixture
+def fragpipe_ion_df():
+    """Return a pandas DataFrame of the ion.tsv file."""
+    file_path = FRAGPIPE_DATA_DIR / "ion.tsv"
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path, sep="\t", low_memory=False)
+    return None
+
+
+@pytest.fixture
+def fragpipe_psm_df():
+    """Return a pandas DataFrame of the psm.tsv file."""
+    file_path = FRAGPIPE_DATA_DIR / "psm.tsv"
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path, sep="\t", low_memory=False)
     return None
