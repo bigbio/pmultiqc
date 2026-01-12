@@ -7,7 +7,6 @@ from pmultiqc.modules.fragpipe import fragpipe_io
 from pmultiqc.modules.fragpipe.fragpipe_io import (
     ion_reader,
     get_ion_intensity_data,
-    extract_sample_groups
 )
 from pmultiqc.modules.common.stats import (
     cal_delta_mass_dict,
@@ -53,7 +52,7 @@ from collections import OrderedDict
 from pmultiqc.modules.common.histogram import Histogram
 
 from multiqc import config
-from multiqc.plots import bargraph, box, linegraph
+from multiqc.plots import bargraph, box
 
 from pmultiqc.modules.common.logging import get_logger
 
@@ -234,16 +233,6 @@ class FragPipeModule(BasePMultiqcModule):
         # Ion-level intensity plots from ion.tsv
         if self.ion_intensity_data:
             self.draw_ion_intensity_distribution(
-                sub_section=self.sub_sections["quantification"],
-                intensity_data=self.ion_intensity_data
-            )
-
-            self.draw_ion_intensity_cv(
-                sub_section=self.sub_sections["quantification"],
-                intensity_data=self.ion_intensity_data
-            )
-
-            self.draw_ion_intensity_summary(
                 sub_section=self.sub_sections["quantification"],
                 intensity_data=self.ion_intensity_data
             )
@@ -877,195 +866,6 @@ class FragPipeModule(BasePMultiqcModule):
         )
 
         log.info("Ion intensity distribution plot generated.")
-
-    @staticmethod
-    def draw_ion_intensity_cv(sub_section, intensity_data: dict):
-        """
-        Draw ion-level coefficient of variation (CV) distribution.
-
-        Parameters
-        ----------
-        sub_section : dict
-            Section to add the plot to.
-        intensity_data : dict
-            Dictionary containing 'intensity_cv' data.
-        """
-        cv_data = intensity_data.get('intensity_cv', {})
-
-        if not cv_data:
-            log.info("No ion intensity CV data available (need at least 2 samples).")
-            return
-
-        # Calculate overall CV statistics
-        all_cvs = []
-        for sample, values in cv_data.items():
-            all_cvs.extend(values)
-
-        if not all_cvs:
-            log.info("No CV values calculated.")
-            return
-
-        # Create histogram of CV values
-        cv_bins = list(range(0, 205, 5))  # 0-200% in 5% bins
-        cv_hist_data = {}
-
-        for sample_name, cv_values in cv_data.items():
-            if not cv_values:
-                continue
-            # Filter to reasonable CV range
-            valid_cvs = [v for v in cv_values if 0 <= v <= 200]
-            if valid_cvs:
-                counts, _ = np.histogram(valid_cvs, bins=cv_bins)
-                cv_hist_data[sample_name] = dict(zip(
-                    [f"{cv_bins[i]}-{cv_bins[i+1]}%" for i in range(len(counts))],
-                    counts.tolist()
-                ))
-
-        if not cv_hist_data:
-            log.info("No valid CV histogram data.")
-            return
-
-        log.info(f"Drawing ion intensity CV distribution")
-
-        # Calculate overall CV distribution for a line plot
-        all_valid_cvs = [v for v in all_cvs if 0 <= v <= 200]
-        overall_counts, _ = np.histogram(all_valid_cvs, bins=cv_bins)
-        overall_freq = overall_counts / len(all_valid_cvs) * 100 if all_valid_cvs else overall_counts
-
-        line_data = {
-            "All Samples": {cv_bins[i]: float(overall_freq[i]) for i in range(len(overall_freq))}
-        }
-
-        draw_config = {
-            "id": "ion_intensity_cv_distribution",
-            "cpswitch": False,
-            "title": "Intensity CV Distribution",
-            "ylab": "Frequency (%)",
-            "xlab": "Coefficient of Variation (%)",
-            "ymin": 0,
-            "tt_decimals": 2,
-            "showlegend": True,
-            "save_data_file": False,
-        }
-
-        line_html = linegraph.plot(data=line_data, pconfig=draw_config)
-        line_html = plot_html_check(line_html)
-
-        # Calculate summary statistics
-        median_cv = float(np.median(all_valid_cvs)) if all_valid_cvs else 0
-        pct_below_20 = sum(1 for v in all_valid_cvs if v <= 20) / len(all_valid_cvs) * 100 if all_valid_cvs else 0
-
-        add_sub_section(
-            sub_section=sub_section,
-            plot=line_html,
-            order=7,
-            description=f"Intensity CV distribution across samples (Median CV: {median_cv:.1f}%, {pct_below_20:.1f}% peptides with CV ≤ 20%).",
-            helptext="""
-                [FragPipe: ion.tsv] This plot shows the distribution of coefficient of variation (CV)
-                for ion intensities across samples.
-
-                CV = (Standard Deviation / Mean) × 100%
-
-                Lower CV values indicate more consistent quantification across samples.
-                For high-quality quantitative proteomics data:
-                - CV ≤ 20%: Excellent reproducibility
-                - CV 20-50%: Acceptable reproducibility
-                - CV > 50%: Poor reproducibility
-
-                A peak at low CV values indicates good quantitative reproducibility.
-                A long tail or second peak at high CV values may indicate technical variability
-                or biological heterogeneity.
-            """,
-        )
-
-        log.info("Ion intensity CV distribution plot generated.")
-
-    @staticmethod
-    def draw_ion_intensity_summary(sub_section, intensity_data: dict):
-        """
-        Draw ion intensity summary statistics line plot.
-
-        Parameters
-        ----------
-        sub_section : dict
-            Section to add the plot to.
-        intensity_data : dict
-            Dictionary containing 'intensity_summary' data.
-        """
-        summary = intensity_data.get('intensity_summary', {})
-
-        if not summary:
-            log.info("No ion intensity summary data available.")
-            return
-
-        # Create line plot of median intensities across samples
-        samples = list(summary.keys())
-        if len(samples) < 2:
-            log.info("Need at least 2 samples for intensity summary plot.")
-            return
-
-        log.info(f"Drawing ion intensity summary for {len(samples)} samples")
-
-        # Extract median intensities
-        medians = {sample: data['median'] for sample, data in summary.items()}
-        counts = {sample: data['count'] for sample, data in summary.items()}
-
-        # Sort by sample name for consistent ordering
-        sorted_samples = sorted(samples)
-
-        line_data = {
-            "Median log2(Intensity)": {i: medians[s] for i, s in enumerate(sorted_samples)},
-        }
-
-        # Create count data for secondary axis
-        count_data = {
-            "Ion Count (thousands)": {i: counts[s] / 1000 for i, s in enumerate(sorted_samples)}
-        }
-
-        draw_config = {
-            "id": "ion_intensity_median_summary",
-            "cpswitch": False,
-            "title": "Ion Intensity Summary Across Samples",
-            "ylab": "Median log2(Intensity)",
-            "xlab": "Sample Index",
-            "tt_decimals": 2,
-            "showlegend": True,
-            "save_data_file": False,
-        }
-
-        line_html = linegraph.plot(data=line_data, pconfig=draw_config)
-        line_html = plot_html_check(line_html)
-
-        # Calculate overall statistics
-        all_medians = list(medians.values())
-        overall_median = float(np.median(all_medians))
-        overall_std = float(np.std(all_medians))
-
-        add_sub_section(
-            sub_section=sub_section,
-            plot=line_html,
-            order=8,
-            description=f"Ion intensity summary (Overall median: {overall_median:.2f}, Std: {overall_std:.2f}).",
-            helptext="""
-                [FragPipe: ion.tsv] This plot shows the median log2(intensity) for each sample/channel.
-
-                Consistent median intensities across samples indicate:
-                - Good sample preparation reproducibility
-                - Effective normalization
-                - Comparable loading amounts
-
-                Large deviations may indicate:
-                - Sample preparation issues
-                - Loading differences
-                - Batch effects
-                - Need for additional normalization
-
-                The standard deviation of medians across samples provides a measure
-                of overall experimental consistency.
-            """,
-        )
-
-        log.info("Ion intensity summary plot generated.")
 
 
 def _calculate_statistics(pipeline_stats: list):

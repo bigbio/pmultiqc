@@ -169,8 +169,6 @@ def get_ion_intensity_data(ion_df, sample_cols):
     dict
         Dictionary containing:
         - 'intensity_distribution': dict mapping sample -> list of log2 intensities
-        - 'intensity_cv': dict mapping sample -> CV values per peptide
-        - 'intensity_summary': dict with summary statistics per sample
     """
     if not sample_cols:
         log.warning("No sample intensity columns found in ion.tsv")
@@ -178,8 +176,6 @@ def get_ion_intensity_data(ion_df, sample_cols):
 
     result = {
         'intensity_distribution': {},
-        'intensity_cv': {},
-        'intensity_summary': {}
     }
 
     # Calculate intensity distribution (log2 transformed)
@@ -190,40 +186,6 @@ def get_ion_intensity_data(ion_df, sample_cols):
         if len(valid_intensities) > 0:
             log_intensities = np.log2(valid_intensities)
             result['intensity_distribution'][sample] = log_intensities.tolist()
-
-            # Calculate summary statistics
-            result['intensity_summary'][sample] = {
-                'median': float(np.median(log_intensities)),
-                'mean': float(np.mean(log_intensities)),
-                'std': float(np.std(log_intensities)),
-                'count': int(len(valid_intensities)),
-                'missing': int(len(intensities) - len(valid_intensities))
-            }
-
-    # Calculate CV (Coefficient of Variation) across samples for each peptide
-    if len(sample_cols) >= 2:
-        # Group by peptide sequence for CV calculation
-        if "Modified Sequence" in ion_df.columns:
-            peptide_col = "Modified Sequence"
-        else:
-            peptide_col = "Peptide Sequence"
-
-        cv_data = {}
-        for sample in sample_cols:
-            cv_values = []
-            for peptide, group in ion_df.groupby(peptide_col):
-                sample_values = group[sample_cols].values
-                # Calculate CV across samples for this peptide
-                row_mean = np.nanmean(sample_values, axis=1)
-                row_std = np.nanstd(sample_values, axis=1)
-                # Avoid division by zero
-                valid_mask = row_mean > 0
-                if np.any(valid_mask):
-                    cv = (row_std[valid_mask] / row_mean[valid_mask]) * 100
-                    cv_values.extend(cv.tolist())
-
-            if cv_values:
-                result['intensity_cv'][sample] = cv_values
 
     return result
 

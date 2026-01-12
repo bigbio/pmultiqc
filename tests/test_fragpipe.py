@@ -99,9 +99,7 @@ class TestGetIonIntensityData:
         assert isinstance(intensity_data, dict), "intensity_data is not a dict"
 
         # Check for required keys
-        expected_keys = ["intensity_distribution", "intensity_cv", "intensity_summary"]
-        for key in expected_keys:
-            assert key in intensity_data, f"Key {key} not found in intensity_data"
+        assert "intensity_distribution" in intensity_data, "Key intensity_distribution not found"
 
     def test_intensity_distribution_log2_transformed(self, fragpipe_ion_file):
         """Test that intensity distribution values are log2 transformed."""
@@ -118,33 +116,6 @@ class TestGetIonIntensityData:
                 max_val = max(values)
                 assert min_val > 0, f"Log2 values should be positive for sample {sample}"
                 assert max_val < 40, f"Log2 values seem too high for sample {sample}"
-
-    def test_intensity_summary_statistics(self, fragpipe_ion_file):
-        """Test that intensity summary contains correct statistics."""
-        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
-        intensity_data = get_ion_intensity_data(ion_df, sample_cols)
-
-        summary = intensity_data["intensity_summary"]
-        assert len(summary) > 0, "No intensity summary data"
-
-        # Check that each sample has required statistics
-        for sample, stats in summary.items():
-            assert "median" in stats, f"Missing median for sample {sample}"
-            assert "mean" in stats, f"Missing mean for sample {sample}"
-            assert "std" in stats, f"Missing std for sample {sample}"
-            assert "count" in stats, f"Missing count for sample {sample}"
-
-    def test_intensity_cv_calculation(self, fragpipe_ion_file):
-        """Test that CV values are calculated correctly."""
-        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
-        intensity_data = get_ion_intensity_data(ion_df, sample_cols)
-
-        cv_data = intensity_data["intensity_cv"]
-        # CV should be calculated if there are at least 2 samples
-        if len(sample_cols) >= 2:
-            # CV data may or may not be populated depending on the data
-            # Just check it's a dict
-            assert isinstance(cv_data, dict), "CV data is not a dict"
 
 
 class TestExtractSampleGroups:
@@ -293,35 +264,19 @@ class TestPXD066146Data:
         uniprot_pattern_count = sum(1 for p in proteins if "sp|" in str(p) or "tr|" in str(p))
         assert uniprot_pattern_count > 0, "No UniProt-style protein identifiers found"
 
-    def test_intensity_distribution_statistics(self, fragpipe_ion_file):
-        """Test intensity distribution statistics for PXD066146 data."""
+    def test_intensity_distribution_values(self, fragpipe_ion_file):
+        """Test intensity distribution values for PXD066146 data."""
         ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
         intensity_data = get_ion_intensity_data(ion_df, sample_cols)
 
-        summary = intensity_data["intensity_summary"]
+        distribution = intensity_data["intensity_distribution"]
 
-        # Check that median intensities are in typical proteomics range
+        # Check that values are in typical proteomics range
         # log2(1000) ~ 10, log2(1e9) ~ 30
-        for sample, stats in summary.items():
-            median = stats["median"]
-            assert 8 < median < 25, f"Median intensity {median} outside typical range for {sample}"
-
-    def test_cv_values_realistic(self, fragpipe_ion_file):
-        """Test that CV values are in realistic range for TMT data."""
-        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
-        intensity_data = get_ion_intensity_data(ion_df, sample_cols)
-
-        cv_data = intensity_data.get("intensity_cv", {})
-
-        if cv_data:
-            all_cvs = []
-            for values in cv_data.values():
-                all_cvs.extend(values)
-
-            if all_cvs:
-                median_cv = np.median(all_cvs)
-                # TMT data typically has CV < 50% for most peptides
-                assert median_cv < 100, f"Median CV {median_cv}% seems too high for TMT data"
+        for sample, values in distribution.items():
+            if values:
+                median = np.median(values)
+                assert 8 < median < 25, f"Median intensity {median} outside typical range for {sample}"
 
     def test_modified_sequences_present(self, fragpipe_ion_df):
         """Test that modified sequences are properly formatted."""
