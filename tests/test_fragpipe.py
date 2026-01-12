@@ -15,7 +15,6 @@ import os
 
 import numpy as np
 import pandas as pd
-import pytest
 
 # Import FragPipe IO functions for testing
 from pmultiqc.modules.fragpipe.fragpipe_io import (
@@ -49,7 +48,7 @@ class TestFragpipeIO:
 
     def test_ion_reader_detects_sample_columns(self, fragpipe_ion_file):
         """Test that ion_reader correctly identifies sample intensity columns."""
-        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
+        _, sample_cols = ion_reader(str(fragpipe_ion_file))
 
         # Check that TMT columns are detected
         tmt_cols = [col for col in sample_cols if "TMT" in col]
@@ -172,7 +171,7 @@ class TestFragpipeIntensityPlots:
         # Check that data is in correct format for box plot
         # Should be dict mapping sample -> list of values
         for sample, values in distribution.items():
-            assert isinstance(sample, str), f"Sample key should be string"
+            assert isinstance(sample, str), "Sample key should be string"
             assert isinstance(values, list), f"Values should be list for sample {sample}"
             assert all(isinstance(v, (int, float)) for v in values), f"Values should be numeric for sample {sample}"
 

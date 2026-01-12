@@ -209,11 +209,8 @@ def extract_sample_groups(sample_cols):
     """
     sample_groups = {}
 
-    # Try to extract common prefix as experiment name
+    # Try to extract sample groups from column names
     if len(sample_cols) >= 2:
-        # Find common prefix
-        common_prefix = os.path.commonprefix(sample_cols)
-
         # TMT pattern: e.g., "33075_TMT_126", "33075_TMT_127N"
         tmt_pattern = re.compile(r"(.+?)_TMT_(\d+[NC]?)$")
 
