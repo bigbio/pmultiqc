@@ -167,12 +167,6 @@ def add_group_modules(groups_dict, analysis_type):
                 "name": "RT Quality Control",
                 "description": "",
             },
-            {
-                "id": "longitudinal_trends",
-                "key": "long_trends_sub_section",
-                "name": "Longitudinal Trends",
-                "description": "",
-            },
         ]
 
     for group in group_configs:
@@ -190,39 +184,52 @@ def add_group_modules(groups_dict, analysis_type):
 
     if analysis_type == "proteobench":
 
-        config.report_section_order = {
-            "pmultiqc": {"order": 6},
-            "precursor_ion": {"order": 5},
-            "intensity": {"order": 4},
-            "std_intensity": {"order": 3},
-            "cv": {"order": 2},
-            "log_vs": {"order": 1},
-        }
+        # Note: this is the order required for the report.
+        report_sections = [
+            "pmultiqc",
+            "precursor_ion",
+            "intensity",
+            "std_intensity",
+            "cv",
+            "log_vs"
+        ]
 
     else:
-        config.report_section_order = {
-            "pmultiqc": {"order": 21},
-            "experiment_setup": {"order": 20},
-            "summary_and_heatmap": {"order": 19},
-            "identification_summary": {"order": 18},
-            "search_engine_scores": {"order": 17},
-            "contaminants": {"order": 16},
-            "quantification_analysis": {"order": 15},
-            "ms1_analysis": {"order": 14},
-            "ms2_and_spectral_stats": {"order": 13},
-            "mass_error_trends": {"order": 12},
-            "rt_quality_control": {"order": 11},
-            "longitudinal_trends": {"order": 10},
-            "software_versions": {"order": 9},
-            "multiqc_software_versions": {"order": 8},
-            "nf_core_quantms_software": {"order": 7},
-            "nf-core-quantms-summary": {"order": 6},
-            "workflow_summary": {"order": 5},
-            "bigbio-quantms-summary": {"order": 4},
-            "bigbio-quantms-methods-description": {"order": 3},
-            "nf-core-quantms-methods-description": {"order": 2},
-            "methods_description": {"order": 1},
-        }
+        # Note: this is the order required for the report.
+        report_sections = [
+            "pmultiqc",
+            "experiment_setup",
+            "summary_and_heatmap",
+            "identification_summary",
+            "search_engine_scores",
+            "contaminants",
+            "quantification_analysis",
+            "ms1_analysis",
+            "ms2_and_spectral_stats",
+            "mass_error_trends",
+            "rt_quality_control",
+            "software_versions",
+            "multiqc_software_versions",
+            "nf_core_quantms_software",
+            "nf-core-quantms-summary",
+            "workflow_summary",
+            "bigbio-quantms-summary",
+            "bigbio-quantms-methods-description",
+            "nf-core-quantms-methods-description",
+            "methods_description"
+        ]
+
+    config.report_section_order = generate_section_order(report_sections)
+
+
+def generate_section_order(section_list: list):
+
+    section_order = {
+        name: {"order": len(section_list) - i}
+        for i, name in enumerate(section_list)
+    }
+
+    return section_order
 
 
 # Function of add sub_section

@@ -64,7 +64,6 @@ class PMultiQC(BaseMultiqcModule):
             "ms2": [],
             "mass_error": [],
             "rt_qc": [],
-            "long_trends": [],
         }
 
         if config.kwargs.get("disable_hoverinfo", False):

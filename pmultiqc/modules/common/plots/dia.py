@@ -153,9 +153,9 @@ def draw_dia_ms1_area(sub_section, df):
         "id": "ms1_area_distribution_box",
         "cpswitch": False,
         "cpswitch_c_active": False,
-        "title": "Ms1 Area Distribution",
+        "title": "MS1 Area Distribution",
         "tt_decimals": 5,
-        "xlab": "log2(Ms1.Area)",
+        "xlab": "log2(MS1.Area)",
         "save_data_file": False,
     }
 
@@ -210,7 +210,7 @@ def draw_dia_whole_exp_charge(sub_section, df):
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
-        order=5,
+        order=3,
         description="""
             This is a bar chart representing the distribution of the precursor ion charges for a given whole experiment.
         """,
@@ -269,7 +269,7 @@ def draw_dia_ms2_charge(sub_section, df, sdrf_file_df):
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
-        order=6,
+        order=4,
         description="The distribution of the charge-state of the precursor ion.",
         helptext="""
             [DIA-NN: main report] The distribution of the charge-state of the precursor ion (Precursor.Charge).
