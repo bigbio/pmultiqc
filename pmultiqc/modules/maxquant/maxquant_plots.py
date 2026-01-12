@@ -721,7 +721,7 @@ def draw_msms_scans_top_n(sub_section, top_n_data):
     add_sub_section(
         sub_section=sub_section,
         plot=bar_html,
-        order=9,
+        order=5,
         description='This metric somewhat summarizes "TopN over RT"',
         helptext="""
             Reaching TopN on a regular basis indicates that all sections of the LC gradient
@@ -753,7 +753,7 @@ def draw_msms_scans_top_over_rt(sub_section, top_over_rt_data):
     add_sub_section(
         sub_section=sub_section,
         plot=linegraph_html,
-        order=8,
+        order=4,
         description="TopN over retention time.",
         helptext="""
             TopN over retention time. Similar to ID over RT, this metric reflects the complexity of the sample
@@ -786,7 +786,7 @@ def draw_msms_scans_ion_injec_time_rt(sub_section, ion_injec_time_rt_data):
     add_sub_section(
         sub_section=sub_section,
         plot=linegraph_html,
-        order=7,
+        order=3,
         description="",
         helptext="""
             Ion injection time score - should be as low as possible to allow fast cycles. Correlated with peptide intensity.

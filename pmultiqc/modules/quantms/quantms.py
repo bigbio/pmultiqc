@@ -472,7 +472,7 @@ class QuantMSModule(BasePMultiqcModule):
 
         if self.long_trends:
             draw_long_trends(
-                sub_section=self.sub_sections["long_trends"],
+                sub_sections=self.sub_sections,
                 long_trends_data=self.long_trends
             )
 
@@ -540,7 +540,6 @@ class QuantMSModule(BasePMultiqcModule):
             "ms2_sub_section": self.sub_sections["ms2"],
             "mass_error_sub_section": self.sub_sections["mass_error"],
             "rt_qc_sub_section": self.sub_sections["rt_qc"],
-            "long_trends_sub_section": self.sub_sections["long_trends"],
         }
 
         add_group_modules(self.section_group_dict, "")

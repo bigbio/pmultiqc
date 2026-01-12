@@ -1124,7 +1124,7 @@ def draw_peptide_intensity(sub_section, plot_data):
             """,
     )
 
-def draw_long_trends(sub_section, long_trends_data):
+def draw_long_trends(sub_sections, long_trends_data):
 
     plot_ac_datetime = long_trends_data["time"]
     plot_rt = long_trends_data["rt"]
@@ -1133,33 +1133,33 @@ def draw_long_trends(sub_section, long_trends_data):
 
     if plot_ac_datetime:
         draw_filename_datetime_table(
-            sub_section=sub_section,
+            sub_sections=sub_sections,
             ac_datetime=plot_ac_datetime
         )
 
     if plot_rt:
         draw_long_trends_linegraph(
-            sub_section=sub_section,
+            sub_sections=sub_sections,
             plot_data=plot_rt,
             report_type="rt"
         )
 
     if plot_ms1_summed_intensity:
         draw_long_trends_linegraph(
-            sub_section=sub_section,
+            sub_sections=sub_sections,
             plot_data=plot_ms1_summed_intensity,
             report_type="ms1_summed_intensity"
         )
 
     if plot_ms2_prec_intensity:
         draw_long_trends_linegraph(
-            sub_section=sub_section,
+            sub_sections=sub_sections,
             plot_data=plot_ms2_prec_intensity,
             report_type="ms2_prec_intensity"
         )
 
 
-def draw_filename_datetime_table(sub_section, ac_datetime: dict):
+def draw_filename_datetime_table(sub_sections, ac_datetime: dict):
 
     ac_datetime_data = dict(
         sorted(ac_datetime.items(), key=lambda x: x[1]["acquisition_datetime"])
@@ -1187,9 +1187,9 @@ def draw_filename_datetime_table(sub_section, ac_datetime: dict):
     table_html = table.plot(data=ac_datetime_data, headers=headers, pconfig=draw_config)
 
     add_sub_section(
-        sub_section=sub_section,
+        sub_section=sub_sections["summary"],
         plot=table_html,
-        order=1,
+        order=4,
         description="",
         helptext="""
             This table provides the mapping between file names and their corresponding acquisition times.
@@ -1197,7 +1197,7 @@ def draw_filename_datetime_table(sub_section, ac_datetime: dict):
     )
 
 
-def draw_long_trends_linegraph(sub_section, plot_data: dict, report_type: str):
+def draw_long_trends_linegraph(sub_sections, plot_data: dict, report_type: str):
 
     plot_data = dict(sorted(plot_data.items(), key=lambda item: item[0]))
 
@@ -1205,7 +1205,7 @@ def draw_long_trends_linegraph(sub_section, plot_data: dict, report_type: str):
         "data": plot_data
     }
 
-    plot_config = {
+    plot_configs = {
         "rt": {
             "id": "longitudinal_trends_rt",
             "title": "MS1 Retention Time Trend",
@@ -1218,7 +1218,8 @@ def draw_long_trends_linegraph(sub_section, plot_data: dict, report_type: str):
                 This plot tracks LC stability by extracting RTs from all ms_level: 1 spectra.
                 For each run, the median RT is calculated as a robust representative value and plotted chronologically by acquisition datetime.
                 """,
-            "order": 4,
+            "sub_section": "rt_qc",
+            "order": 6,
         },
         "ms1_summed_intensity": {
             "id": "ms1_tic_proxy",
@@ -1233,7 +1234,8 @@ def draw_long_trends_linegraph(sub_section, plot_data: dict, report_type: str):
                 For each run, the summed_peak_intensities from all ms_level: 1 spectra are extracted.
                 The median value is calculated and log2-transformed to provide a robust representative of the Total Ion Current (TIC) per run.
                 """,
-            "order": 2,
+            "sub_section": "ms1",
+            "order": 6,
         },
         "ms2_prec_intensity": {
             "id": "ms2_precursor_intensity_trend",
@@ -1247,17 +1249,19 @@ def draw_long_trends_linegraph(sub_section, plot_data: dict, report_type: str):
                 This plot tracks instrument sensitivity by extracting intensities from all ms_level: 2 precursor ions.
                 For each run, the median intensity is calculated as a robust representative value and plotted chronologically by acquisition datetime.
                 """,
-            "order": 3,
+            "sub_section": "ms2",
+            "order": 7,
         },
     }
 
-    log.info(f"Generating: {plot_config[report_type]['title']}")
+    plot_config = plot_configs[report_type]
+    log.info(f"Generating: {plot_config['title']}")
 
     draw_config = {
-        "id": plot_config[report_type]["id"],
-        "title": plot_config[report_type]["title"],
-        "xlab": plot_config[report_type]["xlab"],
-        "ylab": plot_config[report_type]["ylab"],
+        "id": plot_config["id"],
+        "title": plot_config["title"],
+        "xlab": plot_config["xlab"],
+        "ylab": plot_config["ylab"],
         "cpswitch": False,
         "cpswitch_c_active": False,
         "ymax": max(plot_data.values()) + 1,
@@ -1274,9 +1278,9 @@ def draw_long_trends_linegraph(sub_section, plot_data: dict, report_type: str):
     linegraph_html = plot_html_check(linegraph_html)
 
     add_sub_section(
-        sub_section=sub_section,
+        sub_section=sub_sections[plot_config["sub_section"]],
         plot=linegraph_html,
-        order=plot_config[report_type]["order"],
-        description=plot_config[report_type]["description"],
-        helptext=plot_config[report_type]["helptext"],
+        order=plot_config["order"],
+        description=plot_config["description"],
+        helptext=plot_config["helptext"],
     )
