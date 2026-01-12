@@ -139,11 +139,11 @@ class MsInfoReader(BaseParser):
                 self.enable_dia,
             )
 
-            for m in mzml_table.keys():
-                if mzml_table[m]["MS2_Num"] > 0:
-                    heatmap_charge[m] = mzml_table[m]["Charge_2"] / mzml_table[m]["MS2_Num"]
-                else:
-                    heatmap_charge[m] = 0
+            # Calculate heatmap_charge only for current file (not all files in each iteration)
+            if mzml_table[m_name]["MS2_Num"] > 0:
+                heatmap_charge[m_name] = mzml_table[m_name]["Charge_2"] / mzml_table[m_name]["MS2_Num"]
+            else:
+                heatmap_charge[m_name] = 0
 
             self.log.info(
                 "{}: Done aggregating ms_statistics dataframe {}...".format(
