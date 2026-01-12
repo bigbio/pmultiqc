@@ -232,18 +232,18 @@ pmultiqc generates a comprehensive report with multiple sections:
 
 You can find example reports on the [docs page](https://bigbio.github.io/pmultiqc). Here are the direct links to different example reports:
 
-| Example Type | Description | Link |
-|---|---|---|
-| LFQ | Label-free quantification | [LFQ Example](https://pmultiqc.quantms.org/LFQ_PXD007683/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/LFQ_PXD007683_disable_hoverinfo/multiqc_report.html)) |
-| TMT | Tandem mass tag | [TMT Example](https://pmultiqc.quantms.org/TMT_PXD007683/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/TMT_PXD007683_disable_hoverinfo/multiqc_report.html)) |
-| quantms DIA | Data-independent acquisition | [quantms DIA Example](https://pmultiqc.quantms.org/dia/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/dia_disable_hoverinfo/multiqc_report.html)) |
-| DIA-NN | Data-independent acquisition | [DIA-NN Example](https://pmultiqc.quantms.org/DIANN/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/DIANN_disable_hoverinfo/multiqc_report.html)) |
-| MaxQuant | MaxQuant results | [MaxQuant Example](https://pmultiqc.quantms.org/PXD003133/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD003133_disable_hoverinfo/multiqc_report.html)) |
-| MaxQuant DIA | MaxQuant DIA results | [MaxQuant DIA Example](https://pmultiqc.quantms.org/MaxDIA/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/MaxDIA_disable_hoverinfo/multiqc_report.html)) |
-| ProteoBench | ProteoBench results | [ProteoBench Example](https://pmultiqc.quantms.org/ProteoBench/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/ProteoBench_disable_hoverinfo/multiqc_report.html)) |
-| mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://pmultiqc.quantms.org/PXD053068/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD053068_disable_hoverinfo/multiqc_report.html)) |
-| mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) |
-| FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD066146/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD066146_disable_hoverinfo/multiqc_report.html)) |
+| Example Type | Description | Link | Dataset Download |
+|---|---|---|---|
+| LFQ | Label-free quantification | [LFQ Example](https://pmultiqc.quantms.org/LFQ_PXD007683/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/LFQ_PXD007683_disable_hoverinfo/multiqc_report.html)) | [LFQ_PXD007683.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/LFQ_PXD007683.zip) |
+| TMT | Tandem mass tag | [TMT Example](https://pmultiqc.quantms.org/TMT_PXD007683/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/TMT_PXD007683_disable_hoverinfo/multiqc_report.html)) | [TMT_PXD007683.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip) |
+| quantms DIA | Data-independent acquisition | [quantms DIA Example](https://pmultiqc.quantms.org/dia/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/dia_disable_hoverinfo/multiqc_report.html)) | [dia.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia.zip) |
+| DIA-NN | Data-independent acquisition | [DIA-NN Example](https://pmultiqc.quantms.org/DIANN/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/DIANN_disable_hoverinfo/multiqc_report.html)) | [PXD063291.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip) |
+| MaxQuant | MaxQuant results | [MaxQuant Example](https://pmultiqc.quantms.org/PXD003133/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD003133_disable_hoverinfo/multiqc_report.html)) | [txt_20min.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip) |
+| MaxQuant DIA | MaxQuant DIA results | [MaxQuant DIA Example](https://pmultiqc.quantms.org/MaxDIA/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/MaxDIA_disable_hoverinfo/multiqc_report.html)) | [MaxDIA_txt.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/maxquant/MaxDIA_txt.zip) |
+| ProteoBench | ProteoBench results | [ProteoBench Example](https://pmultiqc.quantms.org/ProteoBench/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/ProteoBench_disable_hoverinfo/multiqc_report.html)) | [ProteoBench data](https://proteobench.cubimed.rub.de/datasets/d01e87b997b84c985868204b1ed26749902fd7f9/d01e87b997b84c985868204b1ed26749902fd7f9_data.zip) |
+| mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://pmultiqc.quantms.org/PXD053068/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD053068_disable_hoverinfo/multiqc_report.html)) | [PXD053068 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/) |
+| mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) | [PXD054720 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/) |
+| FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD066146/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD066146_disable_hoverinfo/multiqc_report.html)) | [psm.tsv](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD066146/psm.tsv) |
 
 ## 👥 Contributing
 
