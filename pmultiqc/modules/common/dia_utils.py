@@ -705,15 +705,62 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
     return plot_dict
 
 
+def _prepare_quant_table_data(report_df):
+    """
+    Common preprocessing for quantification table creation.
+
+    Returns:
+        pd.DataFrame: Preprocessed report data with positive Precursor.Normalised values.
+    """
+    report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
+    return drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
+
+
+def _merge_condition_data(report_data, sample_df, file_df):
+    """
+    Merge report data with condition information from sample/file DataFrames.
+
+    Returns:
+        tuple: (merged DataFrame with condition info, list of unique conditions) or (None, [])
+    """
+    if sample_df.empty or file_df.empty:
+        return None, []
+
+    sample_cond_df = pd.merge(
+        sample_df[["Sample", "MSstats_Condition"]],
+        file_df[["Sample", "Spectra_Filepath"]],
+        on="Sample",
+    )
+    # Vectorized path splitting (more efficient than apply with lambda)
+    sample_cond_df["Run"] = sample_cond_df["Spectra_Filepath"].str.rsplit(".", n=1).str[0]
+
+    cond_report_data = pd.merge(
+        report_data[["Stripped.Sequence", "Protein.Names", "Precursor.Normalised", "Run"]],
+        sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
+        on="Run",
+    )
+
+    unique_conditions = sample_df["MSstats_Condition"].drop_duplicates().tolist()
+    return cond_report_data, unique_conditions
+
+
+def _add_condition_headers(headers, conditions):
+    """Add condition-based headers to the headers dictionary."""
+    for exp_condition in conditions:
+        headers[str(exp_condition)] = {
+            "title": str(exp_condition),
+            "description": "MSstats Condition",
+            "format": "{:,.4f}",
+        }
+
+
 # DIA-NN: Peptides Quantification Table
 def create_peptides_table(report_df, sample_df, file_df):
-    # Validation: remove rows with 0 or NA Precursor.Normalised values
-    report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
-    report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
-
+    """Create peptides quantification table from DIA-NN report."""
+    report_data = _prepare_quant_table_data(report_df)
     report_data["BestSearchScore"] = 1 - report_data["Q.Value"]
 
-    table_dict = dict()
+    table_dict = {}
     for sequence_protein, group in report_data.groupby(["Stripped.Sequence", "Protein.Names"]):
         table_dict[sequence_protein] = {
             "ProteinName": sequence_protein[1],
@@ -737,52 +784,29 @@ def create_peptides_table(report_df, sample_df, file_df):
         },
     }
 
-    if not sample_df.empty and not file_df.empty:
-
-        sample_cond_df = pd.merge(
-            sample_df[["Sample", "MSstats_Condition"]],
-            file_df[["Sample", "Spectra_Filepath"]],
-            on="Sample",
-        )
-        sample_cond_df["Run"] = sample_cond_df["Spectra_Filepath"].apply(
-            lambda x: os.path.splitext(x)[0]
-        )
-
-        cond_report_data = pd.merge(
-            report_data[["Stripped.Sequence", "Protein.Names", "Precursor.Normalised", "Run"]],
-            sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
-            on="Run",
-        )
-
+    cond_report_data, unique_conditions = _merge_condition_data(report_data, sample_df, file_df)
+    if cond_report_data is not None:
         for sequence_protein, group in cond_report_data.groupby(
                 ["Stripped.Sequence", "Protein.Names"]
         ):
-
-            condition_data = dict()
-            for condition, sub_group in group.groupby("MSstats_Condition"):
-                condition_data[str(condition)] = np.log10(sub_group["Precursor.Normalised"].mean())
-
+            condition_data = {
+                str(cond): np.log10(sub_group["Precursor.Normalised"].mean())
+                for cond, sub_group in group.groupby("MSstats_Condition")
+            }
             table_dict[sequence_protein].update(condition_data)
 
-        for exp_condition in sample_df["MSstats_Condition"].drop_duplicates():
-            headers[str(exp_condition)] = {
-                "title": str(exp_condition),
-                "description": "MSstats Condition",
-                "format": "{:,.4f}",
-            }
+        _add_condition_headers(headers, unique_conditions)
 
     result_dict = {i: v for i, (_, v) in enumerate(table_dict.items(), start=1)}
-
     return result_dict, headers
 
 
 # DIA-NN: Protein Quantification Table
 def create_protein_table(report_df, sample_df, file_df):
-    # Validation: remove rows with 0 or NA Precursor.Normalised values
-    report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
-    report_data = drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
+    """Create protein quantification table from DIA-NN report."""
+    report_data = _prepare_quant_table_data(report_df)
 
-    table_dict = dict()
+    table_dict = {}
     for protein_name, group in report_data.groupby("Protein.Names"):
         table_dict[protein_name] = {
             "ProteinName": protein_name,
@@ -807,40 +831,18 @@ def create_protein_table(report_df, sample_df, file_df):
         },
     }
 
-    if not sample_df.empty and not file_df.empty:
-
-        sample_cond_df = pd.merge(
-            sample_df[["Sample", "MSstats_Condition"]],
-            file_df[["Sample", "Spectra_Filepath"]],
-            on="Sample",
-        )
-        sample_cond_df["Run"] = sample_cond_df["Spectra_Filepath"].apply(
-            lambda x: os.path.splitext(x)[0]
-        )
-
-        cond_report_data = pd.merge(
-            report_data[["Stripped.Sequence", "Protein.Names", "Precursor.Normalised", "Run"]],
-            sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
-            on="Run",
-        )
-
+    cond_report_data, unique_conditions = _merge_condition_data(report_data, sample_df, file_df)
+    if cond_report_data is not None:
         for protein_name, group in cond_report_data.groupby("Protein.Names"):
-
-            condition_data = dict()
-            for condition, sub_group in group.groupby("MSstats_Condition"):
-                condition_data[str(condition)] = np.log10(sub_group["Precursor.Normalised"].mean())
-
+            condition_data = {
+                str(cond): np.log10(sub_group["Precursor.Normalised"].mean())
+                for cond, sub_group in group.groupby("MSstats_Condition")
+            }
             table_dict[protein_name].update(condition_data)
 
-        for exp_condition in sample_df["MSstats_Condition"].drop_duplicates():
-            headers[str(exp_condition)] = {
-                "title": str(exp_condition),
-                "description": "MSstats Condition",
-                "format": "{:,.4f}",
-            }
+        _add_condition_headers(headers, unique_conditions)
 
     result_dict = {i: v for i, (_, v) in enumerate(table_dict.items(), start=1)}
-
     return result_dict, headers
 
 
