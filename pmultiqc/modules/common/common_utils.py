@@ -407,7 +407,7 @@ def recompute_mass_error(evidence_df):
     ]
 
     if not all(col in evidence_df.columns for col in required_cols):
-        log.info("Evidence is missing one or more required columns in recommpute_mass_error.")
+        log.info("Evidence is missing one or more required columns in recompute_mass_error.")
         return None
 
     df = evidence_df[required_cols].copy()
