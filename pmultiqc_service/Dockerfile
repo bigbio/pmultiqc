@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libffi-dev \
     libglib2.0-0 \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install wheel
