@@ -235,7 +235,7 @@ class TestPXD066146Data:
 
     def test_tmt_channels_detected(self, fragpipe_ion_file):
         """Test that TMT channels from PXD066146 are correctly detected."""
-        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
+        _, sample_cols = ion_reader(str(fragpipe_ion_file))
 
         # PXD066146 uses TMT labeling with 33075_TMT_* pattern
         tmt_cols = [col for col in sample_cols if "33075_TMT" in col]
@@ -248,7 +248,7 @@ class TestPXD066146Data:
 
     def test_ion_count_reasonable(self, fragpipe_ion_file):
         """Test that ion.tsv has reasonable number of ions."""
-        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
+        ion_df, _ = ion_reader(str(fragpipe_ion_file))
 
         # Test data has 1000 rows (subset of full dataset)
         assert len(ion_df) == 1000, f"Expected 1000 ions in test data, found {len(ion_df)}"

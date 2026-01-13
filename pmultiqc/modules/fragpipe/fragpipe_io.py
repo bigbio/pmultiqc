@@ -111,19 +111,12 @@ def ion_reader(file_path: str):
     # Get required columns that exist
     required_cols = [c for c in REQUIRED_COLS["ion"] if c in ion_df.columns]
 
-    # Identify sample intensity columns
-    # These are columns that are NOT in the metadata columns
-    metadata_cols = {
-        "Peptide Sequence", "Modified Sequence", "Prev AA", "Next AA",
-        "Peptide Length", "M/Z", "Charge", "Observed Mass", "Probability",
-        "Expectation", "Spectral Count", "Intensity", "Assigned Modifications",
-        "Observed Modifications", "Protein", "Protein ID", "Entry Name",
-        "Gene", "Protein Description", "Mapped Genes", "Mapped Proteins"
-    }
+    try:
+        anchor_idx = ion_df.columns.get_loc("Mapped Proteins")
+    except KeyError:
+        return []
 
-    # Sample intensity columns are those not in metadata
-    all_cols = set(ion_df.columns)
-    sample_intensity_cols = sorted(list(all_cols - metadata_cols))
+    sample_intensity_cols = list(ion_df.columns[anchor_idx + 1:])
 
     # Filter to only numeric columns that look like sample intensities
     # These typically have numeric values and may contain patterns like TMT, LFQ, etc.

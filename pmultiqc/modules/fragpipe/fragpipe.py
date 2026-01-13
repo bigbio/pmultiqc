@@ -3,8 +3,9 @@ import numpy as np
 import re
 
 from pmultiqc.modules.base import BasePMultiqcModule
-from pmultiqc.modules.fragpipe import fragpipe_io
 from pmultiqc.modules.fragpipe.fragpipe_io import (
+    get_fragpipe_files,
+    psm_reader,
     ion_reader,
     get_ion_intensity_data,
 )
@@ -90,7 +91,7 @@ class FragPipeModule(BasePMultiqcModule):
 
         log.info("Starting data recognition and processing...")
 
-        self.fragpipe_files = fragpipe_io.get_fragpipe_files(self.find_log_files)
+        self.fragpipe_files = get_fragpipe_files(self.find_log_files)
 
         if self.fragpipe_files is None:
             log.warning("No FragPipe files found.")
@@ -269,7 +270,7 @@ class FragPipeModule(BasePMultiqcModule):
 
         for psm in fragpipe_files.get("psm", []):
 
-            psm_df = fragpipe_io.psm_reader(psm)
+            psm_df = psm_reader(psm)
 
             if psm_df is None or psm_df.empty:
                 log.warning(f"Skipping unreadable/empty FragPipe PSM file: {psm}")
@@ -754,8 +755,6 @@ class FragPipeModule(BasePMultiqcModule):
 
         all_intensity_data = {
             'intensity_distribution': {},
-            'intensity_cv': {},
-            'intensity_summary': {}
         }
         all_sample_cols = []
 
@@ -778,18 +777,6 @@ class FragPipeModule(BasePMultiqcModule):
                             all_intensity_data['intensity_distribution'][sample].extend(values)
                         else:
                             all_intensity_data['intensity_distribution'][sample] = values
-
-                    # Merge CV data
-                    for sample, values in intensity_data.get('intensity_cv', {}).items():
-                        if sample in all_intensity_data['intensity_cv']:
-                            all_intensity_data['intensity_cv'][sample].extend(values)
-                        else:
-                            all_intensity_data['intensity_cv'][sample] = values
-
-                    # Merge summary data (take first occurrence)
-                    for sample, summary in intensity_data.get('intensity_summary', {}).items():
-                        if sample not in all_intensity_data['intensity_summary']:
-                            all_intensity_data['intensity_summary'][sample] = summary
 
                     all_sample_cols.extend([c for c in sample_cols if c not in all_sample_cols])
 
