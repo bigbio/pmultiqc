@@ -61,7 +61,7 @@ class TestFragpipeIO:
 
     def test_ion_reader_required_columns(self, fragpipe_ion_file):
         """Test that ion_reader preserves required columns."""
-        ion_df, sample_cols = ion_reader(str(fragpipe_ion_file))
+        ion_df, _ = ion_reader(str(fragpipe_ion_file))
 
         # Check for required columns
         expected_cols = ["Peptide Sequence", "Charge", "Protein"]
