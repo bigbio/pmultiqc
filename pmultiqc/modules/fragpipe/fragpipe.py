@@ -3,7 +3,12 @@ import numpy as np
 import re
 
 from pmultiqc.modules.base import BasePMultiqcModule
-from pmultiqc.modules.fragpipe import fragpipe_io
+from pmultiqc.modules.fragpipe.fragpipe_io import (
+    get_fragpipe_files,
+    psm_reader,
+    ion_reader,
+    get_ion_intensity_data,
+)
 from pmultiqc.modules.common.stats import (
     cal_delta_mass_dict,
     nanmedian,
@@ -37,6 +42,7 @@ from pmultiqc.modules.common.common_utils import (
 )
 from pmultiqc.modules.common.plots.general import (
     plot_html_check,
+    plot_data_check,
     stat_pep_intensity,
     search_engine_score_bins,
     draw_search_engine_scores,
@@ -47,7 +53,7 @@ from collections import OrderedDict
 from pmultiqc.modules.common.histogram import Histogram
 
 from multiqc import config
-from multiqc.plots import bargraph
+from multiqc.plots import bargraph, box
 
 from pmultiqc.modules.common.logging import get_logger
 
@@ -76,14 +82,22 @@ class FragPipeModule(BasePMultiqcModule):
         self.mods = []
         self.hm_data = []
 
+        # Ion-level intensity data from ion.tsv
+        self.ion_intensity_data = None
+        self.ion_sample_cols = []
+
 
     def get_data(self):
 
         log.info("Starting data recognition and processing...")
 
-        self.fragpipe_files = fragpipe_io.get_fragpipe_files(self.find_log_files)
+        self.fragpipe_files = get_fragpipe_files(self.find_log_files)
 
-        if self.fragpipe_files["psm"]:
+        if self.fragpipe_files is None:
+            log.warning("No FragPipe files found.")
+            return False
+
+        if self.fragpipe_files.get("psm"):
             (
                 self.delta_masses,
                 self.charge_states,
@@ -101,6 +115,12 @@ class FragPipeModule(BasePMultiqcModule):
         else:
             log.warning("Required input not found: psm.tsv")
             return False
+
+        # Parse ion.tsv for ion-level intensity data
+        if self.fragpipe_files.get("ion"):
+            self.ion_intensity_data, self.ion_sample_cols = self.parse_ion(
+                fragpipe_files=self.fragpipe_files
+            )
 
         return True
 
@@ -211,6 +231,13 @@ class FragPipeModule(BasePMultiqcModule):
                 retentions=self.retentions
             )
 
+        # Ion-level intensity plots from ion.tsv
+        if self.ion_intensity_data:
+            self.draw_ion_intensity_distribution(
+                sub_section=self.sub_sections["quantification"],
+                intensity_data=self.ion_intensity_data
+            )
+
         section_group_dict = {
             "summary_sub_section": self.sub_sections["summary"],
             "identification_sub_section": self.sub_sections["identification"],
@@ -243,7 +270,7 @@ class FragPipeModule(BasePMultiqcModule):
 
         for psm in fragpipe_files.get("psm", []):
 
-            psm_df = fragpipe_io.psm_reader(psm)
+            psm_df = psm_reader(psm)
 
             if psm_df is None or psm_df.empty:
                 log.warning(f"Skipping unreadable/empty FragPipe PSM file: {psm}")
@@ -702,6 +729,130 @@ class FragPipeModule(BasePMultiqcModule):
             rt_count_data=plot_data,
             report_type="fragpipe"
         )
+
+    @staticmethod
+    def parse_ion(fragpipe_files):
+        """
+        Parse ion.tsv files for ion-level intensity data.
+
+        Parameters
+        ----------
+        fragpipe_files : dict
+            Dictionary of FragPipe file paths.
+
+        Returns
+        -------
+        tuple
+            (ion_intensity_data, sample_cols) where:
+            - ion_intensity_data: Dictionary with intensity distribution and CV data
+            - sample_cols: List of sample intensity column names
+        """
+        ion_files = fragpipe_files.get("ion", [])
+
+        if not ion_files:
+            log.info("No ion.tsv files found.")
+            return None, []
+
+        all_intensity_data = {
+            'intensity_distribution': {},
+        }
+        all_sample_cols = []
+
+        for ion_file in ion_files:
+            try:
+                ion_df, sample_cols = ion_reader(ion_file)
+
+                if ion_df is None or ion_df.empty:
+                    log.warning(f"Skipping unreadable/empty ion.tsv file: {ion_file}")
+                    continue
+
+                log.info(f"Loaded ion.tsv with {len(ion_df)} rows and {len(sample_cols)} samples")
+
+                intensity_data = get_ion_intensity_data(ion_df, sample_cols)
+
+                if intensity_data:
+                    # Merge intensity distributions
+                    for sample, values in intensity_data.get('intensity_distribution', {}).items():
+                        if sample in all_intensity_data['intensity_distribution']:
+                            all_intensity_data['intensity_distribution'][sample].extend(values)
+                        else:
+                            all_intensity_data['intensity_distribution'][sample] = values
+
+                    all_sample_cols.extend([c for c in sample_cols if c not in all_sample_cols])
+
+            except Exception as e:
+                log.warning(f"Error parsing ion.tsv file {ion_file}: {e}")
+                continue
+
+        if not all_intensity_data['intensity_distribution']:
+            log.info("No valid intensity data found in ion.tsv files.")
+            return None, []
+
+        log.info(f"Ion intensity data parsed for {len(all_sample_cols)} samples")
+
+        return all_intensity_data, all_sample_cols
+
+    @staticmethod
+    def draw_ion_intensity_distribution(sub_section, intensity_data: dict):
+        """
+        Draw ion-level intensity distribution box plot.
+
+        Parameters
+        ----------
+        sub_section : dict
+            Section to add the plot to.
+        intensity_data : dict
+            Dictionary containing 'intensity_distribution' data.
+        """
+        distribution = intensity_data.get('intensity_distribution', {})
+
+        if not distribution:
+            log.info("No ion intensity distribution data available.")
+            return
+
+        log.info(f"Drawing ion intensity distribution for {len(distribution)} samples")
+
+        draw_config = {
+            "id": "ion_intensity_distribution_box",
+            "cpswitch": False,
+            "cpswitch_c_active": False,
+            "title": "Ion Intensity Distribution",
+            "tt_decimals": 2,
+            "xlab": "log2(Intensity)",
+            "sort_samples": False,
+            "save_data_file": False,
+        }
+
+        box_html = box.plot(list_of_data_by_sample=distribution, pconfig=draw_config)
+
+        box_html = plot_data_check(
+            plot_data=distribution,
+            plot_html=box_html,
+            log_text="pmultiqc.modules.fragpipe.fragpipe",
+            function_name="draw_ion_intensity_distribution"
+        )
+        box_html = plot_html_check(box_html)
+
+        add_sub_section(
+            sub_section=sub_section,
+            plot=box_html,
+            order=6,
+            description="Ion-level intensity distribution per sample from ion.tsv.",
+            helptext="""
+                [FragPipe: ion.tsv] This plot shows the log2-transformed ion intensity
+                distribution for each sample/channel. The ion.tsv file contains precursor-level
+                quantification data from IonQuant.
+
+                For TMT experiments, each box represents a TMT channel.
+                For label-free experiments, each box represents a sample/run.
+
+                A higher median intensity and narrower distribution typically indicate
+                better quantification quality. Large differences between samples may
+                indicate normalization issues or batch effects.
+            """,
+        )
+
+        log.info("Ion intensity distribution plot generated.")
 
 
 def _calculate_statistics(pipeline_stats: list):
