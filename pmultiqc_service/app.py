@@ -480,12 +480,27 @@ async def fix_tus_location_header(request: Request, call_next):
         location = response.headers["Location"]
         logger.info(f"TUS middleware: Original Location header: {location}")
         
-        # If it's a relative path starting with /files/, prepend BASE_URL
-        if location.startswith("/files/"):
+        # Handle both relative and absolute URLs
+        if "/files/" in location:
             base = BASE_URL.rstrip("/")
-            new_location = f"{base}{location}"
-            response.headers["Location"] = new_location
-            logger.info(f"TUS middleware: Rewrote Location header: {location} -> {new_location}")
+            
+            # If it's a relative path, prepend BASE_URL
+            if location.startswith("/files/"):
+                new_location = f"{base}{location}"
+            # If it's an absolute URL, replace the path part
+            elif "://" in location:
+                # Extract just the /files/... part
+                files_part = location.split("/files/", 1)
+                if len(files_part) == 2:
+                    new_location = f"{base}/files/{files_part[1]}"
+                else:
+                    new_location = location
+            else:
+                new_location = location
+            
+            if new_location != location:
+                response.headers["Location"] = new_location
+                logger.info(f"TUS middleware: Rewrote Location header: {location} -> {new_location}")
     
     return response
 
