@@ -470,6 +470,24 @@ def handle_upload_complete(file_path: str, metadata: dict):
         raise
 
 
+# Middleware to fix Location headers for TUS when behind ingress
+@app.middleware("http")
+async def fix_tus_location_header(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Fix Location header for TUS responses
+    if "Location" in response.headers and "/files/" in response.headers["Location"]:
+        location = response.headers["Location"]
+        # If it's a relative path, prepend BASE_URL
+        if location.startswith("/files/"):
+            # Use BASE_URL from config
+            base = BASE_URL.rstrip("/")
+            response.headers["Location"] = f"{base}{location}"
+            logger.debug(f"Rewrote Location header: {location} -> {response.headers['Location']}")
+    
+    return response
+
+
 # Mount TUS upload router
 # This handles resumable file uploads via TUS protocol
 # Note: In production, ingress rewrites /pride/services/pmultiqc/files/* to /files/*
