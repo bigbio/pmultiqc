@@ -17,6 +17,7 @@ import traceback
 import uuid
 import zipfile
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 import redis
@@ -29,6 +30,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from tuspyserver import create_tus_router
 
 # Configuration
 # Use environment variables with fallback to current working directory subdirectories
@@ -64,7 +66,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 os.makedirs(HTML_REPORTS_FOLDER, exist_ok=True)
 
 # Initialize Jinja2 templates
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {"zip"}
@@ -373,12 +375,115 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],  # Restrict to only needed methods
-    allow_headers=["Content-Type", "Authorization"],  # Restrict to only needed headers
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],  # TUS needs PATCH and HEAD
+    allow_headers=["*"],  # TUS needs custom headers (Upload-*, Tus-*)
+    expose_headers=["*"],  # TUS needs to expose custom headers
 )
 
+
+# TUS Upload Protocol Implementation (using tuspyserver)
+# Callback function for when TUS upload completes
+def handle_upload_complete(file_path: str, metadata: dict):
+    """
+    Called by tuspyserver when upload completes.
+    
+    Args:
+        file_path: Path to the uploaded file
+        metadata: Upload metadata (filename, filetype, etc.)
+    """
+    try:
+        # Extract metadata
+        filename = metadata.get("filename", "upload.zip")
+        filetype = metadata.get("filetype", "application/zip")
+        
+        logger.info(f"TUS upload complete: file={file_path}, filename={filename}")
+        
+        # Validate filename
+        if not filename.lower().endswith(".zip"):
+            logger.error(f"Invalid file type: {filename}")
+            # Clean up uploaded file
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise ValueError(f"Only ZIP files are allowed. Received: {filename}")
+        
+        # Get file size
+        file_size = os.path.getsize(file_path)
+        
+        # Generate job ID
+        job_id = str(uuid.uuid4())
+        
+        # Create job directories
+        job_upload_dir = os.path.join(UPLOAD_FOLDER, job_id)
+        output_dir = os.path.join(OUTPUT_FOLDER, job_id)
+        os.makedirs(job_upload_dir, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Move uploaded file to job directory
+        final_zip_path = os.path.join(job_upload_dir, filename)
+        shutil.move(file_path, final_zip_path)
+        
+        logger.info(f"Moved upload to {final_zip_path}, job_id={job_id}")
+        
+        # Initialize job in database
+        initial_job_data = {
+            "job_id": job_id,
+            "status": "extracting",
+            "progress": 25,
+            "started_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "filename": filename,
+            "file_size": file_size,
+        }
+        save_job_to_db(job_id, initial_job_data)
+        
+        # Extract and process
+        extract_path = os.path.join(job_upload_dir, "extracted")
+        os.makedirs(extract_path, exist_ok=True)
+        
+        validate_and_extract_zip(final_zip_path, extract_path, file_size)
+        
+        # Detect input type
+        input_type, quantms_config = detect_input_type(extract_path)
+        logger.info(f"Detected input type: {input_type}")
+        
+        if input_type == "unknown":
+            update_job_progress(
+                job_id,
+                "failed",
+                error="Could not detect input type",
+                finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            )
+        else:
+            # Start async processing
+            update_job_progress(job_id, "queued", 50, input_type=input_type)
+            thread = threading.Thread(
+                target=process_job_async,
+                args=(job_id, extract_path, output_dir, input_type, quantms_config),
+            )
+            thread.daemon = True
+            thread.start()
+        
+        logger.info(f"Job {job_id} processing started")
+        
+    except Exception as e:
+        logger.error(f"Error handling upload completion: {e}")
+        logger.error(traceback.format_exc())
+        raise
+
+
+# Mount TUS upload router
+# This handles resumable file uploads via TUS protocol
+tus_router = create_tus_router(
+    prefix="/files",  # Endpoint: /files
+    files_dir=UPLOAD_FOLDER,  # Where to store uploads
+    max_size=MAX_FILE_SIZE,  # 10GB default
+    on_upload_complete=handle_upload_complete,  # Callback function
+    days_to_keep=7,  # Auto-cleanup after 7 days
+)
+app.include_router(tus_router)
+logger.info(f"TUS upload router mounted at /files with max size {MAX_FILE_SIZE / (1024**3):.1f} GB")
+
 # Mount static files
-app.mount("/static", StaticFiles(directory="templates"), name="static")
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "templates")), name="static")
 
 
 # Configure OpenAPI for subpath deployment

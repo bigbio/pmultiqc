@@ -6,6 +6,8 @@
     <title>pmultiqc - Proteomics MultiQC Analysis</title>
     <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/style.css">
     <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/components.css">
+    <!-- TUS Resumable Upload Library -->
+    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@latest/dist/tus.min.js"></script>
     <script>
         // Global configuration - can be overridden by environment
         window.APP_CONFIG = {
@@ -260,7 +262,10 @@
 
         function cancelUpload() {
             if (currentUploadXhr) {
-                currentUploadXhr.abort();
+                // TUS upload object has abort() method
+                if (typeof currentUploadXhr.abort === 'function') {
+                    currentUploadXhr.abort();
+                }
                 currentUploadXhr = null;
             }
             processingInProgress = false;
@@ -312,15 +317,13 @@
         function uploadFiles(files) {
             if (processingInProgress) return;
             
-            console.log('Starting file upload with', files.length, 'files');
+            console.log('Starting TUS upload with', files.length, 'file(s)');
             
-            const formData = new FormData();
-            let totalSize = 0;
-            for (let file of files) {
-                formData.append('files', file);
-                totalSize += file.size;
-                console.log('Added file to form data:', file.name, formatBytes(file.size));
-            }
+            // TUS only uploads one file at a time
+            const file = files[0];
+            const totalSize = file.size;
+            
+            console.log('Uploading file:', file.name, formatBytes(totalSize));
 
             showProgress();
             
@@ -333,126 +336,149 @@
 
             // Track upload timing
             const startTime = Date.now();
-            
-            // Use XMLHttpRequest for upload progress tracking
-            const xhr = new XMLHttpRequest();
-            currentUploadXhr = xhr; // Store for potential cancellation
+            let lastLoaded = 0;
+            let lastTime = startTime;
             
             // Show cancel button
             document.getElementById('cancelUploadBtn').style.display = 'inline-block';
             
-            // Track upload progress
-            xhr.upload.addEventListener('progress', function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = (e.loaded / e.total) * 100;
-                    const elapsed = (Date.now() - startTime) / 1000; // seconds
-                    const uploadedMB = e.loaded;
-                    const totalMB = e.total;
+            // Create TUS upload
+            const upload = new tus.Upload(file, {
+                endpoint: getApiUrl('/files/'),
+                retryDelays: [0, 3000, 5000, 10000, 20000],
+                metadata: {
+                    filename: file.name,
+                    filetype: file.type
+                },
+                onError: function(error) {
+                    console.error('TUS upload error:', error);
+                    document.getElementById('cancelUploadBtn').style.display = 'none';
+                    currentUploadXhr = null;
+                    showError('Upload failed: ' + error.message);
+                },
+                onProgress: function(bytesUploaded, bytesTotal) {
+                    const percentComplete = (bytesUploaded / bytesTotal) * 100;
+                    const currentTime = Date.now();
+                    const elapsed = (currentTime - startTime) / 1000; // seconds
                     
                     // Update progress bar
                     progressFill.style.width = percentComplete + '%';
                     
-                    // Calculate speed and ETA (only if enough time has elapsed)
+                    // Calculate speed and ETA
                     let speedText = 'calculating...';
                     let etaText = 'calculating...';
                     
-                    if (elapsed > 0.5 && uploadedMB > 0) { // Wait at least 500ms for stable calculation
-                        const speed = uploadedMB / elapsed; // bytes per second
-                        const remaining = e.total - e.loaded;
-                        const eta = remaining / speed; // seconds
+                    if (elapsed > 0.5 && bytesUploaded > 0) {
+                        // Calculate instantaneous speed (for more responsive display)
+                        const timeDiff = (currentTime - lastTime) / 1000;
+                        const bytesDiff = bytesUploaded - lastLoaded;
+                        const instantSpeed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+                        
+                        // Calculate average speed
+                        const avgSpeed = bytesUploaded / elapsed;
+                        
+                        // Use weighted average: 70% instant, 30% average
+                        const speed = instantSpeed * 0.7 + avgSpeed * 0.3;
+                        
+                        const remaining = bytesTotal - bytesUploaded;
+                        const eta = speed > 0 ? remaining / speed : 0;
                         
                         speedText = formatSpeed(speed);
                         etaText = formatTime(eta);
+                        
+                        lastLoaded = bytesUploaded;
+                        lastTime = currentTime;
                     }
                     
                     // Update progress text with detailed info
                     progressText.innerHTML = `
-                        <div>Uploading: ${percentComplete.toFixed(1)}% complete</div>
+                        <div>Uploading: ${percentComplete.toFixed(1)}% complete (Resumable)</div>
                         <div style="font-size: 0.8em; margin-top: 5px;">
-                            ${formatBytes(uploadedMB)} / ${formatBytes(totalMB)} • 
+                            ${formatBytes(bytesUploaded)} / ${formatBytes(bytesTotal)} • 
                             ${speedText} • 
                             ETA: ${etaText}
                         </div>
                     `;
                     
-                    console.log(`Upload progress: ${percentComplete.toFixed(1)}% (${formatBytes(uploadedMB)}/${formatBytes(totalMB)})`);
+                    console.log(`TUS progress: ${percentComplete.toFixed(1)}% (${formatBytes(bytesUploaded)}/${formatBytes(bytesTotal)})`);
+                },
+                onSuccess: function() {
+                    console.log('TUS upload completed successfully');
+                    document.getElementById('cancelUploadBtn').style.display = 'none';
+                    currentUploadXhr = null;
+                    
+                    const uploadTime = (Date.now() - startTime) / 1000;
+                    
+                    // Get job ID from upload URL (tuspyserver should provide it)
+                    // For tuspyserver, we need to poll or wait for the callback to complete
+                    // Show a temporary "processing upload" message
+                    progressText.innerHTML = `
+                        <div>✅ Upload completed in ${formatTime(uploadTime)}</div>
+                        <div style="font-size: 0.8em; margin-top: 5px; color: #28a745;">
+                            ${formatBytes(totalSize)} uploaded successfully • Processing...
+                        </div>
+                    `;
+                    progressFill.style.width = '100%';
+                    
+                    // Show processing section
+                    document.getElementById('processingProgressSection').style.display = 'block';
+                    document.getElementById('consoleOutputSection').style.display = 'block';
+                    
+                    // Update title
+                    document.getElementById('progressTitle').textContent = '⚙️ Running pmultiqc Analysis...';
+                    
+                    // Start polling for job status
+                    // Since tuspyserver processes the upload in the callback,
+                    // we need to find the job ID - it will appear in Redis shortly
+                    setTimeout(() => {
+                        // Poll for recent jobs to find ours
+                        pollForRecentJob(file.name);
+                    }, 2000);
                 }
             });
             
-            // Handle upload completion
-            xhr.addEventListener('load', function() {
-                // Hide cancel button and clear xhr reference
-                document.getElementById('cancelUploadBtn').style.display = 'none';
-                currentUploadXhr = null;
-                
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        const data = JSON.parse(xhr.responseText);
-                        console.log('Upload response data:', data);
-                        
-                        if (data.job_id) {
-                            currentJobId = data.job_id;
-                            const uploadTime = (Date.now() - startTime) / 1000;
-                            
-                            // Update upload section to show completion
-                            progressText.innerHTML = `
-                                <div>✅ Upload completed in ${formatTime(uploadTime)}</div>
-                                <div style="font-size: 0.8em; margin-top: 5px; color: #28a745;">
-                                    ${formatBytes(totalSize)} uploaded successfully
-                                </div>
-                            `;
-                            progressFill.style.width = '100%';
-                            
-                            // Show processing section
-                            document.getElementById('processingProgressSection').style.display = 'block';
-                            document.getElementById('consoleOutputSection').style.display = 'block';
-                            
-                            // Update title
-                            document.getElementById('progressTitle').textContent = '⚙️ Running pmultiqc Analysis...';
-                            
-                            // Start polling for processing status
-                            setTimeout(() => {
-                                pollStatus(data.job_id);
-                            }, 1000);
-                        } else {
-                            showError(data.error || 'Upload failed');
-                        }
-                    } catch (e) {
-                        console.error('Error parsing response:', e);
-                        showError('Upload failed: Invalid server response');
-                    }
-                } else {
-                    console.error('Upload failed with status:', xhr.status);
-                    try {
-                        const errorData = JSON.parse(xhr.responseText);
-                        showError('Upload failed: ' + (errorData.error || xhr.statusText));
-                    } catch (e) {
-                        showError('Upload failed: ' + xhr.statusText);
-                    }
-                }
-            });
-            
-            // Handle upload errors
-            xhr.addEventListener('error', function() {
-                // Hide cancel button and clear xhr reference
-                document.getElementById('cancelUploadBtn').style.display = 'none';
-                currentUploadXhr = null;
-                console.error('Upload error occurred');
-                showError('Upload failed: Network error');
-            });
-            
-            // Handle upload abort
-            xhr.addEventListener('abort', function() {
-                // Hide cancel button and clear xhr reference
-                document.getElementById('cancelUploadBtn').style.display = 'none';
-                currentUploadXhr = null;
-                console.log('Upload aborted');
-                showError('Upload was cancelled');
-            });
+            // Store upload instance for cancellation
+            currentUploadXhr = upload;
             
             // Start the upload
-            xhr.open('POST', getApiUrl('/upload-async'));
-            xhr.send(formData);
+            upload.start();
+        }
+        
+        // Helper function to find recent job by filename
+        function pollForRecentJob(filename, attempts = 0) {
+            if (attempts > 10) {
+                showError('Could not find processing job. Please check status manually.');
+                return;
+            }
+            
+            // Try to get status endpoint to find recent jobs
+            // For now, we'll implement a simple polling mechanism
+            // In production, you might want to modify the backend to return job_id in a header
+            fetch(getApiUrl('/jobs'))
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.jobs && data.jobs.length > 0) {
+                        // Find the most recent job matching our filename
+                        const recentJob = data.jobs.find(job => 
+                            job.filename === filename &&
+                            ['extracting', 'queued', 'running', 'uploading'].includes(job.status)
+                        );
+                        
+                        if (recentJob) {
+                            currentJobId = recentJob.job_id;
+                            pollStatus(recentJob.job_id);
+                        } else {
+                            // Retry after a short delay
+                            setTimeout(() => pollForRecentJob(filename, attempts + 1), 1000);
+                        }
+                    } else {
+                        setTimeout(() => pollForRecentJob(filename, attempts + 1), 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error polling for recent job:', error);
+                    setTimeout(() => pollForRecentJob(filename, attempts + 1), 1000);
+                });
         }
 
         // PRIDE dataset processing
