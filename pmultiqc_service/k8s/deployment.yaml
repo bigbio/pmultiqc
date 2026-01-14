@@ -63,11 +63,6 @@ spec:
                 configMapKeyRef:
                   name: pmultiqc-config
                   key: BASE_URL
-            - name: TUS_PATH_PREFIX
-              valueFrom:
-                configMapKeyRef:
-                  name: pmultiqc-config
-                  key: TUS_PATH_PREFIX
             - name: PRIDE_BUTTON_VISIBLE
               valueFrom:
                 configMapKeyRef:
