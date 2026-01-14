@@ -10,6 +10,7 @@ data:
   OUTPUT_FOLDER: "/tmp/pmultiqc_outputs"
   HTML_REPORTS_FOLDER: "/tmp/pmultiqc_html_reports"
   BASE_URL: "https://www.ebi.ac.uk/pride/services/pmultiqc"
+  TUS_PATH_PREFIX: "/pride/services/pmultiqc"  # Path prefix for TUS endpoints in production (EBI ingress routing)
   LOG_LEVEL: "DEBUG"
   PRIDE_BUTTON_VISIBLE: "false"  # Set to "true" to show PRIDE Dataset button, "false" to hide
   REDIS_URL: "redis://redis-service:6379"

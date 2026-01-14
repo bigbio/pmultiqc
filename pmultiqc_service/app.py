@@ -479,8 +479,11 @@ tus_router = create_tus_router(
     on_upload_complete=handle_upload_complete,  # Callback function
     days_to_keep=7,  # Auto-cleanup after 7 days
 )
-app.include_router(tus_router)
-logger.info(f"TUS upload router mounted at /files with max size {MAX_FILE_SIZE / (1024**3):.1f} GB")
+# Mount with full prefix for production (ingress path)
+# For local dev, this will be at /files, for production at /pride/services/pmultiqc/files
+tus_prefix = os.environ.get("TUS_PATH_PREFIX", "")
+app.include_router(tus_router, prefix=tus_prefix)
+logger.info(f"TUS upload router mounted at {tus_prefix}/files with max size {MAX_FILE_SIZE / (1024**3):.1f} GB")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "templates")), name="static")
