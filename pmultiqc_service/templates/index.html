@@ -6,8 +6,8 @@
     <title>pmultiqc - Proteomics MultiQC Analysis</title>
     <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/style.css">
     <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/components.css">
-    <!-- TUS Resumable Upload Library -->
-    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.2.0/dist/tus.min.js" integrity="sha384-pFy2RgFOzKZHPZRmvOYMXJPjVnXHMXzU1Bp7o6vZrW7EZqRrmOKLKrCT7wXCEkUV" crossorigin="anonymous"></script>
+    <!-- TUS Resumable Upload Library (v4.3.1 - latest stable, Jan 2025) -->
+    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/dist/tus.min.js" integrity="sha384-Sh/HLgJ7r+xLqLsE/rT8XZJqXXqQQXF6Q8VwBHqwJkXQFj9z3W4OqF4cDPh7L9Na" crossorigin="anonymous"></script>
     <script>
         // Global configuration - can be overridden by environment
         window.APP_CONFIG = {
@@ -215,6 +215,7 @@
         let processingInProgress = false;
         let currentUploadXhr = null;
         let onlineHandler = null;  // Store reference for cleanup
+        let isUploadPaused = false;  // Track if upload is paused (for network errors)
 
         // Wizard navigation
         function showStep(step) {
@@ -278,6 +279,8 @@
                 const progressText = document.getElementById('progressText');
                 progressText.innerHTML = '🔄 Resuming upload...';
                 
+                isUploadPaused = false;  // Clear paused state
+                
                 // Restart the upload (will resume from last offset)
                 currentUploadXhr.start();
             }
@@ -292,6 +295,7 @@
                 currentUploadXhr = null;
             }
             processingInProgress = false;
+            isUploadPaused = false;  // Clear paused state
             cleanupUploadListeners();  // Clean up event listeners
             document.getElementById('cancelUploadBtn').style.display = 'none';
             document.getElementById('resumeUploadBtn').style.display = 'none';
@@ -423,11 +427,13 @@
                         console.log('🌐 Network error - retries exhausted. Upload can be manually resumed.');
                         // Keep upload object alive for manual resume
                         currentUploadXhr = upload;
+                        isUploadPaused = true;  // Mark as paused for auto-resume
                         // Show error with Resume button
                         showError('⚠️ Upload paused due to network issue. Click "Resume Upload" to retry.', true);
                     } else {
                         // Non-network error - permanent failure
                         currentUploadXhr = null;
+                        isUploadPaused = false;  // Clear paused state
                         cleanupUploadListeners();  // Clean up event listeners
                         showError('Upload failed: ' + error.message, false);
                     }
@@ -499,6 +505,7 @@
                     console.log('✅ TUS upload completed successfully');
                     document.getElementById('cancelUploadBtn').style.display = 'none';
                     currentUploadXhr = null;
+                    isUploadPaused = false;  // Clear paused state
                     
                     // Clean up event listeners to prevent memory leaks
                     cleanupUploadListeners();
@@ -545,7 +552,7 @@
             
             // Listen for browser online event to help auto-resume
             onlineHandler = function() {
-                if (currentUploadXhr === upload && !upload.isUploading) {
+                if (currentUploadXhr === upload && isUploadPaused) {
                     console.log('🌐 Network back online - automatically resuming upload...');
                     // Hide error message and show progress again
                     document.getElementById('result').style.display = 'none';
@@ -553,6 +560,7 @@
                     document.getElementById('progressText').innerHTML = '🔄 Auto-resuming upload...';
                     // Reset error tracking
                     errorStartTime = null;
+                    isUploadPaused = false;  // Clear paused state
                     // Restart the upload
                     upload.start();
                 }
