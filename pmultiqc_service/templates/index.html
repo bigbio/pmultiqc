@@ -356,7 +356,7 @@
             const upload = new tus.Upload(file, {
                 endpoint: getApiUrl('/files/'),
                 retryDelays: [0, 1000, 3000, 5000, 10000, 15000, 20000, 30000, 45000, 60000],  // More retries, up to 60s
-                chunkSize: 100 * 1024 * 1024,  // 100 MB chunks
+                chunkSize: 50 * 1024 * 1024,  // 50 MB chunks
                 // Enable resume by storing upload URL
                 removeFingerprintOnSuccess: true,
                 // Custom fingerprint based on file properties
@@ -441,10 +441,14 @@
                     `;
                     
                     // Log only at milestones: start, 25%, 50%, 75%, end
-                    const prevPercent = Math.floor(((bytesUploaded - (lastLoaded || 0)) / bytesTotal) * 100);
+                    if (!window.lastLoggedPercent) window.lastLoggedPercent = -1;
                     const currPercent = Math.floor(percentComplete);
-                    if (bytesUploaded === 0 || currPercent === 0 || currPercent === 25 || currPercent === 50 || currPercent === 75 || percentComplete >= 99.9) {
+                    const milestones = [0, 25, 50, 75, 100];
+                    const shouldLog = milestones.includes(currPercent) && currPercent !== window.lastLoggedPercent;
+                    
+                    if (shouldLog || percentComplete >= 99.9) {
                         console.log(`📊 TUS progress: ${percentComplete.toFixed(1)}% (${formatBytes(bytesUploaded)}/${formatBytes(bytesTotal)})`);
+                        window.lastLoggedPercent = currPercent;
                     }
                 },
                 onSuccess: function() {
