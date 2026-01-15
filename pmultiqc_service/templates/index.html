@@ -108,7 +108,10 @@
                         <div id="progressFill" class="progress-fill"></div>
                     </div>
                     <div id="progressText" class="progress-text">Starting processing...</div>
-                    <button id="cancelUploadBtn" class="return-home-btn" style="display: none; margin-top: 15px;" onclick="cancelUpload()">❌ Cancel Upload</button>
+                    <div style="margin-top: 15px;">
+                        <button id="resumeUploadBtn" class="upload-btn" style="display: none;" onclick="resumeUpload()">▶️ Resume Upload</button>
+                        <button id="cancelUploadBtn" class="return-home-btn" style="display: none;" onclick="cancelUpload()">❌ Cancel Upload</button>
+                    </div>
                 </div>
             </div>
             
@@ -260,6 +263,14 @@
             document.getElementById('fileList').innerHTML = '';
         }
 
+        function resumeUpload() {
+            if (currentUploadXhr && typeof currentUploadXhr.start === 'function') {
+                console.log('🔄 Manually resuming TUS upload...');
+                document.getElementById('resumeUploadBtn').style.display = 'none';
+                currentUploadXhr.start();
+            }
+        }
+        
         function cancelUpload() {
             if (currentUploadXhr) {
                 // TUS upload object has abort() method
@@ -270,6 +281,7 @@
             }
             processingInProgress = false;
             document.getElementById('cancelUploadBtn').style.display = 'none';
+            document.getElementById('resumeUploadBtn').style.display = 'none';
             showError('Upload cancelled by user');
         }
 
@@ -340,20 +352,49 @@
             // Show cancel button
             document.getElementById('cancelUploadBtn').style.display = 'inline-block';
             
-            // Create TUS upload
+            // Create TUS upload with fingerprint for resume
             const upload = new tus.Upload(file, {
                 endpoint: getApiUrl('/files/'),
-                retryDelays: [0, 3000, 5000, 10000, 20000],
+                retryDelays: [0, 1000, 3000, 5000, 10000, 15000, 20000, 30000, 45000, 60000],  // More retries, up to 60s
                 chunkSize: 100 * 1024 * 1024,  // 100 MB chunks
+                // Enable resume by storing upload URL
+                removeFingerprintOnSuccess: true,
+                // Custom fingerprint based on file properties
+                fingerprint: function(file, options) {
+                    return Promise.resolve([
+                        'tus',
+                        file.name,
+                        file.type,
+                        file.size,
+                        file.lastModified
+                    ].join('-'));
+                },
                 metadata: {
                     filename: file.name,
                     filetype: file.type
                 },
                 onError: function(error) {
-                    console.error('❌ TUS upload error:', error);
-                    document.getElementById('cancelUploadBtn').style.display = 'none';
-                    currentUploadXhr = null;
-                    showError('Upload failed: ' + error.message);
+                    // onError is called AFTER all retries are exhausted
+                    console.error('❌ TUS upload failed after all retries:', error);
+                    
+                    // Check if this is a network error (resumable)
+                    const isNetworkError = !error.originalResponse || 
+                                          (error.originalResponse && error.originalResponse.getStatus() === 0);
+                    
+                    if (isNetworkError) {
+                        console.log('🌐 Network error - retries exhausted. Upload can be manually resumed.');
+                        // Keep upload object alive for manual resume
+                        currentUploadXhr = upload;
+                        // Show resume button for manual retry
+                        document.getElementById('resumeUploadBtn').style.display = 'inline-block';
+                        showError('⚠️ Upload paused due to network issue. Click "Resume Upload" to retry.');
+                    } else {
+                        // Non-network error - permanent failure
+                        document.getElementById('cancelUploadBtn').style.display = 'none';
+                        document.getElementById('resumeUploadBtn').style.display = 'none';
+                        currentUploadXhr = null;
+                        showError('Upload failed: ' + error.message);
+                    }
                 },
                 onProgress: function(bytesUploaded, bytesTotal) {
                     const percentComplete = (bytesUploaded / bytesTotal) * 100;
@@ -438,6 +479,15 @@
             
             // Store upload instance for cancellation
             currentUploadXhr = upload;
+            
+            // Listen for browser online event to help auto-resume
+            const onlineHandler = function() {
+                if (currentUploadXhr === upload) {
+                    console.log('🌐 Network back online - attempting to resume upload');
+                    // TUS client will handle resume automatically via retries
+                }
+            };
+            window.addEventListener('online', onlineHandler);
             
             // Start the upload
             upload.start();
