@@ -17,6 +17,7 @@ import traceback
 import uuid
 import zipfile
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 import redis
@@ -29,6 +30,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from tuspyserver import create_tus_router
 
 # Configuration
 # Use environment variables with fallback to current working directory subdirectories
@@ -42,6 +44,10 @@ BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
 # Security: File upload limits
 MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE", str(10 * 1024 * 1024 * 1024)))  # 10GB default
 MAX_UPLOAD_FILES = int(os.environ.get("MAX_UPLOAD_FILES", "100"))  # Max files in a zip
+
+# TUS upload configuration
+TUS_JOB_FILENAME_PREFIX = "tus:filename:"  # Redis key prefix for filename->job_id mapping
+TUS_JOB_FILENAME_TTL_SECONDS = 3600  # 1 hour TTL for filename->job_id mapping
 
 
 # PRIDE button visibility configuration
@@ -64,7 +70,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 os.makedirs(HTML_REPORTS_FOLDER, exist_ok=True)
 
 # Initialize Jinja2 templates
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {"zip"}
@@ -373,12 +379,218 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],  # Restrict to only needed methods
-    allow_headers=["Content-Type", "Authorization"],  # Restrict to only needed headers
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],  # TUS needs PATCH and HEAD
+    allow_headers=["*"],  # TUS needs custom headers (Upload-*, Tus-*)
+    expose_headers=["*"],  # TUS needs to expose custom headers
 )
 
+
+# TUS Upload Protocol Implementation (using tuspyserver)
+# Callback function for when TUS upload completes
+def process_upload_in_background(job_id: str, zip_path: str, job_upload_dir: str, output_dir: str, file_size: int):
+    """
+    Process uploaded file in background (extraction + multiqc).
+    This runs in a separate thread to avoid blocking TUS callback.
+    """
+    try:
+        # Extract ZIP
+        extract_path = os.path.join(job_upload_dir, "extracted")
+        os.makedirs(extract_path, exist_ok=True)
+        
+        validate_and_extract_zip(zip_path, extract_path, file_size)
+        
+        # Detect input type
+        input_type, quantms_config = detect_input_type(extract_path)
+        logger.info(f"Detected input type: {input_type}")
+        
+        if input_type == "unknown":
+            update_job_progress(
+                job_id,
+                "failed",
+                error="Could not detect input type",
+                finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            )
+        else:
+            # Start async processing
+            update_job_progress(job_id, "queued", 50, input_type=input_type)
+            thread = threading.Thread(
+                target=process_job_async,
+                args=(job_id, extract_path, output_dir, input_type, quantms_config),
+            )
+            thread.daemon = True
+            thread.start()
+        
+        logger.info(f"Job {job_id} processing started")
+    except Exception as e:
+        logger.error(f"Background processing failed for job {job_id}: {e}")
+        update_job_progress(
+            job_id,
+            "failed",
+            error=str(e),
+            finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+
+def handle_upload_complete(file_path: str, metadata: dict):
+    """
+    Called by tuspyserver when upload completes.
+    
+    Args:
+        file_path: Path to the uploaded file
+        metadata: Upload metadata (filename, filetype, etc.)
+    """
+    try:
+        # Extract metadata
+        filename = metadata.get("filename", "upload.zip")
+        filetype = metadata.get("filetype", "application/zip")
+        
+        logger.info(f"TUS upload complete: file={file_path}, filename={filename}")
+        
+        # Validate filename
+        if not filename.lower().endswith(".zip"):
+            logger.error(f"Invalid file type: {filename}")
+            # Clean up uploaded file
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise ValueError(f"Only ZIP files are allowed. Received: {filename}")
+        
+        # Get file size
+        file_size = os.path.getsize(file_path)
+        
+        # Generate job ID
+        job_id = str(uuid.uuid4())
+        
+        # Create job directories
+        job_upload_dir = os.path.join(UPLOAD_FOLDER, job_id)
+        output_dir = os.path.join(OUTPUT_FOLDER, job_id)
+        os.makedirs(job_upload_dir, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Move uploaded file to job directory
+        final_zip_path = os.path.join(job_upload_dir, filename)
+        shutil.move(file_path, final_zip_path)
+        
+        logger.info(f"Moved upload to {final_zip_path}, job_id={job_id}")
+        
+        # Clean up TUS upload directory to prevent re-upload
+        # The file_path is like /tmp/pmultiqc_uploads/{upload_id}
+        # We need to delete the .info file and directory
+        try:
+            upload_dir = os.path.dirname(file_path)
+            info_file = file_path + ".info"
+            if os.path.exists(info_file):
+                os.remove(info_file)
+                logger.info(f"Removed TUS metadata file: {info_file}")
+            # Note: The upload file itself is already moved, so no need to delete it
+        except Exception as e:
+            logger.warning(f"Failed to clean up TUS metadata: {e}")
+        
+        # Initialize job in database
+        initial_job_data = {
+            "job_id": job_id,
+            "status": "extracting",
+            "progress": 25,
+            "started_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "filename": filename,
+            "file_size": file_size,
+        }
+        save_job_to_db(job_id, initial_job_data)
+        
+        # Store filename->job_id mapping for frontend to retrieve
+        # (tuspyserver doesn't return job_id in Location header)
+        redis_client = get_redis_client()
+        if redis_client:
+            try:
+                key = f"{TUS_JOB_FILENAME_PREFIX}{filename}"
+                redis_client.setex(key, TUS_JOB_FILENAME_TTL_SECONDS, job_id.encode("utf-8"))
+            except Exception as e:
+                logger.warning(f"Failed to store filename->job_id mapping: {e}")
+        
+        # Start background processing (extraction + multiqc)
+        # This runs in a separate thread so we don't block the TUS callback
+        thread = threading.Thread(
+            target=process_upload_in_background,
+            args=(job_id, final_zip_path, job_upload_dir, output_dir, file_size),
+        )
+        thread.daemon = True
+        thread.start()
+        
+        logger.info(f"Job {job_id} queued for background processing")
+        
+        # Store job_id mapping in Redis for frontend to retrieve
+        # Use the upload filename as part of the key since TUS client knows it
+        try:
+            redis_client = get_redis_client()
+            if redis_client:
+                # Store mapping: filename -> job_id (expires in 5 minutes)
+                key = f"pmultiqc:tus_job:{filename}"
+                redis_client.setex(key, 300, job_id)  # 5 minute TTL
+                logger.info(f"Stored TUS job mapping: {key} -> {job_id}")
+        except Exception as redis_error:
+            logger.warning(f"Failed to store TUS job mapping in Redis: {redis_error}")
+        
+    except Exception as e:
+        logger.error(f"Error handling upload completion: {e}")
+        logger.error(traceback.format_exc())
+        raise
+
+
+# Middleware to fix Location headers for TUS when behind ingress
+@app.middleware("http")
+async def fix_tus_location_header(request: Request, call_next):
+    # Log TUS PATCH requests to verify chunking
+    if request.method == "PATCH" and "/files/" in request.url.path:
+        content_length = request.headers.get("content-length", "unknown")
+        upload_offset = request.headers.get("upload-offset", "unknown")
+        logger.info(f"TUS PATCH: path={request.url.path}, offset={upload_offset}, chunk_size={content_length} bytes")
+    
+    response = await call_next(request)
+    
+    # Fix Location header for TUS responses
+    if "Location" in response.headers:
+        location = response.headers["Location"]
+        logger.info(f"TUS middleware: Original Location header: {location}")
+        
+        # Handle both relative and absolute URLs
+        if "/files/" in location:
+            base = BASE_URL.rstrip("/")
+            
+            # If it's a relative path, prepend BASE_URL
+            if location.startswith("/files/"):
+                new_location = f"{base}{location}"
+            # If it's an absolute URL, replace the path part
+            elif "://" in location:
+                # Extract just the /files/... part
+                files_part = location.split("/files/", 1)
+                if len(files_part) == 2:
+                    new_location = f"{base}/files/{files_part[1]}"
+                else:
+                    new_location = location
+            else:
+                new_location = location
+            
+            if new_location != location:
+                response.headers["Location"] = new_location
+                logger.info(f"TUS middleware: Rewrote Location header: {location} -> {new_location}")
+    
+    return response
+
+
+# Mount TUS upload router
+# This handles resumable file uploads via TUS protocol
+# Note: In production, ingress rewrites /pride/services/pmultiqc/files/* to /files/*
+tus_router = create_tus_router(
+    prefix="/files",  # Endpoint: /files
+    files_dir=UPLOAD_FOLDER,  # Where to store uploads
+    max_size=MAX_FILE_SIZE,  # 10GB default
+    on_upload_complete=handle_upload_complete,  # Callback function
+    days_to_keep=7,  # Auto-cleanup after 7 days
+)
+app.include_router(tus_router)
+logger.info(f"TUS upload router mounted at /files with max size {MAX_FILE_SIZE / (1024**3):.1f} GB")
+
 # Mount static files
-app.mount("/static", StaticFiles(directory="templates"), name="static")
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "templates")), name="static")
 
 
 # Configure OpenAPI for subpath deployment
@@ -483,6 +695,8 @@ def filter_search_files(files: List[Dict]) -> tuple[List[Dict], bool]:
         file_category = file_info.get("fileCategory", {}).get("value", "")
 
         # Check if it's a search engine output file
+        # Includes MaxQuant (evidence, peptides, proteingroups, msms),
+        # DIANN (report), FragPipe (psm.tsv, ion.tsv), and mzIdentML files
         if (
             file_category in ["SEARCH", "RESULT"]
             or "report" in filename_lower
@@ -490,6 +704,8 @@ def filter_search_files(files: List[Dict]) -> tuple[List[Dict], bool]:
             or "peptides" in filename_lower
             or "proteingroups" in filename_lower
             or "msms" in filename_lower
+            or filename_lower == "psm.tsv"  # FragPipe PSM file
+            or filename_lower == "ion.tsv"  # FragPipe ion quantification file
             or filename_lower.endswith(".mzid")
             or filename_lower.endswith(".mzid.gz")
             or filename_lower.endswith(".mzid.zip")
@@ -1465,6 +1681,14 @@ def detect_input_type(upload_path: str) -> tuple:
         if any(f in files for f in maxquant_files):
             return "maxquant", None
 
+        # Check for FragPipe files (psm.tsv, ion.tsv)
+        # FragPipe outputs: psm.tsv, ion.tsv, peptide.tsv, protein.tsv
+        # We check for the most distinctive files: psm.tsv and ion.tsv
+        fragpipe_files = ["psm.tsv", "ion.tsv"]
+        if any(f in files for f in fragpipe_files):
+            logger.info(f"Detected FragPipe files: {[f for f in files if f in fragpipe_files]}")
+            return "fragpipe", None
+
         # Check for DIANN files - more comprehensive detection
         diann_files = ["report.tsv", "report.parquet", "diann_report.tsv", "diann_report.parquet"]
         diann_patterns = ["*report.tsv", "*report.parquet", "*diann_report*"]
@@ -1521,7 +1745,7 @@ def run_pmultiqc_with_progress(
     """
     try:
         # Security: Validate input_type to prevent command injection
-        allowed_input_types = ["maxquant", "quantms", "diann", "mzidentml"]
+        allowed_input_types = ["maxquant", "quantms", "diann", "mzidentml", "fragpipe"]
         if input_type not in allowed_input_types:
             logger.error(f"Invalid input_type: {input_type}")
             return {
@@ -1567,6 +1791,9 @@ def run_pmultiqc_with_progress(
             args.extend(["--diann-plugin", "--no-megaqc-upload", "--verbose"])
         elif input_type == "mzidentml":
             args.extend(["--mzid-plugin"])
+        elif input_type == "fragpipe":
+            # FragPipe files (psm.tsv, ion.tsv) are processed by the fragpipe plugin
+            args.extend(["--fragpipe-plugin"])
 
         # Run MultiQC with pmultiqc plugin
         logger.info(f"Running pmultiqc with args: {args}")
@@ -2619,6 +2846,35 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
         "redirect_url": f"/results?job={job_id}",
         "file_size": file_size,
     }
+
+
+@app.get("/tus-job/{filename}")
+async def get_tus_job_id(filename: str):
+    """
+    Get job_id for a TUS upload by filename.
+    Used by frontend after TUS upload completes to find the job_id.
+    """
+    try:
+        redis_client = get_redis_client()
+        if not redis_client:
+            raise HTTPException(status_code=503, detail="Redis not available")
+        
+        key = f"pmultiqc:tus_job:{filename}"
+        job_id = redis_client.get(key)
+        
+        if job_id:
+            if isinstance(job_id, bytes):
+                job_id = job_id.decode('utf-8')
+            logger.info(f"Retrieved TUS job mapping: {filename} -> {job_id}")
+            return {"job_id": job_id, "filename": filename}
+        else:
+            logger.warning(f"No TUS job mapping found for filename: {filename}")
+            raise HTTPException(status_code=404, detail="Job not found for this upload")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving TUS job mapping: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving job information")
 
 
 @app.get("/job-status/{job_id}")
