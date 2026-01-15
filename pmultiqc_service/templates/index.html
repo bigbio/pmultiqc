@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/style.css">
     <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/components.css">
     <!-- TUS Resumable Upload Library -->
-    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@latest/dist/tus.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.2.0/dist/tus.min.js" integrity="sha384-pFy2RgFOzKZHPZRmvOYMXJPjVnXHMXzU1Bp7o6vZrW7EZqRrmOKLKrCT7wXCEkUV" crossorigin="anonymous"></script>
     <script>
         // Global configuration - can be overridden by environment
         window.APP_CONFIG = {
@@ -214,6 +214,7 @@
         let currentJobId = null;
         let processingInProgress = false;
         let currentUploadXhr = null;
+        let onlineHandler = null;  // Store reference for cleanup
 
         // Wizard navigation
         function showStep(step) {
@@ -291,6 +292,7 @@
                 currentUploadXhr = null;
             }
             processingInProgress = false;
+            cleanupUploadListeners();  // Clean up event listeners
             document.getElementById('cancelUploadBtn').style.display = 'none';
             document.getElementById('resumeUploadBtn').style.display = 'none';
             showError('Upload cancelled by user');
@@ -426,6 +428,7 @@
                     } else {
                         // Non-network error - permanent failure
                         currentUploadXhr = null;
+                        cleanupUploadListeners();  // Clean up event listeners
                         showError('Upload failed: ' + error.message, false);
                     }
                 },
@@ -497,6 +500,9 @@
                     document.getElementById('cancelUploadBtn').style.display = 'none';
                     currentUploadXhr = null;
                     
+                    // Clean up event listeners to prevent memory leaks
+                    cleanupUploadListeners();
+                    
                     // Explicitly clean up TUS localStorage to prevent re-upload
                     try {
                         const fingerprint = ['tus', file.name, file.type, file.size, file.lastModified].join('-');
@@ -538,7 +544,7 @@
             currentUploadXhr = upload;
             
             // Listen for browser online event to help auto-resume
-            const onlineHandler = function() {
+            onlineHandler = function() {
                 if (currentUploadXhr === upload && !upload.isUploading) {
                     console.log('🌐 Network back online - automatically resuming upload...');
                     // Hide error message and show progress again
@@ -797,13 +803,34 @@
         }
 
         // Helper functions
+        // HTML escape function to prevent XSS
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return unsafe;
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
+        // Cleanup function to remove event listeners and prevent memory leaks
+        function cleanupUploadListeners() {
+            if (onlineHandler) {
+                window.removeEventListener('online', onlineHandler);
+                onlineHandler = null;
+                console.log('🧹 Cleaned up online event listener');
+            }
+        }
+        
         function showError(message, showResumeButton = false) {
             processingInProgress = false;
             const resultDiv = document.getElementById('result');
             resultDiv.className = 'result error';
             
             // Build error HTML with optional Resume button
-            let errorHtml = `<h4>❌ Error</h4><p>${message}</p>`;
+            // Sanitize message to prevent XSS
+            let errorHtml = `<h4>❌ Error</h4><p>${escapeHtml(message)}</p>`;
             if (showResumeButton) {
                 errorHtml += `<button class="upload-btn" onclick="resumeUpload()" style="margin-right: 10px;">▶️ Resume Upload</button>`;
             }
