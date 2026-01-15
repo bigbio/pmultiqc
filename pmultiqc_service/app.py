@@ -464,6 +464,18 @@ def handle_upload_complete(file_path: str, metadata: dict):
         
         logger.info(f"Job {job_id} processing started")
         
+        # Store job_id mapping in Redis for frontend to retrieve
+        # Use the upload filename as part of the key since TUS client knows it
+        try:
+            redis_client = get_redis_client()
+            if redis_client:
+                # Store mapping: filename -> job_id (expires in 5 minutes)
+                key = f"pmultiqc:tus_job:{filename}"
+                redis_client.setex(key, 300, job_id)  # 5 minute TTL
+                logger.info(f"Stored TUS job mapping: {key} -> {job_id}")
+        except Exception as redis_error:
+            logger.warning(f"Failed to store TUS job mapping in Redis: {redis_error}")
+        
     except Exception as e:
         logger.error(f"Error handling upload completion: {e}")
         logger.error(traceback.format_exc())
@@ -2760,6 +2772,35 @@ async def upload_async(file: UploadFile = File(..., alias="files")):
         "redirect_url": f"/results?job={job_id}",
         "file_size": file_size,
     }
+
+
+@app.get("/tus-job/{filename}")
+async def get_tus_job_id(filename: str):
+    """
+    Get job_id for a TUS upload by filename.
+    Used by frontend after TUS upload completes to find the job_id.
+    """
+    try:
+        redis_client = get_redis_client()
+        if not redis_client:
+            raise HTTPException(status_code=503, detail="Redis not available")
+        
+        key = f"pmultiqc:tus_job:{filename}"
+        job_id = redis_client.get(key)
+        
+        if job_id:
+            if isinstance(job_id, bytes):
+                job_id = job_id.decode('utf-8')
+            logger.info(f"Retrieved TUS job mapping: {filename} -> {job_id}")
+            return {"job_id": job_id, "filename": filename}
+        else:
+            logger.warning(f"No TUS job mapping found for filename: {filename}")
+            raise HTTPException(status_code=404, detail="Job not found for this upload")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving TUS job mapping: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving job information")
 
 
 @app.get("/job-status/{job_id}")
