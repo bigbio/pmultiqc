@@ -45,10 +45,6 @@ BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
 MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE", str(10 * 1024 * 1024 * 1024)))  # 10GB default
 MAX_UPLOAD_FILES = int(os.environ.get("MAX_UPLOAD_FILES", "100"))  # Max files in a zip
 
-# TUS upload configuration
-TUS_JOB_FILENAME_PREFIX = "tus:filename:"  # Redis key prefix for filename->job_id mapping
-TUS_JOB_FILENAME_TTL_SECONDS = 3600  # 1 hour TTL for filename->job_id mapping
-
 
 # PRIDE button visibility configuration
 # Priority: Environment variable > Default (False)
@@ -495,16 +491,6 @@ def handle_upload_complete(file_path: str, metadata: dict):
             "file_size": file_size,
         }
         save_job_to_db(job_id, initial_job_data)
-        
-        # Store filename->job_id mapping for frontend to retrieve
-        # (tuspyserver doesn't return job_id in Location header)
-        redis_client = get_redis_client()
-        if redis_client:
-            try:
-                key = f"{TUS_JOB_FILENAME_PREFIX}{filename}"
-                redis_client.setex(key, TUS_JOB_FILENAME_TTL_SECONDS, job_id.encode("utf-8"))
-            except Exception as e:
-                logger.warning(f"Failed to store filename->job_id mapping: {e}")
         
         # Start background processing (extraction + multiqc)
         # This runs in a separate thread so we don't block the TUS callback
