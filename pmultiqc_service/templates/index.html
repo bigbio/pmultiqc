@@ -497,6 +497,18 @@
                     document.getElementById('cancelUploadBtn').style.display = 'none';
                     currentUploadXhr = null;
                     
+                    // Explicitly clean up TUS localStorage to prevent re-upload
+                    try {
+                        const fingerprint = ['tus', file.name, file.type, file.size, file.lastModified].join('-');
+                        const uploadUrlKey = 'tus::' + fingerprint + '::url';
+                        const expirationKey = 'tus::' + fingerprint + '::urlExpiration';
+                        localStorage.removeItem(uploadUrlKey);
+                        localStorage.removeItem(expirationKey);
+                        console.log('🧹 Cleaned up TUS localStorage entries');
+                    } catch (e) {
+                        console.warn('Failed to clean up localStorage:', e);
+                    }
+                    
                     const uploadTime = (Date.now() - startTime) / 1000;
                     
                     // Show upload complete message

@@ -45,6 +45,10 @@ BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
 MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE", str(10 * 1024 * 1024 * 1024)))  # 10GB default
 MAX_UPLOAD_FILES = int(os.environ.get("MAX_UPLOAD_FILES", "100"))  # Max files in a zip
 
+# TUS upload configuration
+TUS_JOB_FILENAME_PREFIX = "tus:filename:"  # Redis key prefix for filename->job_id mapping
+TUS_JOB_FILENAME_TTL_SECONDS = 3600  # 1 hour TTL for filename->job_id mapping
+
 
 # PRIDE button visibility configuration
 # Priority: Environment variable > Default (False)
@@ -383,6 +387,50 @@ app.add_middleware(
 
 # TUS Upload Protocol Implementation (using tuspyserver)
 # Callback function for when TUS upload completes
+def process_upload_in_background(job_id: str, zip_path: str, job_upload_dir: str, output_dir: str, file_size: int):
+    """
+    Process uploaded file in background (extraction + multiqc).
+    This runs in a separate thread to avoid blocking TUS callback.
+    """
+    try:
+        # Extract ZIP
+        extract_path = os.path.join(job_upload_dir, "extracted")
+        os.makedirs(extract_path, exist_ok=True)
+        
+        validate_and_extract_zip(zip_path, extract_path, file_size)
+        
+        # Detect input type
+        input_type, quantms_config = detect_input_type(extract_path)
+        logger.info(f"Detected input type: {input_type}")
+        
+        if input_type == "unknown":
+            update_job_progress(
+                job_id,
+                "failed",
+                error="Could not detect input type",
+                finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            )
+        else:
+            # Start async processing
+            update_job_progress(job_id, "queued", 50, input_type=input_type)
+            thread = threading.Thread(
+                target=process_job_async,
+                args=(job_id, extract_path, output_dir, input_type, quantms_config),
+            )
+            thread.daemon = True
+            thread.start()
+        
+        logger.info(f"Job {job_id} processing started")
+    except Exception as e:
+        logger.error(f"Background processing failed for job {job_id}: {e}")
+        update_job_progress(
+            job_id,
+            "failed",
+            error=str(e),
+            finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+
 def handle_upload_complete(file_path: str, metadata: dict):
     """
     Called by tuspyserver when upload completes.
@@ -424,6 +472,19 @@ def handle_upload_complete(file_path: str, metadata: dict):
         
         logger.info(f"Moved upload to {final_zip_path}, job_id={job_id}")
         
+        # Clean up TUS upload directory to prevent re-upload
+        # The file_path is like /tmp/pmultiqc_uploads/{upload_id}
+        # We need to delete the .info file and directory
+        try:
+            upload_dir = os.path.dirname(file_path)
+            info_file = file_path + ".info"
+            if os.path.exists(info_file):
+                os.remove(info_file)
+                logger.info(f"Removed TUS metadata file: {info_file}")
+            # Note: The upload file itself is already moved, so no need to delete it
+        except Exception as e:
+            logger.warning(f"Failed to clean up TUS metadata: {e}")
+        
         # Initialize job in database
         initial_job_data = {
             "job_id": job_id,
@@ -435,34 +496,26 @@ def handle_upload_complete(file_path: str, metadata: dict):
         }
         save_job_to_db(job_id, initial_job_data)
         
-        # Extract and process
-        extract_path = os.path.join(job_upload_dir, "extracted")
-        os.makedirs(extract_path, exist_ok=True)
+        # Store filename->job_id mapping for frontend to retrieve
+        # (tuspyserver doesn't return job_id in Location header)
+        redis_client = get_redis_client()
+        if redis_client:
+            try:
+                key = f"{TUS_JOB_FILENAME_PREFIX}{filename}"
+                redis_client.setex(key, TUS_JOB_FILENAME_TTL_SECONDS, job_id.encode("utf-8"))
+            except Exception as e:
+                logger.warning(f"Failed to store filename->job_id mapping: {e}")
         
-        validate_and_extract_zip(final_zip_path, extract_path, file_size)
+        # Start background processing (extraction + multiqc)
+        # This runs in a separate thread so we don't block the TUS callback
+        thread = threading.Thread(
+            target=process_upload_in_background,
+            args=(job_id, final_zip_path, job_upload_dir, output_dir, file_size),
+        )
+        thread.daemon = True
+        thread.start()
         
-        # Detect input type
-        input_type, quantms_config = detect_input_type(extract_path)
-        logger.info(f"Detected input type: {input_type}")
-        
-        if input_type == "unknown":
-            update_job_progress(
-                job_id,
-                "failed",
-                error="Could not detect input type",
-                finished_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            )
-        else:
-            # Start async processing
-            update_job_progress(job_id, "queued", 50, input_type=input_type)
-            thread = threading.Thread(
-                target=process_job_async,
-                args=(job_id, extract_path, output_dir, input_type, quantms_config),
-            )
-            thread.daemon = True
-            thread.start()
-        
-        logger.info(f"Job {job_id} processing started")
+        logger.info(f"Job {job_id} queued for background processing")
         
         # Store job_id mapping in Redis for frontend to retrieve
         # Use the upload filename as part of the key since TUS client knows it
