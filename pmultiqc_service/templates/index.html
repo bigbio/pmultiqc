@@ -527,9 +527,16 @@
             
             // Listen for browser online event to help auto-resume
             const onlineHandler = function() {
-                if (currentUploadXhr === upload) {
-                    console.log('🌐 Network back online - attempting to resume upload');
-                    // TUS client will handle resume automatically via retries
+                if (currentUploadXhr === upload && !upload.isUploading) {
+                    console.log('🌐 Network back online - automatically resuming upload...');
+                    // Hide error message and show progress again
+                    document.getElementById('result').style.display = 'none';
+                    document.getElementById('uploadProgressSection').style.display = 'block';
+                    document.getElementById('progressText').innerHTML = '🔄 Auto-resuming upload...';
+                    // Reset error tracking
+                    errorStartTime = null;
+                    // Restart the upload
+                    upload.start();
                 }
             };
             window.addEventListener('online', onlineHandler);
