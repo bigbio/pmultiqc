@@ -695,6 +695,8 @@ def filter_search_files(files: List[Dict]) -> tuple[List[Dict], bool]:
         file_category = file_info.get("fileCategory", {}).get("value", "")
 
         # Check if it's a search engine output file
+        # Includes MaxQuant (evidence, peptides, proteingroups, msms),
+        # DIANN (report), FragPipe (psm.tsv, ion.tsv), and mzIdentML files
         if (
             file_category in ["SEARCH", "RESULT"]
             or "report" in filename_lower
@@ -702,6 +704,8 @@ def filter_search_files(files: List[Dict]) -> tuple[List[Dict], bool]:
             or "peptides" in filename_lower
             or "proteingroups" in filename_lower
             or "msms" in filename_lower
+            or filename_lower == "psm.tsv"  # FragPipe PSM file
+            or filename_lower == "ion.tsv"  # FragPipe ion quantification file
             or filename_lower.endswith(".mzid")
             or filename_lower.endswith(".mzid.gz")
             or filename_lower.endswith(".mzid.zip")
@@ -1677,6 +1681,14 @@ def detect_input_type(upload_path: str) -> tuple:
         if any(f in files for f in maxquant_files):
             return "maxquant", None
 
+        # Check for FragPipe files (psm.tsv, ion.tsv)
+        # FragPipe outputs: psm.tsv, ion.tsv, peptide.tsv, protein.tsv
+        # We check for the most distinctive files: psm.tsv and ion.tsv
+        fragpipe_files = ["psm.tsv", "ion.tsv"]
+        if any(f in files for f in fragpipe_files):
+            logger.info(f"Detected FragPipe files: {[f for f in files if f in fragpipe_files]}")
+            return "fragpipe", None
+
         # Check for DIANN files - more comprehensive detection
         diann_files = ["report.tsv", "report.parquet", "diann_report.tsv", "diann_report.parquet"]
         diann_patterns = ["*report.tsv", "*report.parquet", "*diann_report*"]
@@ -1733,7 +1745,7 @@ def run_pmultiqc_with_progress(
     """
     try:
         # Security: Validate input_type to prevent command injection
-        allowed_input_types = ["maxquant", "quantms", "diann", "mzidentml"]
+        allowed_input_types = ["maxquant", "quantms", "diann", "mzidentml", "fragpipe"]
         if input_type not in allowed_input_types:
             logger.error(f"Invalid input_type: {input_type}")
             return {
@@ -1779,6 +1791,9 @@ def run_pmultiqc_with_progress(
             args.extend(["--diann-plugin", "--no-megaqc-upload", "--verbose"])
         elif input_type == "mzidentml":
             args.extend(["--mzid-plugin"])
+        elif input_type == "fragpipe":
+            # FragPipe files (psm.tsv, ion.tsv) are processed by the fragpipe plugin
+            args.extend(["--fragpipe-plugin"])
 
         # Run MultiQC with pmultiqc plugin
         logger.info(f"Running pmultiqc with args: {args}")
