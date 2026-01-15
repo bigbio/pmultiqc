@@ -485,6 +485,12 @@ def handle_upload_complete(file_path: str, metadata: dict):
 # Middleware to fix Location headers for TUS when behind ingress
 @app.middleware("http")
 async def fix_tus_location_header(request: Request, call_next):
+    # Log TUS PATCH requests to verify chunking
+    if request.method == "PATCH" and "/files/" in request.url.path:
+        content_length = request.headers.get("content-length", "unknown")
+        upload_offset = request.headers.get("upload-offset", "unknown")
+        logger.info(f"TUS PATCH: path={request.url.path}, offset={upload_offset}, chunk_size={content_length} bytes")
+    
     response = await call_next(request)
     
     # Fix Location header for TUS responses
