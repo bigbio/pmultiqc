@@ -266,7 +266,18 @@
         function resumeUpload() {
             if (currentUploadXhr && typeof currentUploadXhr.start === 'function') {
                 console.log('🔄 Manually resuming TUS upload...');
-                document.getElementById('resumeUploadBtn').style.display = 'none';
+                
+                // Hide error message
+                document.getElementById('result').style.display = 'none';
+                
+                // Show progress container
+                showProgress();
+                
+                // Update progress text
+                const progressText = document.getElementById('progressText');
+                progressText.innerHTML = '🔄 Resuming upload...';
+                
+                // Restart the upload (will resume from last offset)
                 currentUploadXhr.start();
             }
         }
@@ -344,13 +355,17 @@
             progressText.innerHTML = `Preparing to upload ${formatBytes(totalSize)}...`;
             progressFill.style.width = '0%';
 
-            // Track upload timing
+            // Track upload timing and retries
             const startTime = Date.now();
             let lastLoaded = 0;
             let lastTime = startTime;
+            let lastSuccessTime = startTime;
+            let errorStartTime = null;
             
             // Show cancel button
             document.getElementById('cancelUploadBtn').style.display = 'inline-block';
+            
+            console.log(`⏱️ Upload started at ${new Date().toLocaleTimeString()}.${Date.now() % 1000}`);
             
             // Create TUS upload with fingerprint for resume
             const upload = new tus.Upload(file, {
@@ -374,8 +389,16 @@
                     filetype: file.type
                 },
                 onError: function(error) {
+                    // Track when first error occurred
+                    const currentTime = Date.now();
+                    if (!errorStartTime) {
+                        errorStartTime = currentTime;
+                    }
+                    const timeSinceLastSuccess = (currentTime - lastSuccessTime) / 1000;
+                    
                     // onError is called AFTER all retries are exhausted
-                    console.error('❌ TUS upload failed after all retries:', error);
+                    console.error(`❌ TUS upload failed after all retries at ${new Date().toLocaleTimeString()}.${currentTime % 1000}`);
+                    console.log(`⏱️ Time since last successful chunk: ${timeSinceLastSuccess.toFixed(1)}s`);
                     console.log('Error details:', JSON.stringify({
                         message: error.message,
                         hasOriginalResponse: !!error.originalResponse,
@@ -410,6 +433,14 @@
                     const percentComplete = (bytesUploaded / bytesTotal) * 100;
                     const currentTime = Date.now();
                     const elapsed = (currentTime - startTime) / 1000; // seconds
+                    
+                    // Track last successful progress
+                    lastSuccessTime = currentTime;
+                    if (errorStartTime) {
+                        const resumeDelay = (currentTime - errorStartTime) / 1000;
+                        console.log(`✅ Upload resumed after ${resumeDelay.toFixed(1)}s from first error`);
+                        errorStartTime = null;
+                    }
                     
                     // Update progress bar
                     progressFill.style.width = percentComplete + '%';
