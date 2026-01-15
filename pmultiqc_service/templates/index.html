@@ -317,13 +317,11 @@
         function uploadFiles(files) {
             if (processingInProgress) return;
             
-            console.log('Starting TUS upload with', files.length, 'file(s)');
-            
             // TUS only uploads one file at a time
             const file = files[0];
             const totalSize = file.size;
             
-            console.log('Uploading file:', file.name, formatBytes(totalSize));
+            console.log(`📤 Starting TUS upload: ${file.name} (${formatBytes(totalSize)})`);
 
             showProgress();
             
@@ -346,13 +344,13 @@
             const upload = new tus.Upload(file, {
                 endpoint: getApiUrl('/files/'),
                 retryDelays: [0, 3000, 5000, 10000, 20000],
-                chunkSize: 1 * 1024 * 1024,  // 1 MB chunks (balance between performance and compatibility)
+                chunkSize: 100 * 1024 * 1024,  // 100 MB chunks
                 metadata: {
                     filename: file.name,
                     filetype: file.type
                 },
                 onError: function(error) {
-                    console.error('TUS upload error:', error);
+                    console.error('❌ TUS upload error:', error);
                     document.getElementById('cancelUploadBtn').style.display = 'none';
                     currentUploadXhr = null;
                     showError('Upload failed: ' + error.message);
@@ -401,10 +399,15 @@
                         </div>
                     `;
                     
-                    console.log(`TUS progress: ${percentComplete.toFixed(1)}% (${formatBytes(bytesUploaded)}/${formatBytes(bytesTotal)})`);
+                    // Log only at milestones: start, 25%, 50%, 75%, end
+                    const prevPercent = Math.floor(((bytesUploaded - (lastLoaded || 0)) / bytesTotal) * 100);
+                    const currPercent = Math.floor(percentComplete);
+                    if (bytesUploaded === 0 || currPercent === 0 || currPercent === 25 || currPercent === 50 || currPercent === 75 || percentComplete >= 99.9) {
+                        console.log(`📊 TUS progress: ${percentComplete.toFixed(1)}% (${formatBytes(bytesUploaded)}/${formatBytes(bytesTotal)})`);
+                    }
                 },
                 onSuccess: function() {
-                    console.log('TUS upload completed successfully');
+                    console.log('✅ TUS upload completed successfully');
                     document.getElementById('cancelUploadBtn').style.display = 'none';
                     currentUploadXhr = null;
                     
@@ -461,7 +464,7 @@
                 })
                 .then(data => {
                     if (data && data.job_id) {
-                        console.log(`Found job_id for ${filename}: ${data.job_id}`);
+                        console.log(`✅ Found job_id: ${data.job_id}`);
                         currentJobId = data.job_id;
                         pollStatus(data.job_id);
                     } else {
@@ -469,7 +472,9 @@
                     }
                 })
                 .catch(error => {
-                    console.log(`Attempt ${attempts + 1}/10: ${error.message}, retrying...`);
+                    if (attempts === 0 || attempts === 9) {
+                        console.log(`🔄 Fetching job_id (attempt ${attempts + 1}/10)...`);
+                    }
                     // Retry after a short delay
                     setTimeout(() => fetchJobIdByFilename(filename, attempts + 1), 1000);
                 });
@@ -529,9 +534,11 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Polling response for job', jobId, ':', data);
-                    console.log('Job status:', data.status);
-                    console.log('Processing in progress:', processingInProgress);
+                    // Only log status changes
+                    if (data.status && data.status !== window.lastLoggedStatus) {
+                        console.log(`📋 Job status: ${data.status} (${data.progress || 0}%)`);
+                        window.lastLoggedStatus = data.status;
+                    }
                     
                     // Update processing progress
                     if (data.progress !== undefined) {
