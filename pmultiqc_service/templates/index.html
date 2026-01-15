@@ -376,17 +376,36 @@
                 onError: function(error) {
                     // onError is called AFTER all retries are exhausted
                     console.error('❌ TUS upload failed after all retries:', error);
+                    console.log('Error details:', JSON.stringify({
+                        message: error.message,
+                        hasOriginalResponse: !!error.originalResponse,
+                        status: error.originalResponse ? error.originalResponse.getStatus() : 'no response'
+                    }));
                     
                     // Check if this is a network error (resumable)
-                    const isNetworkError = !error.originalResponse || 
-                                          (error.originalResponse && error.originalResponse.getStatus() === 0);
+                    // Network errors typically have no response or response status 0
+                    let isNetworkError = false;
+                    if (!error.originalResponse) {
+                        isNetworkError = true;
+                    } else if (error.originalResponse && typeof error.originalResponse.getStatus === 'function') {
+                        const status = error.originalResponse.getStatus();
+                        isNetworkError = (status === 0 || status === undefined || status === null);
+                    }
+                    
+                    console.log('Is network error?', isNetworkError);
                     
                     if (isNetworkError) {
                         console.log('🌐 Network error - retries exhausted. Upload can be manually resumed.');
                         // Keep upload object alive for manual resume
                         currentUploadXhr = upload;
                         // Show resume button for manual retry
-                        document.getElementById('resumeUploadBtn').style.display = 'inline-block';
+                        const resumeBtn = document.getElementById('resumeUploadBtn');
+                        if (resumeBtn) {
+                            resumeBtn.style.display = 'inline-block';
+                            console.log('✅ Resume button shown');
+                        } else {
+                            console.error('❌ Resume button element not found!');
+                        }
                         showError('⚠️ Upload paused due to network issue. Click "Resume Upload" to retry.');
                     } else {
                         // Non-network error - permanent failure
