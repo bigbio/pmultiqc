@@ -54,7 +54,7 @@ def get_fragpipe_files(find_log_files):
     # Define all file types to look for
     file_types = [
         "psm", "ion", "combined_protein", "combined_peptide", "combined_ion",
-        "workflow", "manifest"
+        "workflow", "manifest", "fragger_params"
     ]
     fragpipe_files = {ft: [] for ft in file_types}
 
@@ -88,6 +88,13 @@ def get_fragpipe_files(find_log_files):
         filename = file_info["fn"]
         full_path = os.path.join(file_info["root"], filename)
         fragpipe_files["manifest"].append(full_path)
+
+    # MSFragger params file (search engine parameters)
+    for file_info in find_log_files("pmultiqc/fragger_params", filecontents=False):
+        filename = file_info["fn"]
+        full_path = os.path.join(file_info["root"], filename)
+        if filename == "fragger.params":
+            fragpipe_files["fragger_params"].append(full_path)
 
     if any(fragpipe_files.values()):
         for k, v in fragpipe_files.items():
@@ -308,73 +315,145 @@ def workflow_reader(file_path: str):
     return parameters
 
 
-def get_workflow_parameters_table(parameters: dict):
+def fragger_params_reader(file_path: str):
     """
-    Convert workflow parameters to table format for display.
+    Read fragger.params file containing MSFragger search engine parameters.
+
+    The fragger.params file is a key=value format file with MSFragger-specific
+    search parameters including mass tolerances, enzyme settings, and modifications.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the fragger.params file.
+
+    Returns
+    -------
+    dict
+        Dictionary containing parameter name -> value pairs.
+    """
+    parameters = {}
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+                # fragger.params uses "key = value" format with spaces
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    parameters[key.strip()] = value.strip()
+    except Exception as e:
+        log.warning(f"Error reading fragger.params file {file_path}: {e}")
+        return None
+
+    log.info(f"Loaded {len(parameters)} parameters from fragger.params file")
+    return parameters
+
+
+def get_workflow_parameters_table(parameters: dict, fragger_params: dict = None):
+    """
+    Convert workflow and fragger parameters to table format for display.
 
     Extracts key parameters relevant for QC reporting similar to MaxQuant.
+    Parameters from fragger.params can supplement or provide fallback for
+    workflow parameters.
 
     Parameters
     ----------
     parameters : dict
-        Dictionary of workflow parameters.
+        Dictionary of workflow parameters (from fragpipe.workflow).
+    fragger_params : dict, optional
+        Dictionary of MSFragger parameters (from fragger.params).
 
     Returns
     -------
     dict
         Dictionary formatted for table display with parameter/value structure.
     """
-    if not parameters:
+    if not parameters and not fragger_params:
         return None
 
+    # Merge parameters - workflow takes precedence, fragger provides fallback
+    merged_params = {}
+    if fragger_params:
+        merged_params.update(fragger_params)
+    if parameters:
+        merged_params.update(parameters)
+
     # Key parameters to display (similar to MaxQuant parameters table)
+    # Format: (key_from_workflow, key_from_fragger, display_name)
     key_params = [
         # FragPipe version
-        ("fragpipe.version", "FragPipe Version"),
-        # Search engine settings
-        ("msfragger.search_enzyme_name_1", "Enzyme"),
-        ("msfragger.search_enzyme_cut_1", "Enzyme Cut Site"),
-        ("msfragger.allowed_missed_cleavage_1", "Max Missed Cleavages"),
-        ("msfragger.precursor_mass_lower", "Precursor Mass Tolerance (Lower)"),
-        ("msfragger.precursor_mass_upper", "Precursor Mass Tolerance (Upper)"),
-        ("msfragger.precursor_mass_units", "Precursor Mass Units"),
-        ("msfragger.fragment_mass_tolerance", "Fragment Mass Tolerance"),
-        ("msfragger.fragment_mass_units", "Fragment Mass Units"),
-        # Modifications
-        ("msfragger.variable_mod_01", "Variable Modification 1"),
-        ("msfragger.variable_mod_02", "Variable Modification 2"),
-        ("msfragger.variable_mod_03", "Variable Modification 3"),
+        ("fragpipe.version", None, "FragPipe Version"),
+        # Search engine settings - workflow keys and fragger.params equivalents
+        ("msfragger.search_enzyme_name_1", "search_enzyme_name_1", "Enzyme"),
+        ("msfragger.search_enzyme_cut_1", "search_enzyme_cut_1", "Enzyme Cut Site"),
+        ("msfragger.allowed_missed_cleavage_1", "allowed_missed_cleavage_1", "Max Missed Cleavages"),
+        ("msfragger.precursor_mass_lower", "precursor_mass_lower", "Precursor Mass Tolerance (Lower)"),
+        ("msfragger.precursor_mass_upper", "precursor_mass_upper", "Precursor Mass Tolerance (Upper)"),
+        ("msfragger.precursor_mass_units", "precursor_mass_units", "Precursor Mass Units"),
+        ("msfragger.fragment_mass_tolerance", "fragment_mass_tolerance", "Fragment Mass Tolerance"),
+        ("msfragger.fragment_mass_units", "fragment_mass_units", "Fragment Mass Units"),
+        # Modifications - from workflow or fragger.params
+        ("msfragger.variable_mod_01", "variable_mod_01", "Variable Modification 1"),
+        ("msfragger.variable_mod_02", "variable_mod_02", "Variable Modification 2"),
+        ("msfragger.variable_mod_03", "variable_mod_03", "Variable Modification 3"),
         # Database
-        ("database.db-path", "Database Path"),
-        # IonQuant settings
-        ("ionquant.mbr", "Match Between Runs (MBR)"),
-        ("ionquant.normalization", "Normalization"),
-        ("ionquant.requantify", "Requantify"),
-        # TMT settings
-        ("tmtintegrator.channel_num", "TMT Channels"),
-        ("tmtintegrator.ref_tag", "TMT Reference Tag"),
+        ("database.db-path", "database_name", "Database Path"),
+        # IonQuant settings (workflow only)
+        ("ionquant.mbr", None, "Match Between Runs (MBR)"),
+        ("ionquant.normalization", None, "Normalization"),
+        ("ionquant.requantify", None, "Requantify"),
+        # TMT settings (workflow only)
+        ("tmtintegrator.channel_num", None, "TMT Channels"),
+        ("tmtintegrator.ref_tag", None, "TMT Reference Tag"),
         # FDR
-        ("philosopher.filter--prot", "Protein FDR"),
-        ("philosopher.filter--pep", "Peptide FDR"),
-        ("philosopher.filter--psm", "PSM FDR"),
+        ("philosopher.filter--prot", None, "Protein FDR"),
+        ("philosopher.filter--pep", None, "Peptide FDR"),
+        ("philosopher.filter--psm", None, "PSM FDR"),
+        # Additional fragger.params specific settings
+        (None, "num_threads", "Number of Threads"),
+        (None, "decoy_prefix", "Decoy Prefix"),
+        (None, "isotope_error", "Isotope Error"),
+        (None, "mass_offsets", "Mass Offsets"),
+        (None, "precursor_true_tolerance", "Precursor True Tolerance"),
+        (None, "precursor_true_units", "Precursor True Units"),
+        (None, "calibrate_mass", "Calibrate Mass"),
+        (None, "clip_nTerm_M", "Clip N-term Met"),
+        (None, "digest_min_length", "Min Peptide Length"),
+        (None, "digest_max_length", "Max Peptide Length"),
     ]
 
     table_data = {}
     row_num = 1
 
-    for param_key, display_name in key_params:
-        if param_key in parameters:
-            value = parameters[param_key]
-            # Clean up value for display
-            if value and value != "null":
-                # Extract filename from paths
-                if param_key == "database.db-path" and ("/" in value or "\\" in value):
-                    value = os.path.basename(value.replace("\\", "/"))
-                table_data[row_num] = {
-                    "parameter": display_name,
-                    "value": value
-                }
-                row_num += 1
+    for workflow_key, fragger_key, display_name in key_params:
+        value = None
+
+        # Try workflow key first
+        if workflow_key and workflow_key in merged_params:
+            value = merged_params[workflow_key]
+        # Fallback to fragger key
+        elif fragger_key and fragger_key in merged_params:
+            value = merged_params[fragger_key]
+
+        # Clean up value for display
+        if value and value != "null" and str(value).strip():
+            value = str(value).strip()
+            # Extract filename from paths
+            if display_name == "Database Path" and ("/" in value or "\\" in value):
+                value = os.path.basename(value.replace("\\", "/"))
+            # Skip empty modification slots
+            if "Modification" in display_name and (not value or value == "0.0000 X 0"):
+                continue
+            table_data[row_num] = {
+                "parameter": display_name,
+                "value": value
+            }
+            row_num += 1
 
     if not table_data:
         return None

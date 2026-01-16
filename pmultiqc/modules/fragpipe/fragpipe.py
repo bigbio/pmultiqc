@@ -9,6 +9,7 @@ from pmultiqc.modules.fragpipe.fragpipe_io import (
     ion_reader,
     get_ion_intensity_data,
     workflow_reader,
+    fragger_params_reader,
     get_workflow_parameters_table,
     manifest_reader,
     get_experiment_design_table,
@@ -97,8 +98,9 @@ class FragPipeModule(BasePMultiqcModule):
         self.ion_sample_cols = []
 
         # New data containers for additional FragPipe files
-        # Parameters from workflow file
+        # Parameters from workflow file and fragger.params
         self.parameters = None
+        self.fragger_params = None
         self.parameters_table = None
 
         # Experiment design from manifest
@@ -165,10 +167,25 @@ class FragPipeModule(BasePMultiqcModule):
                 workflow_path = self.fragpipe_files["workflow"][0]
                 self.parameters = workflow_reader(workflow_path)
                 if self.parameters:
-                    self.parameters_table = get_workflow_parameters_table(self.parameters)
                     log.info("Workflow parameters loaded successfully.")
             except Exception as e:
                 log.warning(f"Error parsing workflow file: {e}")
+
+        # Parse fragger.params for MSFragger search parameters (optional)
+        if self.fragpipe_files.get("fragger_params"):
+            try:
+                fragger_path = self.fragpipe_files["fragger_params"][0]
+                self.fragger_params = fragger_params_reader(fragger_path)
+                if self.fragger_params:
+                    log.info("Fragger.params loaded successfully.")
+            except Exception as e:
+                log.warning(f"Error parsing fragger.params file: {e}")
+
+        # Generate parameters table from workflow and/or fragger.params
+        if self.parameters or self.fragger_params:
+            self.parameters_table = get_workflow_parameters_table(
+                self.parameters, self.fragger_params
+            )
 
         # Parse manifest file for experiment design (optional)
         if self.fragpipe_files.get("manifest"):
