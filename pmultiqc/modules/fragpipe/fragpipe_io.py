@@ -18,6 +18,18 @@ REQUIRED_COLS = {
     ],
     "ion": [
         "Peptide Sequence", "Modified Sequence", "Charge", "Protein", "Intensity"
+    ],
+    "combined_protein": [
+        "Protein", "Protein ID", "Entry Name", "Gene", "Protein Length",
+        "Combined Total Peptides", "Combined Spectral Count", "Combined Unique Spectral Count",
+        "Combined Total Spectral Count"
+    ],
+    "combined_peptide": [
+        "Peptide", "Peptide Length", "Charges", "Protein", "Protein Start", "Protein End",
+        "Combined Spectral Count"
+    ],
+    "combined_ion": [
+        "Peptide Sequence", "Modified Sequence", "Charge", "Protein", "Gene", "Assigned Modifications"
     ]
 }
 
@@ -35,31 +47,53 @@ def get_fragpipe_files(find_log_files):
     # combined_modified_peptide.tsv (from IonQuant)
     # combined_peptide.tsv (from Philosopher, overwritten by IonQuant)
     # combined_protein.tsv (from Philosopher, overwritten by IonQuant)
+    # fragpipe.workflow (FragPipe configuration parameters)
+    # fragpipe-files.fp-manifest (experiment design/manifest)
     # diann-output files (see DIA-NN documentation)
 
-    required_files = ["psm", "ion"]
-    req_set = set(required_files)
-
-    fragpipe_files = {req: [] for req in required_files}
+    # Define all file types to look for
+    file_types = [
+        "psm", "ion", "combined_protein", "combined_peptide", "combined_ion",
+        "workflow", "manifest"
+    ]
+    fragpipe_files = {ft: [] for ft in file_types}
 
     # FragPipe *tsv Data
     for file_info in find_log_files("pmultiqc/tsv", filecontents=False):
         filename = file_info["fn"]
         full_path = os.path.join(file_info["root"], filename)
 
-        for req in req_set:
-            # Match exact file names to avoid conflicts
-            # e.g., "ion.tsv" should not match "combined_ion.tsv"
-            if req == "ion" and filename == "ion.tsv":
-                fragpipe_files[req].append(full_path)
-            elif req == "psm" and "psm" in filename:
-                fragpipe_files[req].append(full_path)
+        # Match exact file names to avoid conflicts
+        # e.g., "ion.tsv" should not match "combined_ion.tsv"
+        if filename == "ion.tsv":
+            fragpipe_files["ion"].append(full_path)
+        elif filename == "combined_ion.tsv":
+            fragpipe_files["combined_ion"].append(full_path)
+        elif filename == "combined_protein.tsv":
+            fragpipe_files["combined_protein"].append(full_path)
+        elif filename == "combined_peptide.tsv":
+            fragpipe_files["combined_peptide"].append(full_path)
+        elif "psm" in filename:
+            fragpipe_files["psm"].append(full_path)
+
+    # FragPipe workflow file (configuration parameters)
+    for file_info in find_log_files("pmultiqc/workflow", filecontents=False):
+        filename = file_info["fn"]
+        full_path = os.path.join(file_info["root"], filename)
+        if filename == "fragpipe.workflow":
+            fragpipe_files["workflow"].append(full_path)
+
+    # FragPipe manifest file (experiment design)
+    for file_info in find_log_files("pmultiqc/fp-manifest", filecontents=False):
+        filename = file_info["fn"]
+        full_path = os.path.join(file_info["root"], filename)
+        fragpipe_files["manifest"].append(full_path)
 
     if any(fragpipe_files.values()):
-
         for k, v in fragpipe_files.items():
-            log.info(f"FragPipe data loaded: {k} ({len(v)} files).")
-            log.debug(f"FragPipe data loaded: {k}: {v}")
+            if v:
+                log.info(f"FragPipe data loaded: {k} ({len(v)} files).")
+                log.debug(f"FragPipe data loaded: {k}: {v}")
 
         return fragpipe_files
 
@@ -236,4 +270,570 @@ def extract_sample_groups(sample_cols):
                     }
 
     return sample_groups
+
+
+def workflow_reader(file_path: str):
+    """
+    Read fragpipe.workflow file containing FragPipe configuration parameters.
+
+    The workflow file is a key=value format file containing all parameters
+    used in the FragPipe analysis.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the fragpipe.workflow file.
+
+    Returns
+    -------
+    dict
+        Dictionary containing parameter name -> value pairs.
+    """
+    parameters = {}
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    parameters[key.strip()] = value.strip()
+    except Exception as e:
+        log.warning(f"Error reading workflow file {file_path}: {e}")
+        return None
+
+    log.info(f"Loaded {len(parameters)} parameters from workflow file")
+    return parameters
+
+
+def get_workflow_parameters_table(parameters: dict):
+    """
+    Convert workflow parameters to table format for display.
+
+    Extracts key parameters relevant for QC reporting similar to MaxQuant.
+
+    Parameters
+    ----------
+    parameters : dict
+        Dictionary of workflow parameters.
+
+    Returns
+    -------
+    dict
+        Dictionary formatted for table display with parameter/value structure.
+    """
+    if not parameters:
+        return None
+
+    # Key parameters to display (similar to MaxQuant parameters table)
+    key_params = [
+        # FragPipe version
+        ("fragpipe.version", "FragPipe Version"),
+        # Search engine settings
+        ("msfragger.search_enzyme_name_1", "Enzyme"),
+        ("msfragger.search_enzyme_cut_1", "Enzyme Cut Site"),
+        ("msfragger.allowed_missed_cleavage_1", "Max Missed Cleavages"),
+        ("msfragger.precursor_mass_lower", "Precursor Mass Tolerance (Lower)"),
+        ("msfragger.precursor_mass_upper", "Precursor Mass Tolerance (Upper)"),
+        ("msfragger.precursor_mass_units", "Precursor Mass Units"),
+        ("msfragger.fragment_mass_tolerance", "Fragment Mass Tolerance"),
+        ("msfragger.fragment_mass_units", "Fragment Mass Units"),
+        # Modifications
+        ("msfragger.variable_mod_01", "Variable Modification 1"),
+        ("msfragger.variable_mod_02", "Variable Modification 2"),
+        ("msfragger.variable_mod_03", "Variable Modification 3"),
+        # Database
+        ("database.db-path", "Database Path"),
+        # IonQuant settings
+        ("ionquant.mbr", "Match Between Runs (MBR)"),
+        ("ionquant.normalization", "Normalization"),
+        ("ionquant.requantify", "Requantify"),
+        # TMT settings
+        ("tmtintegrator.channel_num", "TMT Channels"),
+        ("tmtintegrator.ref_tag", "TMT Reference Tag"),
+        # FDR
+        ("philosopher.filter--prot", "Protein FDR"),
+        ("philosopher.filter--pep", "Peptide FDR"),
+        ("philosopher.filter--psm", "PSM FDR"),
+    ]
+
+    table_data = {}
+    row_num = 1
+
+    for param_key, display_name in key_params:
+        if param_key in parameters:
+            value = parameters[param_key]
+            # Clean up value for display
+            if value and value != "null":
+                # Extract filename from paths
+                if param_key == "database.db-path" and ("/" in value or "\\" in value):
+                    value = os.path.basename(value.replace("\\", "/"))
+                table_data[row_num] = {
+                    "parameter": display_name,
+                    "value": value
+                }
+                row_num += 1
+
+    if not table_data:
+        return None
+
+    return table_data
+
+
+def manifest_reader(file_path: str):
+    """
+    Read FragPipe manifest file containing experiment design information.
+
+    The manifest file (fp-manifest) contains file paths and experimental
+    design information like sample names, groups, and data types.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the manifest file.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing experiment design information.
+    """
+    try:
+        # Manifest file is tab-separated with columns:
+        # file_path, experiment, bioreplicate, data_type (optional)
+        manifest_df = pd.read_csv(file_path, sep='\t', header=None)
+
+        # Assign column names based on number of columns
+        if len(manifest_df.columns) >= 4:
+            manifest_df.columns = ['file_path', 'experiment', 'bioreplicate', 'data_type'] + \
+                                  [f'col_{i}' for i in range(4, len(manifest_df.columns))]
+        elif len(manifest_df.columns) == 3:
+            manifest_df.columns = ['file_path', 'experiment', 'bioreplicate']
+        elif len(manifest_df.columns) == 2:
+            manifest_df.columns = ['file_path', 'experiment']
+        else:
+            manifest_df.columns = ['file_path']
+
+        # Extract filename from path for display
+        if 'file_path' in manifest_df.columns:
+            manifest_df['file_name'] = manifest_df['file_path'].apply(
+                lambda x: os.path.basename(str(x).replace("\\", "/"))
+            )
+
+        log.info(f"Loaded manifest with {len(manifest_df)} entries")
+        return manifest_df
+
+    except Exception as e:
+        log.warning(f"Error reading manifest file {file_path}: {e}")
+        return None
+
+
+def get_experiment_design_table(manifest_df: pd.DataFrame):
+    """
+    Convert manifest DataFrame to experiment design table format.
+
+    Parameters
+    ----------
+    manifest_df : pd.DataFrame
+        DataFrame from manifest_reader.
+
+    Returns
+    -------
+    dict
+        Dictionary formatted for experiment design table display.
+    """
+    if manifest_df is None or manifest_df.empty:
+        return None
+
+    table_data = {}
+
+    for idx, row in manifest_df.iterrows():
+        file_name = row.get('file_name', row.get('file_path', f'File_{idx}'))
+        entry = {
+            "file_name": file_name,
+        }
+        if 'experiment' in row:
+            entry["experiment"] = row['experiment']
+        if 'bioreplicate' in row:
+            entry["bioreplicate"] = row['bioreplicate']
+        if 'data_type' in row:
+            entry["data_type"] = row['data_type']
+
+        table_data[idx + 1] = entry
+
+    return table_data
+
+
+def combined_protein_reader(file_path: str):
+    """
+    Read combined_protein.tsv file from FragPipe output.
+
+    The combined_protein.tsv file contains protein-level quantification
+    data including MBR (Match Between Runs) information and per-sample
+    intensity columns.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the combined_protein.tsv file.
+
+    Returns
+    -------
+    tuple
+        (protein_df, sample_intensity_cols, mbr_cols) where:
+        - protein_df: DataFrame with protein-level data
+        - sample_intensity_cols: List of sample intensity column names
+        - mbr_cols: Dict mapping sample to MBR-related columns
+    """
+    try:
+        protein_df = pd.read_csv(file_path, sep="\t", low_memory=False)
+    except Exception as e:
+        log.warning(f"Error reading combined_protein.tsv: {e}")
+        return None, [], {}
+
+    if protein_df.empty:
+        log.warning("combined_protein.tsv is empty")
+        return None, [], {}
+
+    log.info(f"Loaded combined_protein.tsv with {len(protein_df)} proteins and {len(protein_df.columns)} columns")
+
+    # Identify sample intensity columns
+    # These typically follow patterns like "Sample MaxLFQ Intensity" or just sample names
+    sample_intensity_cols = []
+    mbr_cols = {}
+
+    # Look for MaxLFQ or Intensity columns per sample
+    for col in protein_df.columns:
+        col_lower = col.lower()
+        if 'maxlfq' in col_lower or ('intensity' in col_lower and 'combined' not in col_lower):
+            # Skip metadata columns
+            if not any(skip in col_lower for skip in ['total', 'spectral', 'razor']):
+                sample_intensity_cols.append(col)
+
+    # Look for MBR-related columns
+    # FragPipe uses columns like "Sample Spectral Count" with MBR info
+    spectral_cols = [col for col in protein_df.columns if 'spectral count' in col.lower()]
+
+    # Identify unique vs total spectral counts which can indicate MBR contribution
+    for col in spectral_cols:
+        sample_base = col.replace(' Spectral Count', '').replace(' Total Spectral Count', '').strip()
+        if sample_base not in mbr_cols:
+            mbr_cols[sample_base] = {}
+        if 'unique' in col.lower():
+            mbr_cols[sample_base]['unique'] = col
+        elif 'total' in col.lower():
+            mbr_cols[sample_base]['total'] = col
+        else:
+            mbr_cols[sample_base]['spectral'] = col
+
+    log.info(f"Found {len(sample_intensity_cols)} sample intensity columns")
+
+    return protein_df, sample_intensity_cols, mbr_cols
+
+
+def get_protein_intensity_distribution(protein_df, sample_cols, contam_affix="CONT"):
+    """
+    Extract protein intensity distribution data for QC plots.
+
+    Parameters
+    ----------
+    protein_df : pd.DataFrame
+        DataFrame from combined_protein_reader.
+    sample_cols : list
+        List of sample intensity column names.
+    contam_affix : str
+        Contaminant identifier prefix.
+
+    Returns
+    -------
+    tuple
+        (sample_distribution, contaminant_distribution) - log2 transformed intensity distributions.
+    """
+    if protein_df is None or not sample_cols:
+        return None, None
+
+    sample_distribution = {}
+    contaminant_distribution = {}
+
+    # Identify protein column
+    protein_col = None
+    for col in ['Protein', 'Protein ID', 'Protein Group']:
+        if col in protein_df.columns:
+            protein_col = col
+            break
+
+    # Separate contaminants
+    if protein_col:
+        is_contaminant = protein_df[protein_col].str.contains(contam_affix, na=False, case=False)
+        sample_df = protein_df[~is_contaminant]
+        contam_df = protein_df[is_contaminant]
+    else:
+        sample_df = protein_df
+        contam_df = pd.DataFrame()
+
+    for col in sample_cols:
+        if col not in sample_df.columns:
+            continue
+
+        # Sample intensities
+        intensities = sample_df[col].dropna()
+        valid_intensities = intensities[intensities > 0]
+        if len(valid_intensities) > 0:
+            sample_distribution[col] = np.log2(valid_intensities).tolist()
+
+        # Contaminant intensities
+        if not contam_df.empty and col in contam_df.columns:
+            cont_intensities = contam_df[col].dropna()
+            valid_cont = cont_intensities[cont_intensities > 0]
+            if len(valid_cont) > 0:
+                contaminant_distribution[col] = np.log2(valid_cont).tolist()
+
+    return sample_distribution, contaminant_distribution
+
+
+def combined_peptide_reader(file_path: str):
+    """
+    Read combined_peptide.tsv file from FragPipe output.
+
+    The combined_peptide.tsv file contains peptide-level quantification
+    data including MBR information.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the combined_peptide.tsv file.
+
+    Returns
+    -------
+    tuple
+        (peptide_df, sample_cols, mbr_info) where:
+        - peptide_df: DataFrame with peptide-level data
+        - sample_cols: List of sample column names
+        - mbr_info: Dict with MBR-related statistics
+    """
+    try:
+        peptide_df = pd.read_csv(file_path, sep="\t", low_memory=False)
+    except Exception as e:
+        log.warning(f"Error reading combined_peptide.tsv: {e}")
+        return None, [], {}
+
+    if peptide_df.empty:
+        log.warning("combined_peptide.tsv is empty")
+        return None, [], {}
+
+    log.info(f"Loaded combined_peptide.tsv with {len(peptide_df)} peptides")
+
+    # Identify sample columns (spectral counts or intensity)
+    sample_cols = []
+    for col in peptide_df.columns:
+        col_lower = col.lower()
+        if 'spectral count' in col_lower or 'intensity' in col_lower:
+            if 'combined' not in col_lower:
+                sample_cols.append(col)
+
+    # Look for MBR-related columns
+    # FragPipe combined_peptide.tsv may have columns indicating identification type
+    mbr_info = {
+        'has_mbr_data': False,
+        'mbr_columns': []
+    }
+
+    for col in peptide_df.columns:
+        if 'mbr' in col.lower() or 'match' in col.lower():
+            mbr_info['has_mbr_data'] = True
+            mbr_info['mbr_columns'].append(col)
+
+    return peptide_df, sample_cols, mbr_info
+
+
+def get_mbr_stats(protein_df, peptide_df, sample_cols):
+    """
+    Calculate Match-Between-Runs (MBR) statistics.
+
+    Analyzes identification types to determine MBR contribution
+    to protein and peptide identification counts.
+
+    Parameters
+    ----------
+    protein_df : pd.DataFrame
+        DataFrame from combined_protein_reader.
+    peptide_df : pd.DataFrame
+        DataFrame from combined_peptide_reader.
+    sample_cols : list
+        List of sample column names.
+
+    Returns
+    -------
+    dict
+        Dictionary containing MBR statistics per sample with:
+        - 'proteins': dict with msms_only, mbr_only, both counts
+        - 'peptides': dict with msms_only, mbr_only, both counts
+    """
+    mbr_stats = {}
+
+    if protein_df is None and peptide_df is None:
+        return mbr_stats
+
+    # For FragPipe, we look at spectral counts to infer MBR contribution
+    # Proteins/peptides with spectral count > 0 are MS/MS identified
+    # Proteins/peptides that are quantified but have 0 spectral count may be MBR
+
+    for sample in sample_cols:
+        mbr_stats[sample] = {
+            'proteins': {'msms_only': 0, 'mbr_only': 0, 'both': 0},
+            'peptides': {'msms_only': 0, 'mbr_only': 0, 'both': 0}
+        }
+
+        # Protein-level MBR stats
+        if protein_df is not None:
+            spectral_col = None
+            intensity_col = sample
+
+            # Find corresponding spectral count column
+            for col in protein_df.columns:
+                if sample.replace(' MaxLFQ Intensity', '').replace(' Intensity', '') in col:
+                    if 'spectral count' in col.lower():
+                        spectral_col = col
+                        break
+
+            if spectral_col and intensity_col in protein_df.columns:
+                has_spectral = protein_df[spectral_col] > 0
+                has_intensity = protein_df[intensity_col] > 0
+
+                msms_only = ((has_spectral) & (~has_intensity)).sum()
+                mbr_only = ((~has_spectral) & (has_intensity)).sum()
+                both = ((has_spectral) & (has_intensity)).sum()
+
+                mbr_stats[sample]['proteins'] = {
+                    'msms_only': int(msms_only),
+                    'mbr_only': int(mbr_only),
+                    'both': int(both)
+                }
+
+    return mbr_stats
+
+
+def combined_ion_reader(file_path: str):
+    """
+    Read combined_ion.tsv file from FragPipe output.
+
+    The combined_ion.tsv file contains ion-level quantification data
+    across all samples, suitable for MS/MS counts per peak analysis.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the combined_ion.tsv file.
+
+    Returns
+    -------
+    tuple
+        (ion_df, sample_cols) where:
+        - ion_df: DataFrame with ion-level data
+        - sample_cols: List of sample column names
+    """
+    try:
+        ion_df = pd.read_csv(file_path, sep="\t", low_memory=False)
+    except Exception as e:
+        log.warning(f"Error reading combined_ion.tsv: {e}")
+        return None, []
+
+    if ion_df.empty:
+        log.warning("combined_ion.tsv is empty")
+        return None, []
+
+    log.info(f"Loaded combined_ion.tsv with {len(ion_df)} ions and {len(ion_df.columns)} columns")
+
+    # Identify sample columns - look for intensity columns after metadata
+    sample_cols = []
+
+    # Try to find anchor column (similar to ion.tsv processing)
+    anchor_col = None
+    for col in ['Mapped Proteins', 'Protein', 'Gene']:
+        if col in ion_df.columns:
+            anchor_col = col
+            break
+
+    if anchor_col:
+        try:
+            anchor_idx = ion_df.columns.get_loc(anchor_col)
+            potential_cols = list(ion_df.columns[anchor_idx + 1:])
+
+            # Filter to numeric columns
+            for col in potential_cols:
+                if ion_df[col].dtype in [np.float64, np.int64, np.float32, np.int32]:
+                    sample_cols.append(col)
+                elif ion_df[col].dtype == object:
+                    try:
+                        pd.to_numeric(ion_df[col], errors='raise')
+                        sample_cols.append(col)
+                    except (ValueError, TypeError):
+                        pass
+        except KeyError:
+            pass
+
+    # Alternative: look for columns with intensity/spectral pattern
+    if not sample_cols:
+        for col in ion_df.columns:
+            col_lower = col.lower()
+            if ('intensity' in col_lower or 'spectral' in col_lower) and 'combined' not in col_lower:
+                sample_cols.append(col)
+
+    log.info(f"Found {len(sample_cols)} sample columns in combined_ion.tsv")
+
+    return ion_df, sample_cols
+
+
+def get_msms_counts_per_peak(ion_df, sample_cols):
+    """
+    Calculate MS/MS counts per peak statistics.
+
+    Analyzes how many MS/MS spectra support each ion/peak identification.
+
+    Parameters
+    ----------
+    ion_df : pd.DataFrame
+        DataFrame from combined_ion_reader.
+    sample_cols : list
+        List of sample column names.
+
+    Returns
+    -------
+    dict
+        Dictionary containing MS/MS count statistics per sample.
+    """
+    if ion_df is None or not sample_cols:
+        return None
+
+    msms_counts = {}
+
+    # Look for spectral count columns
+    for col in ion_df.columns:
+        if 'spectral count' in col.lower():
+            sample_name = col.replace(' Spectral Count', '').strip()
+            counts = ion_df[col].dropna()
+            counts = counts[counts > 0]
+
+            if len(counts) > 0:
+                msms_counts[sample_name] = {
+                    'values': counts.tolist(),
+                    'mean': float(counts.mean()),
+                    'median': float(counts.median()),
+                    'total': int(counts.sum())
+                }
+
+    # If no spectral count columns, use intensity presence
+    if not msms_counts:
+        for col in sample_cols:
+            if col in ion_df.columns:
+                # Count non-zero values as "identified"
+                values = ion_df[col].dropna()
+                non_zero = (values > 0).sum()
+                msms_counts[col] = {
+                    'identified_peaks': int(non_zero),
+                    'total_peaks': len(values)
+                }
+
+    return msms_counts
 
