@@ -6,6 +6,8 @@
     <title>pmultiqc - Proteomics MultiQC Analysis</title>
     <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/style.css">
     <link rel="stylesheet" href="{{ config.BASE_URL.rstrip('/') }}/static/components.css">
+    <!-- TUS Resumable Upload Library (v4.3.1 - latest stable, Jan 2025) -->
+    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/dist/tus.min.js" integrity="sha384-Sh/HLgJ7r+xLqLsE/rT8XZJqXXqQQXF6Q8VwBHqwJkXQFj9z3W4OqF4cDPh7L9Na" crossorigin="anonymous"></script>
     <script>
         // Global configuration - can be overridden by environment
         window.APP_CONFIG = {
@@ -106,7 +108,10 @@
                         <div id="progressFill" class="progress-fill"></div>
                     </div>
                     <div id="progressText" class="progress-text">Starting processing...</div>
-                    <button id="cancelUploadBtn" class="return-home-btn" style="display: none; margin-top: 15px;" onclick="cancelUpload()">❌ Cancel Upload</button>
+                    <div style="margin-top: 15px;">
+                        <button id="resumeUploadBtn" class="upload-btn" style="display: none;" onclick="resumeUpload()">▶️ Resume Upload</button>
+                        <button id="cancelUploadBtn" class="return-home-btn" style="display: none;" onclick="cancelUpload()">❌ Cancel Upload</button>
+                    </div>
                 </div>
             </div>
             
@@ -209,6 +214,8 @@
         let currentJobId = null;
         let processingInProgress = false;
         let currentUploadXhr = null;
+        let onlineHandler = null;  // Store reference for cleanup
+        let isUploadPaused = false;  // Track if upload is paused (for network errors)
 
         // Wizard navigation
         function showStep(step) {
@@ -258,13 +265,40 @@
             document.getElementById('fileList').innerHTML = '';
         }
 
+        function resumeUpload() {
+            if (currentUploadXhr && typeof currentUploadXhr.start === 'function') {
+                console.log('🔄 Manually resuming TUS upload...');
+                
+                // Hide error message
+                document.getElementById('result').style.display = 'none';
+                
+                // Show progress container
+                showProgress();
+                
+                // Update progress text
+                const progressText = document.getElementById('progressText');
+                progressText.innerHTML = '🔄 Resuming upload...';
+                
+                isUploadPaused = false;  // Clear paused state
+                
+                // Restart the upload (will resume from last offset)
+                currentUploadXhr.start();
+            }
+        }
+        
         function cancelUpload() {
             if (currentUploadXhr) {
-                currentUploadXhr.abort();
+                // TUS upload object has abort() method
+                if (typeof currentUploadXhr.abort === 'function') {
+                    currentUploadXhr.abort();
+                }
                 currentUploadXhr = null;
             }
             processingInProgress = false;
+            isUploadPaused = false;  // Clear paused state
+            cleanupUploadListeners();  // Clean up event listeners
             document.getElementById('cancelUploadBtn').style.display = 'none';
+            document.getElementById('resumeUploadBtn').style.display = 'none';
             showError('Upload cancelled by user');
         }
 
@@ -312,15 +346,11 @@
         function uploadFiles(files) {
             if (processingInProgress) return;
             
-            console.log('Starting file upload with', files.length, 'files');
+            // TUS only uploads one file at a time
+            const file = files[0];
+            const totalSize = file.size;
             
-            const formData = new FormData();
-            let totalSize = 0;
-            for (let file of files) {
-                formData.append('files', file);
-                totalSize += file.size;
-                console.log('Added file to form data:', file.name, formatBytes(file.size));
-            }
+            console.log(`📤 Starting TUS upload: ${file.name} (${formatBytes(totalSize)})`);
 
             showProgress();
             
@@ -331,128 +361,251 @@
             progressText.innerHTML = `Preparing to upload ${formatBytes(totalSize)}...`;
             progressFill.style.width = '0%';
 
-            // Track upload timing
+            // Track upload timing and retries
             const startTime = Date.now();
-            
-            // Use XMLHttpRequest for upload progress tracking
-            const xhr = new XMLHttpRequest();
-            currentUploadXhr = xhr; // Store for potential cancellation
+            let lastLoaded = 0;
+            let lastTime = startTime;
+            let lastSuccessTime = startTime;
+            let errorStartTime = null;
             
             // Show cancel button
             document.getElementById('cancelUploadBtn').style.display = 'inline-block';
             
-            // Track upload progress
-            xhr.upload.addEventListener('progress', function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = (e.loaded / e.total) * 100;
-                    const elapsed = (Date.now() - startTime) / 1000; // seconds
-                    const uploadedMB = e.loaded;
-                    const totalMB = e.total;
+            console.log(`⏱️ Upload started at ${new Date().toLocaleTimeString()}.${Date.now() % 1000}`);
+            
+            // Create TUS upload with fingerprint for resume
+            const upload = new tus.Upload(file, {
+                endpoint: getApiUrl('/files/'),
+                retryDelays: [0, 1000, 3000, 5000, 10000, 15000, 20000, 30000, 45000, 60000],  // More retries, up to 60s
+                chunkSize: 50 * 1024 * 1024,  // 50 MB chunks
+                // Enable resume by storing upload URL
+                removeFingerprintOnSuccess: true,
+                // Custom fingerprint based on file properties
+                fingerprint: function(file, options) {
+                    return Promise.resolve([
+                        'tus',
+                        file.name,
+                        file.type,
+                        file.size,
+                        file.lastModified
+                    ].join('-'));
+                },
+                metadata: {
+                    filename: file.name,
+                    filetype: file.type
+                },
+                onError: function(error) {
+                    // Track when first error occurred
+                    const currentTime = Date.now();
+                    if (!errorStartTime) {
+                        errorStartTime = currentTime;
+                    }
+                    const timeSinceLastSuccess = (currentTime - lastSuccessTime) / 1000;
+                    
+                    // onError is called AFTER all retries are exhausted
+                    console.error(`❌ TUS upload failed after all retries at ${new Date().toLocaleTimeString()}.${currentTime % 1000}`);
+                    console.log(`⏱️ Time since last successful chunk: ${timeSinceLastSuccess.toFixed(1)}s`);
+                    console.log('Error details:', JSON.stringify({
+                        message: error.message,
+                        hasOriginalResponse: !!error.originalResponse,
+                        status: error.originalResponse ? error.originalResponse.getStatus() : 'no response'
+                    }));
+                    
+                    // Check if this is a network error (resumable)
+                    // Network errors typically have no response or response status 0
+                    let isNetworkError = false;
+                    if (!error.originalResponse) {
+                        isNetworkError = true;
+                    } else if (error.originalResponse && typeof error.originalResponse.getStatus === 'function') {
+                        const status = error.originalResponse.getStatus();
+                        isNetworkError = (status === 0 || status === undefined || status === null);
+                    }
+                    
+                    console.log('Is network error?', isNetworkError);
+                    
+                    if (isNetworkError) {
+                        console.log('🌐 Network error - retries exhausted. Upload can be manually resumed.');
+                        // Keep upload object alive for manual resume
+                        currentUploadXhr = upload;
+                        isUploadPaused = true;  // Mark as paused for auto-resume
+                        // Show error with Resume button
+                        showError('⚠️ Upload paused due to network issue. Click "Resume Upload" to retry.', true);
+                    } else {
+                        // Non-network error - permanent failure
+                        currentUploadXhr = null;
+                        isUploadPaused = false;  // Clear paused state
+                        cleanupUploadListeners();  // Clean up event listeners
+                        showError('Upload failed: ' + error.message, false);
+                    }
+                },
+                onProgress: function(bytesUploaded, bytesTotal) {
+                    const percentComplete = (bytesUploaded / bytesTotal) * 100;
+                    const currentTime = Date.now();
+                    const elapsed = (currentTime - startTime) / 1000; // seconds
+                    
+                    // Track last successful progress
+                    lastSuccessTime = currentTime;
+                    if (errorStartTime) {
+                        const resumeDelay = (currentTime - errorStartTime) / 1000;
+                        console.log(`✅ Upload resumed after ${resumeDelay.toFixed(1)}s from first error`);
+                        errorStartTime = null;
+                    }
                     
                     // Update progress bar
                     progressFill.style.width = percentComplete + '%';
                     
-                    // Calculate speed and ETA (only if enough time has elapsed)
+                    // Calculate speed and ETA
                     let speedText = 'calculating...';
                     let etaText = 'calculating...';
                     
-                    if (elapsed > 0.5 && uploadedMB > 0) { // Wait at least 500ms for stable calculation
-                        const speed = uploadedMB / elapsed; // bytes per second
-                        const remaining = e.total - e.loaded;
-                        const eta = remaining / speed; // seconds
+                    if (elapsed > 0.5 && bytesUploaded > 0) {
+                        // Calculate instantaneous speed (for more responsive display)
+                        const timeDiff = (currentTime - lastTime) / 1000;
+                        const bytesDiff = bytesUploaded - lastLoaded;
+                        const instantSpeed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+                        
+                        // Calculate average speed
+                        const avgSpeed = bytesUploaded / elapsed;
+                        
+                        // Use weighted average: 70% instant, 30% average
+                        const speed = instantSpeed * 0.7 + avgSpeed * 0.3;
+                        
+                        const remaining = bytesTotal - bytesUploaded;
+                        const eta = speed > 0 ? remaining / speed : 0;
                         
                         speedText = formatSpeed(speed);
                         etaText = formatTime(eta);
+                        
+                        lastLoaded = bytesUploaded;
+                        lastTime = currentTime;
                     }
                     
                     // Update progress text with detailed info
                     progressText.innerHTML = `
-                        <div>Uploading: ${percentComplete.toFixed(1)}% complete</div>
+                        <div>Uploading: ${percentComplete.toFixed(1)}% complete (Resumable)</div>
                         <div style="font-size: 0.8em; margin-top: 5px;">
-                            ${formatBytes(uploadedMB)} / ${formatBytes(totalMB)} • 
+                            ${formatBytes(bytesUploaded)} / ${formatBytes(bytesTotal)} • 
                             ${speedText} • 
                             ETA: ${etaText}
                         </div>
                     `;
                     
-                    console.log(`Upload progress: ${percentComplete.toFixed(1)}% (${formatBytes(uploadedMB)}/${formatBytes(totalMB)})`);
+                    // Log only at milestones: start, 25%, 50%, 75%, end
+                    if (!window.lastLoggedPercent) window.lastLoggedPercent = -1;
+                    const currPercent = Math.floor(percentComplete);
+                    const milestones = [0, 25, 50, 75, 100];
+                    const shouldLog = milestones.includes(currPercent) && currPercent !== window.lastLoggedPercent;
+                    
+                    if (shouldLog || percentComplete >= 99.9) {
+                        console.log(`📊 TUS progress: ${percentComplete.toFixed(1)}% (${formatBytes(bytesUploaded)}/${formatBytes(bytesTotal)})`);
+                        window.lastLoggedPercent = currPercent;
+                    }
+                },
+                onSuccess: function() {
+                    console.log('✅ TUS upload completed successfully');
+                    document.getElementById('cancelUploadBtn').style.display = 'none';
+                    currentUploadXhr = null;
+                    isUploadPaused = false;  // Clear paused state
+                    
+                    // Clean up event listeners to prevent memory leaks
+                    cleanupUploadListeners();
+                    
+                    // Explicitly clean up TUS localStorage to prevent re-upload
+                    try {
+                        const fingerprint = ['tus', file.name, file.type, file.size, file.lastModified].join('-');
+                        const uploadUrlKey = 'tus::' + fingerprint + '::url';
+                        const expirationKey = 'tus::' + fingerprint + '::urlExpiration';
+                        localStorage.removeItem(uploadUrlKey);
+                        localStorage.removeItem(expirationKey);
+                        console.log('🧹 Cleaned up TUS localStorage entries');
+                    } catch (e) {
+                        console.warn('Failed to clean up localStorage:', e);
+                    }
+                    
+                    const uploadTime = (Date.now() - startTime) / 1000;
+                    
+                    // Show upload complete message
+                    progressText.innerHTML = `
+                        <div>✅ Upload completed in ${formatTime(uploadTime)}</div>
+                        <div style="font-size: 0.8em; margin-top: 5px; color: #28a745;">
+                            ${formatBytes(totalSize)} uploaded successfully • Processing...
+                        </div>
+                    `;
+                    progressFill.style.width = '100%';
+                    
+                    // Show processing section
+                    document.getElementById('processingProgressSection').style.display = 'block';
+                    document.getElementById('consoleOutputSection').style.display = 'block';
+                    
+                    // Update title
+                    document.getElementById('progressTitle').textContent = '⚙️ Running pmultiqc Analysis...';
+                    
+                    // Get job_id from backend using filename
+                    setTimeout(() => {
+                        fetchJobIdByFilename(file.name);
+                    }, 1000);
                 }
             });
             
-            // Handle upload completion
-            xhr.addEventListener('load', function() {
-                // Hide cancel button and clear xhr reference
-                document.getElementById('cancelUploadBtn').style.display = 'none';
-                currentUploadXhr = null;
-                
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        const data = JSON.parse(xhr.responseText);
-                        console.log('Upload response data:', data);
-                        
-                        if (data.job_id) {
-                            currentJobId = data.job_id;
-                            const uploadTime = (Date.now() - startTime) / 1000;
-                            
-                            // Update upload section to show completion
-                            progressText.innerHTML = `
-                                <div>✅ Upload completed in ${formatTime(uploadTime)}</div>
-                                <div style="font-size: 0.8em; margin-top: 5px; color: #28a745;">
-                                    ${formatBytes(totalSize)} uploaded successfully
-                                </div>
-                            `;
-                            progressFill.style.width = '100%';
-                            
-                            // Show processing section
-                            document.getElementById('processingProgressSection').style.display = 'block';
-                            document.getElementById('consoleOutputSection').style.display = 'block';
-                            
-                            // Update title
-                            document.getElementById('progressTitle').textContent = '⚙️ Running pmultiqc Analysis...';
-                            
-                            // Start polling for processing status
-                            setTimeout(() => {
-                                pollStatus(data.job_id);
-                            }, 1000);
-                        } else {
-                            showError(data.error || 'Upload failed');
-                        }
-                    } catch (e) {
-                        console.error('Error parsing response:', e);
-                        showError('Upload failed: Invalid server response');
-                    }
-                } else {
-                    console.error('Upload failed with status:', xhr.status);
-                    try {
-                        const errorData = JSON.parse(xhr.responseText);
-                        showError('Upload failed: ' + (errorData.error || xhr.statusText));
-                    } catch (e) {
-                        showError('Upload failed: ' + xhr.statusText);
-                    }
+            // Store upload instance for cancellation
+            currentUploadXhr = upload;
+            
+            // Listen for browser online event to help auto-resume
+            onlineHandler = function() {
+                if (currentUploadXhr === upload && isUploadPaused) {
+                    console.log('🌐 Network back online - automatically resuming upload...');
+                    // Hide error message and show progress again
+                    document.getElementById('result').style.display = 'none';
+                    document.getElementById('uploadProgressSection').style.display = 'block';
+                    document.getElementById('progressText').innerHTML = '🔄 Auto-resuming upload...';
+                    // Reset error tracking
+                    errorStartTime = null;
+                    isUploadPaused = false;  // Clear paused state
+                    // Restart the upload
+                    upload.start();
                 }
-            });
-            
-            // Handle upload errors
-            xhr.addEventListener('error', function() {
-                // Hide cancel button and clear xhr reference
-                document.getElementById('cancelUploadBtn').style.display = 'none';
-                currentUploadXhr = null;
-                console.error('Upload error occurred');
-                showError('Upload failed: Network error');
-            });
-            
-            // Handle upload abort
-            xhr.addEventListener('abort', function() {
-                // Hide cancel button and clear xhr reference
-                document.getElementById('cancelUploadBtn').style.display = 'none';
-                currentUploadXhr = null;
-                console.log('Upload aborted');
-                showError('Upload was cancelled');
-            });
+            };
+            window.addEventListener('online', onlineHandler);
             
             // Start the upload
-            xhr.open('POST', getApiUrl('/upload-async'));
-            xhr.send(formData);
+            upload.start();
+        }
+        
+        // Fetch job_id by filename after TUS upload completes
+        function fetchJobIdByFilename(filename, attempts = 0) {
+            if (attempts > 10) {
+                showError('Could not find processing job. Please check status manually.');
+                return;
+            }
+            
+            // Call backend endpoint to get job_id for this filename
+            fetch(getApiUrl(`/tus-job/${encodeURIComponent(filename)}`))
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else if (response.status === 404) {
+                        // Job not ready yet, retry
+                        throw new Error('Job not ready');
+                    } else {
+                        throw new Error('Failed to fetch job ID');
+                    }
+                })
+                .then(data => {
+                    if (data && data.job_id) {
+                        console.log(`✅ Found job_id: ${data.job_id}`);
+                        currentJobId = data.job_id;
+                        pollStatus(data.job_id);
+                    } else {
+                        throw new Error('No job_id in response');
+                    }
+                })
+                .catch(error => {
+                    if (attempts === 0 || attempts === 9) {
+                        console.log(`🔄 Fetching job_id (attempt ${attempts + 1}/10)...`);
+                    }
+                    // Retry after a short delay
+                    setTimeout(() => fetchJobIdByFilename(filename, attempts + 1), 1000);
+                });
         }
 
         // PRIDE dataset processing
@@ -509,9 +662,11 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Polling response for job', jobId, ':', data);
-                    console.log('Job status:', data.status);
-                    console.log('Processing in progress:', processingInProgress);
+                    // Only log status changes
+                    if (data.status && data.status !== window.lastLoggedStatus) {
+                        console.log(`📋 Job status: ${data.status} (${data.progress || 0}%)`);
+                        window.lastLoggedStatus = data.status;
+                    }
                     
                     // Update processing progress
                     if (data.progress !== undefined) {
@@ -656,15 +811,49 @@
         }
 
         // Helper functions
-        function showError(message) {
+        // HTML escape function to prevent XSS
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return unsafe;
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
+        // Cleanup function to remove event listeners and prevent memory leaks
+        function cleanupUploadListeners() {
+            if (onlineHandler) {
+                window.removeEventListener('online', onlineHandler);
+                onlineHandler = null;
+                console.log('🧹 Cleaned up online event listener');
+            }
+        }
+        
+        function showError(message, showResumeButton = false) {
             processingInProgress = false;
-            currentUploadXhr = null;
             const resultDiv = document.getElementById('result');
             resultDiv.className = 'result error';
-            resultDiv.innerHTML = `<h4>❌ Error</h4><p>${message}</p><button class="return-home-btn" onclick="returnToHome()">← Return to Home</button>`;
+            
+            // Build error HTML with optional Resume button
+            // Sanitize message to prevent XSS
+            let errorHtml = `<h4>❌ Error</h4><p>${escapeHtml(message)}</p>`;
+            if (showResumeButton) {
+                errorHtml += `<button class="upload-btn" onclick="resumeUpload()" style="margin-right: 10px;">▶️ Resume Upload</button>`;
+            }
+            errorHtml += `<button class="return-home-btn" onclick="returnToHome()">← Return to Home</button>`;
+            
+            resultDiv.innerHTML = errorHtml;
             resultDiv.style.display = 'block';
-            document.getElementById('progressContainer').style.display = 'none';
-            document.getElementById('cancelUploadBtn').style.display = 'none';
+            
+            // For non-resumable errors, hide progress and clear upload
+            if (!showResumeButton) {
+                currentUploadXhr = null;
+                document.getElementById('progressContainer').style.display = 'none';
+                document.getElementById('cancelUploadBtn').style.display = 'none';
+                document.getElementById('resumeUploadBtn').style.display = 'none';
+            }
             
             // Hide processing sections
             document.getElementById('processingProgressSection').style.display = 'none';
@@ -746,7 +935,7 @@
                 ">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <h4 style="margin: 0 0 5px 0; color: #333;">PXD003133 - MaxQuant Analysis</h4>
+                            <h4 style="margin: 0 0 5px; color: #333;">PXD003133 - MaxQuant Analysis</h4>
                             <p style="margin: 0; color: #666; font-size: 14px;">
                                 A comprehensive MaxQuant analysis dataset with evidence.txt, peptides.txt, and proteinGroups.txt files.
                                 This dataset demonstrates typical MaxQuant output structure and quality metrics.
@@ -773,7 +962,7 @@
                 ">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <h4 style="margin: 0 0 5px 0; color: #333;">PXD061709 - DIANN Analysis</h4>
+                            <h4 style="margin: 0 0 5px; color: #333;">PXD061709 - DIANN Analysis</h4>
                             <p style="margin: 0; color: #666; font-size: 14px;">
                                 A DIANN search engine analysis dataset with report.tsv files. This dataset shows 
                                 DIANN's output format and provides insights into peptide identification quality.
@@ -800,7 +989,7 @@
                 ">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <h4 style="margin: 0 0 5px 0; color: #333;">PXD039477 - MaxDIA Analysis</h4>
+                            <h4 style="margin: 0 0 5px; color: #333;">PXD039477 - MaxDIA Analysis</h4>
                             <p style="margin: 0; color: #666; font-size: 14px;">
                                 A MaxDIA search engine analysis dataset with comprehensive proteomics data. 
                                 This dataset provides additional examples of MaxDIA output format and analysis results.
@@ -820,26 +1009,53 @@
 
                 <!-- COMPLETE Example -->
                 <div style="
-                    border: 1px solid #e9ecef; 
-                    border-radius: 8px; 
-                    padding: 15px; 
+                    border: 1px solid #e9ecef;
+                    border-radius: 8px;
+                    padding: 15px;
                     background: #f8f9fa;
                 ">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <h4 style="margin: 0 0 5px 0; color: #333;">PXD051187 - COMPLETE Submission</h4>
+                            <h4 style="margin: 0 0 5px; color: #333;">PXD051187 - COMPLETE Submission</h4>
                             <p style="margin: 0; color: #666; font-size: 14px;">
-                                A COMPLETE submission containing mzIdentML files with associated peak lists (MGF/mzML). 
+                                A COMPLETE submission containing mzIdentML files with associated peak lists (MGF/mzML).
                                 This dataset demonstrates the processing of compressed mzIdentML files and their corresponding peak list files.
                             </p>
                         </div>
                         <button onclick="selectExample('PXD051187')" style="
-                            background: linear-gradient(45deg, #fd7e14, #e55a00); 
-                            color: white; 
-                            border: none; 
-                            padding: 8px 16px; 
-                            border-radius: 6px; 
-                            cursor: pointer; 
+                            background: linear-gradient(45deg, #fd7e14, #e55a00);
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                        ">Use This Example</button>
+                    </div>
+                </div>
+
+                <!-- FragPipe Example -->
+                <div style="
+                    border: 1px solid #e9ecef;
+                    border-radius: 8px;
+                    padding: 15px;
+                    background: #f8f9fa;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0 0 5px; color: #333;">PXD066146 - FragPipe Analysis</h4>
+                            <p style="margin: 0; color: #666; font-size: 14px;">
+                                A FragPipe analysis dataset with psm.tsv and ion.tsv files.
+                                This dataset demonstrates FragPipe/MSFragger output format and quality metrics visualization.
+                            </p>
+                        </div>
+                        <button onclick="selectExample('PXD066146')" style="
+                            background: linear-gradient(45deg, #17a2b8, #138496);
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
                             font-size: 12px;
                         ">Use This Example</button>
                     </div>

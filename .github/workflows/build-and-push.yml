@@ -2,7 +2,7 @@ name: Build and Push to GitHub Container Registry
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master , dev ]
 
 env:
   REGISTRY: ghcr.io
@@ -29,6 +29,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract branch name
+        shell: bash
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: Determine Docker tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "${{ env.BRANCH_NAME }}" == "main" ]] || [[ "${{ env.BRANCH_NAME }}" == "master" ]]; then
+            echo "DOCKER_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "DOCKER_TAG=${{ env.BRANCH_NAME }}" >> $GITHUB_ENV
+          fi
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -36,7 +50,10 @@ jobs:
           file: ./pmultiqc_service/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/bigbio/pmultiqc:latest
-          labels: ""
+          tags: ghcr.io/bigbio/pmultiqc:${{ env.DOCKER_TAG }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.DOCKER_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
