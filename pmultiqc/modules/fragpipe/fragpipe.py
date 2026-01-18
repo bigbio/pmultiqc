@@ -1052,7 +1052,7 @@ class FragPipeModule(BasePMultiqcModule):
             "save_data_file": False,
         }
 
-        headers = {"parameter": {"title": "Parameter"}, "value": {"title": "Value"}}
+        headers = {"parameter": {"title": "Parameter"}, "value": {"title": "Value", "scale": False}}
 
         table_html = table.plot(data=parameter_table, headers=headers, pconfig=draw_config)
 
