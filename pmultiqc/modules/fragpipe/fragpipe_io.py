@@ -33,6 +33,18 @@ REQUIRED_COLS = {
     ]
 }
 
+REQUIRED_KEYWORDS = {
+    "combined_ion": {
+        "Spectral Count": False,
+        "Match Type": False,
+        "Intensity": False
+    },
+    "combined_peptide": {
+        "Match Type": False,
+        "Intensity": False
+    },
+}
+
 
 # FragPipe File Paths
 def get_fragpipe_files(find_log_files):
@@ -534,8 +546,12 @@ def get_experiment_design_table(manifest_df: pd.DataFrame):
         }
         if 'experiment' in row:
             entry["experiment"] = row['experiment']
-        if 'bioreplicate' in row:
+
+        if 'bioreplicate' in row and pd.notna(row['bioreplicate']) and row['bioreplicate'] != '':
             entry["bioreplicate"] = row['bioreplicate']
+        else:
+            entry["bioreplicate"] = "-"
+
         if 'data_type' in row:
             entry["data_type"] = row['data_type']
 
@@ -580,35 +596,36 @@ def combined_protein_reader(file_path: str):
     # Identify sample intensity columns
     # These typically follow patterns like "Sample MaxLFQ Intensity" or just sample names
     sample_intensity_cols = []
-    mbr_cols = {}
 
     # Look for MaxLFQ or Intensity columns per sample
     for col in protein_df.columns:
         col_lower = col.lower()
-        if 'maxlfq' in col_lower or ('intensity' in col_lower and 'combined' not in col_lower):
+        if 'maxlfq' in col_lower or (
+            'intensity' in col_lower and 'combined' not in col_lower
+        ):
             # Skip metadata columns
             if not any(skip in col_lower for skip in ['total', 'spectral', 'razor']):
                 sample_intensity_cols.append(col)
 
     # Look for MBR-related columns
     # FragPipe uses columns like "Sample Spectral Count" with MBR info
-    spectral_cols = [col for col in protein_df.columns if 'spectral count' in col.lower()]
+    # spectral_cols = [col for col in protein_df.columns if 'spectral count' in col.lower()]
 
     # Identify unique vs total spectral counts which can indicate MBR contribution
-    for col in spectral_cols:
-        sample_base = col.replace(' Spectral Count', '').replace(' Total Spectral Count', '').strip()
-        if sample_base not in mbr_cols:
-            mbr_cols[sample_base] = {}
-        if 'unique' in col.lower():
-            mbr_cols[sample_base]['unique'] = col
-        elif 'total' in col.lower():
-            mbr_cols[sample_base]['total'] = col
-        else:
-            mbr_cols[sample_base]['spectral'] = col
+    # for col in spectral_cols:
+    #     sample_base = col.replace(' Spectral Count', '').replace(' Total Spectral Count', '').strip()
+    #     if sample_base not in mbr_cols:
+    #         mbr_cols[sample_base] = {}
+    #     if 'unique' in col.lower():
+    #         mbr_cols[sample_base]['unique'] = col
+    #     elif 'total' in col.lower():
+    #         mbr_cols[sample_base]['total'] = col
+    #     else:
+    #         mbr_cols[sample_base]['spectral'] = col
 
     log.info(f"Found {len(sample_intensity_cols)} sample intensity columns")
 
-    return protein_df, sample_intensity_cols, mbr_cols
+    return protein_df, sample_intensity_cols
 
 
 def get_protein_intensity_distribution(protein_df, sample_cols, contam_affix="CONT"):
@@ -655,6 +672,9 @@ def get_protein_intensity_distribution(protein_df, sample_cols, contam_affix="CO
         if col not in sample_df.columns:
             continue
 
+        if not pd.to_numeric(sample_df[col], errors='coerce').notna().all():
+            continue
+
         # Sample intensities
         intensities = sample_df[col].dropna()
         valid_intensities = intensities[intensities > 0]
@@ -695,35 +715,23 @@ def combined_peptide_reader(file_path: str):
         peptide_df = pd.read_csv(file_path, sep="\t", low_memory=False)
     except Exception as e:
         log.warning(f"Error reading combined_peptide.tsv: {e}")
-        return None, [], {}
+        return None, False
 
     if peptide_df.empty:
         log.warning("combined_peptide.tsv is empty")
-        return None, [], {}
+        return None, False
 
     log.info(f"Loaded combined_peptide.tsv with {len(peptide_df)} peptides")
 
-    # Identify sample columns (spectral counts or intensity)
-    sample_cols = []
-    for col in peptide_df.columns:
-        col_lower = col.lower()
-        if 'spectral count' in col_lower or 'intensity' in col_lower:
-            if 'combined' not in col_lower:
-                sample_cols.append(col)
+    if validate_columns_existence(
+        df_columns=peptide_df.columns,
+        data_name="combined_peptide"
+    ):
+        validate_columns = True
+    else:
+        validate_columns = False
 
-    # Look for MBR-related columns
-    # FragPipe combined_peptide.tsv may have columns indicating identification type
-    mbr_info = {
-        'has_mbr_data': False,
-        'mbr_columns': []
-    }
-
-    for col in peptide_df.columns:
-        if 'mbr' in col.lower() or 'match' in col.lower():
-            mbr_info['has_mbr_data'] = True
-            mbr_info['mbr_columns'].append(col)
-
-    return peptide_df, sample_cols, mbr_info
+    return peptide_df, validate_columns
 
 
 def get_mbr_stats(protein_df, peptide_df, sample_cols):
@@ -816,55 +824,53 @@ def combined_ion_reader(file_path: str):
         ion_df = pd.read_csv(file_path, sep="\t", low_memory=False)
     except Exception as e:
         log.warning(f"Error reading combined_ion.tsv: {e}")
-        return None, []
+        return None, False
 
     if ion_df.empty:
         log.warning("combined_ion.tsv is empty")
-        return None, []
+        return None, False
 
     log.info(f"Loaded combined_ion.tsv with {len(ion_df)} ions and {len(ion_df.columns)} columns")
 
-    # Identify sample columns - look for intensity columns after metadata
-    sample_cols = []
+    if validate_columns_existence(
+        df_columns=ion_df.columns,
+        data_name="combined_ion"
+    ):
+        validate_columns = True
+    else:
+        validate_columns = False
 
-    # Try to find anchor column (similar to ion.tsv processing)
-    anchor_col = None
-    for col in ['Mapped Proteins', 'Protein', 'Gene']:
-        if col in ion_df.columns:
-            anchor_col = col
-            break
-
-    if anchor_col:
-        try:
-            anchor_idx = ion_df.columns.get_loc(anchor_col)
-            potential_cols = list(ion_df.columns[anchor_idx + 1:])
-
-            # Filter to numeric columns
-            for col in potential_cols:
-                if ion_df[col].dtype in [np.float64, np.int64, np.float32, np.int32]:
-                    sample_cols.append(col)
-                elif ion_df[col].dtype == object:
-                    try:
-                        pd.to_numeric(ion_df[col], errors='raise')
-                        sample_cols.append(col)
-                    except (ValueError, TypeError):
-                        pass
-        except KeyError:
-            pass
-
-    # Alternative: look for columns with intensity/spectral pattern
-    if not sample_cols:
-        for col in ion_df.columns:
-            col_lower = col.lower()
-            if ('intensity' in col_lower or 'spectral' in col_lower) and 'combined' not in col_lower:
-                sample_cols.append(col)
-
-    log.info(f"Found {len(sample_cols)} sample columns in combined_ion.tsv")
-
-    return ion_df, sample_cols
+    return ion_df, validate_columns
 
 
-def get_msms_counts_per_peak(ion_df, sample_cols):
+def validate_columns_existence(df_columns, data_name: str):
+
+    col_list = list(df_columns)
+
+    required_keywords = REQUIRED_KEYWORDS[data_name]
+
+    for col in col_list:
+        if "Spectral Count" in col:
+            required_keywords["Spectral Count"] = True
+        if "Match Type" in col:
+            required_keywords["Match Type"] = True
+        if "Intensity" in col:
+            if "MaxLFQ" not in col:
+                required_keywords["Intensity"] = True
+
+    all_passed = all(required_keywords.values())
+
+    print(f"Check whether the data {data_name} meets the extraction requirements.")
+
+
+    for key, found in required_keywords.items():
+        status = "exists" if found else "is missing"
+        print(f"{key}: {status}")
+        
+    return all_passed
+
+
+def get_msms_counts_per_peak(ion_df):
     """
     Calculate MS/MS counts per peak statistics.
 
@@ -874,45 +880,92 @@ def get_msms_counts_per_peak(ion_df, sample_cols):
     ----------
     ion_df : pd.DataFrame
         DataFrame from combined_ion_reader.
-    sample_cols : list
-        List of sample column names.
-
     Returns
     -------
     dict
         Dictionary containing MS/MS count statistics per sample.
     """
-    if ion_df is None or not sample_cols:
-        return None
+    if ion_df is None:
+        return {}
 
-    msms_counts = {}
+    df = ion_df.copy()
 
-    # Look for spectral count columns
-    for col in ion_df.columns:
-        if 'spectral count' in col.lower():
-            sample_name = col.replace(' Spectral Count', '').strip()
-            counts = ion_df[col].dropna()
-            counts = counts[counts > 0]
+    samples = [col.replace(' Match Type', '') for col in df.columns if ' Match Type' in col]
 
-            if len(counts) > 0:
-                msms_counts[sample_name] = {
-                    'values': counts.tolist(),
-                    'mean': float(counts.mean()),
-                    'median': float(counts.median()),
-                    'total': int(counts.sum())
-                }
+    plot_data = []
 
-    # If no spectral count columns, use intensity presence
-    if not msms_counts:
-        for col in sample_cols:
-            if col in ion_df.columns:
-                # Count non-zero values as "identified"
-                values = ion_df[col].dropna()
-                non_zero = (values > 0).sum()
-                msms_counts[col] = {
-                    'identified_peaks': int(non_zero),
-                    'total_peaks': len(values)
-                }
+    for s in samples:
+        spec_col = f"{s} Spectral Count"
+        match_col = f"{s} Match Type"
+        int_col = f"{s} Intensity"
 
-    return msms_counts
+        sample_df = df[df[int_col] > 0].copy()
+        
+        msms_dist = sample_df[sample_df[match_col] == 'MS/MS'][spec_col].value_counts().to_dict()
+
+        for count, freq in msms_dist.items():
+            plot_data.append({'run': s, 'ms/ms_count': int(count), 'peptide_count': freq})
+
+    res_df = pd.DataFrame(plot_data)
+    res_df["ms/ms_count"] = res_df["ms/ms_count"].apply(
+        lambda x: ">=3" if x >= 3 else x
+    )
+    res_df = res_df.groupby(['run', 'ms/ms_count'])['peptide_count'].sum().reset_index()
+
+    res_df["ms/ms_count"] = res_df["ms/ms_count"].astype(str)
+
+    plot_dict = {}
+    for raw_file, group in res_df.groupby("run"):
+        group["freq"] = group["peptide_count"] / group["peptide_count"].sum() * 100
+        plot_dict[raw_file] = dict(zip(group["ms/ms_count"], group["freq"]))
+
+    oversampling = {
+        "plot_data": plot_dict,
+        "cats": list(res_df["ms/ms_count"].unique())
+    }
+
+    return oversampling
+
+
+def cal_peptide_id_gain(df):
+    df = df.copy()
+
+    samples = [col.replace(' Match Type', '') for col in df.columns if ' Match Type' in col]
+
+    peptide_counts = []
+
+    for s in samples:
+        match_col = f"{s} Match Type"
+        int_col = f"{s} Intensity"
+
+        sample_df = df[df[int_col] > 0].copy()
+
+        match_type_count = sample_df[match_col].value_counts().to_dict()
+
+        ms_count = 0
+        mbr_count = 0
+        for match_type, count in match_type_count.items():
+            if match_type == "MS/MS":
+                ms_count = count
+            elif match_type == "MBR":
+                mbr_count = count
+        peptide_counts.append({'run': s, "ms/ms_count": int(ms_count), 'mbr': int(mbr_count)})
+
+    count_df = pd.DataFrame(peptide_counts)
+
+    count_df["MBRgain"] = (count_df["mbr"] / count_df["ms/ms_count"]) * 100
+
+    temp_df = count_df[['run', 'ms/ms_count', 'mbr']].rename(
+        columns={'ms/ms_count': 'MS/MS', 'mbr': 'MBR'}
+    )
+    plot_data = temp_df.set_index('run').to_dict(orient='index')
+
+    mbr_gain = round(count_df["MBRgain"].mean(), 2)
+    title_value = f"MBR gain: +{mbr_gain}%" if mbr_gain is not None else ""
+
+    return {
+        "plot_data": plot_data,
+        "cats": ["MS/MS", "MBR"],
+        "title_value": title_value
+    }
 
