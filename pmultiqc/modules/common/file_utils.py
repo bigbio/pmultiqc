@@ -125,9 +125,44 @@ def extract_tar(file_path: str, extract_to: str) -> None:
         log.info(f"Extracted {file_path} to {extract_to}")
 
 
-def extract_rar(file_path, root_dir):
-    with rarfile.RarFile(file_path) as rf:
-        rf.extractall(root_dir)
+def extract_rar(file_path: str, extract_to: str) -> None:
+    """Extract a RAR file with security checks against path traversal and archive bombs."""
+    # Security: Check file size first
+    file_size = os.path.getsize(file_path)
+    max_size = 10 * 1024 * 1024 * 1024  # 10GB limit
+
+    with rarfile.RarFile(file_path) as rar_ref:
+        # Get absolute path of extract_to for proper comparison
+        extract_to_abs = os.path.abspath(extract_to)
+
+        # Security: Check for path traversal in RAR entries
+        for member in rar_ref.namelist():
+            # Check for explicit path traversal attempts (../ or ..\ patterns)
+            # Allow filenames containing ".." as a substring (e.g., "file..name.txt")
+            if "../" in member or "..\\" in member or member.startswith("../") or member.startswith("..\\"):
+                raise ValueError(f"Invalid path in RAR file: {member}")
+            # Check for absolute paths
+            if member.startswith("/") or (os.name == "nt" and len(member) > 1 and member[1] == ":"):
+                raise ValueError(f"Invalid path in RAR file: {member}")
+
+            # Normalize the member path (remove leading slashes and normalize)
+            member_normalized = os.path.normpath(member.lstrip("/"))
+
+            # Join with extract_to and normalize to get the full path
+            member_path = os.path.normpath(os.path.join(extract_to_abs, member_normalized))
+
+            # Check if the resolved path is within extract_to directory
+            if not member_path.startswith(extract_to_abs + os.sep) and member_path != extract_to_abs:
+                raise ValueError(f"Attempted path traversal in RAR file: {member}")
+
+        # Security: Check for archive bombs
+        total_uncompressed_size = sum(info.file_size for info in rar_ref.infolist())
+        compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
+        if compression_ratio > 100 or total_uncompressed_size > max_size:
+            raise ValueError(f"Suspicious RAR file detected (compression ratio: {compression_ratio:.1f}:1)")
+
+        rar_ref.extractall(extract_to)
+        log.info(f"Extracted {file_path} to {extract_to}")
 
 
 def extract_archive_file(root_dir: str, file_name: str) -> None:
@@ -153,7 +188,7 @@ def extract_archive_file(root_dir: str, file_name: str) -> None:
             or file_name.endswith(".tar.bz2")
         ):
             extract_tar(file_path, root_dir)
-    except (zipfile.BadZipFile, tarfile.TarError, gzip.BadGzipFile, OSError, ValueError) as e:
+    except (zipfile.BadZipFile, tarfile.TarError, gzip.BadGzipFile, rarfile.Error, OSError, ValueError) as e:
         raise ValueError(f"Failed to extract {file_path}: {e}") from e
 
 
