@@ -866,7 +866,7 @@ def validate_columns_existence(df_columns, data_name: str):
     for key, found in required_keywords.items():
         status = "exists" if found else "is missing"
         print(f"{key}: {status}")
-        
+
     return all_passed
 
 
@@ -953,7 +953,9 @@ def cal_peptide_id_gain(df):
 
     count_df = pd.DataFrame(peptide_counts)
 
-    count_df["MBRgain"] = (count_df["mbr"] / count_df["ms/ms_count"]) * 100
+    denom = count_df["ms/ms_count"].replace(0, np.nan)
+    count_df["MBRgain"] = (count_df["mbr"] / denom) * 100
+    count_df["MBRgain"] = count_df["MBRgain"].fillna(0)
 
     temp_df = count_df[['run', 'ms/ms_count', 'mbr']].rename(
         columns={'ms/ms_count': 'MS/MS', 'mbr': 'MBR'}
