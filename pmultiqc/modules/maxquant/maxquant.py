@@ -459,6 +459,7 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_evidence_peptide_id_count,
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("peptide_id_count"),
+            "maxquant",
             error_name="draw_evidence_peptide_id_count"
         )
 
@@ -475,7 +476,7 @@ class MaxQuantModule(BasePMultiqcModule):
             self.sub_sections["ms2"],
             self.mq_results["get_evidence_dicts"].get("oversampling"),
             "",
-            True,
+            "maxquant",
             error_name="draw_oversampling"
         )
 

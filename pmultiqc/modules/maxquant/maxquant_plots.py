@@ -419,7 +419,7 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
 
 
 # Peptide ID Count
-def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
+def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data, data_type: str):
 
     if peptide_id_count_data["title_value"]:
         fig_title = "Peptide ID Count" + " [" + peptide_id_count_data["title_value"] + "]"
@@ -443,14 +443,11 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
 
     bar_html = plot_html_check(bar_html)
 
-    add_sub_section(
-        sub_section=sub_section,
-        plot=bar_html,
-        order=4,
-        description="""
+    if data_type == "maxquant":
+        description_text = """
             [Excludes Contaminants] Number of unique (i.e. not counted twice) peptide sequences including modifications (after FDR) per Raw file.
-            """,
-        helptext="""
+            """
+        help_text="""
             If MBR was enabled, three categories ('Genuine (Exclusive)', 'Genuine + Transferred', 'Transferred (Exclusive)'
             are shown, so the user can judge the gain that MBR provides.
 
@@ -463,7 +460,22 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
             If MBR would be switched off, you can expect to see the number of peptides corresponding to 'Genuine (Exclusive)' + 'Genuine + Transferred'.
             In general, if the MBR gain is low and the MBR scores are bad (see the two MBR-related metrics),
             MBR should be switched off for the Raw files which are affected (could be a few or all).
-            """,
+            """
+
+    elif data_type == "fragpipe":
+        description_text = """
+            combined_peptide.tsv
+            """
+        help_text = """
+            combined_peptide.tsv
+            """
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=bar_html,
+        order=4,
+        description=description_text,
+        helptext=help_text,
     )
 
 

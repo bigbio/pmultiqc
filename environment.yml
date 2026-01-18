@@ -20,3 +20,4 @@ dependencies:
   - redis
   - statsmodels
   - urllib3>=2.6.1
+  - rarfile

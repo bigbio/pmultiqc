@@ -5,6 +5,7 @@ import os
 import shutil
 import tarfile
 import zipfile
+import rarfile
 from pathlib import Path
 from typing import Union, Optional
 
@@ -124,6 +125,11 @@ def extract_tar(file_path: str, extract_to: str) -> None:
         log.info(f"Extracted {file_path} to {extract_to}")
 
 
+def extract_rar(file_path, root_dir):
+    with rarfile.RarFile(file_path) as rf:
+        rf.extractall(root_dir)
+
+
 def extract_archive_file(root_dir: str, file_name: str) -> None:
     file_path = os.path.join(root_dir, file_name)
 
@@ -134,6 +140,11 @@ def extract_archive_file(root_dir: str, file_name: str) -> None:
         # *.gz
         elif file_name.endswith(".gz") and not file_name.endswith(".tar.gz"):
             extract_gz(file_path, root_dir)
+
+        # *.rar
+        elif file_name.endswith(".rar"):
+            extract_rar(file_path, root_dir)
+
         # .tar, .tar.gz, .tar.bz2
         elif (
             file_name.endswith(".tar")
