@@ -125,6 +125,21 @@ class MzMLReader(BaseParser):
                 acquisition_datetime = ""
 
             charge_2 = 0
+
+            # Collect values for batch processing
+            charge_states_identified = []
+            base_peak_intensities_identified = []
+            peaks_per_ms2_identified = []
+            charge_states_unidentified = []
+            base_peak_intensities_unidentified = []
+            peaks_per_ms2_unidentified = []
+            charge_states_dia = []
+            base_peak_intensities_dia = []
+            peaks_per_ms2_dia = []
+
+            file_has_psm = m_name in self.ms_with_psm
+            identified_spectrum_set = set(self.identified_spectrum.get(m_name, [])) if file_has_psm else set()
+
             for spectrum in mzml_exp:
 
                 mz_array, intensity_array = spectrum.get_peaks()
@@ -183,23 +198,46 @@ class MzMLReader(BaseParser):
                         charge_2 += 1
 
                     if self.enable_dia:
-                        self.mzml_charge_plot.add_value(charge_state)
-                        self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
-                        self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
+                        # Collect for batch processing
+                        charge_states_dia.append(charge_state)
+                        base_peak_intensities_dia.append(base_peak_intensity)
+                        peaks_per_ms2_dia.append(peak_per_ms2)
                         continue
 
-                    if m_name in self.ms_with_psm:
-                        if scan_id in self.identified_spectrum[m_name]:
-                            self.mzml_charge_plot.add_value(charge_state)
-                            self.mzml_peak_distribution_plot.add_value(base_peak_intensity)
-                            self.mzml_peaks_ms2_plot.add_value(peak_per_ms2)
+                    if file_has_psm:
+                        if scan_id in identified_spectrum_set:
+                            charge_states_identified.append(charge_state)
+                            base_peak_intensities_identified.append(base_peak_intensity)
+                            peaks_per_ms2_identified.append(peak_per_ms2)
                         else:
-                            self.mzml_charge_plot_1.add_value(charge_state)
-                            self.mzml_peak_distribution_plot_1.add_value(base_peak_intensity)
-                            self.mzml_peaks_ms2_plot_1.add_value(peak_per_ms2)
+                            charge_states_unidentified.append(charge_state)
+                            base_peak_intensities_unidentified.append(base_peak_intensity)
+                            peaks_per_ms2_unidentified.append(peak_per_ms2)
                     else:
                         if m_name not in self.ms_without_psm:
                             self.ms_without_psm.append(m_name)
+
+            # Batch add collected values to histograms
+            if self.enable_dia:
+                if charge_states_dia:
+                    self.mzml_charge_plot.add_values_batch(charge_states_dia)
+                if base_peak_intensities_dia:
+                    self.mzml_peak_distribution_plot.add_values_batch(base_peak_intensities_dia)
+                if peaks_per_ms2_dia:
+                    self.mzml_peaks_ms2_plot.add_values_batch(peaks_per_ms2_dia)
+            else:
+                if charge_states_identified:
+                    self.mzml_charge_plot.add_values_batch(charge_states_identified)
+                if base_peak_intensities_identified:
+                    self.mzml_peak_distribution_plot.add_values_batch(base_peak_intensities_identified)
+                if peaks_per_ms2_identified:
+                    self.mzml_peaks_ms2_plot.add_values_batch(peaks_per_ms2_identified)
+                if charge_states_unidentified:
+                    self.mzml_charge_plot_1.add_values_batch(charge_states_unidentified)
+                if base_peak_intensities_unidentified:
+                    self.mzml_peak_distribution_plot_1.add_values_batch(base_peak_intensities_unidentified)
+                if peaks_per_ms2_unidentified:
+                    self.mzml_peaks_ms2_plot_1.add_values_batch(peaks_per_ms2_unidentified)
 
             heatmap_charge[m_name] = charge_2 / ms2_number if ms2_number > 0 else 0
             total_ms2_spectra += ms2_number

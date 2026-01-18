@@ -37,32 +37,17 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
 
     ms1_info["rt_normalize"] = (ms1_info.sort_values(by="rt")["rt"] / SECOND_RESOLUTION).astype(int)
 
-    tic_data = ms1_info.groupby("rt_normalize")[
-        ["rt", "summed_peak_intensities"]
-    ].min()
-    tic_data = dict(
-        zip(
-            tic_data["rt"],
-            tic_data["summed_peak_intensities"],
-            strict=True
-        )
+    # Combine multiple groupby operations into a single aggregation for better performance
+    grouped_agg = ms1_info.groupby("rt_normalize").agg(
+        rt_min=("rt", "min"),
+        summed_min=("summed_peak_intensities", "min"),
+        summed_max=("summed_peak_intensities", "max"),
+        num_peaks_mean=("num_peaks", "mean"),
     )
 
-    bpc_data = dict(
-        zip(
-            ms1_info.groupby("rt_normalize")["rt"].min(),
-            ms1_info.groupby("rt_normalize")["summed_peak_intensities"].max(),
-            strict=True
-        )
-    )
-
-    ms1_peaks = dict(
-        zip(
-            ms1_info.groupby("rt_normalize")["rt"].min(),
-            ms1_info.groupby("rt_normalize")["num_peaks"].mean(),
-            strict=True
-        )
-    )
+    tic_data = dict(zip(grouped_agg["rt_min"], grouped_agg["summed_min"], strict=True))
+    bpc_data = dict(zip(grouped_agg["rt_min"], grouped_agg["summed_max"], strict=True))
+    ms1_peaks = dict(zip(grouped_agg["rt_min"], grouped_agg["num_peaks_mean"], strict=True))
 
     total_curr = float(ms1_info["summed_peak_intensities"].sum())
     scan_curr = float(ms2_info["summed_peak_intensities"].sum())
@@ -115,18 +100,11 @@ def add_ms_values(
     info_df["base_peak_intensity"] = info_df["base_peak_intensity"].astype("float")
     info_df["num_peaks"] = info_df["num_peaks"].astype("Int64")
 
-    def data_add_value(histogram_data, a_value):
-        if not pd.notna(a_value):
-            a_value = None
-        histogram_data.add_value(a_value)
-
     if enable_dia:
-        for charge_state in info_df["precursor_charge"]:
-            data_add_value(mzml_charge_plot, charge_state)
-        for base_peak_inte in info_df["base_peak_intensity"]:
-            data_add_value(mzml_peak_distribution_plot, base_peak_inte)
-        for num_peaks in info_df["num_peaks"]:
-            data_add_value(mzml_peaks_ms2_plot, num_peaks)
+        # Use batch method for better performance
+        mzml_charge_plot.add_values_batch(info_df["precursor_charge"].dropna())
+        mzml_peak_distribution_plot.add_values_batch(info_df["base_peak_intensity"].dropna())
+        mzml_peaks_ms2_plot.add_values_batch(info_df["num_peaks"].dropna())
         return
 
     if ms_name not in ms_with_psm:
@@ -134,20 +112,18 @@ def add_ms_values(
         return
 
     identified_scans = info_df["scan"].isin(identified_spectrum_scan_id)
+    identified_df = info_df[identified_scans]
+    unidentified_df = info_df[~identified_scans]
 
-    for charge_state in info_df[identified_scans]["precursor_charge"]:
-        data_add_value(mzml_charge_plot, charge_state)
-    for base_peak_inte in info_df[identified_scans]["base_peak_intensity"]:
-        data_add_value(mzml_peak_distribution_plot, base_peak_inte)
-    for peak_per_ms2 in info_df[identified_scans]["num_peaks"]:
-        data_add_value(mzml_peaks_ms2_plot, peak_per_ms2)
+    # Use batch method for identified spectra
+    mzml_charge_plot.add_values_batch(identified_df["precursor_charge"].dropna())
+    mzml_peak_distribution_plot.add_values_batch(identified_df["base_peak_intensity"].dropna())
+    mzml_peaks_ms2_plot.add_values_batch(identified_df["num_peaks"].dropna())
 
-    for charge_state in info_df[~identified_scans]["precursor_charge"]:
-        data_add_value(mzml_charge_plot_1, charge_state)
-    for base_peak_inte in info_df[~identified_scans]["base_peak_intensity"]:
-        data_add_value(mzml_peak_distribution_plot_1, base_peak_inte)
-    for peak_per_ms2 in info_df[~identified_scans]["num_peaks"]:
-        data_add_value(mzml_peaks_ms2_plot_1, peak_per_ms2)
+    # Use batch method for unidentified spectra
+    mzml_charge_plot_1.add_values_batch(unidentified_df["precursor_charge"].dropna())
+    mzml_peak_distribution_plot_1.add_values_batch(unidentified_df["base_peak_intensity"].dropna())
+    mzml_peaks_ms2_plot_1.add_values_batch(unidentified_df["num_peaks"].dropna())
 
 def spectra_ref_check(spectra_ref):
     match_scan = re.search(r"scan=(\d+)", spectra_ref)

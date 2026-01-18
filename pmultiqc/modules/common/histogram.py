@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+import numpy as np
+
 
 class Histogram:
     """The histogram class categorizes instances by 'description' and 'plot_category', it sets up
@@ -102,7 +104,7 @@ class Histogram:
                     )
 
         elif self.plot_category == 2:
-            self.breaks.sort()
+            # Note: breaks are already sorted during __init__
             if value < self.threshold:
                 left, right = 0, len(self.breaks) - 1
                 while left < right:
@@ -117,6 +119,97 @@ class Histogram:
             else:
                 self.out_threshold = True if value > self.threshold else False
                 self.data[self.bins[-1]][stack] += 1
+
+    def add_values_batch(self, values, stack="total"):
+        """Batch add multiple values to the histogram (optimized for performance).
+
+        :param values: Array or Series of values to be counted
+        :type values: array-like
+        :param stack: The stack of bars to which the data belongs
+        :type stack: str, optional
+        """
+        # Convert to numpy array and filter out NaN/None values
+        if hasattr(values, 'values'):  # pandas Series
+            arr = values.values
+        else:
+            arr = np.asarray(values)
+
+        # Filter out NaN values
+        if arr.dtype.kind == 'f':  # float array
+            mask = ~np.isnan(arr)
+            arr = arr[mask]
+        elif arr.dtype.kind == 'O':  # object array
+            mask = np.array([x is not None and (not isinstance(x, float) or not np.isnan(x)) for x in arr])
+            arr = arr[mask]
+
+        if len(arr) == 0:
+            return
+
+        if self.plot_category == 1:
+            # Frequency mode
+            if self.breaks:
+                below_threshold = arr < self.threshold
+                below_values = arr[below_threshold]
+                above_count = np.sum(~below_threshold)
+
+                # Count values below threshold
+                for val in below_values:
+                    val_str = str(int(val) if isinstance(val, (int, np.integer, float)) and float(val).is_integer() else val)
+                    if val_str in self.data:
+                        self.data[val_str][stack] += 1
+
+                # Add above threshold count
+                if above_count > 0:
+                    self.out_threshold = True
+                    self.data[self.bins[-1]][stack] += above_count
+            else:
+                # No breaks - use value_counts approach
+                unique, counts = np.unique(arr, return_counts=True)
+                for val, count in zip(unique, counts):
+                    val_str = str(val)
+                    if val_str in self.bins:
+                        self.data[val_str][stack] += count
+                    else:
+                        self.bins.append(val_str)
+                        if self.stacks:
+                            self.data[val_str] = dict.fromkeys(self.stacks, 0)
+                            self.data[val_str][stack] = count
+                        else:
+                            self.data[val_str] = {stack: count}
+
+                # Sort if needed (only for non-string values)
+                if len(arr) > 0 and not isinstance(arr[0], str) and not self.stacks:
+                    try:
+                        data_keys = [type(arr[0])(i) for i in self.data.keys()]
+                        data_keys.sort()
+                        self.data = OrderedDict(
+                            {str(i): {"total": self.data[str(i)]["total"]} for i in data_keys}
+                        )
+                    except (ValueError, TypeError):
+                        pass  # Keep original order if sorting fails
+
+        elif self.plot_category == 2:
+            # Range mode - use numpy searchsorted for vectorized bin assignment
+            arr_float = arr.astype(float)
+            below_threshold = arr_float < self.threshold
+            below_values = arr_float[below_threshold]
+            above_count = np.sum(~below_threshold)
+
+            if len(below_values) > 0:
+                # Use searchsorted for vectorized binary search
+                # searchsorted returns index where value would be inserted to maintain order
+                # We use side='right' and subtract 1 to get the correct bin
+                bin_indices = np.searchsorted(self.breaks, below_values, side='right') - 1
+                bin_indices = np.clip(bin_indices, 0, len(self.bins) - 2)  # Ensure valid indices
+
+                # Count occurrences in each bin
+                unique_bins, bin_counts = np.unique(bin_indices, return_counts=True)
+                for bin_idx, count in zip(unique_bins, bin_counts):
+                    self.data[self.bins[bin_idx]][stack] += count
+
+            if above_count > 0:
+                self.out_threshold = True
+                self.data[self.bins[-1]][stack] += above_count
 
     def to_dict(self, percentage=False, cats=None):
         """Integrate statistical results and the 'cats' dictionary for ploting into a nested dictionary.
