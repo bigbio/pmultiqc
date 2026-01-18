@@ -65,7 +65,8 @@ from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
     draw_identi_num,
     draw_peptide_intensity,
-    draw_long_trends
+    draw_long_trends,
+    draw_peptide_length_distribution
 )
 from pmultiqc.modules.common.plots.general import (
     draw_heatmap,
@@ -176,6 +177,7 @@ class QuantMSModule(BasePMultiqcModule):
         self.sample_df = pd.DataFrame()
         self.file_df = pd.DataFrame()
         self.long_trends = {}
+        self.peptide_length = {}
 
     def get_data(self):
 
@@ -322,7 +324,8 @@ class QuantMSModule(BasePMultiqcModule):
                 self.ms_with_psm,
                 self.cal_num_table_data,
                 self.quantms_modified,
-                self.ms_without_psm
+                self.ms_without_psm,
+                self.peptide_length
             ) = parse_diann_report(
                 sub_sections=self.sub_sections,
                 diann_report_path=self.diann_report_path,
@@ -474,6 +477,13 @@ class QuantMSModule(BasePMultiqcModule):
             draw_long_trends(
                 sub_sections=self.sub_sections,
                 long_trends_data=self.long_trends
+            )
+
+        # Peptide Length Distribution
+        if self.peptide_length:
+            draw_peptide_length_distribution(
+                sub_section=self.sub_sections["identification"],
+                plot_data=self.peptide_length
             )
 
         if self.quantms_pep_intensity:
@@ -1384,8 +1394,9 @@ class QuantMSModule(BasePMultiqcModule):
         mod_plot_by_run = dict()
         modified_cats = list()
 
-        data_per_run = dict()
-        num_table_at_run = dict()
+        data_per_run = {}
+        num_table_at_run = {}
+        peptide_length = {}
 
         if config.kwargs["remove_decoy"]:
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
@@ -1455,7 +1466,12 @@ class QuantMSModule(BasePMultiqcModule):
 
             ml_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
 
+            stats_dict = group["pep_length"].value_counts().sort_index().to_dict()
+            peptide_length[m] = stats_dict
+
         num_table_at_sample = cal_num_table_at_sample(self.file_df, data_per_run)
+
+        self.peptide_length = peptide_length
 
         self.cal_num_table_data = {
             "sdrf_samples": num_table_at_sample,

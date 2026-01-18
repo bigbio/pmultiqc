@@ -1133,6 +1133,39 @@ def draw_peptide_intensity(sub_section, plot_data):
             """,
     )
 
+
+# Peptide Length Distribution
+def draw_peptide_length_distribution(sub_section, plot_data):
+
+    draw_config = {
+        "id": "peptide_length_distribution",
+        "cpswitch": False,
+        "cpswitch_c_active": False,
+        "title": "Peptide Length Distribution",
+        "tt_decimals": 2,
+        "xlab": "Peptide Length",
+        "save_data_file": False,
+        "showlegend": True,
+    }
+    box_html = linegraph.plot(plot_data, pconfig=draw_config)
+
+    box_html = plot_html_check(box_html)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=box_html,
+        order=8,
+        description="Peptide length distribution per Run.",
+        helptext="""
+            Peptide length distribution.<br>
+            FragPipe: psm.tsv ('Peptide Length': number of residues in the peptide sequence).<br>
+            MaxQuant: evidence.txt ('Length': the length of the sequence stored in the column 'Sequence').<br>
+            DIA-NN: report.tsv (the length of the 'Stripped.Sequence').<br>
+            quantms: *.mzTab (the length of sequence).
+            """,
+    )
+
+
 def draw_long_trends(sub_sections, long_trends_data):
 
     plot_ac_datetime = long_trends_data["time"]
