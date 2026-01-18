@@ -13,4 +13,3 @@ numpy
 pyarrow
 scikit-learn
 tuspyserver>=4.2.0
-rarfile

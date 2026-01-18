@@ -167,7 +167,7 @@
         {
             "accession": "PXD062399",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/04/PXD062399/DDA.rar"
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062399.zip"
             ],
             "path": "docs/PXD062399",
             "file_type": ["fragpipe", ""]
@@ -175,7 +175,7 @@
         {
             "accession": "PXD062399_disable_hoverinfo",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/04/PXD062399/DDA.rar"
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062399.zip"
             ],
             "path": "docs/PXD062399_disable_hoverinfo",
             "file_type": ["fragpipe", "disable_hoverinfo"]
