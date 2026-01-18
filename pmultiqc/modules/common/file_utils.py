@@ -142,7 +142,7 @@ def extract_archive_file(root_dir: str, file_name: str) -> None:
             or file_name.endswith(".tar.bz2")
         ):
             extract_tar(file_path, root_dir)
-    except (zipfile.BadZipFile, tarfile.TarError, gzip.BadGzipFile, rarfile.Error, OSError, ValueError) as e:
+    except (zipfile.BadZipFile, tarfile.TarError, gzip.BadGzipFile, OSError, ValueError) as e:
         raise ValueError(f"Failed to extract {file_path}: {e}") from e
 
 
