@@ -322,11 +322,11 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
 
 def _get_peptide_length(df):
 
-    if not "Stripped.Sequence" in df.columns:
+    if "Stripped.Sequence" not in df.columns:
         return None
 
     df_sub = df[["Run", "Stripped.Sequence"]].copy()
-    df_sub["length"] = df_sub["Stripped.Sequence"].apply(lambda x: len(x))
+    df_sub["length"] = df_sub["Stripped.Sequence"].str.len()
 
     plot_data = {}
     for run, group in df_sub.groupby("Run"):

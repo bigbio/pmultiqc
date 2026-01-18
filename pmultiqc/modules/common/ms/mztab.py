@@ -135,7 +135,7 @@ class MzTabReader(BaseParser):
 
         self.total_protein_quantified = len(prot.index)
 
-        psm["pep_length"] = psm["sequence"].apply(lambda x: len(x))
+        psm["pep_length"] = psm["sequence"].str.len()
 
         self.mztab_data = mztab_data
         self.pep_table = pep_table
