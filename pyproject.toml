@@ -52,7 +52,7 @@ pyarrow = "*"
 scikit-learn = ">=1.2"
 statsmodels = "*"
 urllib3 = ">=2.6.1"
-rarfile
+rarfile = "*"
 
 [tool.poetry.urls]
 GitHub = "https://github.com/bigbio/pmultiqc"
