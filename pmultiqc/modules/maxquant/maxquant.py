@@ -194,6 +194,7 @@ class MaxQuantModule(BasePMultiqcModule):
             "maxquant_delta_mass_da": None,
             "peptides_quant_table": None,
             "protein_quant_table": None,
+            "peptide_length": None,
         }
 
         if "evidence" not in self.maxquant_paths.keys():
@@ -369,6 +370,14 @@ class MaxQuantModule(BasePMultiqcModule):
             self.sub_sections["quantification"],
             self.mq_results["get_evidence_dicts"].get("peptides_quant_table"),
             error_name="draw_peptide_table"
+        )
+
+        # Peptide Length Distribution
+        self._safe_draw_if_exists(
+            id_plots.draw_peptide_length_distribution,
+            self.sub_sections["identification"],
+            self.mq_results["get_evidence_dicts"].get("peptide_length"),
+            error_name="draw_peptide_length_distribution"
         )
 
         self._safe_draw_if_exists(
