@@ -69,6 +69,9 @@ def parse_diann_report(
     # Handle files without PSM
     ms_without_psm = _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data)
 
+    # Peptide Length Distribution
+    peptide_length = _get_peptide_length(report_data)
+
     return (
         total_protein_quantified,
         total_peptide_count,
@@ -77,7 +80,8 @@ def parse_diann_report(
         ms_with_psm,
         cal_num_table_data,
         quantms_modified,
-        ms_without_psm
+        ms_without_psm,
+        peptide_length
     )
 
 
@@ -314,6 +318,22 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
         }
 
     return ms_without_psm
+
+
+def _get_peptide_length(df):
+
+    if not "Stripped.Sequence" in df.columns:
+        return None
+
+    df_sub = df[["Run", "Stripped.Sequence"]].copy()
+    df_sub["length"] = df_sub["Stripped.Sequence"].apply(lambda x: len(x))
+
+    plot_data = {}
+    for run, group in df_sub.groupby("Run"):
+        stats_dict = group["length"].value_counts().sort_index().to_dict()
+        plot_data[run] = stats_dict
+
+    return plot_data
 
 
 ## Removed draw_dia_heatmap wrapper; call cal_dia_heatmap and dia_plots.draw_heatmap directly.

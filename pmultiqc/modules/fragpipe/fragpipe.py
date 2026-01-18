@@ -16,7 +16,6 @@ from pmultiqc.modules.fragpipe.fragpipe_io import (
     combined_protein_reader,
     get_protein_intensity_distribution,
     combined_peptide_reader,
-    get_mbr_stats,
     combined_ion_reader,
     get_msms_counts_per_peak,
     cal_peptide_id_gain
@@ -40,7 +39,8 @@ from pmultiqc.modules.common.plots.id import (
     draw_top_n_contaminants,
     draw_potential_contaminants,
     draw_modifications,
-    draw_oversampling
+    draw_oversampling,
+    draw_peptide_length_distribution
 )
 from pmultiqc.modules.core.section_groups import (
     add_group_modules,
@@ -95,6 +95,7 @@ class FragPipeModule(BasePMultiqcModule):
         self.contam_df = []
         self.mods = []
         self.hm_data = []
+        self.peptide_length = []
 
         # Ion-level intensity data from ion.tsv
         self.ion_intensity_data = None
@@ -144,7 +145,8 @@ class FragPipeModule(BasePMultiqcModule):
                 self.hyperscores,
                 self.contam_df,
                 self.mods,
-                self.hm_data
+                self.hm_data,
+                self.peptide_length
             ) = self.parse_psm(
                 fragpipe_files=self.fragpipe_files
             )
@@ -365,6 +367,13 @@ class FragPipeModule(BasePMultiqcModule):
                 missed_cleavages=mc_plot_data
             )
 
+        # Peptide Length Distribution
+        if self.peptide_length:
+            self.draw_peptide_length(
+                sub_section=self.sub_sections["identification"],
+                peptide_length=self.peptide_length
+            )
+
         # IDs over RT
         if self.retentions:
             self.draw_ids_over_rt(
@@ -435,6 +444,7 @@ class FragPipeModule(BasePMultiqcModule):
         contam_df = []
         mods = []
         hm_data = []
+        peptide_length = []
 
         for psm in fragpipe_files.get("psm", []):
 
@@ -504,6 +514,10 @@ class FragPipeModule(BasePMultiqcModule):
             ):
                 hm_data.append(psm_cont_df[hm_requires].copy())
 
+            # Peptide Length
+            if "Peptide Length" in psm_df.columns:
+                peptide_length.append(psm_df[["Run", "Peptide Length"]].copy())
+
             # Contaminants
             if _has_valid_contaminant(psm_cont_df):
                 log.info(f"{psm} contains contaminants.")
@@ -531,7 +545,8 @@ class FragPipeModule(BasePMultiqcModule):
             hyperscores,
             contam_df,
             mods,
-            hm_data
+            hm_data,
+            peptide_length
         )
 
     # Delta Mass
@@ -872,6 +887,33 @@ class FragPipeModule(BasePMultiqcModule):
             heatmap_xnames="",
             heatmap_ynames="",
             report_type="fragpipe"
+        )
+
+
+    # Peptide Length Distribution
+    @staticmethod
+    def draw_peptide_length(sub_section, peptide_length: list):
+
+        if not peptide_length:
+            log.warning("No peptide_length data; skipping peptide_length.")
+            return
+
+        df = pd.concat(peptide_length, ignore_index=True)
+
+        if df.empty:
+            log.warning("Peptide Length DataFrame is empty; skipping Peptide Length.")
+            return
+
+        log.info(f"Number of Peptide Length rows in DataFrame: {len(df)}")
+
+        plot_data = {}
+        for sample, group in df.groupby("Run"):
+            stats_dict = group["Peptide Length"].value_counts().sort_index().to_dict()
+            plot_data[sample] = stats_dict
+
+        draw_peptide_length_distribution(
+            sub_section=sub_section,
+            plot_data=plot_data
         )
 
 

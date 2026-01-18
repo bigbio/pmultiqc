@@ -20,7 +20,8 @@ from pmultiqc.modules.common.plots.id import (
     draw_identi_num,
     draw_num_pep_per_protein,
     draw_identification,
-    draw_long_trends
+    draw_long_trends,
+    draw_peptide_length_distribution
 )
 from pmultiqc.modules.common.plots.ms import (
     draw_peak_intensity_distribution,
@@ -154,7 +155,8 @@ class DiannModule(BasePMultiqcModule):
             self.ms_with_psm,
             self.cal_num_table_data,
             self.quantms_modified,
-            self.ms_without_psm
+            self.ms_without_psm,
+            self.peptide_length
         ) = parse_diann_report(
             sub_sections=self.sub_sections,
             diann_report_path=self.diann_report_path,
@@ -211,6 +213,12 @@ class DiannModule(BasePMultiqcModule):
             draw_long_trends(
                 sub_sections=self.sub_sections,
                 long_trends_data=self.long_trends
+            )
+
+        if self.peptide_length:
+            draw_peptide_length_distribution(
+                sub_section=self.sub_sections["identification"],
+                plot_data=self.peptide_length
             )
 
         if self.enable_sdrf:

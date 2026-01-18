@@ -14,7 +14,7 @@ REQUIRED_COLS = {
     "psm": [
         "Spectrum", "Peptide", "Modified Peptide", "Charge", "Retention", "Intensity",
         "Delta Mass", "Number of Missed Cleavages", "Is Unique", "Protein", "Hyperscore",
-        "Assigned Modifications"
+        "Assigned Modifications", "Peptide Length"
     ],
     "ion": [
         "Peptide Sequence", "Modified Sequence", "Charge", "Protein", "Intensity"

@@ -550,6 +550,9 @@ def get_evidence(file_path):
     # Peptides Quantification Table / Protein Quantification Table
     peptides_quant_table, protein_quant_table = evidence_peptides_table(evidence_df)
 
+    # Peptide Length Distribution
+    peptide_length = evidence_peptide_length(evidence_df)
+
     result = {
         "top_contaminants": top_cont_dict,
         "peptide_intensity": peptide_intensity_dict,
@@ -569,6 +572,7 @@ def get_evidence(file_path):
         "maxquant_delta_mass_da": maxquant_delta_mass_da,
         "peptides_quant_table": peptides_quant_table,
         "protein_quant_table": protein_quant_table,
+        "peptide_length": peptide_length,
     }
 
     logger.info("Completed processing evidence data")
@@ -1226,6 +1230,22 @@ def evidence_peptides_table(evidence_data):
     protein_result_dict = {i: v for i, (_, v) in enumerate(protein_table_dict.items(), start=1)}
 
     return peptides_result_dict, protein_result_dict
+
+
+# evidence_peptide_length
+def evidence_peptide_length(df):
+    if any(
+            column not in df.columns
+            for column in ["length", "sequence"]
+    ):
+        return None
+
+    plot_data = {}
+    for run, group in df.groupby("raw file"):
+        stats_dict = group["length"].value_counts().sort_index().to_dict()
+        plot_data[run] = stats_dict
+
+    return plot_data
 
 
 # 4.msms.txt
