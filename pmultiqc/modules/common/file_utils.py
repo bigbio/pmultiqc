@@ -191,7 +191,7 @@ def drop_empty_row(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     pandas.DataFrame
         A copy of the DataFrame with rows removed where any of the specified columns are empty or NaN.
     """
-    mask = pd.Series(True, index=df.index)
-    for col in cols:
-        mask &= df[col].notna() & (df[col] != "")
+    # Vectorized approach using DataFrame operations
+    subset_df = df[cols]
+    mask = subset_df.notna().all(axis=1) & (subset_df != "").all(axis=1)
     return df[mask].copy()

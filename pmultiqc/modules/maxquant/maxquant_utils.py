@@ -307,17 +307,16 @@ def pg_intensity_distr(mq_data, intensity_cols):
 
     # Take the logarithm and remove zero values
     def box_fun(raw_df):
+        # Vectorized: fill NA with 1, replace 0 with 1, then log2
         log_df = raw_df.fillna(1).replace(0, 1)
-        log_df = np.log2(log_df).reset_index(drop=True)
-        log_df_dict = log_df.to_dict(orient="list")
-        log_df_dict = {
-            key: (
-                [value for value in values if value != 0]
-                if any(value != 0 for value in values)
-                else [0]
-            )
-            for key, values in log_df_dict.items()
-        }
+        log_df = np.log2(log_df)
+
+        # Efficiently filter non-zero values per column
+        log_df_dict = {}
+        for col in log_df.columns:
+            values = log_df[col].values
+            non_zero = values[values != 0]
+            log_df_dict[col] = non_zero.tolist() if len(non_zero) > 0 else [0]
         return log_df_dict
 
     if "potential contaminant" in mq_data.columns:
@@ -774,17 +773,19 @@ def evidence_peptide_intensity(evidence_df):
 
     # Take the logarithm and remove zero values
     def box_fun(intensity_df):
-        intensity_df["intensity_checked"] = intensity_df["intensity"].apply(
-            lambda x: 0 if (pd.isna(x) or x == 0) else x
-        )
+        # Vectorized: replace NaN and 0 with 0, keep other values
+        intensity_checked = intensity_df["intensity"].fillna(0)
+        intensity_checked = intensity_checked.where(intensity_checked != 0, 0)
+
         box_dict = {}
         for raw_file, group in intensity_df.groupby("raw file"):
-            if np.all(group["intensity_checked"] == 0):
+            group_intensity = intensity_checked.loc[group.index]
+            non_zero_mask = group_intensity > 0
+            if not non_zero_mask.any():
                 box_dict[raw_file] = [0]
             else:
-                non_zero_intensity = group[group["intensity_checked"] != 0]["intensity_checked"]
-                log_intensity = np.log2(non_zero_intensity)
-                box_dict[raw_file] = list(log_intensity)
+                log_intensity = np.log2(group_intensity[non_zero_mask])
+                box_dict[raw_file] = log_intensity.tolist()
         return box_dict
 
     if "potential contaminant" in evidence_df.columns:
@@ -866,7 +867,9 @@ def evidence_peak_width_rt(evidence_data):
     breaks = np.arange(rt_range_min, rt_range[1] + 5, 1)
 
     def rt_rl_compute(group_df):
-        group_df["bin"] = np.digitize(group_df["retention time"], breaks, right=False)
+        bins = np.digitize(group_df["retention time"].values, breaks, right=False)
+        group_df = group_df.copy()
+        group_df["bin"] = bins
         bin_group = group_df.groupby("bin")
         rt_rl_df = bin_group["retention length"].median().reset_index()
         rt_rl_df.rename(columns={"retention length": "median_RL"}, inplace=True)
@@ -876,8 +879,10 @@ def evidence_peak_width_rt(evidence_data):
 
     peak_width_rt_dict = {}
     for raw_file, group in evidence_data.groupby("raw file"):
+        # Call rt_rl_compute only once per group (avoid duplicate computation)
+        rt_rl_result = rt_rl_compute(group)
         peak_width_rt_dict[raw_file] = dict(
-            zip(rt_rl_compute(group)["bin_RT"], rt_rl_compute(group)["median_RL"])
+            zip(rt_rl_result["bin_RT"], rt_rl_result["median_RL"])
         )
 
     return peak_width_rt_dict
@@ -893,14 +898,18 @@ def evidence_oversampling(evidence_data):
 
     evidence_data = evidence_data[["ms/ms count", "raw file"]].copy()
 
-    evidence_data["ms/ms count"] = evidence_data["ms/ms count"].apply(
-        lambda x: ">=3" if x >= 3 else x
+    # Vectorized: use np.where instead of apply(lambda)
+    evidence_data["ms/ms count"] = np.where(
+        evidence_data["ms/ms count"] >= 3,
+        ">=3",
+        evidence_data["ms/ms count"].astype(str)
     )
     oversampling_df = evidence_data.groupby("raw file")["ms/ms count"].value_counts().reset_index()
     oversampling_df["ms/ms count"] = oversampling_df["ms/ms count"].astype(str)
 
     plot_dict = {}
     for raw_file, group in oversampling_df.groupby("raw file"):
+        group = group.copy()
         group["fraction"] = group["count"] / group["count"].sum() * 100
         plot_dict[raw_file] = dict(zip(group["ms/ms count"], group["fraction"]))
 
