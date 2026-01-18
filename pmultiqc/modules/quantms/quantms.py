@@ -448,7 +448,7 @@ class QuantMSModule(BasePMultiqcModule):
                 self.sub_sections["ms2"],
                 self.oversampling,
                 self.oversampling_plot.dict["cats"],
-                False,
+                "",
             )
             self.draw_delta_mass()
 

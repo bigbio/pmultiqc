@@ -8,6 +8,18 @@ from pmultiqc.modules.fragpipe.fragpipe_io import (
     psm_reader,
     ion_reader,
     get_ion_intensity_data,
+    workflow_reader,
+    fragger_params_reader,
+    get_workflow_parameters_table,
+    manifest_reader,
+    get_experiment_design_table,
+    combined_protein_reader,
+    get_protein_intensity_distribution,
+    combined_peptide_reader,
+    get_mbr_stats,
+    combined_ion_reader,
+    get_msms_counts_per_peak,
+    cal_peptide_id_gain
 )
 from pmultiqc.modules.common.stats import (
     cal_delta_mass_dict,
@@ -27,7 +39,8 @@ from pmultiqc.modules.common.plots.id import (
     rebuild_dict_structure,
     draw_top_n_contaminants,
     draw_potential_contaminants,
-    draw_modifications
+    draw_modifications,
+    draw_oversampling
 )
 from pmultiqc.modules.core.section_groups import (
     add_group_modules,
@@ -48,12 +61,13 @@ from pmultiqc.modules.common.plots.general import (
     draw_search_engine_scores,
     draw_heatmap
 )
+from pmultiqc.modules.maxquant.maxquant_plots import draw_evidence_peptide_id_count
 
 from collections import OrderedDict
 from pmultiqc.modules.common.histogram import Histogram
 
 from multiqc import config
-from multiqc.plots import bargraph, box
+from multiqc.plots import bargraph, box, table
 
 from pmultiqc.modules.common.logging import get_logger
 
@@ -85,6 +99,28 @@ class FragPipeModule(BasePMultiqcModule):
         # Ion-level intensity data from ion.tsv
         self.ion_intensity_data = None
         self.ion_sample_cols = []
+
+        # New data containers for additional FragPipe files
+        # Parameters from workflow file and fragger.params
+        self.parameters = None
+        self.fragger_params = None
+        self.parameters_table = None
+
+        # Experiment design from manifest
+        self.manifest_df = None
+        self.experiment_design = None
+
+        # Protein intensity data from combined_protein.tsv
+        self.protein_df = None
+        self.protein_intensity_cols = []
+        self.protein_intensity_distribution = None
+        self.protein_contam_distribution = None
+
+        self.peptide_id_gain = {}
+        self.peptide_id_count_no_gain = True
+
+        # MS/MS counts from combined_ion.tsv
+        self.msms_counts = {}
 
 
     def get_data(self):
@@ -122,11 +158,106 @@ class FragPipeModule(BasePMultiqcModule):
                 fragpipe_files=self.fragpipe_files
             )
 
+        # Parse workflow file for parameters (optional)
+        if self.fragpipe_files.get("workflow"):
+            try:
+                workflow_path = self.fragpipe_files["workflow"][0]
+                self.parameters = workflow_reader(workflow_path)
+                if self.parameters:
+                    log.info("Workflow parameters loaded successfully.")
+            except Exception as e:
+                log.warning(f"Error parsing workflow file: {e}")
+
+        # Parse fragger.params for MSFragger search parameters (optional)
+        if self.fragpipe_files.get("fragger_params"):
+            try:
+                fragger_path = self.fragpipe_files["fragger_params"][0]
+                self.fragger_params = fragger_params_reader(fragger_path)
+                if self.fragger_params:
+                    log.info("Fragger.params loaded successfully.")
+            except Exception as e:
+                log.warning(f"Error parsing fragger.params file: {e}")
+
+        # Generate parameters table from workflow and/or fragger.params
+        if self.parameters or self.fragger_params:
+            self.parameters_table = get_workflow_parameters_table(
+                self.parameters, self.fragger_params
+            )
+
+        # Parse manifest file for experiment design (optional)
+        if self.fragpipe_files.get("manifest"):
+            try:
+                manifest_path = self.fragpipe_files["manifest"][0]
+                self.manifest_df = manifest_reader(manifest_path)
+                if self.manifest_df is not None:
+                    self.experiment_design = get_experiment_design_table(self.manifest_df)
+                    log.info("Manifest/experiment design loaded successfully.")
+            except Exception as e:
+                log.warning(f"Error parsing manifest file: {e}")
+
+        # Parse combined_protein.tsv for protein intensity distribution
+        if self.fragpipe_files.get("combined_protein"):
+            try:
+                protein_path = self.fragpipe_files["combined_protein"][0]
+                self.protein_df, self.protein_intensity_cols = combined_protein_reader(protein_path)
+                if self.protein_df is not None and self.protein_intensity_cols:
+                    contam_affix = config.kwargs["contaminant_affix"]
+                    (
+                        self.protein_intensity_distribution,
+                        self.protein_contam_distribution
+                    ) = get_protein_intensity_distribution(
+                        self.protein_df, self.protein_intensity_cols, contam_affix
+                    )
+                    log.info("Protein intensity distribution loaded successfully.")
+            except Exception as e:
+                log.warning(f"Error parsing combined_protein.tsv: {e}")
+
+        # Parse combined_peptide.tsv
+        if self.fragpipe_files.get("combined_peptide"):
+            try:
+                peptide_path = self.fragpipe_files["combined_peptide"][0]
+                peptide_df, combined_peptide_column_valid = combined_peptide_reader(peptide_path)
+                log.info("Combined peptide data loaded successfully.")
+
+                if peptide_df is not None and combined_peptide_column_valid:
+                    self.peptide_id_gain = cal_peptide_id_gain(peptide_df)
+                    log.info("peptide statics loaded successfully.")
+
+            except Exception as e:
+                log.warning(f"Error parsing combined_peptide.tsv: {e}")
+
+        # Parse combined_ion.tsv for MS/MS counts
+        if self.fragpipe_files.get("combined_ion"):
+            try:
+                combined_ion_path = self.fragpipe_files["combined_ion"][0]
+                combined_ion_df, combined_ion_column_valid = combined_ion_reader(combined_ion_path)
+                log.info("Combined ion data loaded successfully.")
+
+                if combined_ion_df is not None and combined_ion_column_valid:
+                    self.msms_counts = get_msms_counts_per_peak(combined_ion_df)
+                    log.info("MS/MS counts per peak loaded successfully.")
+            except Exception as e:
+                log.warning(f"Error parsing combined_ion.tsv: {e}")
+
         return True
 
     def draw_plots(self):
 
         log.info("Starting to process plotting data...")
+
+        # Parameters table (from workflow file)
+        if self.parameters_table:
+            self.draw_parameters(
+                sub_section=self.sub_sections["experiment"],
+                parameter_table=self.parameters_table
+            )
+
+        # Experiment design table (from manifest file)
+        if self.experiment_design:
+            self.draw_experiment_design(
+                sub_section=self.sub_sections["experiment"],
+                exp_design=self.experiment_design
+            )
 
         # Delta Mass
         if self.delta_masses:
@@ -140,6 +271,15 @@ class FragPipeModule(BasePMultiqcModule):
             self.draw_charge_state(
                 sub_section=self.sub_sections["ms2"],
                 charge_states=self.charge_states
+            )
+
+        if self.peptide_id_gain:
+            
+            self.peptide_id_count_no_gain = False
+            draw_evidence_peptide_id_count(
+                self.sub_sections["identification"],
+                self.peptide_id_gain,
+                "fragpipe"
             )
 
         if self.pipeline_stats:
@@ -176,6 +316,7 @@ class FragPipeModule(BasePMultiqcModule):
             draw_identification(
                 self.sub_sections["identification"],
                 cal_num_table_data=statistics_result,
+                draw_peptide_id_count=self.peptide_id_count_no_gain
             )
 
         # Peptide Intensity Distribution
@@ -238,7 +379,32 @@ class FragPipeModule(BasePMultiqcModule):
                 intensity_data=self.ion_intensity_data
             )
 
+        # Protein intensity distribution from combined_protein.tsv
+        if self.protein_intensity_distribution:
+            self.draw_protein_intensity_distribution(
+                sub_section=self.sub_sections["quantification"],
+                sample_distribution=self.protein_intensity_distribution,
+                contam_distribution=self.protein_contam_distribution
+            )
+
+        # MBR (Match-Between-Runs) visualization
+        # if self.mbr_stats:
+        #     self.draw_mbr_contribution(
+        #         sub_section=self.sub_sections["identification"],
+        #         mbr_stats=self.mbr_stats
+        #     )
+
+        # MS/MS counts per peak from combined_ion.tsv
+        if self.msms_counts:
+            draw_oversampling(
+                self.sub_sections["ms2"],
+                self.msms_counts,
+                "",
+                "fragpipe",
+            )
+
         section_group_dict = {
+            "experiment_sub_section": self.sub_sections["experiment"],
             "summary_sub_section": self.sub_sections["summary"],
             "identification_sub_section": self.sub_sections["identification"],
             "search_engine_sub_section": self.sub_sections["search_engine"],
@@ -248,6 +414,8 @@ class FragPipeModule(BasePMultiqcModule):
             "mass_error_sub_section": self.sub_sections["mass_error"],
             "rt_qc_sub_section": self.sub_sections["rt_qc"],
         }
+        # Filter out None values from section_group_dict
+        section_group_dict = {k: v for k, v in section_group_dict.items() if v is not None}
 
         add_group_modules(section_group_dict, "")
 
@@ -853,6 +1021,302 @@ class FragPipeModule(BasePMultiqcModule):
         )
 
         log.info("Ion intensity distribution plot generated.")
+
+    @staticmethod
+    def draw_parameters(sub_section, parameter_table: dict):
+        """
+        Draw FragPipe parameters table.
+
+        Parameters
+        ----------
+        sub_section : dict
+            Section to add the table to.
+        parameter_table : dict
+            Dictionary containing parameter name/value pairs.
+        """
+        if not parameter_table:
+            log.info("No parameters table data available.")
+            return
+
+        log.info(f"Drawing parameters table with {len(parameter_table)} parameters")
+
+        draw_config = {
+            "namespace": "",
+            "id": "fragpipe_parameters",
+            "title": "FragPipe Parameters",
+            "save_file": False,
+            "sort_rows": False,
+            "only_defined_headers": True,
+            "col1_header": "No.",
+            "no_violin": True,
+            "save_data_file": False,
+        }
+
+        headers = {
+            "parameter": {
+                "title": "Parameter",
+                "scale": False
+            },
+            "value": {
+                "title": "Value",
+                "scale": False
+            }
+        }
+
+        table_html = table.plot(data=parameter_table, headers=headers, pconfig=draw_config)
+
+        add_sub_section(
+            sub_section=sub_section,
+            plot=table_html,
+            order=1,
+            description="This table presents the parameters used in FragPipe analysis.",
+            helptext="""
+                FragPipe parameters, extracted from fragpipe.workflow, summarizes the settings
+                used for the FragPipe analysis. Key parameters include FragPipe version, search
+                engine settings (enzyme, mass tolerances), modifications, database used, and
+                IonQuant settings like Match-Between-Runs (MBR) and normalization options.
+            """,
+        )
+
+        log.info("FragPipe parameters table generated.")
+
+    @staticmethod
+    def draw_experiment_design(sub_section, exp_design: dict):
+        """
+        Draw experiment design table from manifest file.
+
+        Parameters
+        ----------
+        sub_section : dict
+            Section to add the table to.
+        exp_design : dict
+            Dictionary containing experiment design information.
+        """
+        if not exp_design:
+            log.info("No experiment design data available.")
+            return
+
+        log.info(f"Drawing experiment design table with {len(exp_design)} entries")
+
+        draw_config = {
+            "namespace": "",
+            "id": "fragpipe_experiment_design",
+            "title": "Experimental Design",
+            "save_file": False,
+            "sort_rows": False,
+            "only_defined_headers": True,
+            "col1_header": "No.",
+            "no_violin": True,
+            "save_data_file": False,
+        }
+
+        headers = {
+            "file_name": {
+                "title": "File Name",
+                "description": "Raw data file name",
+                "scale": False
+            },
+            "experiment": {
+                "title": "Experiment",
+                "description": "Experiment/sample name",
+                "scale": False
+            },
+            "bioreplicate": {
+                "title": "BioReplicate",
+                "description": "Biological replicate ID",
+                "scale": False
+            },
+            "data_type": {
+                "title": "Data Type",
+                "description": "Data type (DDA/DIA)",
+                "scale": False
+            },
+        }
+
+        table_html = table.plot(data=exp_design, headers=headers, pconfig=draw_config)
+
+        add_sub_section(
+            sub_section=sub_section,
+            plot=table_html,
+            order=2,
+            description="This table shows the experimental design extracted from the FragPipe manifest file.",
+            helptext="""
+                The experiment design table shows which raw files belong to which experiment
+                and biological replicate. This information is extracted from the FragPipe
+                manifest file (fp-manifest).
+            """,
+        )
+
+        log.info("Experiment design table generated.")
+
+    @staticmethod
+    def draw_protein_intensity_distribution(sub_section, sample_distribution: dict, contam_distribution: dict = None):
+        """
+        Draw protein intensity distribution box plot from combined_protein.tsv.
+
+        Parameters
+        ----------
+        sub_section : dict
+            Section to add the plot to.
+        sample_distribution : dict
+            Dictionary mapping sample names to log2-transformed intensity values.
+        contam_distribution : dict, optional
+            Dictionary mapping sample names to contaminant intensity values.
+        """
+        if not sample_distribution:
+            log.info("No protein intensity distribution data available.")
+            return
+
+        log.info(f"Drawing protein intensity distribution for {len(sample_distribution)} samples")
+
+        # Prepare data for box plot - can include sample and contaminant distributions
+        if contam_distribution and len(contam_distribution) > 0:
+            distribution_box = [sample_distribution, contam_distribution]
+            boxplot_labels = ["Sample", "Contaminants"]
+        else:
+            distribution_box = [sample_distribution]
+            boxplot_labels = ["Sample"]
+
+        draw_config = {
+            "id": "protein_intensity_distribution_box",
+            "cpswitch": False,
+            "cpswitch_c_active": False,
+            "title": "Protein Intensity Distribution",
+            "tt_decimals": 2,
+            "data_labels": boxplot_labels,
+            "xlab": "log2(Intensity)",
+            "save_data_file": False,
+        }
+
+        box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
+
+        box_html = plot_data_check(
+            plot_data=distribution_box,
+            plot_html=box_html,
+            log_text="pmultiqc.modules.fragpipe.fragpipe",
+            function_name="draw_protein_intensity_distribution"
+        )
+        box_html = plot_html_check(box_html)
+
+        add_sub_section(
+            sub_section=sub_section,
+            plot=box_html,
+            order=2,
+            description="Protein intensity distribution from combined_protein.tsv.",
+            helptext="""
+                [FragPipe: combined_protein.tsv] This plot shows the log2-transformed protein
+                intensity distribution for each sample. The combined_protein.tsv file contains
+                protein-level quantification data from IonQuant.
+
+                For label-free experiments, each box represents the MaxLFQ intensity distribution.
+                For TMT experiments, intensity values from TMT channels are shown.
+
+                A higher median intensity and narrower distribution typically indicate better
+                quantification quality. Large differences between samples may indicate
+                normalization issues or batch effects.
+
+                Contaminant proteins (when available) are shown separately to help assess
+                the level of contamination in each sample.
+            """,
+        )
+
+        log.info("Protein intensity distribution plot generated.")
+
+    @staticmethod
+    def draw_mbr_contribution(sub_section, mbr_stats: dict):
+        """
+        Draw Match-Between-Runs (MBR) contribution visualization.
+
+        Parameters
+        ----------
+        sub_section : dict
+            Section to add the plot to.
+        mbr_stats : dict
+            Dictionary containing MBR statistics per sample.
+        """
+        if not mbr_stats:
+            log.info("No MBR statistics available.")
+            return
+
+        # Check if we have any meaningful MBR data
+        has_data = False
+        for sample, stats in mbr_stats.items():
+            proteins = stats.get('proteins', {})
+            if proteins.get('mbr_only', 0) > 0 or proteins.get('both', 0) > 0:
+                has_data = True
+                break
+
+        if not has_data:
+            log.info("No meaningful MBR data found (all MBR counts are 0).")
+            return
+
+        log.info(f"Drawing MBR contribution plot for {len(mbr_stats)} samples")
+
+        # Prepare data for stacked bar chart
+        # Categories: MS/MS only (identified by MS/MS), MBR only (transferred), Both (MS/MS + MBR)
+        plot_data = {}
+        for sample, stats in mbr_stats.items():
+            proteins = stats.get('proteins', {})
+            plot_data[sample] = {
+                "MS/MS Only": proteins.get('msms_only', 0),
+                "MS/MS + MBR": proteins.get('both', 0),
+                "MBR Only": proteins.get('mbr_only', 0),
+            }
+
+        cats = [
+            {
+                "name": "MS/MS Only",
+                "color": "#1f77b4",
+                "description": "Proteins identified only by MS/MS"
+            },
+            {
+                "name": "MS/MS + MBR",
+                "color": "#2ca02c",
+                "description": "Proteins identified by both MS/MS and MBR"
+            },
+            {
+                "name": "MBR Only",
+                "color": "#ff7f0e",
+                "description": "Proteins identified only by Match-Between-Runs"
+            }
+        ]
+
+        draw_config = {
+            "id": "mbr_protein_contribution",
+            "cpswitch": True,
+            "title": "MBR Protein Contribution",
+            "tt_decimals": 0,
+            "ylab": "Protein Count",
+            "stacking": "normal",
+            "save_data_file": False,
+        }
+
+        bar_html = bargraph.plot(data=plot_data, cats=cats, pconfig=draw_config)
+
+        bar_html = plot_html_check(bar_html)
+
+        add_sub_section(
+            sub_section=sub_section,
+            plot=bar_html,
+            order=7,
+            description="Match-Between-Runs (MBR) contribution to protein identification.",
+            helptext="""
+                [FragPipe: combined_protein.tsv] This plot shows the contribution of
+                Match-Between-Runs (MBR) to protein identification counts.
+
+                **MS/MS Only**: Proteins identified only through direct MS/MS identification.
+                **MS/MS + MBR**: Proteins with both MS/MS identification and MBR transfer.
+                **MBR Only**: Proteins identified only through MBR transfer from other runs.
+
+                A high 'MBR Only' count indicates significant gain from MBR, but also
+                potential false positives. Ideally, most proteins should be in the
+                'MS/MS Only' or 'MS/MS + MBR' categories.
+
+                If MBR is not enabled in IonQuant, this plot will not be shown.
+            """,
+        )
+
+        log.info("MBR contribution plot generated.")
 
 
 def _calculate_statistics(pipeline_stats: list):

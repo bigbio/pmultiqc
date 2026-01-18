@@ -765,6 +765,93 @@ def filter_search_files(files: List[Dict]) -> tuple[List[Dict], bool]:
     return all_files, is_complete
 
 
+# FragPipe file suffixes that belong to the same experiment
+# IMPORTANT: Longer suffixes must come first to ensure correct matching
+# (e.g., "combined_ion.tsv" must be checked before "ion.tsv")
+FRAGPIPE_FILE_SUFFIXES = [
+    "combined_modified_peptide.tsv",
+    "combined_peptide.tsv",
+    "combined_protein.tsv",
+    "combined_ion.tsv",
+    "peptide.tsv",
+    "protein.tsv",
+    "psm.tsv",
+    "ion.tsv",
+]
+
+
+def group_fragpipe_files(downloaded_files: List[str]) -> Dict[str, List[str]]:
+    """
+    Group FragPipe files by experiment prefix.
+
+    In FragPipe, files like psm.tsv, ion.tsv, peptide.tsv, protein.tsv, etc.
+    belong to the same experiment and should be processed together.
+    Files can have a prefix like {experiment}_psm.tsv, {experiment}_ion.tsv, etc.
+    Files without a prefix (e.g., just psm.tsv, ion.tsv) belong to the same experiment.
+
+    Args:
+        downloaded_files: List of downloaded file paths
+
+    Returns:
+        Dict mapping experiment name to list of file paths belonging to that experiment.
+        Non-FragPipe files are returned with their original filename as the key.
+        Returns empty dict if no files to process.
+    """
+    groups: Dict[str, List[str]] = {}
+    non_fragpipe_files: List[str] = []
+
+    for file_path in downloaded_files:
+        if os.path.isdir(file_path):
+            # Directories (from zip extraction) are kept as-is
+            dir_name = os.path.basename(file_path)
+            groups[dir_name] = [file_path]
+            continue
+
+        filename = os.path.basename(file_path).lower()
+        matched_suffix = None
+
+        # Check if this is a FragPipe file
+        for suffix in FRAGPIPE_FILE_SUFFIXES:
+            if filename == suffix or filename.endswith(f"_{suffix}"):
+                matched_suffix = suffix
+                break
+
+        if matched_suffix:
+            # Extract experiment prefix
+            if filename == matched_suffix:
+                # No prefix, use "fragpipe_experiment" as the group name
+                experiment = "fragpipe_experiment"
+            else:
+                # Has prefix: {experiment}_{suffix}
+                # Remove the suffix to get the experiment name
+                experiment = filename[: -(len(matched_suffix) + 1)]  # +1 for underscore
+
+            if experiment not in groups:
+                groups[experiment] = []
+            groups[experiment].append(file_path)
+            logger.info(f"Grouped FragPipe file '{os.path.basename(file_path)}' into experiment '{experiment}'")
+        else:
+            # Non-FragPipe file
+            non_fragpipe_files.append(file_path)
+
+    # Add non-FragPipe files as individual groups
+    for file_path in non_fragpipe_files:
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        groups[file_name] = [file_path]
+
+    # Log grouping summary
+    fragpipe_groups = {k: v for k, v in groups.items() if len(v) > 1 or any(
+        os.path.basename(f).lower().endswith(suffix) or os.path.basename(f).lower() == suffix
+        for f in v for suffix in FRAGPIPE_FILE_SUFFIXES
+    )}
+    if fragpipe_groups:
+        logger.info(f"FragPipe file grouping: {len(fragpipe_groups)} experiment(s) detected")
+        for exp, files in fragpipe_groups.items():
+            logger.info(f"  Experiment '{exp}': {[os.path.basename(f) for f in files]}")
+
+    return groups
+
+
 def download_pride_file(file_info: Dict, download_dir: str, job_id: str = None) -> str:
     """
     Download a file from PRIDE with detailed progress tracking and handle compression.
@@ -1261,90 +1348,103 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
             else:
                 logger.warning(f"pmultiqc failed for COMPLETE submission: {result.get('message')}")
         else:
-            # For regular submissions, process each file separately
-            total_files_to_process = len(downloaded_files)
+            # For regular submissions, group FragPipe files by experiment before processing
+            # This ensures that related files (e.g., psm.tsv, ion.tsv) are processed together
+            file_groups = group_fragpipe_files(downloaded_files)
+            total_groups_to_process = len(file_groups)
 
-            for i, downloaded_file in enumerate(downloaded_files):
+            logger.info(f"Grouped {len(downloaded_files)} files into {total_groups_to_process} experiment group(s)")
+
+            for i, (group_name, group_files) in enumerate(file_groups.items()):
                 try:
                     logger.info(
-                        f"Processing downloaded file {i+1}/{len(downloaded_files)}: {downloaded_file}"
+                        f"Processing experiment group {i+1}/{total_groups_to_process}: {group_name}"
                     )
-                    logger.info(f"File exists: {os.path.exists(downloaded_file)}")
-                    logger.info(
-                        f"Is directory: {os.path.isdir(downloaded_file) if os.path.exists(downloaded_file) else 'N/A'}"
-                    )
+                    logger.info(f"Files in group: {[os.path.basename(f) for f in group_files]}")
 
-                    # Determine file name and type
-                    if os.path.isdir(downloaded_file):
-                        # If it's a directory (from zip extraction), use directory name
-                        file_name = os.path.basename(downloaded_file)
-                        file_extract_dir = downloaded_file
-                        logger.info(f"Using directory as-is: {file_name} -> {file_extract_dir}")
+                    # Determine extraction directory for the group
+                    if len(group_files) == 1 and os.path.isdir(group_files[0]):
+                        # Single directory (from zip extraction), use it directly
+                        file_extract_dir = group_files[0]
+                        logger.info(f"Using directory as-is: {group_name} -> {file_extract_dir}")
                     else:
-                        # If it's a file, extract the name without extension
-                        file_name = os.path.splitext(os.path.basename(downloaded_file))[0]
-                        # Create extraction directory and copy file
-                        file_extract_dir = os.path.join(download_dir, f"extracted_{file_name}")
+                        # Create a shared extraction directory for all files in the group
+                        file_extract_dir = os.path.join(download_dir, f"extracted_{group_name}")
                         os.makedirs(file_extract_dir, exist_ok=True)
-                        shutil.copy2(
-                            downloaded_file,
-                            os.path.join(file_extract_dir, os.path.basename(downloaded_file)),
-                        )
-                        logger.info(f"Extracted file: {file_name} -> {file_extract_dir}")
 
-                    logger.info(f"Processing file {i+1}/{total_files_to_process}: {file_name}")
+                        # Copy all files in the group to the shared directory
+                        for file_path in group_files:
+                            if os.path.isfile(file_path):
+                                shutil.copy2(
+                                    file_path,
+                                    os.path.join(file_extract_dir, os.path.basename(file_path)),
+                                )
+                                logger.info(f"Copied {os.path.basename(file_path)} to {file_extract_dir}")
+                            elif os.path.isdir(file_path):
+                                # If it's a directory, copy its contents
+                                for item in os.listdir(file_path):
+                                    src = os.path.join(file_path, item)
+                                    dst = os.path.join(file_extract_dir, item)
+                                    if os.path.isfile(src):
+                                        shutil.copy2(src, dst)
+                                    elif os.path.isdir(src):
+                                        shutil.copytree(src, dst, dirs_exist_ok=True)
+
+                        logger.info(f"Prepared extraction directory for group '{group_name}': {file_extract_dir}")
+
+                    logger.info(f"Processing group {i+1}/{total_groups_to_process}: {group_name}")
 
                     # Update progress for processing (70-90%)
-                    progress = 70 + int((i + 1) / total_files_to_process * 20)
+                    progress = 70 + int((i + 1) / total_groups_to_process * 20)
                     update_job_progress(
                         job_id,
                         "processing",
                         progress,
                         files_processed=total_processed,
-                        total_files=total_files_to_process,
-                        processing_stage=f"Processing {file_name} ({i+1}/{total_files_to_process})...",
+                        total_files=total_groups_to_process,
+                        processing_stage=f"Processing {group_name} ({i+1}/{total_groups_to_process})...",
                     )
 
-                    # Create output directory for this file
-                    file_output_dir = os.path.join(output_dir, f"report_{file_name}")
+                    # Create output directory for this group
+                    file_output_dir = os.path.join(output_dir, f"report_{group_name}")
                     os.makedirs(file_output_dir, exist_ok=True)
                     logger.info(f"Created output directory: {file_output_dir}")
 
-                    # Detect input type for this file
+                    # Detect input type for this group
                     input_type, quantms_config = detect_input_type(file_extract_dir)
-                    logger.info(f"Detected input type for {file_name}: {input_type}")
+                    logger.info(f"Detected input type for {group_name}: {input_type}")
 
                     # Log files found in the directory for debugging
                     try:
                         files_in_dir = os.listdir(file_extract_dir)
-                        logger.info(f"Files in {file_name} directory: {files_in_dir}")
+                        logger.info(f"Files in {group_name} directory: {files_in_dir}")
                     except Exception as e:
                         logger.warning(f"Could not list files in {file_extract_dir}: {e}")
 
                     if input_type == "unknown":
-                        logger.warning(f"Could not detect input type for {file_name}")
+                        logger.warning(f"Could not detect input type for {group_name}")
                         continue
 
-                    # Run pmultiqc on this file
+                    # Run pmultiqc on this group
                     logger.info(
-                        f"Starting run_pmultiqc_with_progress for job {job_id}, file {file_name}"
+                        f"Starting run_pmultiqc_with_progress for job {job_id}, group {group_name}"
                     )
                     result = run_pmultiqc_with_progress(
                         file_extract_dir, file_output_dir, input_type, quantms_config, job_id
                     )
                     logger.info(
-                        f"run_pmultiqc_with_progress completed for job {job_id}, file {file_name}: success={result.get('success')}"
+                        f"run_pmultiqc_with_progress completed for job {job_id}, group {group_name}: success={result.get('success')}"
                     )
 
                     if result["success"]:
-                        # Create zip report for this file
+                        # Create zip report for this group
                         zip_report_path = os.path.join(
                             file_output_dir, f"pmultiqc_report_{job_id}.zip"
                         )
                         if create_zip_report(file_output_dir, zip_report_path):
                             all_results.append(
                                 {
-                                    "file_name": file_name,
+                                    "file_name": group_name,
                                     "input_type": input_type,
                                     "report_path": zip_report_path,
                                     "output": result.get("output", []),
@@ -1353,13 +1453,13 @@ def process_pride_job_async(job_id: str, accession: str, output_dir: str):
                             )
                             total_processed += 1
                             logger.info(
-                                f"Successfully processed file {file_name}, total_processed now: {total_processed}"
+                                f"Successfully processed group {group_name}, total_processed now: {total_processed}"
                             )
                     else:
-                        logger.warning(f"pmultiqc failed for {file_name}: {result.get('message')}")
+                        logger.warning(f"pmultiqc failed for {group_name}: {result.get('message')}")
 
                 except Exception as e:
-                    logger.error(f"Error processing {downloaded_file}: {e}")
+                    logger.error(f"Error processing group {group_name}: {e}")
                     logger.error(f"Traceback: {traceback.format_exc()}")
                     continue
 

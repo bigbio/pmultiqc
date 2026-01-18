@@ -403,7 +403,8 @@ def draw_identification(
     cal_num_table_data=None,
     quantms_missed_cleavages=None,
     quantms_modified=None,
-    msms_identified_rate=None
+    msms_identified_rate=None,
+    draw_peptide_id_count=True,
 ):
 
     if cal_num_table_data and cal_num_table_data.get("sdrf_samples"):
@@ -483,33 +484,34 @@ def draw_identification(
             """,
     )
 
-    draw_config = {
-        "id": "peptide_id_count",
-        "cpswitch": False,
-        "title": "Peptide ID Count",
-        "tt_decimals": 0,
-        "ylab": "Count",
-        "data_labels": plot_label,
-        "save_data_file": False,
-    }
+    if draw_peptide_id_count:
+        draw_config = {
+            "id": "peptide_id_count",
+            "cpswitch": False,
+            "title": "Peptide ID Count",
+            "tt_decimals": 0,
+            "ylab": "Count",
+            "data_labels": plot_label,
+            "save_data_file": False,
+        }
 
-    bar_html = bargraph.plot(
-        peptide_count,
-        pconfig=draw_config,
-    )
-    bar_html = plot_html_check(bar_html)
+        bar_html = bargraph.plot(
+            peptide_count,
+            pconfig=draw_config,
+        )
+        bar_html = plot_html_check(bar_html)
 
-    add_sub_section(
-        sub_section=sub_sections,
-        plot=bar_html,
-        order=4,
-        description="""
-            Number of unique (i.e. not counted twice) peptide sequences including modifications per Raw file.
-            """,
-        helptext="""
-            Based on statistics calculated from mzTab, mzIdentML (mzid), DIA-NN report files, or FragPipe psm.tsv.
-            """,
-    )
+        add_sub_section(
+            sub_section=sub_sections,
+            plot=bar_html,
+            order=4,
+            description="""
+                Number of unique (i.e. not counted twice) peptide sequences including modifications per Raw file.
+                """,
+            helptext="""
+                Based on statistics calculated from mzTab, mzIdentML (mzid), DIA-NN report files, or FragPipe psm.tsv.
+                """,
+        )
 
     if quantms_missed_cleavages:
 
@@ -912,8 +914,9 @@ def draw_modifications(sub_section, modified_data):
     )
 
 
-def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant):
-    if is_maxquant:
+def draw_oversampling(sub_section, oversampling, oversampling_plot, data_type: str):
+
+    if data_type == "maxquant" or data_type == "fragpipe":
         draw_config = {
             "id": "oversampling_distribution",
             "cpswitch": False,
@@ -948,8 +951,14 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, is_maxquant)
                 Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic
                 exclusion windows for data independent acquisitions.
                 """
-    if is_maxquant:
+    if data_type == "maxquant":
         helptext += "<p>If DIA-Data: this metric is skipped.</p>"
+
+    if data_type == "fragpipe":
+        helptext += """
+            <p>[FragPipe: combined_ion.tsv] This plot shows the distribution of
+            MS/MS spectral counts per ion/peak for each sample.</p>
+            """
 
     add_sub_section(
         sub_section=sub_section,

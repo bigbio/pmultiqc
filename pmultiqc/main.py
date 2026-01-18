@@ -152,4 +152,25 @@ def pmultiqc_plugin_execution_start():
             {"pmultiqc/tsv": {"fn": "*.tsv", "num_lines": 0}},
         )
 
+    # FragPipe workflow file (parameters)
+    if "pmultiqc/workflow" not in config.sp:
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/workflow": {"fn": "*.workflow", "num_lines": 0}},
+        )
+
+    # FragPipe manifest file (experiment design)
+    if "pmultiqc/fp-manifest" not in config.sp:
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/fp-manifest": {"fn": "*.fp-manifest", "num_lines": 0}},
+        )
+
+    # MSFragger params file (search engine parameters)
+    if "pmultiqc/fragger_params" not in config.sp:
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/fragger_params": {"fn": "*.params", "num_lines": 0}},
+        )
+
     config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})

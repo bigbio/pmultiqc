@@ -240,7 +240,10 @@ class MzIdentMLModule(BasePMultiqcModule):
             )
 
         draw_oversampling(
-            self.sub_sections["ms2"], self.oversampling, self.oversampling_plot.dict["cats"], False
+            self.sub_sections["ms2"],
+            self.oversampling,
+            self.oversampling_plot.dict["cats"],
+            ""
         )
 
         if self.long_trends:
