@@ -377,15 +377,22 @@ def evidence_calibrated_mass_error(
 
     bin_series = pd.cut(evd_df["mass error [ppm]"], bins=num_bins)
 
+    # Calculate count only once, derive frequency from it
     count_bin = bin_series.value_counts(sort=False)
+    total_count = count_bin.sum()
+
     count_bin_data = {
         float(interval.mid): int(count) for interval, count in count_bin.items()
     }
 
-    frequency_bin = bin_series.value_counts(sort=False, normalize=True)
-    frequency_bin_data = {
-        float(interval.mid): float(freq) for interval, freq in frequency_bin.items()
-    }
+    # Derive frequency from counts (more efficient than calling value_counts twice)
+    if total_count > 0:
+        frequency_bin_data = {
+            float(interval.mid): float(count / total_count)
+            for interval, count in count_bin.items()
+        }
+    else:
+        frequency_bin_data = {k: 0.0 for k in count_bin_data.keys()}
 
     result_dict = {
         "count": count_bin_data,
