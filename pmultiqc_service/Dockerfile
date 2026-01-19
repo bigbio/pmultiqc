@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libglib2.0-0 \
     procps \
+    unrar \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install wheel
