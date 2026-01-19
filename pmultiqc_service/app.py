@@ -16,6 +16,7 @@ import time
 import traceback
 import uuid
 import zipfile
+import rarfile
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -683,6 +684,7 @@ def filter_search_files(files: List[Dict]) -> tuple[List[Dict], bool]:
         # Check if it's a search engine output file
         # Includes MaxQuant (evidence, peptides, proteingroups, msms),
         # DIANN (report), FragPipe (psm.tsv, ion.tsv), and mzIdentML files
+        # Also include RAR/ZIP archives that might contain search results (e.g., DDA.rar)
         if (
             file_category in ["SEARCH", "RESULT"]
             or "report" in filename_lower
@@ -695,6 +697,8 @@ def filter_search_files(files: List[Dict]) -> tuple[List[Dict], bool]:
             or filename_lower.endswith(".mzid")
             or filename_lower.endswith(".mzid.gz")
             or filename_lower.endswith(".mzid.zip")
+            or filename_lower.endswith(".rar")  # RAR archives containing search results
+            or (filename_lower.endswith(".zip") and file_category in ["SEARCH", "RESULT"])
         ):
 
             search_files.append(file_info)
@@ -952,6 +956,17 @@ def download_pride_file(file_info: Dict, download_dir: str, job_id: str = None) 
             # Remove the zip file
             os.remove(file_path)
             # Return the directory path since zip files contain multiple files
+            final_file_path = download_dir
+            logger.info(f"Extracted {filename} to directory")
+
+        elif filename.lower().endswith(".rar"):
+            logger.info(f"Extracting RAR file: {filename}")
+            with rarfile.RarFile(file_path, "r") as rar_ref:
+                # Extract to the same directory
+                rar_ref.extractall(download_dir)
+            # Remove the rar file
+            os.remove(file_path)
+            # Return the directory path since rar files contain multiple files
             final_file_path = download_dir
             logger.info(f"Extracted {filename} to directory")
 
