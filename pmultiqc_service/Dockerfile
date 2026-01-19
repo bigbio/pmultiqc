@@ -4,6 +4,7 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Install system dependencies
+# Install unar (free alternative to unrar) - rarfile supports multiple backends
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -18,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libglib2.0-0 \
     procps \
-    unrar \
+    unar \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install wheel
