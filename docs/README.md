@@ -81,7 +81,11 @@ pmultiqc supports the following data sources:
    - `*.mzML` or `*.mgf`: Corresponding spectra files
 
 ### 6. [FragPipe](https://fragpipe.nesvilab.org) files:
-   - `psm.tsv`: FragPipe report file
+   - `psm.tsv`: FDR-filtered PSMs
+   - `ion.tsv`: FDR-filtered ions
+   - `combined_ion.tsv`: FDR-filtered ions
+   - `combined_peptide.tsv`: FDR-filtered peptides
+   - `combined_protein.tsv`: FDR-filtered proteins
 
 ## 💾 Installation
 

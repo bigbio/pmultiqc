@@ -42,7 +42,7 @@ authors:
 repository-code: "https://github.com/bigbio/pmultiqc"
 url: "https://github.com/bigbio/pmultiqc"
 license: MIT
-version: 0.0.40
+version: 0.0.41
 identifiers:
   - type: doi
     value: 10.1101/2025.11.02.685980
