@@ -595,6 +595,9 @@ def aggregate_general_stats(
     sdrf_file_df
 ):
 
+    if not ms1_general_stats:
+        return None
+
     if sdrf_file_df.empty:
 
         rows_by_group = dict()

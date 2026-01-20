@@ -857,10 +857,33 @@ def draw_identi_num(
 
 def draw_modifications(sub_section, modified_data):
 
-    if isinstance(modified_data["plot_data"], list):
+    plot_data = modified_data.get("plot_data", None)
+    if not plot_data:
+        return
+
+    if isinstance(plot_data, dict):
+        modified_values = [
+            subdict["Modified (Total)"]
+            for subdict in plot_data.values()
+            if isinstance(subdict, dict) and "Modified (Total)" in subdict
+        ]
+        plot_label = ["by Run"]
+    elif isinstance(plot_data, list):
+        modified_values = [
+            v["Modified (Total)"]
+            for sample in plot_data
+            for v in (sample.values() if isinstance(sample, dict) else [sample])
+        ]
         plot_label = ["by Run", "by Sample"]
     else:
-        plot_label = ["by Run"]
+        log.warning(
+            f"draw_modifications: Unsupported plot_data type: {type(plot_data)}, skipping plot."
+        )
+        return
+
+    if not any(modified_values):
+        log.warning("draw_modifications: All plot_data values are zero, skipping plot.")
+        return
 
     draw_config = {
         "id": "modifications",
@@ -875,7 +898,7 @@ def draw_modifications(sub_section, modified_data):
     }
 
     bar_html = bargraph.plot(
-        data=modified_data["plot_data"], cats=modified_data["cats"], pconfig=draw_config
+        data=plot_data, cats=modified_data["cats"], pconfig=draw_config
     )
     bar_html = plot_html_check(bar_html)
 
