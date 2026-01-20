@@ -863,16 +863,20 @@ def draw_modifications(sub_section, modified_data):
 
     if isinstance(plot_data, dict):
         modified_values = [
-            subdict["Modified (Total)"]
+            value
             for subdict in plot_data.values()
-            if isinstance(subdict, dict) and "Modified (Total)" in subdict
+            if isinstance(subdict, dict)
+            for value in subdict.values()
+            if isinstance(value, (int, float))
         ]
         plot_label = ["by Run"]
     elif isinstance(plot_data, list):
         modified_values = [
-            v["Modified (Total)"]
-            for sample in plot_data
-            for v in (sample.values() if isinstance(sample, dict) else [sample])
+            value
+            for subdict in plot_data.values()
+            if isinstance(subdict, dict)
+            for value in subdict.values()
+            if isinstance(value, (int, float))
         ]
         plot_label = ["by Run", "by Sample"]
     else:
