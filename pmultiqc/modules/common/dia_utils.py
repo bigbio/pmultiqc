@@ -1,7 +1,6 @@
 import itertools
 import numpy as np
 import pandas as pd
-import os
 import re
 from collections import OrderedDict
 from sdrf_pipelines.openms.openms import UnimodDatabase
