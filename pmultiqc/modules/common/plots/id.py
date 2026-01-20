@@ -862,28 +862,26 @@ def draw_modifications(sub_section, modified_data):
         return
 
     if isinstance(plot_data, dict):
-        modified_values = [
-            value
-            for subdict in plot_data.values()
-            if isinstance(subdict, dict)
-            for value in subdict.values()
-            if isinstance(value, (int, float))
-        ]
+        iterable = [plot_data]
         plot_label = ["by Run"]
     elif isinstance(plot_data, list):
-        modified_values = [
-            value
-            for subdict in plot_data
-            if isinstance(subdict, dict)
-            for value in subdict.values()
-            if isinstance(value, (int, float))
-        ]
+        iterable = plot_data
         plot_label = ["by Run", "by Sample"]
     else:
         log.warning(
             f"draw_modifications: Unsupported plot_data type: {type(plot_data)}, skipping plot."
         )
         return
+
+    modified_values = [
+        value
+        for item in iterable
+        if isinstance(item, dict)
+        for subdict in item.values()
+        if isinstance(subdict, dict)
+        for value in subdict.values()
+        if isinstance(value, (int, float))
+    ]
 
     if not any(modified_values):
         log.warning("draw_modifications: All plot_data values are zero, skipping plot.")
