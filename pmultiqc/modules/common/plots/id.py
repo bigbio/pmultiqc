@@ -873,7 +873,7 @@ def draw_modifications(sub_section, modified_data):
     elif isinstance(plot_data, list):
         modified_values = [
             value
-            for subdict in plot_data.values()
+            for subdict in plot_data
             if isinstance(subdict, dict)
             for value in subdict.values()
             if isinstance(value, (int, float))
