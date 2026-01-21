@@ -179,6 +179,22 @@
             ],
             "path": "docs/PXD062399_disable_hoverinfo",
             "file_type": ["fragpipe", "disable_hoverinfo"]
+        },
+        {
+            "accession": "PXD062383",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062383.zip"
+            ],
+            "path": "docs/PXD062383",
+            "file_type": ["dia", ""]
+        },
+        {
+            "accession": "PXD062383_disable_hoverinfo",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062383.zip"
+            ],
+            "path": "docs/PXD062383_disable_hoverinfo",
+            "file_type": ["dia", "disable_hoverinfo"]
         }
     ]
 }
