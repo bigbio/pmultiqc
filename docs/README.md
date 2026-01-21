@@ -252,7 +252,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 ### 🔍 Large-Scale Dataset Reports
 | Example Type | Description | Link | Dataset Download |
 |---|---|---|---|
-| Big quantms DIA | Data-independent acquisition | [Big quantms DIA](https://pmultiqc.quantms.org/PXD062383/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062383_disable_hoverinfo/multiqc_report.html)) | [PXD062383.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062383.zip) |
+| Big quantms DIA | Data-independent acquisition | [Big quantms DIA - 165 samples](https://pmultiqc.quantms.org/PXD062383/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062383_disable_hoverinfo/multiqc_report.html)) | [PXD062383.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062383.zip) |
 
 ## 👥 Contributing
 
