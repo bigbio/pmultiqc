@@ -249,6 +249,11 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) | [PXD054720 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/) |
 | FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD062399/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062399_disable_hoverinfo/multiqc_report.html)) | [PXD062399.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062399.zip) |
 
+### 🔍 Large-Scale Dataset Reports
+| Example Type | Description | Link | Dataset Download |
+|---|---|---|---|
+| Big quantms DIA | Data-independent acquisition | [Big quantms DIA](https://pmultiqc.quantms.org/PXD062383/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062383_disable_hoverinfo/multiqc_report.html)) | [PXD062383.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062383.zip) |
+
 ## 👥 Contributing
 
 To contribute to pmultiqc:
