@@ -57,7 +57,10 @@
         <!-- Step 2: File Upload -->
         <div id="step2-upload" class="step">
             <h3>📁 Upload Files</h3>
-            <p>Upload your proteomics data files as ZIP archives (containing MaxQuant, DIANN, quantms, or mzIdentML data)</p>
+            <p>Upload your proteomics data files as ZIP archives (containing MaxQuant, DIANN, quantms, FragPipe, or mzIdentML data)</p>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <a href="#" onclick="showFileRequirements(); return false;" style="color: #007bff; text-decoration: none; font-size: 14px;">What files do I need?</a>
+            </div>
             <input type="file" id="fileInput" class="file-input" multiple accept=".zip">
             <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose Files</button>
             <div id="fileList"></div>
@@ -879,11 +882,26 @@
             closeExamples();
         }
 
+        // File Requirements Modal
+        function showFileRequirements() {
+            const modal = document.getElementById('fileRequirementsModal');
+            modal.style.display = 'block';
+        }
+
+        function closeFileRequirements() {
+            const modal = document.getElementById('fileRequirementsModal');
+            modal.style.display = 'none';
+        }
+
         // Close modal when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('examplesModal');
-            if (event.target === modal) {
+            const examplesModal = document.getElementById('examplesModal');
+            const fileReqModal = document.getElementById('fileRequirementsModal');
+            if (event.target === examplesModal) {
                 closeExamples();
+            }
+            if (event.target === fileReqModal) {
+                closeFileRequirements();
             }
         }
     </script>
@@ -1064,11 +1082,169 @@
 
             <div style="margin-top: 20px; text-align: center;">
                 <button onclick="closeExamples()" style="
-                    background: #6c757d; 
-                    color: white; 
-                    border: none; 
-                    padding: 10px 20px; 
-                    border-radius: 6px; 
+                    background: #6c757d;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                ">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Requirements Modal -->
+    <div id="fileRequirementsModal" class="modal" style="
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        overflow-y: auto;
+    ">
+        <div class="modal-content" style="
+            background-color: #fefefe;
+            margin: 3% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 750px;
+            border-radius: 10px;
+            position: relative;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #333;">📋 File Requirements by Workflow</h3>
+                <span onclick="closeFileRequirements()" style="
+                    color: #aaa;
+                    font-size: 28px;
+                    font-weight: bold;
+                    cursor: pointer;
+                ">&times;</span>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <p style="color: #666; margin-bottom: 15px;">
+                    Your ZIP archive will be automatically detected based on the files it contains. Below are the required files for each supported workflow.
+                </p>
+            </div>
+
+            <div style="display: grid; gap: 15px;">
+                <!-- MaxQuant Section -->
+                <div style="
+                    border-left: 4px solid #007bff;
+                    border-radius: 0 8px 8px 0;
+                    padding: 15px;
+                    background: #f8f9fa;
+                ">
+                    <h4 style="margin: 0 0 10px; color: #007bff;">MaxQuant</h4>
+                    <p style="margin: 0 0 10px; color: #333; font-weight: 500;">Required files (at least one of):</p>
+                    <ul style="margin: 0 0 10px; padding-left: 20px; color: #333;">
+                        <li><code>evidence.txt</code></li>
+                        <li><code>msms.txt</code></li>
+                        <li><code>peptides.txt</code></li>
+                        <li><code>proteinGroups.txt</code></li>
+                    </ul>
+                    <p style="margin: 0 0 5px; color: #666; font-size: 0.9em;"><strong>Recommended additional files:</strong></p>
+                    <p style="margin: 0; color: #666; font-size: 0.9em;">
+                        <code>summary.txt</code>, <code>parameters.txt</code>, <code>msScans.txt</code>, <code>msmsScans.txt</code>
+                    </p>
+                    <p style="margin: 10px 0 0; color: #28a745; font-size: 0.9em;">
+                        <strong>Optional:</strong> <code>*sdrf.tsv</code> (sample metadata)
+                    </p>
+                </div>
+
+                <!-- DIANN Section -->
+                <div style="
+                    border-left: 4px solid #28a745;
+                    border-radius: 0 8px 8px 0;
+                    padding: 15px;
+                    background: #f8f9fa;
+                ">
+                    <h4 style="margin: 0 0 10px; color: #28a745;">DIA-NN</h4>
+                    <p style="margin: 0 0 10px; color: #333; font-weight: 500;">Required files:</p>
+                    <ul style="margin: 0 0 10px; padding-left: 20px; color: #333;">
+                        <li><code>report.tsv</code> or <code>report.parquet</code></li>
+                        <li>Alternative names: <code>diann_report.tsv</code> or <code>diann_report.parquet</code></li>
+                    </ul>
+                    <p style="margin: 10px 0 0; color: #28a745; font-size: 0.9em;">
+                        <strong>Optional:</strong> <code>*sdrf.tsv</code> (sample metadata), <code>*ms_info.parquet</code> (mzML statistics)
+                    </p>
+                </div>
+
+                <!-- Quantms Section -->
+                <div style="
+                    border-left: 4px solid #6f42c1;
+                    border-radius: 0 8px 8px 0;
+                    padding: 15px;
+                    background: #f8f9fa;
+                ">
+                    <h4 style="margin: 0 0 10px; color: #6f42c1;">quantms Pipeline</h4>
+                    <p style="margin: 0 0 10px; color: #333; font-weight: 500;">Required files:</p>
+                    <ul style="margin: 0 0 10px; padding-left: 20px; color: #333;">
+                        <li><code>multiqc_config.yml</code> (pipeline configuration)</li>
+                        <li>AND at least one of: <code>*.mzTab</code> or <code>*_ms_info.parquet</code></li>
+                    </ul>
+                    <p style="margin: 0 0 5px; color: #666; font-size: 0.9em;"><strong>Common additional files:</strong></p>
+                    <p style="margin: 0; color: #666; font-size: 0.9em;">
+                        <code>experimental_design.tsv</code>, <code>*msstats*.csv</code>, <code>*.idXML</code>, <code>diann_report.tsv</code>
+                    </p>
+                </div>
+
+                <!-- FragPipe Section -->
+                <div style="
+                    border-left: 4px solid #17a2b8;
+                    border-radius: 0 8px 8px 0;
+                    padding: 15px;
+                    background: #f8f9fa;
+                ">
+                    <h4 style="margin: 0 0 10px; color: #17a2b8;">FragPipe</h4>
+                    <p style="margin: 0 0 10px; color: #333; font-weight: 500;">Required files (at least one of):</p>
+                    <ul style="margin: 0 0 10px; padding-left: 20px; color: #333;">
+                        <li><code>psm.tsv</code> (FDR-filtered PSMs)</li>
+                        <li><code>ion.tsv</code> (FDR-filtered ions)</li>
+                    </ul>
+                    <p style="margin: 0 0 5px; color: #666; font-size: 0.9em;"><strong>Common additional files:</strong></p>
+                    <p style="margin: 0; color: #666; font-size: 0.9em;">
+                        <code>combined_ion.tsv</code>, <code>combined_peptide.tsv</code>, <code>combined_protein.tsv</code>, <code>peptide.tsv</code>
+                    </p>
+                </div>
+
+                <!-- mzIdentML Section -->
+                <div style="
+                    border-left: 4px solid #fd7e14;
+                    border-radius: 0 8px 8px 0;
+                    padding: 15px;
+                    background: #f8f9fa;
+                ">
+                    <h4 style="margin: 0 0 10px; color: #fd7e14;">mzIdentML</h4>
+                    <p style="margin: 0 0 10px; color: #333; font-weight: 500;">Required files:</p>
+                    <ul style="margin: 0 0 10px; padding-left: 20px; color: #333;">
+                        <li><code>*.mzid</code> (identification results)</li>
+                        <li>AND corresponding spectra files: <code>*.mzML</code> or <code>*.mgf</code></li>
+                    </ul>
+                    <p style="margin: 10px 0 0; color: #fd7e14; font-size: 0.9em;">
+                        <strong>Supported compressed formats:</strong> <code>.gz</code>, <code>.zip</code>
+                    </p>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px; border-left: 4px solid #007bff;">
+                <p style="margin: 0; color: #004085; font-size: 0.9em;">
+                    <strong>Tip:</strong> The workflow type is automatically detected based on the files in your ZIP archive.
+                    Make sure to include all required files in a single ZIP archive (max 10GB).
+                </p>
+            </div>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <button onclick="closeFileRequirements()" style="
+                    background: #6c757d;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 6px;
                     cursor: pointer;
                 ">Close</button>
             </div>
