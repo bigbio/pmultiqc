@@ -15,6 +15,10 @@ from pmultiqc.modules.common.ms_io import (
     spectra_ref_check,
 )
 
+from pmultiqc.modules.common.logging import get_logger
+
+log = get_logger("pmultiqc.modules.common.ms")
+
 
 class MsInfoReader(BaseParser):
     def __init__(
@@ -116,9 +120,11 @@ class MsInfoReader(BaseParser):
                     )
 
                 if m_name not in self.identified_spectrum:
-                    raise ValueError(
+                    log.warning(
                         f"identified_spectrum missing entries for '{m_name}'. Check your mzTab file."
                     )
+                    continue
+
                 identified_spectrum_scan_id = [
                     spectra_ref_check(spectrum_id)
                     for spectrum_id in self.identified_spectrum[m_name]
