@@ -226,9 +226,13 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
 
     log.info("Processing DIA mod_plot_dict.")
 
-    report_data = df[
-        ["Run", "Modified.Sequence", "Modifications", "Protein.Group", "Proteotypic"]
-    ].copy()
+    required_cols = ["Run", "Modified.Sequence", "Modifications", "Protein.Group"]
+    report_data = df[required_cols].copy()
+    if "Proteotypic" in df.columns:
+        report_data["Proteotypic"] = df["Proteotypic"]
+    else:
+        log.warning("Missing Proteotypic column; treating all peptides as proteotypic.")
+        report_data["Proteotypic"] = 1
 
     mod_plot_by_run = dict()
     modified_cats = list()
