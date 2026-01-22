@@ -3,7 +3,6 @@ from pathlib import Path
 from datetime import datetime
 from pyteomics import mztab
 import pandas as pd
-import os
 import re
 
 from multiqc import config
@@ -69,16 +68,14 @@ class MzTabReader(BaseParser):
                 lambda x: 1 if self.dis_decoy(x["accession"]) == "DECOY" else 0, axis=1
             )
         # map to spectrum file name in experimental design file
-        psm["stand_spectra_ref"] = psm.apply(
-            lambda x: os.path.basename(meta_data[x.spectra_ref.split(":")[0] + "-location"])
-            + ":"
-            + x.spectra_ref.split(":")[1],
-            axis=1,
-        )
-        psm["filename"] = psm.apply(
-            lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-            axis=1,
-        )
+        spectra_ref_parts = psm["spectra_ref"].str.split(":", n=1, expand=True)
+        spectra_ref_key = spectra_ref_parts[0] + "-location"
+        spectra_ref_path = spectra_ref_key.map(meta_data)
+
+        psm["stand_spectra_ref"] = spectra_ref_path.map(file_prefix) + ":" + spectra_ref_parts[1]
+        psm["filename"] = spectra_ref_path.map(file_prefix)
+        del spectra_ref_parts, spectra_ref_key, spectra_ref_path
+
         self.ms_with_psm = psm["filename"].unique().tolist()
 
         prot = mztab_data.protein_table
