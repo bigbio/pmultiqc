@@ -306,3 +306,26 @@ jobs:
         with:
           name: results_big_dia
           path: ./results_big_dia
+
+  test_single_cell_diann:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install package
+        run: pip install .
+      - name: Test single cell dataset
+        run: |
+          wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD053464/03_SingleCell_Searches.zip
+          unzip -d ./PXD053464 03_SingleCell_Searches.zip
+          multiqc --diann-plugin ./PXD053464 -o ./results_single_cell_diann
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_single_cell_diann
+          path: ./results_single_cell_diann

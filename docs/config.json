@@ -195,6 +195,22 @@
             ],
             "path": "docs/PXD062383_disable_hoverinfo",
             "file_type": ["dia", "disable_hoverinfo"]
+        },
+        {
+            "accession": "PXD053464",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD053464/03_SingleCell_Searches.zip"
+            ],
+            "path": "docs/PXD053464",
+            "file_type": ["diann", ""]
+        },
+        {
+            "accession": "PXD053464_disable_hoverinfo",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD053464/03_SingleCell_Searches.zip"
+            ],
+            "path": "docs/PXD053464_disable_hoverinfo",
+            "file_type": ["diann", "disable_hoverinfo"]
         }
     ]
 }
