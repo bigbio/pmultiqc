@@ -15,7 +15,6 @@ from pmultiqc.modules.common.ms_io import (
     spectra_ref_check,
 )
 
-from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.common.ms")
 
