@@ -253,7 +253,8 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 
 | Example Type | Description | Link | Dataset Download |
 |---|---|---|---|
-| Big quantms DIA | Data-independent acquisition | [Big quantms DIA - 165 samples](https://pmultiqc.quantms.org/PXD062383/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062383_disable_hoverinfo/multiqc_report.html)) | [PXD062383.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062383.zip) |
+| Big LFQ | Label-free quantification | [Big LFQ (1808 runs)](https://pmultiqc.quantms.org/PXD010899/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD010899_disable_hoverinfo/multiqc_report.html)) | [PXD010899.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD010899.zip) |
+| Big quantms DIA | Data-independent acquisition | [Big quantms DIA (160 runs)](https://pmultiqc.quantms.org/PXD062383/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062383_disable_hoverinfo/multiqc_report.html)) | [PXD062383.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062383.zip) |
 
 ## 👥 Contributing
 

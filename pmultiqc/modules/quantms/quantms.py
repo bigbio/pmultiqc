@@ -375,7 +375,7 @@ class QuantMSModule(BasePMultiqcModule):
         # quantms: LFQ or TMT
         else:
 
-            if not config.kwargs["ignored_idxml"]:
+            if not config.kwargs["ignored_idxml"] and self.idx_paths:
                 self.parse_idxml(self.mzml_table)
             self.cal_heat_map_score()
 
@@ -426,7 +426,7 @@ class QuantMSModule(BasePMultiqcModule):
                 header_cols=spectrum_tracking_headers
             )
 
-            if not config.kwargs["ignored_idxml"]:
+            if not config.kwargs["ignored_idxml"] and self.idx_paths:
                 self.draw_search_engine()
 
             draw_precursor_charge_distribution(
@@ -1096,10 +1096,9 @@ class QuantMSModule(BasePMultiqcModule):
             pep_df_need_cols = ["accession", "opt_global_cv_MS:1002217_decoy_peptide", "spectra_ref"] + study_variables
             pep_table = pep_table[pep_df_need_cols].copy()
 
-            pep_table.loc[:, "stand_spectra_ref"] = pep_table.apply(
-                lambda x: file_prefix(meta_data[x.spectra_ref.split(":")[0] + "-location"]),
-                axis=1,
-            )
+            spectra_file_map = pep_table["spectra_ref"].str.split(":", n=1).str[0] + "-location"
+            pep_table["stand_spectra_ref"] = spectra_file_map.map(meta_data).map(file_prefix)
+            del spectra_file_map
 
             pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
 
@@ -1402,7 +1401,6 @@ class QuantMSModule(BasePMultiqcModule):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
 
         for m, group in psm.groupby("filename"):
-            # m = os.path.basename(m)
 
             # Modifications
             mod_plot_dict, modified_cat = summarize_modifications(
@@ -2351,11 +2349,10 @@ def aggregate_spectrum_tracking(
         "MS1_Num", "MS2_Num", "MSGF", "Comet", "Sage", "num_quant_psms", "num_quant_peps"
     ]
 
-    for i in header_cols:
-        if any([i in v for k, v in mzml_table.items()]):
-            pass
-        else:
-            header_cols.remove(i)
+    header_cols = [
+        i for i in header_cols
+        if any(i in v for v in mzml_table.values())
+    ]
 
     if sdrf_file_df.empty:
 
