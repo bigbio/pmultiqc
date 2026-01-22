@@ -155,17 +155,13 @@ def _draw_heatmap(sub_section, report_data, heatmap_color_list):
 
 def _process_diann_statistics(report_data):
     """Process DIA-NN statistics and create peptide plot."""
-    # Extract sequence information
-    report_data["sequence"] = report_data[
-        "Modified.Sequence"
-    ].astype("string").str.replace(r"\(.*?\)", "", regex=True)
 
     total_protein_quantified = len(set(report_data["Protein.Group"]))
-    total_peptide_count = len(set(report_data["sequence"]))
+    total_peptide_count = len(set(report_data["Modified.Sequence"]))
 
     # Create peptide plot
     log.info("Processing DIA pep_plot.")
-    protein_pep_map = report_data.groupby("Protein.Group")["sequence"].agg(list).to_dict()
+    protein_pep_map = report_data.groupby("Protein.Group")["Modified.Sequence"].agg(list).to_dict()
     pep_plot = Histogram("number of peptides per proteins", plot_category="frequency")
     for _, peps in protein_pep_map.items():
         number = len(set(peps))
@@ -230,9 +226,13 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
 
     log.info("Processing DIA mod_plot_dict.")
 
-    report_data = df[
-        ["Run", "Modified.Sequence", "Modifications", "Protein.Group", "sequence"]
-    ].copy()
+    required_cols = ["Run", "Modified.Sequence", "Modifications", "Protein.Group"]
+    report_data = df[required_cols].copy()
+    if "Proteotypic" in df.columns:
+        report_data["Proteotypic"] = df["Proteotypic"]
+    else:
+        log.warning("Missing Proteotypic column; treating all peptides as proteotypic.")
+        report_data["Proteotypic"] = 1
 
     mod_plot_by_run = dict()
     modified_cats = list()
@@ -277,25 +277,23 @@ def _calculate_run_statistics(group):
     """Calculate statistics for a specific run."""
 
     peptides = set(group["Modified.Sequence"])
+    unique_peptides = set(
+        group.loc[group["Proteotypic"] == 1, "Modified.Sequence"]
+    )
     modified_pep = list(
         filter(lambda x: re.match(r".*?\(.*?\).*?", x) is not None, peptides)
     )
 
-    group_peptides = group.groupby("sequence")["Protein.Group"].apply(list).to_dict()
-    unique_peptides = [
-        pep for pep, prots in group_peptides.items() if len(set(prots)) == 1
-    ]
-
     stat_run = {
         "protein_num": len(set(group["Protein.Group"])),
-        "peptide_num": len(set(group["sequence"])),
+        "peptide_num": len(peptides),
         "unique_peptide_num": len(unique_peptides),
         "modified_peptide_num": len(modified_pep)
     }
 
     data_per_run = {
         "proteins": set(group["Protein.Group"]),
-        "peptides": set(group["sequence"]),
+        "peptides": peptides,
         "unique_peptides": unique_peptides,
         "modified_peps": modified_pep
     }
