@@ -131,7 +131,8 @@ def draw_peak_intensity_distribution(
     pconfig = {
         "id": "peak_intensity_distribution",
         "title": "Peak Intensity Distribution",
-        "cpswitch": False,
+        "cpswitch": True,
+        "cpswitch_c_active": False,
         "stacking": "group",
         "logswitch": True,
         "logswitch_active": True,
@@ -164,6 +165,7 @@ def draw_precursor_charge_distribution(sub_sections, charge_plot=None, ms_info=N
         "id": "distribution_of_precursor_charges",
         "title": "Distribution of Precursor Charges",
         "cpswitch": True,
+        "cpswitch_c_active": False,
         "tt_decimals": 0,
         "ylab": "Count",
         "save_data_file": False,
@@ -183,7 +185,8 @@ def draw_precursor_charge_distribution(sub_sections, charge_plot=None, ms_info=N
 def draw_peaks_per_ms2(sub_sections, peaks_ms2_plot, ms_info):
     pconfig = {
         "id": "peaks_per_ms2",
-        "cpswitch": False,
+        "cpswitch": True,
+        "cpswitch_c_active": False,
         "title": "Number of Peaks per MS/MS spectrum",
         "stacking": "group",
         "logswitch": True,
