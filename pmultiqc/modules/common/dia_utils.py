@@ -60,10 +60,14 @@ def parse_diann_report(
     # Process statistics and modifications
     total_protein_quantified, total_peptide_count, pep_plot = _process_diann_statistics(report_data)
     peptide_search_score = _process_peptide_search_scores(report_data)
-    _process_modifications(report_data)
+    modifications_ok = _process_modifications(report_data)
 
-    # Process run-specific data
-    cal_num_table_data = _process_run_data(report_data, ms_with_psm, quantms_modified, file_df)
+    # Process run-specific data (requires Modifications column from _process_modifications)
+    if modifications_ok:
+        cal_num_table_data = _process_run_data(report_data, ms_with_psm, quantms_modified, file_df)
+    else:
+        log.warning("Skipping run data processing due to missing modifications data")
+        cal_num_table_data = {"sdrf_samples": {}, "ms_runs": {}}
 
     # Handle files without PSM
     ms_without_psm = _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data)
@@ -155,6 +159,10 @@ def _draw_heatmap(sub_section, report_data, heatmap_color_list):
 
 def _process_diann_statistics(report_data):
     """Process DIA-NN statistics and create peptide plot."""
+    required_cols = ["Protein.Group", "Modified.Sequence"]
+    if not all(col in report_data.columns for col in required_cols):
+        log.warning(f"Missing required columns for statistics: {[c for c in required_cols if c not in report_data.columns]}")
+        return 0, 0, None
 
     total_protein_quantified = len(set(report_data["Protein.Group"]))
     total_peptide_count = len(set(report_data["Modified.Sequence"]))
@@ -180,6 +188,11 @@ def _process_diann_statistics(report_data):
 
 def _process_peptide_search_scores(report_data):
     """Process peptide search scores."""
+    required_cols = ["Modified.Sequence", "Q.Value"]
+    if not all(col in report_data.columns for col in required_cols):
+        log.warning(f"Missing required columns for peptide search scores: {[c for c in required_cols if c not in report_data.columns]}")
+        return {}
+
     log.info("Processing DIA peptide_search_score.")
     peptide_search_score = dict()
     pattern = re.compile(r"\((.*?)\)")
@@ -200,6 +213,10 @@ def _process_peptide_search_scores(report_data):
 
 def _process_modifications(report_data):
     """Process modifications in the report data."""
+    if "Modified.Sequence" not in report_data.columns:
+        log.warning("Missing Modified.Sequence column for modifications processing")
+        return False
+
     log.info("Processing DIA Modifications.")
     mod_pattern = re.compile(r"\((.*?)\)")
     unimod_data = UnimodDatabase()
@@ -217,16 +234,21 @@ def _process_modifications(report_data):
         return None
 
     report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
+    return True
 
 
 def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
     """
     Process run-specific data including modifications and statistics.
     """
+    required_cols = ["Run", "Modified.Sequence", "Modifications", "Protein.Group"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        log.warning(f"Missing required columns for run data processing: {missing_cols}")
+        return {"sdrf_samples": {}, "ms_runs": {}}
 
     log.info("Processing DIA mod_plot_dict.")
 
-    required_cols = ["Run", "Modified.Sequence", "Modifications", "Protein.Group"]
     report_data = df[required_cols].copy()
     if "Proteotypic" in df.columns:
         report_data["Proteotypic"] = df["Proteotypic"]
@@ -425,6 +447,11 @@ def draw_dia_rt_qc(sub_section, report_df):
 
 # DIA-NN: IDs over RT
 def draw_dia_ids_rt(sub_section, report_df):
+    required_cols = ["Run", "RT"]
+    if not all(col in report_df.columns for col in required_cols):
+        log.warning(f"Missing required columns for IDs over RT plot: {[c for c in required_cols if c not in report_df.columns]}")
+        return
+
     rt_df = report_df[["Run", "RT"]].copy()
     rt_df.rename(columns={"Run": "raw file", "RT": "retention time"}, inplace=True)
     ids_over_rt = evidence_rt_count(rt_df)
