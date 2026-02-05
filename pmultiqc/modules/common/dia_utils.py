@@ -3,11 +3,7 @@ import numpy as np
 import pandas as pd
 import re
 from collections import OrderedDict
-try:
-    from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
-except ImportError:
-    # Fallback for older versions of sdrf_pipelines
-    from sdrf_pipelines.openms.openms import UnimodDatabase
+from sdrf_pipelines.openms.openms import UnimodDatabase
 from multiqc.plots import table
 
 from pmultiqc.modules.common.histogram import Histogram
