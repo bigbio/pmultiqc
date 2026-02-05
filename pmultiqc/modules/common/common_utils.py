@@ -9,7 +9,11 @@ from typing import Dict, List
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
-from sdrf_pipelines.openms.openms import OpenMS
+try:
+    from sdrf_pipelines.converters.openms.openms import OpenMS
+except ImportError:
+    # Fallback for older versions of sdrf_pipelines
+    from sdrf_pipelines.openms.openms import OpenMS
 
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.file_utils import file_prefix

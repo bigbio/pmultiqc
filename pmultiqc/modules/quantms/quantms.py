@@ -20,7 +20,11 @@ from multiqc.plots import (
     linegraph,
 )
 from pyopenms import AASequence
-from sdrf_pipelines.openms.openms import UnimodDatabase
+try:
+    from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
+except ImportError:
+    # Fallback for older versions of sdrf_pipelines
+    from sdrf_pipelines.openms.openms import UnimodDatabase
 
 from typing import Dict, List
 from multiqc.plots.table_object import InputRow
