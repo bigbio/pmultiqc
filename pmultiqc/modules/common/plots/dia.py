@@ -194,6 +194,7 @@ def draw_dia_whole_exp_charge(sub_section, df):
     draw_config = {
         "id": "distribution_of_precursor_charges",
         "cpswitch": True,
+        "cpswitch_c_active": False,
         "title": "Distribution of Precursor Charges",
         "tt_decimals": 0,
         "ylab": "Count",

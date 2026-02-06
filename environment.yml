@@ -9,7 +9,7 @@ dependencies:
   - pandas>=1.5
   - pyteomics
   - pyopenms<=3.4.0
-  - sdrf-pipelines>=0.0.32
+  - sdrf-pipelines==0.0.33
   - lxml
   - numpy>=1.23
   - pyarrow

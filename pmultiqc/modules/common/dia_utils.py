@@ -60,10 +60,14 @@ def parse_diann_report(
     # Process statistics and modifications
     total_protein_quantified, total_peptide_count, pep_plot = _process_diann_statistics(report_data)
     peptide_search_score = _process_peptide_search_scores(report_data)
-    _process_modifications(report_data)
+    modifications_ok = _process_modifications(report_data)
 
-    # Process run-specific data
-    cal_num_table_data = _process_run_data(report_data, ms_with_psm, quantms_modified, file_df)
+    # Process run-specific data (requires Modifications column from _process_modifications)
+    if modifications_ok:
+        cal_num_table_data = _process_run_data(report_data, ms_with_psm, quantms_modified, file_df)
+    else:
+        log.warning("Skipping run data processing due to missing modifications data")
+        cal_num_table_data = {"sdrf_samples": {}, "ms_runs": {}}
 
     # Handle files without PSM
     ms_without_psm = _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data)
@@ -155,6 +159,10 @@ def _draw_heatmap(sub_section, report_data, heatmap_color_list):
 
 def _process_diann_statistics(report_data):
     """Process DIA-NN statistics and create peptide plot."""
+    required_cols = ["Protein.Group", "Modified.Sequence"]
+    if not all(col in report_data.columns for col in required_cols):
+        log.warning(f"Missing required columns for statistics: {[c for c in required_cols if c not in report_data.columns]}")
+        return 0, 0, None
 
     total_protein_quantified = len(set(report_data["Protein.Group"]))
     total_peptide_count = len(set(report_data["Modified.Sequence"]))
@@ -180,6 +188,11 @@ def _process_diann_statistics(report_data):
 
 def _process_peptide_search_scores(report_data):
     """Process peptide search scores."""
+    required_cols = ["Modified.Sequence", "Q.Value"]
+    if not all(col in report_data.columns for col in required_cols):
+        log.warning(f"Missing required columns for peptide search scores: {[c for c in required_cols if c not in report_data.columns]}")
+        return {}
+
     log.info("Processing DIA peptide_search_score.")
     peptide_search_score = dict()
     pattern = re.compile(r"\((.*?)\)")
@@ -200,6 +213,10 @@ def _process_peptide_search_scores(report_data):
 
 def _process_modifications(report_data):
     """Process modifications in the report data."""
+    if "Modified.Sequence" not in report_data.columns:
+        log.warning("Missing Modified.Sequence column for modifications processing")
+        return False
+
     log.info("Processing DIA Modifications.")
     mod_pattern = re.compile(r"\((.*?)\)")
     unimod_data = UnimodDatabase()
@@ -217,16 +234,21 @@ def _process_modifications(report_data):
         return None
 
     report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
+    return True
 
 
 def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
     """
     Process run-specific data including modifications and statistics.
     """
+    required_cols = ["Run", "Modified.Sequence", "Modifications", "Protein.Group"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        log.warning(f"Missing required columns for run data processing: {missing_cols}")
+        return {"sdrf_samples": {}, "ms_runs": {}}
 
     log.info("Processing DIA mod_plot_dict.")
 
-    required_cols = ["Run", "Modified.Sequence", "Modifications", "Protein.Group"]
     report_data = df[required_cols].copy()
     if "Proteotypic" in df.columns:
         report_data["Proteotypic"] = df["Proteotypic"]
@@ -425,6 +447,11 @@ def draw_dia_rt_qc(sub_section, report_df):
 
 # DIA-NN: IDs over RT
 def draw_dia_ids_rt(sub_section, report_df):
+    required_cols = ["Run", "RT"]
+    if not all(col in report_df.columns for col in required_cols):
+        log.warning(f"Missing required columns for IDs over RT plot: {[c for c in required_cols if c not in report_df.columns]}")
+        return
+
     rt_df = report_df[["Run", "RT"]].copy()
     rt_df.rename(columns={"Run": "raw file", "RT": "retention time"}, inplace=True)
     ids_over_rt = evidence_rt_count(rt_df)
@@ -437,13 +464,19 @@ def draw_diann_quant_table(sub_section, diann_report, sample_df, file_df):
     peptides_table, peptides_headers = create_peptides_table(
         diann_report, sample_df, file_df
     )
-    draw_peptides_table(sub_section, peptides_table, peptides_headers, "DIA-NN")
+    if peptides_table is not None and peptides_headers is not None:
+        draw_peptides_table(sub_section, peptides_table, peptides_headers, "DIA-NN")
+    else:
+        log.warning("Skipping peptides quantification table due to missing data")
 
     # Protein Quantification Table
     protein_table, protein_headers = create_protein_table(
         diann_report, sample_df, file_df
     )
-    draw_protein_table(sub_section, protein_table, protein_headers, "DIA-NN")
+    if protein_table is not None and protein_headers is not None:
+        draw_protein_table(sub_section, protein_table, protein_headers, "DIA-NN")
+    else:
+        log.warning("Skipping protein quantification table due to missing data")
 
 
 # Draw: Peptides Quantification Table
@@ -727,9 +760,29 @@ def _prepare_quant_table_data(report_df):
     Common preprocessing for quantification table creation.
 
     Returns:
-        pd.DataFrame: Preprocessed report data with positive Precursor.Normalised values.
+        pd.DataFrame: Preprocessed report data with positive intensity values,
+                      or None if required columns are missing.
     """
-    report_data = report_df[report_df["Precursor.Normalised"] > 0].copy()
+    # Check for required columns
+    required_cols = ["Protein.Names", "Stripped.Sequence"]
+    missing_cols = [col for col in required_cols if col not in report_df.columns]
+    if missing_cols:
+        log.warning(f"Missing required columns for quantification table: {missing_cols}")
+        return None
+
+    # Use Precursor.Normalised if available, otherwise fall back to Precursor.Quantity
+    if "Precursor.Normalised" in report_df.columns:
+        intensity_col = "Precursor.Normalised"
+    elif "Precursor.Quantity" in report_df.columns:
+        intensity_col = "Precursor.Quantity"
+        log.info("Using Precursor.Quantity as fallback (Precursor.Normalised not available)")
+    else:
+        log.warning("Neither Precursor.Normalised nor Precursor.Quantity found. Skipping quantification table.")
+        return None
+
+    report_data = report_df[report_df[intensity_col] > 0].copy()
+    # Store which intensity column is being used for downstream functions
+    report_data.attrs["intensity_col"] = intensity_col
     return drop_empty_row(report_data, ["Protein.Names", "Stripped.Sequence"])
 
 
@@ -743,6 +796,18 @@ def _merge_condition_data(report_data, sample_df, file_df):
     if sample_df.empty or file_df.empty:
         return None, []
 
+    # Get the intensity column used (stored by _prepare_quant_table_data)
+    intensity_col = report_data.attrs.get("intensity_col", "Precursor.Normalised")
+    if intensity_col not in report_data.columns:
+        # Fallback check
+        if "Precursor.Normalised" in report_data.columns:
+            intensity_col = "Precursor.Normalised"
+        elif "Precursor.Quantity" in report_data.columns:
+            intensity_col = "Precursor.Quantity"
+        else:
+            log.warning("No intensity column found for condition data merge")
+            return None, []
+
     sample_cond_df = pd.merge(
         sample_df[["Sample", "MSstats_Condition"]],
         file_df[["Sample", "Spectra_Filepath"]],
@@ -752,10 +817,12 @@ def _merge_condition_data(report_data, sample_df, file_df):
     sample_cond_df["Run"] = sample_cond_df["Spectra_Filepath"].str.rsplit(".", n=1).str[0]
 
     cond_report_data = pd.merge(
-        report_data[["Stripped.Sequence", "Protein.Names", "Precursor.Normalised", "Run"]],
+        report_data[["Stripped.Sequence", "Protein.Names", intensity_col, "Run"]],
         sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
         on="Run",
     )
+    # Store intensity column for downstream use
+    cond_report_data.attrs["intensity_col"] = intensity_col
 
     unique_conditions = sample_df["MSstats_Condition"].drop_duplicates().tolist()
     return cond_report_data, unique_conditions
@@ -773,18 +840,34 @@ def _add_condition_headers(headers, conditions):
 
 # DIA-NN: Peptides Quantification Table
 def create_peptides_table(report_df, sample_df, file_df):
-    """Create peptides quantification table from DIA-NN report."""
+    """Create peptides quantification table from DIA-NN report.
+
+    Returns:
+        tuple: (table_dict, headers) or (None, None) if required columns are missing.
+    """
     report_data = _prepare_quant_table_data(report_df)
-    report_data["BestSearchScore"] = 1 - report_data["Q.Value"]
+    if report_data is None or report_data.empty:
+        log.warning("Cannot create peptides table: missing required data")
+        return None, None
+
+    # Get the intensity column being used
+    intensity_col = report_data.attrs.get("intensity_col", "Precursor.Normalised")
+
+    # Check for Q.Value column for search score
+    has_qvalue = "Q.Value" in report_data.columns
+    if has_qvalue:
+        report_data["BestSearchScore"] = 1 - report_data["Q.Value"]
 
     table_dict = {}
     for sequence_protein, group in report_data.groupby(["Stripped.Sequence", "Protein.Names"]):
-        table_dict[sequence_protein] = {
+        entry = {
             "ProteinName": sequence_protein[1],
             "PeptideSequence": sequence_protein[0],
-            "BestSearchScore": group["BestSearchScore"].min(),
-            "Average Intensity": np.log10(group["Precursor.Normalised"].mean()),
+            "Average Intensity": np.log10(group[intensity_col].mean()),
         }
+        if has_qvalue:
+            entry["BestSearchScore"] = group["BestSearchScore"].min()
+        table_dict[sequence_protein] = entry
 
     headers = {
         "ProteinName": {
@@ -793,24 +876,27 @@ def create_peptides_table(report_df, sample_df, file_df):
             "minrange": "200",
         },
         "PeptideSequence": {"title": "Peptide Sequence"},
-        "BestSearchScore": {"title": "Best Search Score", "format": "{:,.4f}"},
         "Average Intensity": {
             "title": "Average Intensity",
             "description": "Average intensity across all conditions",
             "format": "{:,.4f}",
         },
     }
+    if has_qvalue:
+        headers["BestSearchScore"] = {"title": "Best Search Score", "format": "{:,.4f}"}
 
     cond_report_data, unique_conditions = _merge_condition_data(report_data, sample_df, file_df)
-    if cond_report_data is not None:
+    if cond_report_data is not None and not cond_report_data.empty:
+        cond_intensity_col = cond_report_data.attrs.get("intensity_col", intensity_col)
         for sequence_protein, group in cond_report_data.groupby(
                 ["Stripped.Sequence", "Protein.Names"]
         ):
             condition_data = {
-                str(cond): np.log10(sub_group["Precursor.Normalised"].mean())
+                str(cond): np.log10(sub_group[cond_intensity_col].mean())
                 for cond, sub_group in group.groupby("MSstats_Condition")
             }
-            table_dict[sequence_protein].update(condition_data)
+            if sequence_protein in table_dict:
+                table_dict[sequence_protein].update(condition_data)
 
         _add_condition_headers(headers, unique_conditions)
 
@@ -820,15 +906,25 @@ def create_peptides_table(report_df, sample_df, file_df):
 
 # DIA-NN: Protein Quantification Table
 def create_protein_table(report_df, sample_df, file_df):
-    """Create protein quantification table from DIA-NN report."""
+    """Create protein quantification table from DIA-NN report.
+
+    Returns:
+        tuple: (table_dict, headers) or (None, None) if required columns are missing.
+    """
     report_data = _prepare_quant_table_data(report_df)
+    if report_data is None or report_data.empty:
+        log.warning("Cannot create protein table: missing required data")
+        return None, None
+
+    # Get the intensity column being used
+    intensity_col = report_data.attrs.get("intensity_col", "Precursor.Normalised")
 
     table_dict = {}
     for protein_name, group in report_data.groupby("Protein.Names"):
         table_dict[protein_name] = {
             "ProteinName": protein_name,
             "Peptides_Number": group["Stripped.Sequence"].nunique(),
-            "Average Intensity": np.log10(group["Precursor.Normalised"].mean()),
+            "Average Intensity": np.log10(group[intensity_col].mean()),
         }
 
     headers = {
@@ -849,13 +945,15 @@ def create_protein_table(report_df, sample_df, file_df):
     }
 
     cond_report_data, unique_conditions = _merge_condition_data(report_data, sample_df, file_df)
-    if cond_report_data is not None:
+    if cond_report_data is not None and not cond_report_data.empty:
+        cond_intensity_col = cond_report_data.attrs.get("intensity_col", intensity_col)
         for protein_name, group in cond_report_data.groupby("Protein.Names"):
             condition_data = {
-                str(cond): np.log10(sub_group["Precursor.Normalised"].mean())
+                str(cond): np.log10(sub_group[cond_intensity_col].mean())
                 for cond, sub_group in group.groupby("MSstats_Condition")
             }
-            table_dict[protein_name].update(condition_data)
+            if protein_name in table_dict:
+                table_dict[protein_name].update(condition_data)
 
         _add_condition_headers(headers, unique_conditions)
 
