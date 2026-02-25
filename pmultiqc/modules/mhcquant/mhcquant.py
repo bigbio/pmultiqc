@@ -32,11 +32,11 @@ def _parse_histogram_file(filepath):
     Format: Sample<tab>bin1<tab>bin2<tab>...
             name<tab>val1<tab>val2<tab>...
 
-    Returns: {sample_name: {x_float: y_float, ...}}
+    Returns: {sample_name: {x_float: y_float, ...}}, or None on failure.
     """
     if not os.path.isfile(filepath):
         return None
-    with open(filepath) as fh:
+    with open(filepath, encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh if line.strip()]
     if len(lines) < 2:
         return None
@@ -44,20 +44,31 @@ def _parse_histogram_file(filepath):
     bins = []
     for b in header[1:]:
         b = b.strip()
-        if b:
+        if not b:
+            continue
+        try:
             bins.append(float(b))
+        except ValueError:
+            log.warning("Skipping non-numeric histogram bin label %r in %s", b, filepath)
+    if not bins:
+        return None
     data = {}
     for line in lines[1:]:
         parts = line.split("\t")
+        if len(parts) < 2:
+            continue
         sample = parts[0]
         row = {}
         for i, b in enumerate(bins):
             val_str = parts[i + 1].strip() if i + 1 < len(parts) else ""
             if val_str:
-                row[b] = float(val_str)
+                try:
+                    row[b] = float(val_str)
+                except ValueError:
+                    pass
         if row:
             data[sample] = row
-    return data
+    return data if data else None
 
 
 def _parse_headerless_box_file(filepath):
@@ -65,21 +76,33 @@ def _parse_headerless_box_file(filepath):
 
     Format: sample_name<tab>val1<tab>val2<tab>...
 
-    Returns: {sample_name: [float, ...]}
+    Returns: {sample_name: [float, ...]}, or None on failure.
     """
     if not os.path.isfile(filepath):
         return None
-    with open(filepath) as fh:
+    with open(filepath, encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh if line.strip()]
     if not lines:
         return None
     data = {}
     for line in lines:
         parts = line.split("\t")
+        if len(parts) < 2:
+            continue
         sample = parts[0]
-        values = [float(v) for v in parts[1:] if v.strip()]
-        data[sample] = values
-    return data
+        values = []
+        for v in parts[1:]:
+            v = v.strip()
+            if not v:
+                continue
+            try:
+                values.append(float(v))
+            except ValueError:
+                log.warning("Skipping non-numeric value %r in %s", v, filepath)
+                return None
+        if values:
+            data[sample] = values
+    return data if data else None
 
 
 def _parse_general_stats(filepath):
@@ -88,19 +111,23 @@ def _parse_general_stats(filepath):
     Format: Sample<tab>col1<tab>col2<tab>...
             sample<tab>val1<tab>val2<tab>...
 
-    Returns: (data_dict, headers_dict) for table.plot()
+    Returns: (data_dict, headers_dict) for table.plot(), or (None, None) on failure.
     """
     if not os.path.isfile(filepath):
         return None, None
-    with open(filepath) as fh:
+    with open(filepath, encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh if line.strip()]
     if len(lines) < 2:
         return None, None
     header = lines[0].split("\t")
     col_names = [c.strip() for c in header[1:] if c.strip()]
+    if not col_names:
+        return None, None
     data = {}
     for line in lines[1:]:
         parts = line.split("\t")
+        if len(parts) < 2:
+            continue
         sample = parts[0]
         row = {}
         for i, col in enumerate(col_names):
@@ -122,29 +149,39 @@ def _parse_percolator_median_weights(filepath):
     Format: Sample<tab>group1<tab>group2<tab>...
             feature1<tab>val1<tab>val2<tab>...
 
-    Returns: (data_dict, group_names) for bargraph.plot()
+    Returns: (data_dict, group_names) for bargraph.plot(), or (None, None) on failure.
     where data_dict = {feature: {group: median_weight}}
     """
     if not os.path.isfile(filepath):
         return None, None
-    with open(filepath) as fh:
+    with open(filepath, encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh if line.strip()]
     if len(lines) < 2:
         return None, None
     header = lines[0].split("\t")
     groups = [g.strip() for g in header[1:] if g.strip()]
+    if not groups:
+        return None, None
 
     data = {}
     for line in lines[1:]:
         parts = line.split("\t")
+        if len(parts) < 2:
+            continue
         feature = parts[0].strip()
         row = {}
         for i, group in enumerate(groups):
             v = parts[i + 1].strip() if i + 1 < len(parts) else ""
             if v and v.lower() != "nan":
-                row[group] = float(v)
+                try:
+                    row[group] = float(v)
+                except (ValueError, TypeError):
+                    log.warning("Skipping non-numeric percolator weight %r in %s", v, filepath)
         if row:
             data[feature] = row
+
+    if not data:
+        return None, None
 
     # Sort features from most negative to most positive weight
     sorted_data = dict(
