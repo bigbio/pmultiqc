@@ -98,7 +98,7 @@ def _parse_headerless_box_file(filepath):
             try:
                 values.append(float(v))
             except ValueError:
-                log.warning("Skipping non-numeric value %r in %s", v, filepath)
+                log.warning("Rejecting file %s: non-numeric value %r", filepath, v)
                 return None
         if values:
             data[sample] = values
@@ -220,6 +220,21 @@ class MhcquantModule(BasePMultiqcModule):
             log.error("mhcquant multiqc_general_stats.txt not found.")
             return False
 
+        # Validate this is actually mhcquant data by checking for at least one
+        # mhcquant-specific file alongside the generic general_stats anchor.
+        mhcquant_markers = [
+            "percolator_plot.txt",
+            "multiqc_scores_xcorr.txt",
+            "multiqc_histogram_scores.txt",
+        ]
+        if not any(os.path.isfile(os.path.join(self.data_root, m)) for m in mhcquant_markers):
+            log.error(
+                "Directory %s contains multiqc_general_stats.txt but no mhcquant-specific "
+                "files. This may not be mhcquant output.",
+                self.data_root,
+            )
+            return False
+
         # Load all data files
         for key, filename in DATA_FILES.items():
             filepath = os.path.join(self.data_root, filename)
@@ -254,6 +269,8 @@ class MhcquantModule(BasePMultiqcModule):
         log.info("Generating mhcquant plots...")
 
         # Match mhcquant's global config: boxplot_boxpoints: false
+        # This modifies global MultiQC state, which is fine since only one
+        # pmultiqc pipeline module runs per invocation.
         from multiqc import config as mqc_config
         mqc_config.boxplot_boxpoints = False
 

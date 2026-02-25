@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -140,4 +139,27 @@ class TestMhcquantParsers:
         assert data is None
 
         data, groups = _parse_percolator_median_weights("/nonexistent/file.txt")
+        assert data is None
+
+    def test_malformed_html_box_file_returns_none(self, tmp_path):
+        """Regression test: files containing HTML/CSS should be rejected, not crash."""
+        bad_file = tmp_path / "multiqc_mass_error.txt"
+        bad_file.write_text(
+            "mhcquant: Results\n"
+            "@font-face{font-family:Inter;}\n"
+            "sample1\tanimation-duration: 90ms, 220ms;\n",
+            encoding="utf-8",
+        )
+        data = _parse_headerless_box_file(str(bad_file))
+        assert data is None
+
+    def test_malformed_html_histogram_returns_none(self, tmp_path):
+        """Histogram parser should return None when headers are non-numeric HTML."""
+        bad_file = tmp_path / "multiqc_histogram_mz.txt"
+        bad_file.write_text(
+            "mhcquant: Results\n"
+            "@font-face{font-family:Inter;}\n",
+            encoding="utf-8",
+        )
+        data = _parse_histogram_file(str(bad_file))
         assert data is None
