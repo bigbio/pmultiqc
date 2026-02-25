@@ -121,7 +121,7 @@ class TestMhcquantParsers:
         assert len(data) > 0, "Should have at least one feature"
 
         # Each feature should map to at least one group with a weight value
-        for feature, weights in data.items():
+        for _feature, weights in data.items():
             assert isinstance(weights, dict), "Feature weights should be a dict"
             assert len(weights) >= 1, "Each feature should have at least one group weight"
             for group, val in weights.items():
@@ -135,10 +135,10 @@ class TestMhcquantParsers:
         data = _parse_headerless_box_file("/nonexistent/file.txt")
         assert data is None
 
-        data, headers = _parse_general_stats("/nonexistent/file.txt")
+        data, _headers = _parse_general_stats("/nonexistent/file.txt")
         assert data is None
 
-        data, groups = _parse_percolator_median_weights("/nonexistent/file.txt")
+        data, _groups = _parse_percolator_median_weights("/nonexistent/file.txt")
         assert data is None
 
     def test_malformed_html_box_file_returns_none(self, tmp_path):

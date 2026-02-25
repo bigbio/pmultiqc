@@ -193,41 +193,70 @@ def _parse_percolator_median_weights(filepath):
 
 class MhcquantModule(BasePMultiqcModule):
 
+    # mhcquant-specific files that distinguish it from other pipelines
+    MHCQUANT_MARKERS = [
+        "percolator_plot.txt",
+        "multiqc_scores_xcorr.txt",
+        "multiqc_histogram_scores.txt",
+    ]
+
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
         super().__init__(find_log_files_func, sub_sections, heatmap_colors)
         self.data = {}
         self.data_root = None
 
-    def get_data(self):
-        log.info("Starting mhcquant data recognition and processing...")
+    def _find_data_root(self):
+        """Walk analysis directories to locate multiqc_general_stats.txt.
 
-        # Search analysis directories for multiqc_general_stats.txt.
-        # We walk the directory tree directly because MultiQC's find_log_files()
-        # ignores multiqc_data/ by default and wildcard patterns (*.txt) can
-        # consume our anchor file before our pattern is checked.
+        We walk the directory tree directly because MultiQC's find_log_files()
+        ignores multiqc_data/ by default and wildcard patterns (*.txt) can
+        consume our anchor file before our pattern is checked.
+        """
         from multiqc import config as mqc_config
 
         for analysis_dir in mqc_config.analysis_dir:
-            for root, dirs, fnames in os.walk(analysis_dir):
+            for root, _dirs, fnames in os.walk(analysis_dir):
                 if "multiqc_general_stats.txt" in fnames:
-                    self.data_root = root
-                    log.info(f"Found mhcquant data directory: {self.data_root}")
-                    break
-            if self.data_root is not None:
-                break
+                    log.info(f"Found mhcquant data directory: {root}")
+                    return root
+        return None
 
+    def _validate_mhcquant_markers(self):
+        """Check that at least one mhcquant-specific file exists alongside the anchor."""
+        return any(
+            os.path.isfile(os.path.join(self.data_root, m)) for m in self.MHCQUANT_MARKERS
+        )
+
+    def _load_file(self, key, filepath):
+        """Parse a single data file and store results in self.data."""
+        if key == "general_stats":
+            table_data, table_headers = _parse_general_stats(filepath)
+            if table_data:
+                self.data["general_stats"] = table_data
+                self.data["general_stats_headers"] = table_headers
+        elif key in ("mass_error", "scores_xcorr", "peptide_intensity"):
+            parsed = _parse_headerless_box_file(filepath)
+            if parsed:
+                self.data[key] = parsed
+        elif key == "percolator_plot":
+            bar_data, groups = _parse_percolator_median_weights(filepath)
+            if bar_data:
+                self.data["percolator_median"] = bar_data
+                self.data["percolator_groups"] = groups
+        else:
+            parsed = _parse_histogram_file(filepath)
+            if parsed:
+                self.data[key] = parsed
+
+    def get_data(self):
+        log.info("Starting mhcquant data recognition and processing...")
+
+        self.data_root = self._find_data_root()
         if self.data_root is None:
             log.error("mhcquant multiqc_general_stats.txt not found.")
             return False
 
-        # Validate this is actually mhcquant data by checking for at least one
-        # mhcquant-specific file alongside the generic general_stats anchor.
-        mhcquant_markers = [
-            "percolator_plot.txt",
-            "multiqc_scores_xcorr.txt",
-            "multiqc_histogram_scores.txt",
-        ]
-        if not any(os.path.isfile(os.path.join(self.data_root, m)) for m in mhcquant_markers):
+        if not self._validate_mhcquant_markers():
             log.error(
                 "Directory %s contains multiqc_general_stats.txt but no mhcquant-specific "
                 "files. This may not be mhcquant output.",
@@ -235,32 +264,12 @@ class MhcquantModule(BasePMultiqcModule):
             )
             return False
 
-        # Load all data files
         for key, filename in DATA_FILES.items():
             filepath = os.path.join(self.data_root, filename)
             if not os.path.isfile(filepath):
                 log.info(f"Optional file not found: {filename}")
                 continue
-
-            if key == "general_stats":
-                table_data, table_headers = _parse_general_stats(filepath)
-                if table_data:
-                    self.data["general_stats"] = table_data
-                    self.data["general_stats_headers"] = table_headers
-            elif key in ("mass_error", "scores_xcorr", "peptide_intensity"):
-                parsed = _parse_headerless_box_file(filepath)
-                if parsed:
-                    self.data[key] = parsed
-            elif key == "percolator_plot":
-                bar_data, groups = _parse_percolator_median_weights(filepath)
-                if bar_data:
-                    self.data["percolator_median"] = bar_data
-                    self.data["percolator_groups"] = groups
-            else:
-                # Histogram-style files (chromatogram, histogram_mz, etc.)
-                parsed = _parse_histogram_file(filepath)
-                if parsed:
-                    self.data[key] = parsed
+            self._load_file(key, filepath)
 
         log.info(f"Loaded {len(self.data)} data sections from mhcquant results.")
         return "general_stats" in self.data
