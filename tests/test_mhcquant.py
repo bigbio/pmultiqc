@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from pmultiqc.modules.mhcquant.mhcquant import (
     _parse_histogram_file,
     _parse_headerless_box_file,
