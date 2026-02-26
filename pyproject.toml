@@ -78,6 +78,7 @@ proteobench_plugin = "pmultiqc.cli:proteobench_plugin"
 diann_plugin = "pmultiqc.cli:diann_plugin"
 quantms_plugin = "pmultiqc.cli:quantms_plugin"
 fragpipe_plugin = "pmultiqc.cli:fragpipe_plugin"
+mhcquant_plugin = "pmultiqc.cli:mhcquant_plugin"
 disable_hoverinfo = "pmultiqc.cli:disable_hoverinfo"
 
 

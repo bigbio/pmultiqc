@@ -79,5 +79,8 @@ quantms_plugin = click.option(
 fragpipe_plugin = click.option(
     "--fragpipe-plugin", "fragpipe_plugin", is_flag=True, help="Enable FragPipe plugin"
 )
+mhcquant_plugin = click.option(
+    "--mhcquant-plugin", "mhcquant_plugin", is_flag=True, help="Enable mhcquant plugin"
+)
 disable_hoverinfo = click.option(
     "--disable-hoverinfo", "disable_hoverinfo", is_flag=True, help="Disable hoverinfo")
