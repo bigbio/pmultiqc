@@ -211,6 +211,22 @@
             ],
             "path": "docs/PXD053464_disable_hoverinfo",
             "file_type": ["diann", "disable_hoverinfo"]
+        },
+        {
+            "accession": "mhcquant",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant.zip"
+            ],
+            "path": "docs/mhcquant",
+            "file_type": ["mhcquant", ""]
+        },
+        {
+            "accession": "mhcquant_disable_hoverinfo",
+            "urls": [
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant.zip"
+            ],
+            "path": "docs/mhcquant_disable_hoverinfo",
+            "file_type": ["mhcquant", "disable_hoverinfo"]
         }
     ]
 }

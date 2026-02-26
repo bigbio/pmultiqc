@@ -164,6 +164,9 @@ def run_pmultiqc(download_path, report_path, plugin_type):
     elif plugin_name == "fragpipe":
         command = ["multiqc", "--fragpipe-plugin", download_path, "-o", report_path]
 
+    elif plugin_name == "mhcquant":
+        command = ["multiqc", "--mhcquant-plugin", download_path, "-o", report_path]
+
     elif plugin_name in ["dia", "tmt", "lfq"]:
         command = [
             "multiqc",
