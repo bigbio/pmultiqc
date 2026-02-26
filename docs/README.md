@@ -87,6 +87,9 @@ pmultiqc supports the following data sources:
    - `combined_peptide.tsv`: FDR-filtered peptides
    - `combined_protein.tsv`: FDR-filtered proteins
 
+### 7. [mhcquant](https://nf-co.re/mhcquant) result files:
+   - `mhcquant/results-*`: folder containing mhcquant results
+
 ## 💾 Installation
 
 ### Install from PyPI
@@ -173,6 +176,12 @@ multiqc --mzid-plugin /path/to/mzid/files -o ./report
 multiqc --fragpipe-plugin /path/to/fragpipe/files -o ./report
 ```
 
+#### For mhcquant files
+
+```bash
+multiqc --mhcquant-plugin /path/to/mhcquant/files -o ./report
+```
+
 ### Command-line Options
 
 | Option | Description | Default |
@@ -194,6 +203,7 @@ multiqc --fragpipe-plugin /path/to/fragpipe/files -o ./report
 | `--proteobench-plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid-plugin` | Generate reports based on mzIdentML files | `False` |
 | `--fragpipe-plugin` | Generate reports based on FragPipe files | `False` |
+| `--mhcquant-plugin` | Generate reports based on mhcquant files | `False` |
 | `--disable-hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
 
 ## 📊 QC Metrics and Visualizations

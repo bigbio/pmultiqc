@@ -67,7 +67,7 @@ pmultiqc supports the following data sources:
    - `combined_peptide.tsv`: FDR-filtered peptides
    - `combined_protein.tsv`: FDR-filtered proteins
 
-7. **[mhcquant](https://github.com/nf-core/mhcquant)** result files:
+7. **[mhcquant](https://nf-co.re/mhcquant)** result files:
    - `mhcquant/results-*`: folder containing mhcquant results
 
 ## Installation
