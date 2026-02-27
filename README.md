@@ -249,6 +249,12 @@ We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for deta
 
 This project is licensed under the terms of the LICENSE file included in the repository.
 
-## Citation
+## How to cite
 
-Yue QX, Dai C, Kamatchinathan S, Bandla C, Webel H, Larrea A, Bittremieux W, Uszkoreit J, Müller TD, Xiao J, Cox J, Yu F, Ewels P, Demichev V, Kohlbacher O, Sachsenberg T, Bielow C, Bai M, Perez-Riverol Y. pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics. *Mol Cell Proteomics*. 2026 Feb 17:101530. doi: [10.1016/j.mcpro.2026.101530](https://doi.org/10.1016/j.mcpro.2026.101530). Epub ahead of print. PMID: 41713790.
+If you use **bigbio/pmultiqc** for your analysis, please cite it using the following citation:
+
+> **pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics.**
+>
+> Yue QX, Dai C, Kamatchinathan S, Bandla C, Webel H, Larrea A, Bittremieux W, Uszkoreit J, Müller TD, Xiao J, Cox J, Yu F, Ewels P, Demichev V, Kohlbacher O, Sachsenberg T, Bielow C, Bai M & Perez-Riverol Y.
+> 
+> *Mol Cell Proteomics*. 2026 Feb 17:101530. doi: [10.1016/j.mcpro.2026.101530](https://doi.org/10.1016/j.mcpro.2026.101530). Epub ahead of print. PMID: 41713790.
