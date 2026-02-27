@@ -292,7 +292,7 @@ This project is licensed under the terms of the [LICENSE](https://github.com/big
 
 ## 📝 Citation
 
-Yue QX, Dai C, Kamatchinathan S, Bandla C, Webel H, Larrea A, Bittremieux W, Uszkoreit J, Müller TD, Xiao J, Cox J, Yu F, Ewels P, Demichev V, Kohlbacher O, Sachsenberg T, Bielow C, Bai M, Perez-Riverol Y. pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics. Mol Cell Proteomics. 2026 Feb 17:101530. doi: [10.1016/j.mcpro.2026.101530](https://doi.org/10.1016/j.mcpro.2026.101530). Epub ahead of print. PMID: 41713790.
+Yue QX, Dai C, Kamatchinathan S, Bandla C, Webel H, Larrea A, Bittremieux W, Uszkoreit J, Müller TD, Xiao J, Cox J, Yu F, Ewels P, Demichev V, Kohlbacher O, Sachsenberg T, Bielow C, Bai M, Perez-Riverol Y. pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics. *Mol Cell Proteomics*. 2026 Feb 17:101530. doi: [10.1016/j.mcpro.2026.101530](https://doi.org/10.1016/j.mcpro.2026.101530). Epub ahead of print. PMID: 41713790.
 
 ## 🔗 Related Tools
 
