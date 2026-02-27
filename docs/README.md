@@ -87,6 +87,9 @@ pmultiqc supports the following data sources:
    - `combined_peptide.tsv`: FDR-filtered peptides
    - `combined_protein.tsv`: FDR-filtered proteins
 
+### 7. [mhcquant](https://nf-co.re/mhcquant) result files:
+   - `mhcquant/results-*`: folder containing mhcquant results
+
 ## 💾 Installation
 
 ### Install from PyPI
@@ -173,6 +176,12 @@ multiqc --mzid-plugin /path/to/mzid/files -o ./report
 multiqc --fragpipe-plugin /path/to/fragpipe/files -o ./report
 ```
 
+#### For mhcquant files
+
+```bash
+multiqc --mhcquant-plugin /path/to/mhcquant/files -o ./report
+```
+
 ### Command-line Options
 
 | Option | Description | Default |
@@ -194,6 +203,7 @@ multiqc --fragpipe-plugin /path/to/fragpipe/files -o ./report
 | `--proteobench-plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid-plugin` | Generate reports based on mzIdentML files | `False` |
 | `--fragpipe-plugin` | Generate reports based on FragPipe files | `False` |
+| `--mhcquant-plugin` | Generate reports based on mhcquant files | `False` |
 | `--disable-hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
 
 ## 📊 QC Metrics and Visualizations
@@ -249,6 +259,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://pmultiqc.quantms.org/PXD053068/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD053068_disable_hoverinfo/multiqc_report.html)) | [PXD053068 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) | [PXD054720 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/) |
 | FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD062399/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062399_disable_hoverinfo/multiqc_report.html)) | [PXD062399.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062399.zip) |
+| mhcquant | mhcquant results | [mhcquant Example](https://pmultiqc.quantms.org/mhcquant/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/mhcquant_disable_hoverinfo/multiqc_report.html)) | [mhcquant.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant.zip) |
 
 ### 🔍 Large-Scale Dataset Reports
 
@@ -279,31 +290,15 @@ For more detailed information, visit the [pmultiqc GitHub repository](https://gi
 
 This project is licensed under the terms of the [LICENSE](https://github.com/bigbio/pmultiqc/blob/main/LICENSE) file included in the repository.
 
-## 📝 Citation
+## 📝 How to cite
 
-If you use pmultiqc in your research, please cite our preprint:
+If you use **bigbio/pmultiqc** for your analysis, please cite it using the following citation:
 
-**pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics**  
-Qi-Xuan Yue, Chengxin Dai, Selvakumar Kamatchinathan, Chakradhar Bandla, Henry Webel, Asier Larrea, Wout Bittremieux, Julian Uszkoreit, Tom David Muller, Jinqiu Xiao, Juergen Cox, Philip Ewels, Vadim Demichev, Oliver Kohlbacher, Timo Sachsenberg, Chris Bielow, Mingze Bai, Yasset Perez-Riverol  
-*bioRxiv* 2025. DOI: [10.1101/2025.11.02.685980](https://doi.org/10.1101/2025.11.02.685980)
-
-Preprint: https://www.biorxiv.org/content/early/2025/11/03/2025.11.02.685980
-
-### BibTeX
-
-```bibtex
-@article{Yue2025.11.02.685980,
-  author = {Yue, Qi-Xuan and Dai, Chengxin and Kamatchinathan, Selvakumar and Bandla, Chakradhar and Webel, Henry and Larrea, Asier and Bittremieux, Wout and Uszkoreit, Julian and Muller, Tom David and Xiao, Jinqiu and Cox, Juergen and Ewels, Philip and Demichev, Vadim and Kohlbacher, Oliver and Sachsenberg, Timo and Bielow, Chris and Bai, Mingze and Perez-Riverol, Yasset},
-  title = {pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics},
-  elocation-id = {2025.11.02.685980},
-  year = {2025},
-  doi = {10.1101/2025.11.02.685980},
-  publisher = {Cold Spring Harbor Laboratory},
-  URL = {https://www.biorxiv.org/content/early/2025/11/03/2025.11.02.685980},
-  eprint = {https://www.biorxiv.org/content/early/2025/11/03/2025.11.02.685980.full.pdf},
-  journal = {bioRxiv}
-}
-```
+> **pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics.**
+>
+> Yue QX, Dai C, Kamatchinathan S, Bandla C, Webel H, Larrea A, Bittremieux W, Uszkoreit J, Müller TD, Xiao J, Cox J, Yu F, Ewels P, Demichev V, Kohlbacher O, Sachsenberg T, Bielow C, Bai M, Perez-Riverol Y.
+> 
+> *Mol Cell Proteomics*. 2026 Feb 17:101530. doi: [10.1016/j.mcpro.2026.101530](https://doi.org/10.1016/j.mcpro.2026.101530). Epub ahead of print. PMID: 41713790.
 
 ## 🔗 Related Tools
 

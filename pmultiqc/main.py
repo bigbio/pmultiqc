@@ -79,6 +79,15 @@ def pmultiqc_plugin_execution_start():
             analysis_dir_new.append(anal_dir)
     config.analysis_dir = analysis_dir_new
 
+    # The mhcquant pipeline stores its output inside multiqc_data/, which
+    # MultiQC ignores by default.  Remove the ignore so the file scanner can
+    # discover the data files and instantiate the pmultiqc module.
+    if config.kwargs.get("mhcquant_plugin", False):
+        try:
+            config.fn_ignore_dirs.remove("multiqc_data")
+        except ValueError:
+            pass
+
     # Module filename search patterns
     if "pmultiqc/exp_design" not in config.sp:
         config.update_dict(

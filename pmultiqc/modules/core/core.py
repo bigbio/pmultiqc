@@ -17,6 +17,7 @@ PLUGIN_MAP = {
     "mzid_plugin": ("mzidentml", "MzIdentMLModule"),
     "proteobench_plugin": ("proteobench", "ProteoBenchModule"),
     "fragpipe_plugin": ("fragpipe", "FragPipeModule"),
+    "mhcquant_plugin": ("mhcquant", "MhcquantModule"),
 }
 
 class PMultiQC(BaseMultiqcModule):
@@ -34,7 +35,8 @@ class PMultiQC(BaseMultiqcModule):
                 pipelines such as <a href='https://nf-co.re/quantms'>nf-core/quantms</a>,
                 <a href='https://www.maxquant.org'>MaxQuant</a>,
                 <a href='https://aptila.bio'>DIA-NN</a>,
-                and <a href='https://fragpipe.nesvilab.org/'>FragPipe</a>
+                <a href='https://fragpipe.nesvilab.org/'>FragPipe</a>,
+                and <a href='https://nf-co.re/mhcquant'>nf-core/mhcquant</a>
                 """,
         )
 
