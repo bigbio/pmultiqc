@@ -5,6 +5,7 @@ import os
 from multiqc.plots import linegraph, box, table, bargraph
 
 from pmultiqc.modules.base import BasePMultiqcModule
+from pmultiqc.modules.common.plots.general import plot_html_check
 from pmultiqc.modules.core.section_groups import add_sub_section, add_group_modules
 from pmultiqc.modules.common.logging import get_logger
 
@@ -286,7 +287,7 @@ class MhcquantModule(BasePMultiqcModule):
         # General Statistics table -> summary section
         if "general_stats" in self.data:
             pconfig = {
-                "id": "general_stats",
+                "id": "pmultiqc_general_stats",
                 "title": "General Statistics",
                 "save_file": False,
                 "no_violin": True,
@@ -303,11 +304,12 @@ class MhcquantModule(BasePMultiqcModule):
                 order=1,
                 description="General statistics from the mhcquant pipeline.",
             )
+            log.info("Successfully generated general_stats plot")
 
         # MS1 Chromatogram -> ms1 section
         if "chromatogram" in self.data:
             pconfig = {
-                "id": "mhcquant_chromatogram",
+                "id": "pmultiqc_mhcquant_chromatogram",
                 "title": "MS1 Chromatogram",
                 "xlab": "Retention time [min]",
                 "ylab": "Intensity",
@@ -318,6 +320,7 @@ class MhcquantModule(BasePMultiqcModule):
                 "save_data_file": False,
             }
             line_html = linegraph.plot(data=self.data["chromatogram"], pconfig=pconfig)
+            line_html = plot_html_check(line_html)
             add_sub_section(
                 sub_section=self.sub_sections["ms1"],
                 plot=line_html,
@@ -330,11 +333,12 @@ class MhcquantModule(BasePMultiqcModule):
                     "compounds during a chromatographic separation."
                 ),
             )
+            log.info("Successfully generated chromatogram plot")
 
         # Mass-to-Charge -> ms1 section
         if "histogram_mz" in self.data:
             pconfig = {
-                "id": "histogram_mz",
+                "id": "pmultiqc_histogram_mz",
                 "title": "Mass-to-Charge Histogram",
                 "xlab": "m/z",
                 "ylab": "Frequency",
@@ -342,6 +346,7 @@ class MhcquantModule(BasePMultiqcModule):
                 "save_data_file": False,
             }
             line_html = linegraph.plot(data=self.data["histogram_mz"], pconfig=pconfig)
+            line_html = plot_html_check(line_html)
             add_sub_section(
                 sub_section=self.sub_sections["ms1"],
                 plot=line_html,
@@ -352,11 +357,12 @@ class MhcquantModule(BasePMultiqcModule):
                     "and assess the overall coverage and instrument performance during acquisition."
                 ),
             )
+            log.info("Successfully generated histogram_mz plot")
 
         # Retention time -> rt_qc section
         if "histogram_rt" in self.data:
             pconfig = {
-                "id": "histogram_rt",
+                "id": "pmultiqc_histogram_rt",
                 "title": "Retention time Histogram",
                 "xlab": "Retention time",
                 "ylab": "Frequency",
@@ -364,6 +370,7 @@ class MhcquantModule(BasePMultiqcModule):
                 "save_data_file": False,
             }
             line_html = linegraph.plot(data=self.data["histogram_rt"], pconfig=pconfig)
+            line_html = plot_html_check(line_html)
             add_sub_section(
                 sub_section=self.sub_sections["rt_qc"],
                 plot=line_html,
@@ -374,11 +381,12 @@ class MhcquantModule(BasePMultiqcModule):
                     "and helps assess gradient performance and sample complexity."
                 ),
             )
+            log.info("Successfully generated histogram_rt plot")
 
         # Ion mobility distribution -> ms1 section (optional, timsTOF only)
         if "histogram_im" in self.data:
             pconfig = {
-                "id": "mhcquant_histogram_im",
+                "id": "pmultiqc_mhcquant_histogram_im",
                 "title": "Ion Mobility Distribution",
                 "xlab": "Ion Mobility (1/K0)",
                 "ylab": "Frequency",
@@ -386,17 +394,19 @@ class MhcquantModule(BasePMultiqcModule):
                 "save_data_file": False,
             }
             line_html = linegraph.plot(data=self.data["histogram_im"], pconfig=pconfig)
+            line_html = plot_html_check(line_html)
             add_sub_section(
                 sub_section=self.sub_sections["ms1"],
                 plot=line_html,
                 order=3,
                 description="Distribution of ion mobility values (timsTOF data only).",
             )
+            log.info("Successfully generated histogram_im plot")
 
         # Q-Value -> search_engine section
         if "histogram_scores" in self.data:
             pconfig = {
-                "id": "histogram_scores",
+                "id": "pmultiqc_histogram_scores",
                 "title": "Percolator q-value Histogram",
                 "xlab": "q-value",
                 "ylab": "Frequency",
@@ -404,6 +414,7 @@ class MhcquantModule(BasePMultiqcModule):
                 "save_data_file": False,
             }
             line_html = linegraph.plot(data=self.data["histogram_scores"], pconfig=pconfig)
+            line_html = plot_html_check(line_html)
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
                 plot=line_html,
@@ -415,11 +426,12 @@ class MhcquantModule(BasePMultiqcModule):
                     "beyond the threshold."
                 ),
             )
+            log.info("Successfully generated histogram_scores plot")
 
         # Peptide lengths -> identification section
         if "length_dist" in self.data:
             pconfig = {
-                "id": "length_dist",
+                "id": "pmultiqc_length_dist",
                 "title": "Distribution of peptide lengths",
                 "xlab": "Length",
                 "ylab": "Frequency",
@@ -427,6 +439,7 @@ class MhcquantModule(BasePMultiqcModule):
                 "save_data_file": False,
             }
             line_html = linegraph.plot(data=self.data["length_dist"], pconfig=pconfig)
+            line_html = plot_html_check(line_html)
             add_sub_section(
                 sub_section=self.sub_sections["identification"],
                 plot=line_html,
@@ -436,11 +449,12 @@ class MhcquantModule(BasePMultiqcModule):
                     "variability and typical length ranges."
                 ),
             )
+            log.info("Successfully generated length_dist plot")
 
         # Fragment mass error -> mass_error section (boxplot)
         if "mass_error" in self.data:
             pconfig = {
-                "id": "mhcquant_mass_error",
+                "id": "pmultiqc_mhcquant_mass_error",
                 "title": "Fragment mass error",
                 "xlab": "Mass deviation [Da/ppm]",
                 "tt_decimals": 5,
@@ -450,6 +464,7 @@ class MhcquantModule(BasePMultiqcModule):
             box_html = box.plot(
                 list_of_data_by_sample=self.data["mass_error"], pconfig=pconfig
             )
+            box_html = plot_html_check(box_html)
             add_sub_section(
                 sub_section=self.sub_sections["mass_error"],
                 plot=box_html,
@@ -462,11 +477,12 @@ class MhcquantModule(BasePMultiqcModule):
                     "plotted in Dalton (Da) or parts-per-million (ppm)."
                 ),
             )
+            log.info("Successfully generated mass_error plot")
 
         # Xcorr-Value -> search_engine section (boxplot)
         if "scores_xcorr" in self.data:
             pconfig = {
-                "id": "scores_xcorr",
+                "id": "pmultiqc_scores_xcorr",
                 "title": "Comet Xcorr Distribution",
                 "xlab": "Xcorr",
                 "ylab": "Frequency",
@@ -477,6 +493,7 @@ class MhcquantModule(BasePMultiqcModule):
             box_html = box.plot(
                 list_of_data_by_sample=self.data["scores_xcorr"], pconfig=pconfig
             )
+            box_html = plot_html_check(box_html)
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
                 plot=box_html,
@@ -488,11 +505,12 @@ class MhcquantModule(BasePMultiqcModule):
                     "filter out low-confidence identifications."
                 ),
             )
+            log.info("Successfully generated scores_xcorr plot")
 
         # Peptide Intensity -> quantification section (boxplot, optional)
         if "peptide_intensity" in self.data:
             pconfig = {
-                "id": "peptide_intensity",
+                "id": "pmultiqc_peptide_intensity",
                 "title": "Peptide Intensity Distribution",
                 "xlab": "log2(Intensity)",
                 "tt_decimals": 2,
@@ -502,6 +520,7 @@ class MhcquantModule(BasePMultiqcModule):
             box_html = box.plot(
                 list_of_data_by_sample=self.data["peptide_intensity"], pconfig=pconfig
             )
+            box_html = plot_html_check(box_html)
             add_sub_section(
                 sub_section=self.sub_sections["quantification"],
                 plot=box_html,
@@ -511,12 +530,13 @@ class MhcquantModule(BasePMultiqcModule):
                     "Helps assess data consistency and detect potential outliers or batch effects."
                 ),
             )
+            log.info("Successfully generated peptide_intensity plot")
 
         # Percolator Median Feature Weights -> search_engine section (bargraph)
         if "percolator_median" in self.data:
             cats = {g: {"name": g} for g in self.data["percolator_groups"]}
             pconfig = {
-                "id": "percolator_median_weights",
+                "id": "pmultiqc_percolator_median_weights",
                 "title": "Median Feature Weights",
                 "ylab": "Weight",
                 "tt_decimals": 4,
@@ -527,6 +547,7 @@ class MhcquantModule(BasePMultiqcModule):
                 cats=cats,
                 pconfig=pconfig,
             )
+            bar_html = plot_html_check(bar_html)
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],
                 plot=bar_html,
@@ -541,6 +562,7 @@ class MhcquantModule(BasePMultiqcModule):
                     "deeplc, im2deep)."
                 ),
             )
+            log.info("Successfully generated percolator_median plot")
 
         # Assemble section groups and finalize report layout
         section_group_dict = {
