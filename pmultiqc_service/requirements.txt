@@ -7,10 +7,11 @@ redis>=4.5.0
 multiqc
 pandas
 pyteomics
-sdrf-pipelines
+sdrf-pipelines>=0.0.33, <0.1.0
 lxml
 numpy
 pyarrow
 scikit-learn
 tuspyserver>=4.2.0
 rarfile
+setuptools<78
