@@ -87,7 +87,7 @@ pmultiqc supports the following data sources:
    - `combined_peptide.tsv`: FDR-filtered peptides
    - `combined_protein.tsv`: FDR-filtered proteins
 
-### 7. [mhcquant](https://nf-co.re/mhcquant) result files:
+### 7. [nf-core/mhcquant](https://nf-co.re/mhcquant) result files:
    - `mhcquant/results-*`: folder containing mhcquant results
 
 ## 💾 Installation
@@ -259,7 +259,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | mzIdentML with mzML | mzIdentML with mzML files | [mzIdentML with mzML Example](https://pmultiqc.quantms.org/PXD053068/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD053068_disable_hoverinfo/multiqc_report.html)) | [PXD053068 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/05/PXD053068/) |
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) | [PXD054720 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/) |
 | FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD062399/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062399_disable_hoverinfo/multiqc_report.html)) | [PXD062399.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062399.zip) |
-| mhcquant | mhcquant results | [mhcquant Example](https://pmultiqc.quantms.org/mhcquant/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/mhcquant_disable_hoverinfo/multiqc_report.html)) | [mhcquant.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant.zip) |
+| mhcquant | mhcquant results | [mhcquant Example](https://pmultiqc.quantms.org/mhcquant/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/mhcquant_disable_hoverinfo/multiqc_report.html)) | [mhcquant_3-1-0_results.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant_3-1-0_results.zip) |
 
 ### 🔍 Large-Scale Dataset Reports
 

@@ -86,6 +86,8 @@ class PMultiQC(BaseMultiqcModule):
 
                 if "proteobench_plugin" == flag:
                     plugin = ModuleClass(self.find_log_files, None, None)
+                elif "mhcquant_plugin" == flag:
+                    plugin = ModuleClass(None, self.sub_sections, None)
                 else:
                     plugin = ModuleClass(
                         self.find_log_files,
