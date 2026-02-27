@@ -215,7 +215,7 @@
         {
             "accession": "mhcquant",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant.zip"
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant_3-1-0_results.zip"
             ],
             "path": "docs/mhcquant",
             "file_type": ["mhcquant", ""]
@@ -223,7 +223,7 @@
         {
             "accession": "mhcquant_disable_hoverinfo",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant.zip"
+                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant_3-1-0_results.zip"
             ],
             "path": "docs/mhcquant_disable_hoverinfo",
             "file_type": ["mhcquant", "disable_hoverinfo"]

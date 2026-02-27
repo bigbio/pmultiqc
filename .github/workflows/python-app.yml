@@ -297,9 +297,9 @@ jobs:
         run: pip install .
       - name: Test mhcquant file
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant.zip
-          unzip mhcquant.zip
-          multiqc --mhcquant-plugin ./mhcquant -o ./results_mhcquant
+          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant_3-1-0_results.zip
+          unzip mhcquant_3-1-0_results.zip
+          multiqc --mhcquant-plugin ./megatest_results -o ./results_mhcquant
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
