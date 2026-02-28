@@ -13,7 +13,7 @@ from pmultiqc.modules.common.common_utils import (
     parse_mzml,
     aggregate_general_stats
 )
-from pmultiqc.modules.common.dia_utils import parse_diann_report
+from pmultiqc.modules.common.dia_utils import parse_diann_report, parse_diann_version, draw_diann_metadata_table
 from pmultiqc.modules.common.plots.general import draw_exp_design
 from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
@@ -98,6 +98,15 @@ class DiannModule(BasePMultiqcModule):
             log.error("DIANN report not found. Please check your data!")
             return False
 
+        # DIA-NN log file for version extraction
+        self.diann_version = None
+        for f in self.find_log_files("pmultiqc/diann_log", filecontents=False):
+            log_path = os.path.join(f["root"], f["fn"])
+            self.diann_version = parse_diann_version(log_path)
+            if self.diann_version:
+                log.info(f"DIA-NN version detected: {self.diann_version}")
+                break
+
         (
             self.mzml_table,
             self.mzml_peaks_ms2_plot,
@@ -132,6 +141,10 @@ class DiannModule(BasePMultiqcModule):
         self.total_protein_quantified = 0
         self.cal_num_table_data = {}
         self.quantms_modified = {}
+
+        # Draw DIA-NN metadata table (version info) in the experiment section
+        if self.diann_version:
+            draw_diann_metadata_table(self.sub_sections["experiment"], self.diann_version)
 
         general_stats_data = aggregate_general_stats(
             ms1_general_stats=self.ms1_general_stats,

@@ -1,0 +1,7 @@
+DIA-NN 1.8.1 (Data-Independent Acquisition by Neural Networks)
+Compiled on Jun 23 2022 at 15:23:37
+
+Thread number set to 1
+Library-free mode is not active
+Mass accuracy settings detected
+Loading FASTA /data/uniprot_human.fasta
