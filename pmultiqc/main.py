@@ -135,10 +135,11 @@ def pmultiqc_plugin_execution_start():
             config.sp, {"pmultiqc/diann_report_parquet": {"fn": "report.parquet", "num_lines": 0}}
         )
 
+    if "pmultiqc/diann_log_txt" not in config.sp:
+        config.update_dict(config.sp, {"pmultiqc/diann_log_txt": {"fn": "report.log.txt", "num_lines": 0}})
+
     if "pmultiqc/diann_log" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/diann_log": {"fn": "report.log.txt", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"pmultiqc/diann_log": {"fn": "diannsummary.log", "num_lines": 0}})
 
     if "pmultiqc/maxquant_result" not in config.sp:
         config.update_dict(

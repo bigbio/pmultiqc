@@ -70,6 +70,7 @@ pmultiqc supports the following data sources:
 
 ### 3. **[DIA-NN](https://aptila.bio)** result files:
    - `report.tsv` or `report.parquet`: DIA-NN main report
+   - `report.log.txt` or `diannsummary.log`: DIA-NN log
    - `*sdrf.tsv`: SDRF-Proteomics (optional)
    - `*ms_info.parquet`: mzML statistics after RAW-to-mzML conversion (using **[quantms-utils](https://github.com/bigbio/quantms-utils)**) (optional)
 

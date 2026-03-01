@@ -100,11 +100,16 @@ class DiannModule(BasePMultiqcModule):
 
         # DIA-NN log file for version extraction
         self.diann_version = None
-        for f in self.find_log_files("pmultiqc/diann_log", filecontents=False):
-            log_path = os.path.join(f["root"], f["fn"])
-            self.diann_version = parse_diann_version(log_path)
+        for key in ["pmultiqc/diann_log_txt", "pmultiqc/diann_log"]:
+            for f in self.find_log_files(key, filecontents=False):
+                log_path = os.path.join(f["root"], f["fn"])
+                self.diann_version = parse_diann_version(log_path)
+
+                if self.diann_version:
+                    log.info(f"DIA-NN version detected: {self.diann_version}")
+                    break
+
             if self.diann_version:
-                log.info(f"DIA-NN version detected: {self.diann_version}")
                 break
 
         (

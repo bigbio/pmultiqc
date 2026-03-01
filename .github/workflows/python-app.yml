@@ -98,7 +98,7 @@ jobs:
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/dia/dia.zip
           unzip -d ./dia dia.zip
-          multiqc --quantms-plugin ./dia --config  ./dia/multiqc_config.yml -o ./results_dia
+          multiqc --quantms-plugin ./dia --config ./dia/multiqc_config.yml -o ./results_dia
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
