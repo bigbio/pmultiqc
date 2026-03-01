@@ -29,7 +29,7 @@ from multiqc.types import SampleGroup, SampleName
 from . import sparklines
 
 from pmultiqc.modules.base import BasePMultiqcModule
-from pmultiqc.modules.common.dia_utils import parse_diann_report
+from pmultiqc.modules.common.dia_utils import parse_diann_report, parse_diann_version, draw_diann_metadata_table
 from pmultiqc.modules.common.common_utils import (
     parse_sdrf,
     get_ms_path,
@@ -255,6 +255,15 @@ class QuantMSModule(BasePMultiqcModule):
             self.diann_report_path = diann_report_path
             self.enable_dia = True
 
+        # DIA-NN log file for version extraction
+        self.diann_version = None
+        for f in self.find_log_files("pmultiqc/diann_log", filecontents=False):
+            log_path = os.path.join(f["root"], f["fn"])
+            self.diann_version = parse_diann_version(log_path)
+            if self.diann_version:
+                log.info(f"DIA-NN version detected: {self.diann_version}")
+                break
+
         if not self.enable_dia:
             for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
                 self.out_mztab_path = os.path.join(f["root"], f["fn"])
@@ -315,6 +324,10 @@ class QuantMSModule(BasePMultiqcModule):
 
         # quantms: DIA
         if self.enable_dia:
+
+            # Draw DIA-NN metadata table (version info) in the experiment section
+            if self.diann_version:
+                draw_diann_metadata_table(self.sub_sections["experiment"], self.diann_version)
 
             (
                 self.total_protein_quantified,
