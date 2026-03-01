@@ -5,6 +5,7 @@ import re
 from collections import OrderedDict
 from sdrf_pipelines.openms.openms import UnimodDatabase
 from multiqc.plots import table
+import os
 
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.stats import (
@@ -984,3 +985,77 @@ def dia_sample_level_modifications(df, sdrf_file_df):
         mod_plot[f"Sample {str(sample)}"] = mod_plot_dict
 
     return mod_plot
+
+
+def parse_diann_version(log_file_path):
+    """Parse the DIA-NN version from a DIA-NN log file (report.log.txt).
+
+    The DIA-NN log file typically starts with a line like:
+        DIA-NN 1.8.1 (Data-Independent Acquisition by Neural Networks)
+
+    Args:
+        log_file_path: Path to the DIA-NN log file.
+
+    Returns:
+        Version string (e.g. "1.8.1") or None if not found.
+    """
+    version_pattern = re.compile(r"^DIA-NN\s+(\d+(?:\.\d+)*)", re.IGNORECASE)
+    try:
+        with open(log_file_path, "r", encoding="utf-8", errors="replace") as f:
+            for i, line in enumerate(f):
+                match = version_pattern.match(line.strip())
+                if match:
+                    return match.group(1)
+                # Version line is expected near the top; stop after 20 lines
+                if i >= 20:
+                    break
+    except Exception as e:
+        log.warning(f"Could not parse DIA-NN version from {log_file_path}: {e}")
+    return None
+
+
+def draw_diann_metadata_table(sub_section, diann_version):
+    """Draw a metadata table showing DIA-NN software version.
+
+    Args:
+        sub_section: The sub-section list to add the table to.
+        diann_version: DIA-NN version string to display.
+    """
+    if not diann_version:
+        return
+
+    table_data = {
+        1: {
+            "parameter": "DIA-NN Version",
+            "value": diann_version,
+        }
+    }
+
+    draw_config = {
+        "id": "diann_metadata",
+        "title": "DIA-NN Metadata",
+        "save_file": False,
+        "sort_rows": False,
+        "only_defined_headers": True,
+        "col1_header": "No.",
+        "no_violin": True,
+        "save_data_file": False,
+    }
+
+    headers = {
+        "parameter": {"title": "Parameter"},
+        "value": {"title": "Value"},
+    }
+
+    table_html = table.plot(data=table_data, headers=headers, pconfig=draw_config)
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=table_html,
+        order=0,
+        description="This table presents the DIA-NN software version used for the analysis.",
+        helptext="""
+            DIA-NN metadata, extracted from the DIA-NN log file (report.log.txt), shows the
+            version of DIA-NN used for data-independent acquisition analysis.
+            """,
+    )
