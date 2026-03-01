@@ -13,7 +13,11 @@ from pmultiqc.modules.common.common_utils import (
     parse_mzml,
     aggregate_general_stats
 )
-from pmultiqc.modules.common.dia_utils import parse_diann_report, parse_diann_version, draw_diann_metadata_table
+from pmultiqc.modules.common.dia_utils import (
+    parse_diann_report,
+    parse_diann_version,
+    draw_diann_metadata_table
+)
 from pmultiqc.modules.common.plots.general import draw_exp_design
 from pmultiqc.modules.common.plots.id import (
     draw_summary_protein_ident_table,
