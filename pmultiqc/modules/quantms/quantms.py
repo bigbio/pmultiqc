@@ -1442,7 +1442,7 @@ class QuantMSModule(BasePMultiqcModule):
             with pd.option_context("future.no_silent_downcasting", True):
                 group = group.fillna(pd.NA).infer_objects(copy=False)
 
-            for i, j in group.groupby(["sequence", "charge", "modifications"]):
+            for i, j in group.groupby(["sequence", "charge", "Modifications"]):
                 self.oversampling_plot.add_value(len(j["spectra_ref"].unique()))
 
             self.oversampling_plot.to_dict()
@@ -1457,11 +1457,15 @@ class QuantMSModule(BasePMultiqcModule):
             self.identified_spectrum[m] = list(
                 map(lambda x: x.split(":")[1], group["spectra_ref"])
             )
-            self.mzml_peptide_map[m] = list(
-                set(
-                    group[group["opt_global_q-value"] <= 0.01]["sequence"].tolist()
+
+            if "opt_global_q-value" in group.columns:
+                self.mzml_peptide_map[m] = list(
+                    set(
+                        group[group["opt_global_q-value"] <= 0.01]["sequence"].tolist()
+                    )
                 )
-            )
+            else:
+                self.mzml_peptide_map[m] = list(set(group["sequence"].tolist()))
 
             if None in proteins:
                 proteins.remove(None)
