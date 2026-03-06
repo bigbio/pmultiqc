@@ -941,61 +941,65 @@ def draw_modifications(sub_section, modified_data):
 
 def draw_oversampling(sub_section, oversampling, oversampling_plot, data_type: str):
 
-    if data_type == "maxquant" or data_type == "fragpipe":
-        draw_config = {
-            "id": "oversampling_distribution",
-            "cpswitch": False,
-            "cpswitch_c_active": False,
-            "title": "MS/MS Counts Per 3D-peak",
-            "tt_decimals": 2,
-            "ylab": "MS/MS Counts Per 3D-peak [%]",
-            "save_data_file": False,
-        }
+    try:
+        if data_type == "maxquant" or data_type == "fragpipe":
+            draw_config = {
+                "id": "oversampling_distribution",
+                "cpswitch": False,
+                "cpswitch_c_active": False,
+                "title": "MS/MS Counts Per 3D-peak",
+                "tt_decimals": 2,
+                "ylab": "MS/MS Counts Per 3D-peak [%]",
+                "save_data_file": False,
+            }
 
-        bar_html = bargraph.plot(
-            data=oversampling["plot_data"], cats=oversampling["cats"], pconfig=draw_config
-        )
-    else:
-        draw_config = {
-            "id": "oversampling_distribution",
-            "cpswitch": True,
-            "cpswitch_c_active": False,
-            "title": "MS/MS Counts Per 3D-peak",
-            "ylab": "MS/MS Counts Per 3D-peak [%]",
-            "tt_decimals": 0,
-            "save_data_file": False,
-        }
+            bar_html = bargraph.plot(
+                data=oversampling["plot_data"], cats=oversampling["cats"], pconfig=draw_config
+            )
+        else:
+            draw_config = {
+                "id": "oversampling_distribution",
+                "cpswitch": True,
+                "cpswitch_c_active": False,
+                "title": "MS/MS Counts Per 3D-peak",
+                "ylab": "MS/MS Counts Per 3D-peak [%]",
+                "tt_decimals": 0,
+                "save_data_file": False,
+            }
 
-        bar_html = bargraph.plot(data=oversampling, cats=oversampling_plot, pconfig=draw_config)
+            bar_html = bargraph.plot(data=oversampling, cats=oversampling_plot, pconfig=draw_config)
 
-    bar_html = plot_html_check(bar_html)
+        bar_html = plot_html_check(bar_html)
 
-    helptext = """
-                For high complexity samples, oversampling of individual 3D-peaks automatically leads to
-                undersampling or even omission of other 3D-peaks, reducing the number of identified peptides.
-                Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic
-                exclusion windows for data independent acquisitions.
+        helptext = """
+                    For high complexity samples, oversampling of individual 3D-peaks automatically leads to
+                    undersampling or even omission of other 3D-peaks, reducing the number of identified peptides.
+                    Oversampling occurs in low-complexity samples or long LC gradients, as well as undersized dynamic
+                    exclusion windows for data independent acquisitions.
+                    """
+        if data_type == "maxquant":
+            helptext += "<p>If DIA-Data: this metric is skipped.</p>"
+
+        if data_type == "fragpipe":
+            helptext += """
+                <p>[FragPipe: combined_ion.tsv] This plot shows the distribution of
+                MS/MS spectral counts per ion/peak for each sample.</p>
                 """
-    if data_type == "maxquant":
-        helptext += "<p>If DIA-Data: this metric is skipped.</p>"
 
-    if data_type == "fragpipe":
-        helptext += """
-            <p>[FragPipe: combined_ion.tsv] This plot shows the distribution of
-            MS/MS spectral counts per ion/peak for each sample.</p>
-            """
+        add_sub_section(
+            sub_section=sub_section,
+            plot=bar_html,
+            order=7,
+            description="""
+                An oversampled 3D-peak is defined as a peak whose peptide ion
+                (same sequence and same charge state) was identified by at least two distinct MS2 spectra
+                in the same Raw file.
+                """,
+            helptext=helptext,
+        )
 
-    add_sub_section(
-        sub_section=sub_section,
-        plot=bar_html,
-        order=7,
-        description="""
-            An oversampled 3D-peak is defined as a peak whose peptide ion
-            (same sequence and same charge state) was identified by at least two distinct MS2 spectra
-            in the same Raw file.
-            """,
-        helptext=helptext,
-    )
+    except Exception as e:
+        log.warning(f"draw_oversampling: {e}, skipping plot.")
 
 
 def draw_num_pep_per_protein(
