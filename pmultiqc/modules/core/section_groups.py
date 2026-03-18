@@ -213,6 +213,7 @@ def add_group_modules(groups_dict, analysis_type):
             "nf_core_quantms_software",
             "nf-core-quantms-summary",
             "workflow_summary",
+            "bigbio-quantmsdiann-summary",
             "bigbio-quantms-summary",
             "bigbio-quantms-methods-description",
             "nf-core-quantms-methods-description",
