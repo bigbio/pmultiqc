@@ -20,7 +20,7 @@ from multiqc.plots import (
     linegraph,
 )
 from pyopenms import AASequence
-from sdrf_pipelines.openms.openms import UnimodDatabase
+from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
 
 from typing import Dict, List
 from multiqc.plots.table_object import InputRow
@@ -1700,8 +1700,8 @@ class QuantMSModule(BasePMultiqcModule):
                 and not config.kwargs.get("disable_table", True)
         ):
             mztab_data_dict_prot_full = dict()
-            conditions = self.sample_df.drop_duplicates(subset="MSstats_Condition")[
-                "MSstats_Condition"
+            conditions = self.sample_df.drop_duplicates(subset="Condition")[
+                "Condition"
             ].tolist()
 
             def get_spectrum_count_across_rep(condition_count_dict: dict):
@@ -1750,7 +1750,7 @@ class QuantMSModule(BasePMultiqcModule):
                     )
                     condition = str(
                         self.sample_df[self.sample_df["Sample"] == sample_name][
-                            "MSstats_Condition"
+                            "Condition"
                         ].values[0]
                     )
 
@@ -1888,9 +1888,9 @@ class QuantMSModule(BasePMultiqcModule):
         )
 
         reps_per_condition = (
-            self.sample_df.groupby("MSstats_Condition")["MSstats_BioReplicate"].agg(list).to_dict()
+            self.sample_df.groupby("Condition")["BioReplicate"].agg(list).to_dict()
         )
-        conditions = list(self.sample_df["MSstats_Condition"].unique())
+        conditions = list(self.sample_df["Condition"].unique())
         conditions_str = [str(c) for c in conditions]
         conditions_dists = [str(c) + "_distribution" for c in conditions]
 
@@ -1906,7 +1906,7 @@ class QuantMSModule(BasePMultiqcModule):
             gdict.update(dict.fromkeys(conditions_dists, "{}"))
             gdict["Average Intensity"] = np.log10(g["Intensity"].mean())
             gdict["BestSearchScore"] = g["BestSearchScore"].min()
-            # TODO How to determine technical replicates? Should be same BioReplicate but different Fraction_Group (but fraction group is not annotated)
+            # TODO How to determine technical replicates? Should be same BioReplicate but different FractionGroup (but fraction group is not annotated)
             grouped = g.groupby(["Condition", "BioReplicate"], as_index=False)["Intensity"].mean()
             cond_grp = grouped.groupby("Condition", group_keys=False)[
                 ["BioReplicate", "Intensity"]

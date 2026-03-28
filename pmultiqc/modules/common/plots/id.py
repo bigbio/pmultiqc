@@ -663,10 +663,10 @@ def draw_identi_num(
                 row_data: List[InputRow] = []
 
                 sample_data = {}
-                for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                    sample_data["MSstats_Condition_" + str(k)] = v
+                for k, v in condition_split(sample_df_slice["Condition"].iloc[0]).items():
+                    sample_data["Condition_" + str(k)] = v
 
-                sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
+                sample_data["BioReplicate"] = sample_df_slice["BioReplicate"].iloc[0]
                 sample_data["Fraction"] = ""
 
                 sample_data_temp = sdrf_samples_data.get(sample, {})
@@ -684,8 +684,8 @@ def draw_identi_num(
 
                 for row in file_df_sample.itertuples():
                     sample_data = {}
-                    for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                        sample_data["MSstats_Condition_" + str(k)] = ""
+                    for k, _ in condition_split(sample_df_slice["Condition"].iloc[0]).items():
+                        sample_data["Condition_" + str(k)] = ""
 
                     sample_data["Fraction"] = row.Fraction
 
@@ -704,9 +704,9 @@ def draw_identi_num(
                 group_name: SampleGroup = SampleGroup(sample)
                 rows_by_group[group_name] = row_data
             headers = {}
-            for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                headers["MSstats_Condition_" + str(k)] = {
-                    "title": "MSstats Condition: " + str(k),
+            for k, _ in condition_split(sample_df_slice["Condition"].iloc[0]).items():
+                headers["Condition_" + str(k)] = {
+                    "title": "Condition: " + str(k),
                     "description": "",
                     "scale": False,
                 }
@@ -747,7 +747,7 @@ def draw_identi_num(
                     InputRow(
                         sample=SampleName(f"Sample {str(sample)}"),
                         data={
-                            "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
+                            "Condition": sample_df_slice["Condition"].iloc[0],
                             "Fraction": "",
                             "Peptide_Num": sapmle_data_temp.get("peptide_num", ""),
                             "Unique_Peptide_Num": sapmle_data_temp.get("unique_peptide_num", ""),
@@ -764,7 +764,7 @@ def draw_identi_num(
                         InputRow(
                             sample=SampleName(row.Run),
                             data={
-                                "MSstats_Condition": "",
+                                "Condition": "",
                                 "Fraction": row.Fraction,
                                 "Peptide_Num": run_data_temp.get("peptide_num", ""),
                                 "Unique_Peptide_Num": run_data_temp.get("unique_peptide_num", ""),
@@ -777,9 +777,9 @@ def draw_identi_num(
                 rows_by_group[group_name] = row_data
 
             headers = {
-                "MSstats_Condition": {
-                    "title": "MSstats_Condition",
-                    "description": "MSstats Condition",
+                "Condition": {
+                    "title": "Condition",
+                    "description": "Condition",
                     "scale": False,
                 },
                 "Fraction": {
