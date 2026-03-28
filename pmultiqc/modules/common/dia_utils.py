@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import re
 from collections import OrderedDict
-from sdrf_pipelines.openms.openms import UnimodDatabase
+from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
 from multiqc.plots import table
 import os
 
@@ -810,22 +810,22 @@ def _merge_condition_data(report_data, sample_df, file_df):
             return None, []
 
     sample_cond_df = pd.merge(
-        sample_df[["Sample", "MSstats_Condition"]],
-        file_df[["Sample", "Spectra_Filepath"]],
+        sample_df[["Sample", "Condition"]],
+        file_df[["Sample", "Filename"]],
         on="Sample",
     )
     # Vectorized path splitting (more efficient than apply with lambda)
-    sample_cond_df["Run"] = sample_cond_df["Spectra_Filepath"].str.rsplit(".", n=1).str[0]
+    sample_cond_df["Run"] = sample_cond_df["Filename"].str.rsplit(".", n=1).str[0]
 
     cond_report_data = pd.merge(
         report_data[["Stripped.Sequence", "Protein.Names", intensity_col, "Run"]],
-        sample_cond_df[["Run", "MSstats_Condition"]].drop_duplicates(),
+        sample_cond_df[["Run", "Condition"]].drop_duplicates(),
         on="Run",
     )
     # Store intensity column for downstream use
     cond_report_data.attrs["intensity_col"] = intensity_col
 
-    unique_conditions = sample_df["MSstats_Condition"].drop_duplicates().tolist()
+    unique_conditions = sample_df["Condition"].drop_duplicates().tolist()
     return cond_report_data, unique_conditions
 
 
@@ -834,7 +834,7 @@ def _add_condition_headers(headers, conditions):
     for exp_condition in conditions:
         headers[str(exp_condition)] = {
             "title": str(exp_condition),
-            "description": "MSstats Condition",
+            "description": "Condition",
             "format": "{:,.4f}",
         }
 
@@ -894,7 +894,7 @@ def create_peptides_table(report_df, sample_df, file_df):
         ):
             condition_data = {
                 str(cond): np.log10(sub_group[cond_intensity_col].mean())
-                for cond, sub_group in group.groupby("MSstats_Condition")
+                for cond, sub_group in group.groupby("Condition")
             }
             if sequence_protein in table_dict:
                 table_dict[sequence_protein].update(condition_data)
@@ -951,7 +951,7 @@ def create_protein_table(report_df, sample_df, file_df):
         for protein_name, group in cond_report_data.groupby("Protein.Names"):
             condition_data = {
                 str(cond): np.log10(sub_group[cond_intensity_col].mean())
-                for cond, sub_group in group.groupby("MSstats_Condition")
+                for cond, sub_group in group.groupby("Condition")
             }
             if protein_name in table_dict:
                 table_dict[protein_name].update(condition_data)

@@ -2,7 +2,7 @@ multiqc>=1.29, <=1.33
 pandas>=1.5
 pyteomics
 pyopenms<=3.4.0
-sdrf-pipelines>=0.0.33, <0.1.0
+sdrf-pipelines>=0.1.2
 lxml
 numpy>=1.23
 pyarrow

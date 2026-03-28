@@ -143,11 +143,11 @@ def draw_exp_design(sub_sections, exp_design):
 
     is_bruker = False
     if not file_df.empty:
-        first_path = str(file_df["Spectra_Filepath"].iloc[0])
+        first_path = str(file_df["Filename"].iloc[0])
         is_bruker = first_path.endswith((".d", ".d.tar"))
 
     pattern = r'^(\w+=[^=;]+)(;\w+=[^=;]+)*$'
-    is_multi_conditions = all(sample_df["MSstats_Condition"].apply(lambda x: bool(re.match(pattern, str(x)))))
+    is_multi_conditions = all(sample_df["Condition"].apply(lambda x: bool(re.match(pattern, str(x)))))
 
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
@@ -161,10 +161,10 @@ def draw_exp_design(sub_sections, exp_design):
             row_data: List[InputRow] = []
 
             sample_data = {}
-            for k, v in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                sample_data["MSstats_Condition_" + str(k)] = v
-            sample_data["MSstats_BioReplicate"] = sample_df_slice["MSstats_BioReplicate"].iloc[0]
-            sample_data["Fraction_Group"] = ""
+            for k, v in condition_split(sample_df_slice["Condition"].iloc[0]).items():
+                sample_data["Condition" + str(k)] = v
+            sample_data["BioReplicate"] = sample_df_slice["BioReplicate"].iloc[0]
+            sample_data["FractionGroup"] = ""
             sample_data["Fraction"] = ""
             sample_data["Label"] = ""
 
@@ -177,10 +177,10 @@ def draw_exp_design(sub_sections, exp_design):
 
             for row in file_df_sample.itertuples():
                 sample_data = {}
-                for k, _ in condition_split(sample_df_slice["MSstats_Condition"].iloc[0]).items():
-                    sample_data["MSstats_Condition_" + str(k)] = ""
-                sample_data["MSstats_BioReplicate"] = ""
-                sample_data["Fraction_Group"] = row.Fraction_Group
+                for k, _ in condition_split(sample_df_slice["Condition"].iloc[0]).items():
+                    sample_data["Condition" + str(k)] = ""
+                sample_data["BioReplicate"] = ""
+                sample_data["FractionGroup"] = row.FractionGroup
                 sample_data["Fraction"] = row.Fraction
                 sample_data["Label"] = row.Label
 
@@ -198,19 +198,19 @@ def draw_exp_design(sub_sections, exp_design):
             "scale": False,
         }}
         # Use first row of sample_df for condition keys (safer than relying on loop variable)
-        first_condition = sample_df["MSstats_Condition"].iloc[0] if not sample_df.empty else ""
+        first_condition = sample_df["Condition"].iloc[0] if not sample_df.empty else ""
         for k, _ in condition_split(first_condition).items():
-            headers["MSstats_Condition_" + str(k)] = {
-                "title": "MSstats Condition: " + str(k),
+            headers["Condition_" + str(k)] = {
+                "title": "Condition: " + str(k),
                 "description": "",
                 "scale": False,
             }
-        headers["MSstats_BioReplicate"] = {
-            "title": "MSstats BioReplicate",
+        headers["BioReplicate"] = {
+            "title": "BioReplicate",
             "description": "",
             "scale": False,
         }
-        headers["Fraction_Group"] = {
+        headers["FractionGroup"] = {
             "title": "Fraction Group",
             "description": "",
             "scale": False,
@@ -237,9 +237,9 @@ def draw_exp_design(sub_sections, exp_design):
                 InputRow(
                     sample=SampleName(f"Sample {str(sample)}"),
                     data={
-                        "MSstats_Condition": sample_df_slice["MSstats_Condition"].iloc[0],
-                        "MSstats_BioReplicate": sample_df_slice["MSstats_BioReplicate"].iloc[0],
-                        "Fraction_Group": "",
+                        "Condition": sample_df_slice["Condition"].iloc[0],
+                        "BioReplicate": sample_df_slice["BioReplicate"].iloc[0],
+                        "FractionGroup": "",
                         "Fraction": "",
                         "Label": "",
                     },
@@ -250,9 +250,9 @@ def draw_exp_design(sub_sections, exp_design):
                     InputRow(
                         sample=SampleName(row.Run),
                         data={
-                            "MSstats_Condition": "",
-                            "MSstats_BioReplicate": "",
-                            "Fraction_Group": row.Fraction_Group,
+                            "Condition": "",
+                            "BioReplicate": "",
+                            "FractionGroup": row.FractionGroup,
                             "Fraction": row.Fraction,
                             "Label": row.Label,
                         },
@@ -267,17 +267,17 @@ def draw_exp_design(sub_sections, exp_design):
                 "description": "",
                 "scale": False,
             },
-            "MSstats_Condition": {
-                "title": "MSstats Condition",
-                "description": "MSstats Condition",
+            "Condition": {
+                "title": "Condition",
+                "description": "Condition",
                 "scale": False,
             },
-            "MSstats_BioReplicate": {
-                "title": "MSstats BioReplicate",
-                "description": "MSstats BioReplicate",
+            "BioReplicate": {
+                "title": "BioReplicate",
+                "description": "BioReplicate",
                 "scale": False,
             },
-            "Fraction_Group": {
+            "FractionGroup": {
                 "title": "Fraction Group",
                 "description": "Fraction Group",
                 "scale": False,
