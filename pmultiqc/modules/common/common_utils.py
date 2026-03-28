@@ -9,7 +9,7 @@ from typing import Dict, List
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
-from sdrf_pipelines.openms.openms import OpenMS
+from sdrf_pipelines.converters.openms.openms import OpenMS
 
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.file_utils import file_prefix
@@ -20,37 +20,76 @@ log = get_logger("pmultiqc.modules.common.common_utils")
 
 
 def read_openms_design(desfile: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    with open(desfile, "r") as f:
 
-        data = f.readlines()
-        s_row = False
-        f_table = []
-        s_table = []
-        f_header = None
-        s_header = None
+    sdrf_data = pd.read_csv(desfile, sep="\t")
 
-        for row in data:
-            if row == "\n":
-                continue
-            if "MSstats_Condition" in row:
-                s_row = True
-                s_header = row.replace("\n", "").split("\t")
-            elif s_row:
-                s_table.append(row.replace("\n", "").split("\t"))
-            elif "Spectra_Filepath" in row:
-                f_header = row.replace("\n", "").split("\t")
-            else:
-                f_table.append(row.replace("\n", "").split("\t"))
+    if "Spectra_Filepath" not in sdrf_data.columns:
 
-        if f_header is None:
-            raise ValueError("Cannot find 'Spectra_Filepath' header in file!")
-        if s_header is None:
-            raise ValueError("Cannot find 'MSstats_Condition' header in file!")
+        log.info("Input experimental design data was parsed by sdrf-pipelines (> 0.0.33)")
 
-        f_table = pd.DataFrame(f_table, columns=f_header)
-        # Vectorized operation is more efficient than apply with lambda
-        f_table["Run"] = f_table["Spectra_Filepath"].apply(file_prefix)
-        s_data_frame = pd.DataFrame(s_table, columns=s_header)
+        sample_cols = ["Sample", "Condition", "BioReplicate"]
+        file_cols = ["FractionGroup", "Fraction", "Label", "Sample", "Filename"]
+
+        required_cols = set(sample_cols + file_cols)
+        missing_cols = required_cols - set(sdrf_data.columns)
+        if missing_cols:
+            raise KeyError(f"Missing col in exp design file: {', '.join(missing_cols)}")
+
+        sample_df = sdrf_data[sample_cols].drop_duplicates().reset_index(drop=True)
+
+        file_df = sdrf_data[file_cols].drop_duplicates().reset_index(drop=True)
+        file_df["Run"] = file_df["Filename"].apply(file_prefix)
+
+        return sample_df, file_df
+
+    else:
+        log.info("Input experimental design data was parsed by sdrf-pipelines (<= 0.0.33)")
+
+        with open(desfile, "r") as f:
+
+            data = f.readlines()
+            s_row = False
+            f_table = []
+            s_table = []
+            f_header = None
+            s_header = None
+
+            for row in data:
+                if row == "\n":
+                    continue
+                if "MSstats_Condition" in row:
+                    s_row = True
+                    s_header = row.replace("\n", "").split("\t")
+                elif s_row:
+                    s_table.append(row.replace("\n", "").split("\t"))
+                elif "Spectra_Filepath" in row:
+                    f_header = row.replace("\n", "").split("\t")
+                else:
+                    f_table.append(row.replace("\n", "").split("\t"))
+
+            if f_header is None:
+                raise ValueError("Cannot find 'Spectra_Filepath' header in file!")
+            if s_header is None:
+                raise ValueError("Cannot find 'MSstats_Condition' header in file!")
+
+            f_table = pd.DataFrame(f_table, columns=f_header)
+            # Vectorized operation is more efficient than apply with lambda
+            f_table["Run"] = f_table["Spectra_Filepath"].apply(file_prefix)
+            s_data_frame = pd.DataFrame(s_table, columns=s_header)
+
+            s_data_frame = s_data_frame.rename(
+                columns={
+                    "MSstats_Condition": "Condition",
+                    "MSstats_BioReplicate": "BioReplicate"
+                    }
+                )
+
+            f_table = f_table.rename(
+                columns={
+                    "Spectra_Filepath": "Filename",
+                    "Fraction_Group": "FractionGroup"
+                }
+            )
 
     return s_data_frame, f_table
 
