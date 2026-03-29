@@ -1,13 +1,13 @@
-[tool.poetry]
+[project]
 name = "pmultiqc"
+dynamic = ["version"]
 description = "Python package for quality control of proteomics datasets, based on multiqc package"
 readme = "README.md"
 license = "MIT"
-version = "0.0.42"
 authors = [
-    "Yasset Perez-Riverol <ypriverol@gmail.com>",
-    "Dai Chengxin <chengxin2024@126.com>",
-    "Qi-xuan Yue <yueqx@cqupt.edu.cn>"
+    { name = "Yasset Perez-Riverol", email = "ypriverol@gmail.com" },
+    { name = "Dai Chengxin", email = "chengxin2024@126.com" },
+    { name = "Qi-xuan Yue", email = "yueqx@cqupt.edu.cn" }
 ]
 keywords = [
     "quantms",
@@ -16,53 +16,46 @@ keywords = [
     "MultiQC"
 ]
 classifiers = [
-    'Development Status :: 4 - Beta',
-    'Environment :: Console',
-    'Environment :: Web Environment',
-    'Intended Audience :: Science/Research',
-    'License :: OSI Approved :: MIT License',
-    'Natural Language :: English',
-    'Operating System :: MacOS :: MacOS X',
-    'Operating System :: POSIX',
-    'Operating System :: Unix',
-    'Programming Language :: Python',
-    'Programming Language :: JavaScript',
-    'Topic :: Scientific/Engineering',
-    'Topic :: Scientific/Engineering :: Bio-Informatics',
-    'Topic :: Scientific/Engineering :: Visualization'
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Programming Language :: Python",
+    "Programming Language :: JavaScript",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Visualization"
 ]
-packages = [
-    { include = "pmultiqc" }
+requires-python = ">=3.10, <3.14"
+dependencies = [
+    "multiqc>=1.29, <=1.33",
+    "pandas>=1.5",
+    "pyteomics",
+    "pyopenms<=3.4.0",
+    "sdrf-pipelines>=0.1.2",
+    "lxml",
+    "numpy>=1.23",
+    "pyarrow",
+    "scikit-learn>=1.2",
+    "statsmodels",
+    "urllib3>=2.6.1",
+    "setuptools<78",
 ]
 
-include = [
-    "pmultiqc/images/*"
-]
-
-[tool.poetry.dependencies]
-python = ">=3.10, <3.14"
-multiqc = ">=1.29, <=1.33"
-pandas = ">=1.5"
-pyteomics = "*"
-pyopenms = "<=3.4.0"
-sdrf-pipelines = ">=0.1.2"
-lxml = "*"
-numpy = ">=1.23"
-pyarrow = "*"
-scikit-learn = ">=1.2"
-statsmodels = "*"
-urllib3 = ">=2.6.1"
-setuptools = "<78"
-
-[tool.poetry.urls]
+[project.urls]
 GitHub = "https://github.com/bigbio/pmultiqc"
 Quantms = "https://quantms.org"
 LICENSE = "https://github.com/bigbio/pmultiqc/blob/main/LICENSE"
 
-[tool.poetry.plugins."multiqc.modules.v1"]
+[project.entry-points."multiqc.modules.v1"]
 pmultiqc = "pmultiqc.modules.core:PMultiQC"
 
-[tool.poetry.plugins."multiqc.cli_options.v1"]
+[project.entry-points."multiqc.cli_options.v1"]
 pmultiqc_version = "pmultiqc.cli:pmultiqc_version"
 keep_raw = "pmultiqc.cli:keep_raw"
 condition = "pmultiqc.cli:condition"
@@ -82,8 +75,7 @@ fragpipe_plugin = "pmultiqc.cli:fragpipe_plugin"
 mhcquant_plugin = "pmultiqc.cli:mhcquant_plugin"
 disable_hoverinfo = "pmultiqc.cli:disable_hoverinfo"
 
-
-[tool.poetry.plugins."multiqc.hooks.v1"]
+[project.entry-points."multiqc.hooks.v1"]
 execution_start = "pmultiqc.main:pmultiqc_plugin_execution_start"
 
 [tool.isort]
@@ -93,5 +85,14 @@ profile = "black"
 line-length = 99
 
 [build-system]
-requires = ["poetry-core>=1.2.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pmultiqc"]
