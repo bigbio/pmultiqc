@@ -658,7 +658,7 @@ def draw_identi_num(
                 key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
             ):
 
-                file_df_sample = file_df[file_df["Sample"] == sample].copy()
+                file_df_sample = file_df[file_df["Sample"] == str(sample)].copy()
                 sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
                 row_data: List[InputRow] = []
 
@@ -669,7 +669,7 @@ def draw_identi_num(
                 sample_data["BioReplicate"] = sample_df_slice["BioReplicate"].iloc[0]
                 sample_data["Fraction"] = ""
 
-                sample_data_temp = sdrf_samples_data.get(sample, {})
+                sample_data_temp = sdrf_samples_data.get(str(sample), {})
                 sample_data["Peptide_Num"] = sample_data_temp.get("peptide_num", "")
                 sample_data["Unique_Peptide_Num"] = sample_data_temp.get("unique_peptide_num", "")
                 sample_data["Modified_Peptide_Num"] = sample_data_temp.get("modified_peptide_num", "")
