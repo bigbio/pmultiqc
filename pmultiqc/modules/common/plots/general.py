@@ -162,7 +162,7 @@ def draw_exp_design(sub_sections, exp_design):
 
             sample_data = {}
             for k, v in condition_split(sample_df_slice["Condition"].iloc[0]).items():
-                sample_data["Condition" + str(k)] = v
+                sample_data["Condition_" + str(k)] = v
             sample_data["BioReplicate"] = sample_df_slice["BioReplicate"].iloc[0]
             sample_data["FractionGroup"] = ""
             sample_data["Fraction"] = ""
@@ -178,7 +178,7 @@ def draw_exp_design(sub_sections, exp_design):
             for row in file_df_sample.itertuples():
                 sample_data = {}
                 for k, _ in condition_split(sample_df_slice["Condition"].iloc[0]).items():
-                    sample_data["Condition" + str(k)] = ""
+                    sample_data["Condition_" + str(k)] = ""
                 sample_data["BioReplicate"] = ""
                 sample_data["FractionGroup"] = row.FractionGroup
                 sample_data["Fraction"] = row.Fraction
