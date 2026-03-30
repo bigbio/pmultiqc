@@ -170,7 +170,11 @@ def file_prefix(path: str) -> str:
         path = os.path.normpath(path)
         if "\\" in path:
             path = path.replace("\\", "/")
-        return Path(path).stem
+
+        if path.endswith(".d.zip"):
+            return Path(Path(path).stem).stem
+        else:
+            return Path(path).stem
     except (OSError, ValueError) as e:
         raise ValueError(f"Illegal file path: {path}") from e
 
