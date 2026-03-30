@@ -44,7 +44,6 @@ dependencies = [
     "scikit-learn>=1.2",
     "statsmodels",
     "urllib3>=2.6.1",
-    "setuptools<78",
 ]
 
 [project.urls]
