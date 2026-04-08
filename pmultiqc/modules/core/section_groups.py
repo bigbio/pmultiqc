@@ -217,6 +217,7 @@ def add_group_modules(groups_dict, analysis_type):
             "bigbio-quantms-summary",
             "bigbio-quantms-methods-description",
             "nf-core-quantms-methods-description",
+            "bigbio-quantmsdiann-methods-description",
             "methods_description"
         ]
 
