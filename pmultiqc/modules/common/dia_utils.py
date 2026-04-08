@@ -5,7 +5,6 @@ import re
 from collections import OrderedDict
 from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
 from multiqc.plots import table
-import os
 
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.stats import (
@@ -202,8 +201,8 @@ def _process_peptide_search_scores(report_data):
     for peptide, group in report_data.groupby("Modified.Sequence"):
         origianl_mods = re.findall(pattern, peptide)
         for mod in set(origianl_mods):
-            name = unimod_data.get_by_accession(mod.upper()).get_name()
-            peptide = peptide.replace(mod, name)
+            peptide = peptide.replace(mod, _get_safe_mod_name(mod, unimod_data))
+
         if peptide.startswith("("):
             peptide = peptide + "."
 
@@ -226,9 +225,7 @@ def _process_modifications(report_data):
         if isinstance(peptide, str):
             mods = mod_pattern.findall(peptide)
             if mods:
-                mod_type = [
-                    unimod_data.get_by_accession(mod.upper()).get_name() for mod in set(mods)
-                ]
+                mod_type = [_get_safe_mod_name(mod, unimod_data) for mod in set(mods)]
                 return ",".join(mod_type)
             else:
                 return "Unmodified"
@@ -236,6 +233,16 @@ def _process_modifications(report_data):
 
     report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
     return True
+
+
+def _get_safe_mod_name(mod: str, unimod_data) -> str:
+
+    mod_search = unimod_data.get_by_accession(mod.upper())
+
+    if mod_search is None:
+        mod_search = unimod_data.get_by_name(mod)
+
+    return mod_search.get_name() if mod_search is not None else mod
 
 
 def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
@@ -1044,7 +1051,10 @@ def draw_diann_metadata_table(sub_section, diann_version):
 
     headers = {
         "parameter": {"title": "Parameter"},
-        "value": {"title": "Value"},
+        "value": {
+            "title": "Value",
+            "scale": False,
+        },
     }
 
     table_html = table.plot(data=table_data, headers=headers, pconfig=draw_config)
