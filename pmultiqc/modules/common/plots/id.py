@@ -737,7 +737,7 @@ def draw_identi_num(
                 key=lambda x: (str(x).isdigit(), int(x) if str(x).isdigit() else str(x).lower()),
             ):
 
-                file_df_sample = file_df[file_df["Sample"] == sample].copy()
+                file_df_sample = file_df[file_df["Sample"] == str(sample)].copy()
                 sample_df_slice = sample_df[sample_df["Sample"] == sample].copy()
 
                 sapmle_data_temp = sdrf_samples_data.get(sample, {})

@@ -34,6 +34,7 @@ class DiannReader(BaseParser):
 
         else:
             report_data = pd.read_parquet(self.file_path)
+            report_data["Modified.Sequence"] = report_data["Modified.Sequence"].apply(_sanitize_sequence)
 
         self.log.info(
             "{}: Done parsing DIANN file {}...".format(
@@ -44,3 +45,7 @@ class DiannReader(BaseParser):
         self.report_data = report_data
 
         return None
+
+def _sanitize_sequence(seq):
+    seq = seq.replace("(SILAC)", "")
+    return seq
