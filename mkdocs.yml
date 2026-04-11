@@ -1,0 +1,99 @@
+site_name: pmultiqc
+site_description: Comprehensive QC reporting for proteomics data - a MultiQC plugin
+site_author: BigBio Team
+site_url: https://pmultiqc.quantms.org/
+
+repo_name: bigbio/pmultiqc
+repo_url: https://github.com/bigbio/pmultiqc
+
+theme:
+  name: material
+  font: false
+  palette:
+    - scheme: default
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/quantms-theme.css
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+plugins:
+  - search:
+      lang:
+        - en
+
+nav:
+  - Getting Started: index.md
+  - User Guide:
+    - quantms Plugin: user-guide/quantms-plugin.md
+    - MaxQuant Plugin: user-guide/maxquant-plugin.md
+    - DIA-NN Plugin: user-guide/diann-plugin.md
+    - ProteoBench Plugin: user-guide/proteobench-plugin.md
+    - mzIdentML Plugin: user-guide/mzid-plugin.md
+  - Reference:
+    - CLI Options: reference/cli-options.md
+    - QC Metrics: reference/qc-metrics.md
+    - Visualizations: reference/visualizations.md
+  - Examples:
+    - Example Reports: examples/index.md
+  - Development:
+    - Contributing: development/contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bigbio/pmultiqc
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/pmultiqc/
+    - icon: fontawesome/solid/globe
+      link: https://quantms.org
+
+copyright: Copyright &copy; 2024-2026 BigBio Team

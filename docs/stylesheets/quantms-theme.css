@@ -1,0 +1,523 @@
+/* quantms-theme.css — Furo-inspired overrides for MkDocs Material.
+   Closely matches https://docs.lamin.ai/ aesthetic:
+   - System font stack, tight sizing
+   - Content width ~46em (Furo default)
+   - Left-border admonitions with 0.2 opacity tinted backgrounds
+   - Clean sidebar, no tabs, subtle borders */
+
+/* ===================================================================
+   1. LAYOUT — Furo-like content width (~46em)
+   =================================================================== */
+.md-grid {
+  max-width: 50rem;   /* Furo: 46em + padding; slightly wider for Material's sidebar */
+}
+
+/* ===================================================================
+   2. BRAND COLORS — #409eff primary across all sites
+   Override Material palette so navbar, links, buttons all match quantms.org
+   =================================================================== */
+:root,
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #409eff;
+  --md-primary-fg-color--light: #66b1ff;
+  --md-primary-fg-color--dark: #3a8ee6;
+  --md-primary-bg-color: #fff;
+  --md-accent-fg-color: #6366f1;
+  --md-typeset-a-color: #409eff;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #409eff;
+  --md-primary-fg-color--light: #66b1ff;
+  --md-primary-fg-color--dark: #3a8ee6;
+  --md-accent-fg-color: #818cf8;
+  --md-typeset-a-color: #66b1ff;
+}
+
+/* ===================================================================
+   3. TYPOGRAPHY — System font stack (Furo default), tighter sizes
+   =================================================================== */
+:root {
+  --md-text-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --md-code-font: "SFMono-Regular", Menlo, Consolas, Monaco, "Liberation Mono", "Lucida Console", monospace;
+}
+
+.md-typeset {
+  font-size: 0.8rem;   /* ~12.8px, same as Furo's 100% on 16px base scaled down */
+  line-height: 1.65;
+}
+
+/* Headings — much smaller than Material defaults */
+.md-typeset h1 {
+  font-size: 1.5em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 0;
+  margin-bottom: 0.6em;
+  color: var(--md-default-fg-color);
+}
+
+.md-typeset h2 {
+  font-size: 1.25em;
+  font-weight: 600;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  margin-top: 1.8em;
+  margin-bottom: 0.6em;
+}
+
+.md-typeset h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-top: 1.4em;
+  margin-bottom: 0.4em;
+}
+
+.md-typeset h4 {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 1.2em;
+}
+
+/* Paragraphs */
+.md-typeset p {
+  margin-bottom: 0.75em;
+}
+
+/* Links — quantms brand blue */
+.md-typeset a {
+  color: var(--md-typeset-a-color, #409eff);
+}
+
+/* ===================================================================
+   4. HEADER — clean, flat
+   =================================================================== */
+.md-header {
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+/* Tabs — shown for sites that enable navigation.tabs in mkdocs.yml */
+
+/* ===================================================================
+   5. ADMONITIONS — Furo style: left border + 0.2 opacity bg tint
+   Furo colors: note=#00b0ff, tip=#00c852, important=#00bfa5,
+                warning=#ff9100, danger=#ff5252
+   =================================================================== */
+.md-typeset .admonition,
+.md-typeset details {
+  border: none;
+  border-left: 3px solid;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 0.8125rem;  /* Furo: --admonition-font-size */
+  margin: 1.2em 0;
+  padding: 0;
+}
+
+/* Title bar */
+.md-typeset .admonition-title,
+.md-typeset details > summary {
+  font-size: 0.8125rem;  /* Furo: --admonition-title-font-size */
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+
+/* Body content inside admonition */
+.md-typeset .admonition > p:not(.admonition-title),
+.md-typeset .admonition > ul,
+.md-typeset .admonition > ol,
+.md-typeset details > p:not(:first-child),
+.md-typeset details > ul,
+.md-typeset details > ol {
+  padding: 0.2rem 0.7rem 0.4rem;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.md-typeset .admonition > :last-child,
+.md-typeset details > :last-child {
+  margin-bottom: 0;
+  padding-bottom: 0.5rem;
+}
+
+/* --- Per-type colors (Furo palette, 0.2 opacity backgrounds) --- */
+
+/* Note: #00b0ff */
+.md-typeset .admonition.note,
+.md-typeset details.note {
+  border-left-color: #00b0ff;
+  background-color: rgba(0, 176, 255, 0.1);
+}
+.md-typeset .admonition.note > .admonition-title,
+.md-typeset details.note > summary {
+  background-color: rgba(0, 176, 255, 0.15);
+}
+
+/* Tip / Hint: #00c852 */
+.md-typeset .admonition.tip,
+.md-typeset details.tip,
+.md-typeset .admonition.hint,
+.md-typeset details.hint {
+  border-left-color: #00c852;
+  background-color: rgba(0, 200, 82, 0.1);
+}
+.md-typeset .admonition.tip > .admonition-title,
+.md-typeset details.tip > summary,
+.md-typeset .admonition.hint > .admonition-title,
+.md-typeset details.hint > summary {
+  background-color: rgba(0, 200, 82, 0.15);
+}
+
+/* Important: #00bfa5 */
+.md-typeset .admonition.important,
+.md-typeset details.important {
+  border-left-color: #00bfa5;
+  background-color: rgba(0, 191, 165, 0.1);
+}
+.md-typeset .admonition.important > .admonition-title,
+.md-typeset details.important > summary {
+  background-color: rgba(0, 191, 165, 0.15);
+}
+
+/* Warning / Caution: #ff9100 */
+.md-typeset .admonition.warning,
+.md-typeset details.warning,
+.md-typeset .admonition.caution,
+.md-typeset details.caution {
+  border-left-color: #ff9100;
+  background-color: rgba(255, 145, 0, 0.1);
+}
+.md-typeset .admonition.warning > .admonition-title,
+.md-typeset details.warning > summary,
+.md-typeset .admonition.caution > .admonition-title,
+.md-typeset details.caution > summary {
+  background-color: rgba(255, 145, 0, 0.15);
+}
+
+/* Danger / Error: #ff5252 */
+.md-typeset .admonition.danger,
+.md-typeset details.danger,
+.md-typeset .admonition.error,
+.md-typeset details.error {
+  border-left-color: #ff5252;
+  background-color: rgba(255, 82, 82, 0.1);
+}
+.md-typeset .admonition.danger > .admonition-title,
+.md-typeset details.danger > summary,
+.md-typeset .admonition.error > .admonition-title,
+.md-typeset details.error > summary {
+  background-color: rgba(255, 82, 82, 0.15);
+}
+
+/* See-also: #448aff */
+.md-typeset .admonition.seealso,
+.md-typeset details.seealso {
+  border-left-color: #448aff;
+  background-color: rgba(68, 138, 255, 0.1);
+}
+.md-typeset .admonition.seealso > .admonition-title,
+.md-typeset details.seealso > summary {
+  background-color: rgba(68, 138, 255, 0.15);
+}
+
+/* ===================================================================
+   6. CODE BLOCKS — language label header + better syntax colors
+   =================================================================== */
+
+/* Wrapper: the .highlight div that contains <pre><code> */
+.md-typeset .highlight {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  margin: 1em 0;
+}
+
+.md-typeset .highlight pre {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  font-size: 81.25%;
+  padding-top: 2.2rem;  /* space for language label */
+}
+
+.md-typeset code {
+  font-size: 81.25%;
+  border-radius: 2px;
+}
+
+/* Inline code — lighter bg */
+.md-typeset :not(pre) > code {
+  padding: 0.1em 0.3em;
+  background-color: var(--md-code-bg-color);
+}
+
+/* --- Language label (top-right pill) --- */
+.md-typeset .highlight::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom-left-radius: 4px;
+  z-index: 1;
+  font-family: var(--md-code-font);
+}
+
+/* Bash / Shell */
+.md-typeset .language-bash.highlight::before,
+.md-typeset .language-shell.highlight::before,
+.md-typeset .language-sh.highlight::before {
+  content: "bash";
+  background-color: #2d333b;
+  color: #7ee787;
+}
+
+/* Python */
+.md-typeset .language-python.highlight::before,
+.md-typeset .language-py.highlight::before {
+  content: "python";
+  background-color: #306998;
+  color: #ffd43b;
+}
+
+/* YAML */
+.md-typeset .language-yaml.highlight::before,
+.md-typeset .language-yml.highlight::before {
+  content: "yaml";
+  background-color: #cb171e;
+  color: #fff;
+}
+
+/* JSON */
+.md-typeset .language-json.highlight::before {
+  content: "json";
+  background-color: #292929;
+  color: #f5a623;
+}
+
+/* CSV / Text / Plain */
+.md-typeset .language-csv.highlight::before {
+  content: "csv";
+  background-color: #217346;
+  color: #fff;
+}
+.md-typeset .language-text.highlight::before {
+  content: "output";
+  background-color: #555;
+  color: #ddd;
+}
+
+/* Groovy / Nextflow */
+.md-typeset .language-groovy.highlight::before,
+.md-typeset .language-nextflow.highlight::before {
+  content: "nextflow";
+  background-color: #24b064;
+  color: #fff;
+}
+
+/* XML / HTML */
+.md-typeset .language-xml.highlight::before,
+.md-typeset .language-html.highlight::before {
+  content: "xml";
+  background-color: #e44d26;
+  color: #fff;
+}
+
+/* R */
+.md-typeset .language-r.highlight::before {
+  content: "R";
+  background-color: #276dc3;
+  color: #fff;
+}
+
+/* SQL */
+.md-typeset .language-sql.highlight::before {
+  content: "sql";
+  background-color: #336791;
+  color: #fff;
+}
+
+/* Dockerfile */
+.md-typeset .language-dockerfile.highlight::before,
+.md-typeset .language-docker.highlight::before {
+  content: "docker";
+  background-color: #0db7ed;
+  color: #fff;
+}
+
+/* --- Top border accent per language --- */
+.md-typeset .language-bash.highlight,
+.md-typeset .language-shell.highlight,
+.md-typeset .language-sh.highlight {
+  border-top: 2px solid #7ee787;
+}
+
+.md-typeset .language-python.highlight,
+.md-typeset .language-py.highlight {
+  border-top: 2px solid #ffd43b;
+}
+
+.md-typeset .language-yaml.highlight,
+.md-typeset .language-yml.highlight {
+  border-top: 2px solid #cb171e;
+}
+
+.md-typeset .language-json.highlight {
+  border-top: 2px solid #f5a623;
+}
+
+.md-typeset .language-csv.highlight {
+  border-top: 2px solid #217346;
+}
+
+.md-typeset .language-groovy.highlight,
+.md-typeset .language-nextflow.highlight {
+  border-top: 2px solid #24b064;
+}
+
+.md-typeset .language-text.highlight {
+  border-top: 2px solid #888;
+}
+
+/* ===================================================================
+   7. TABLES — compact, bordered, subtle zebra
+   =================================================================== */
+.md-typeset table:not([class]) {
+  font-size: 0.78rem;
+  border-collapse: collapse;
+  display: table;
+  width: 100%;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.md-typeset table:not([class]) th {
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background-color: rgba(0, 0, 0, 0.04);
+  padding: 0.4rem 0.6rem;
+  border-bottom: 2px solid var(--md-default-fg-color--lightest);
+  white-space: nowrap;
+}
+
+.md-typeset table:not([class]) td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  line-height: 1.4;
+}
+
+.md-typeset table:not([class]) tbody tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.015);
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* ===================================================================
+   8. SIDEBAR — Furo sizing
+   =================================================================== */
+.md-nav__link {
+  font-size: 87.5%;   /* Furo: --sidebar-item-font-size */
+}
+
+.md-nav__item--active > .md-nav__link {
+  font-weight: 600;
+}
+
+/* Section labels in sidebar */
+.md-nav__item--section > .md-nav__link {
+  font-size: 81.25%;  /* Furo: --sidebar-caption-font-size */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ===================================================================
+   9. FOOTER — clean
+   =================================================================== */
+.md-footer-meta {
+  background-color: var(--md-default-bg-color);
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+}
+
+/* ===================================================================
+   10. GRID CARDS — refined hover
+   =================================================================== */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > ol > li {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 4px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid.cards > ol > li:hover {
+  border-color: var(--md-primary-fg-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* ===================================================================
+   11. DARK MODE adjustments — stronger tints
+   =================================================================== */
+[data-md-color-scheme="slate"] .md-typeset .admonition.note,
+[data-md-color-scheme="slate"] .md-typeset details.note {
+  background-color: rgba(0, 176, 255, 0.08);
+}
+[data-md-color-scheme="slate"] .md-typeset .admonition.note > .admonition-title,
+[data-md-color-scheme="slate"] .md-typeset details.note > summary {
+  background-color: rgba(0, 176, 255, 0.12);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.tip,
+[data-md-color-scheme="slate"] .md-typeset details.tip,
+[data-md-color-scheme="slate"] .md-typeset .admonition.hint,
+[data-md-color-scheme="slate"] .md-typeset details.hint {
+  background-color: rgba(0, 200, 82, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.important,
+[data-md-color-scheme="slate"] .md-typeset details.important {
+  background-color: rgba(0, 191, 165, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.warning,
+[data-md-color-scheme="slate"] .md-typeset details.warning,
+[data-md-color-scheme="slate"] .md-typeset .admonition.caution,
+[data-md-color-scheme="slate"] .md-typeset details.caution {
+  background-color: rgba(255, 145, 0, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.danger,
+[data-md-color-scheme="slate"] .md-typeset details.danger,
+[data-md-color-scheme="slate"] .md-typeset .admonition.error,
+[data-md-color-scheme="slate"] .md-typeset details.error {
+  background-color: rgba(255, 82, 82, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) td {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
