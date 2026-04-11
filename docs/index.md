@@ -1,95 +1,69 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/pmultiqc_logo_darkbg.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="images/pmultiqc_logo.svg" />
+  <img src="images/pmultiqc_logo.svg" width="40%" alt="pmultiqc Logo" />
+</picture>
+
 # pmultiqc
 
-**pmultiqc** is a [MultiQC](https://multiqc.info/) plugin for comprehensive quality control reporting of proteomics data. It generates interactive HTML reports with visualizations and metrics to help you assess the quality of your mass spectrometry-based proteomics experiments.
+[![Python application](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml/badge.svg)](https://github.com/bigbio/pmultiqc/actions/workflows/python-app.yml)
+[![PyPI version](https://badge.fury.io/py/pmultiqc.svg)](https://badge.fury.io/py/pmultiqc)
+
+**pmultiqc** is a [MultiQC](https://multiqc.info/) plugin for comprehensive quality control reporting of proteomics data. It generates interactive HTML reports with visualizations and metrics to assess the quality of mass spectrometry-based proteomics experiments.
 
 ## Key Features
 
-- Works with multiple proteomics data formats and analysis pipelines
-- Generates interactive HTML reports with rich visualizations
-- Provides comprehensive QC metrics for MS data
-- Supports different quantification methods (LFQ, TMT, DIA)
-- Integrates seamlessly with the [MultiQC](https://multiqc.info/) framework
+- **Multi-pipeline support**: quantms, MaxQuant, DIA-NN, FragPipe, mzIdentML, ProteoBench, mhcquant
+- **Interactive HTML reports**: Rich plots with hover tooltips (PCA, heatmaps, box plots, volcano plots)
+- **Comprehensive QC metrics**: Identification rates, mass accuracy, retention time, charge distributions
+- **Quantification methods**: LFQ, TMT/iTRAQ, DIA — tailored metrics per workflow type
+- **Lightweight mode**: Disable hover info for large experiments or publication-ready reports
+- **SDRF metadata**: Automatic condition/sample grouping from SDRF annotations
 
 ## Installation
-
-### From PyPI (recommended)
 
 ```bash
 pip install pmultiqc
 ```
 
-### From Source
+## Quick Start
 
 ```bash
-git clone https://github.com/bigbio/pmultiqc.git
-cd pmultiqc
-pip install .
+# quantms pipeline output
+multiqc /path/to/quantms/results -o ./report
+
+# MaxQuant output
+multiqc --maxquant-plugin /path/to/maxquant/txt -o ./report
+
+# DIA-NN output
+multiqc --diann-plugin /path/to/diann/results -o ./report
+
+# Lightweight report (no hover tooltips, smaller file)
+multiqc /path/to/results --disable-hoverinfo -o ./report
 ```
 
-## Basic Usage
+## Supported Workflows
 
-pmultiqc is a plugin for [MultiQC](https://multiqc.info/). After installation, use it via the MultiQC command-line interface:
-
-```bash
-multiqc {analysis_dir} -o {output_dir}
-```
-
-Where:
-
-- `{analysis_dir}` is the directory containing your proteomics data files
-- `{output_dir}` is the directory where you want to save the report
-
-## Quick Examples
-
-=== "quantms Pipeline"
-
-    ```bash
-    multiqc --quantms-plugin /path/to/quantms/results -o ./report
-    ```
-
-=== "MaxQuant"
-
-    ```bash
-    multiqc --maxquant-plugin /path/to/maxquant/results -o ./report
-    ```
-
-=== "DIA-NN"
-
-    ```bash
-    multiqc --diann-plugin /path/to/diann/results -o ./report
-    ```
-
-=== "mzIdentML"
-
-    ```bash
-    multiqc --mzid-plugin /path/to/mzid/files -o ./report
-    ```
-
-=== "ProteoBench"
-
-    ```bash
-    multiqc --proteobench-plugin /path/to/proteobench/files -o ./report
-    ```
-
-## Common Options
-
-```bash
-# Remove decoy peptides and set condition column
-multiqc --quantms-plugin /path/to/results \
-    --remove-decoy \
-    --condition factor \
-    -o ./report
-
-# Disable interactive tooltips for large datasets
-multiqc --quantms-plugin /path/to/results \
-    --disable-hoverinfo \
-    -o ./report
-```
+| Workflow | Plugin Flag | Input Files |
+|----------|------------|-------------|
+| quantms | `--quantms-plugin` | mzTab, MSstats, idXML, SDRF |
+| MaxQuant | `--maxquant-plugin` | evidence.txt, msms.txt, proteinGroups.txt |
+| DIA-NN | `--diann-plugin` | report.tsv or report.parquet |
+| FragPipe | `--fragpipe-plugin` | psm.tsv, combined files |
+| mzIdentML | `--mzid-plugin` | .mzid + .mzML/.mgf |
+| ProteoBench | `--proteobench-plugin` | result_performance.csv |
+| mhcquant | `--mhcquant-plugin` | mhcquant output files |
 
 ## Part of the quantms Ecosystem
 
-pmultiqc is part of the [quantms ecosystem](https://quantms.org) for quantitative proteomics analysis. It works seamlessly with the [quantms pipeline](https://docs.quantms.org), [mokume](https://mokume.quantms.org) library, and [qpx](https://qpx.quantms.org) format tools.
+| Tool | Description |
+|------|-------------|
+| [quantms](https://github.com/bigbio/quantms) | DDA proteomics Nextflow pipeline |
+| [quantmsdiann](https://github.com/bigbio/quantmsdiann) | DIA proteomics pipeline |
+| [mokume](https://mokume.quantms.org) | Protein quantification library |
+| [qpx](https://qpx.quantms.org) | Data format conversion and QPX tools |
+| [portal.quantms.org](https://portal.quantms.org) | Browse reanalyzed datasets |
 
 ## Citation
 
-> Yue QX, Dai C, Kamatchinathan S, et al. **pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics.** *bioRxiv* (2025). [doi:10.1101/2025.11.02.685980](https://doi.org/10.1101/2025.11.02.685980)
+> Yue QX, Dai C, Kamatchinathan S, Bandla C, Webel H, Larrea A, Bittremieux W, Uszkoreit J, Müller TD, Xiao J, Cox J, Yu F, Ewels P, Demichev V, Kohlbacher O, Sachsenberg T, Bielow C, Bai M, Perez-Riverol Y. **pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics.** *Mol Cell Proteomics.* 2026;101530. [DOI: 10.1016/j.mcpro.2026.101530](https://doi.org/10.1016/j.mcpro.2026.101530)

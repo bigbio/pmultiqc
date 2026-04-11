@@ -1,5 +1,5 @@
 site_name: pmultiqc
-site_description: Comprehensive QC reporting for proteomics data - a MultiQC plugin
+site_description: "pmultiqc: open-source MultiQC plugin for proteomics QC reporting. Interactive HTML reports for quantms, MaxQuant, DIA-NN, FragPipe, and mzIdentML workflows. LFQ, TMT, DIA support."
 site_author: BigBio Team
 site_url: https://pmultiqc.quantms.org/
 
@@ -8,6 +8,7 @@ repo_url: https://github.com/bigbio/pmultiqc
 
 theme:
   name: material
+  custom_dir: docs/overrides
   font: false
   palette:
     - scheme: default
@@ -40,7 +41,7 @@ theme:
     repo: fontawesome/brands/github
 
 extra_css:
-  - stylesheets/quantms-theme.css
+  - https://quantms.org/css/quantms-theme.css
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -84,7 +85,9 @@ nav:
     - Visualizations: reference/visualizations.md
   - Examples:
     - Example Reports: examples/index.md
+  - Publications: publications.md
   - Development:
+    - Overview: development/index.md
     - Contributing: development/contributing.md
 
 extra:
