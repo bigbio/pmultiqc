@@ -13,7 +13,11 @@ keywords = [
     "quantms",
     "proteomics",
     "quality control",
-    "MultiQC"
+    "MultiQC",
+    "quality-control",
+    "multiqc-plugin",
+    "proteomics-qc",
+    "mass-spectrometry-report"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -47,9 +51,11 @@ dependencies = [
 ]
 
 [project.urls]
-GitHub = "https://github.com/bigbio/pmultiqc"
-Quantms = "https://quantms.org"
-LICENSE = "https://github.com/bigbio/pmultiqc/blob/main/LICENSE"
+Homepage = "https://quantms.org"
+Documentation = "https://pmultiqc.quantms.org"
+Repository = "https://github.com/bigbio/pmultiqc"
+"Bug Tracker" = "https://github.com/bigbio/pmultiqc/issues"
+Changelog = "https://github.com/bigbio/pmultiqc/releases"
 
 [project.entry-points."multiqc.modules.v1"]
 pmultiqc = "pmultiqc.modules.core:PMultiQC"
