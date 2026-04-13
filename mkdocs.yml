@@ -91,6 +91,9 @@ nav:
     - Contributing: development/contributing.md
 
 extra:
+  analytics:
+    provider: google
+    property: G-6PL70G5VC1
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/bigbio/pmultiqc
