@@ -1,0 +1,100 @@
+# pmultiqc — Full Reference
+
+> MultiQC plugin for proteomics QC reporting. Published in Mol Cell Proteomics 2026.
+
+## Overview
+
+pmultiqc extends MultiQC with proteomics-specific modules. It parses output files from quantms and quantmsdiann pipelines and generates interactive HTML reports with identification, quantification, and sample-level quality metrics.
+
+## Installation
+
+pip install pmultiqc
+
+Or with quantms pipeline (included automatically in pipeline output).
+
+## Usage
+
+### From quantms pipeline output
+multiqc results/ --module pmultiqc
+
+### Standalone with mzTab
+multiqc /path/to/mztab/files/ --module pmultiqc
+
+### With SDRF metadata
+multiqc results/ --module pmultiqc --cl-config "pmultiqc_sdrf: /path/to/sdrf.tsv"
+
+## Input Formats
+
+- mzTab files: Standard proteomics identification/quantification format
+- idXML files: OpenMS identification format
+- DIA-NN reports: TSV report from DIA-NN (via quantmsdiann)
+- SDRF files: Optional sample metadata for experiment-aware QC
+
+## Report Sections
+
+### Identification Summary
+- Total PSMs, peptides, proteins identified per sample
+- FDR distribution plots
+- Search engine agreement (when multiple engines used)
+- Peptide length distribution
+- Charge state distribution
+- Missed cleavage rates
+
+### Quantification Summary
+- Protein intensity distributions (box plots per sample)
+- Missing value heatmap
+- Coefficient of variation across replicates
+- Principal component analysis (PCA)
+- Sample correlation matrix
+
+### Experiment Overview
+- Sample metadata table (from SDRF)
+- Run order effects
+- Instrument performance tracking
+
+## Configuration
+
+pmultiqc is configured via MultiQC config or command-line:
+
+# multiqc_config.yaml
+pmultiqc_sdrf: /path/to/sdrf.tsv
+pmultiqc_version: true
+
+## Output
+
+- multiqc_report.html — Interactive HTML report
+- multiqc_data/ — JSON data files for programmatic access
+
+## Example Reports
+
+16 example reports available at: https://pmultiqc.quantms.org/examples/
+
+Covers:
+- LFQ experiments (various organisms)
+- TMT experiments (multiplexed)
+- DIA experiments (library-free and library-based)
+- Large-scale reanalysis datasets
+
+## Integration
+
+- quantms pipeline: pmultiqc runs automatically as the final step
+- quantmsdiann pipeline: pmultiqc runs automatically as the final step
+- Standalone: Can run on any mzTab or DIA-NN report files
+- MultiQC ecosystem: Combines with other MultiQC modules (FastQC, etc.)
+
+## Troubleshooting
+
+- Empty report: check that input files are in supported format (mzTab, idXML, or DIA-NN report)
+- Missing quantification section: ensure quantification data is present in mzTab (not just identifications)
+- Large reports slow to load: use --flat flag to disable interactive plots
+
+## Related Tools
+
+- quantms: DDA proteomics pipeline (https://docs.quantms.org)
+- quantmsdiann: DIA proteomics pipeline (https://quantmsdiann.quantms.org)
+- mokume: protein quantification library (https://mokume.quantms.org)
+- MultiQC: general QC framework (https://multiqc.info)
+
+## Citation
+
+Yue QX et al. Mol Cell Proteomics. 2026;101530. DOI: 10.1016/j.mcpro.2026.101530
