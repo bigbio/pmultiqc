@@ -1,5 +1,33 @@
 {% extends "base.html" %}
 
+{% block extrahead %}
+<meta property="og:image" content="https://pmultiqc.quantms.org/images/social-card.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "pmultiqc",
+  "description": "MultiQC plugin for proteomics quality control. Generates interactive HTML reports from quantms and quantmsdiann pipeline output.",
+  "applicationCategory": "Scientific Software",
+  "applicationSubCategory": "Proteomics",
+  "operatingSystem": "Linux, macOS, Windows",
+  "url": "https://pmultiqc.quantms.org",
+  "downloadUrl": "https://pypi.org/project/pmultiqc/",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": {
+    "@type": "Organization",
+    "name": "BigBio",
+    "url": "https://quantms.org"
+  },
+  "citation": {
+    "@type": "ScholarlyArticle",
+    "name": "pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics",
+    "url": "https://doi.org/10.1016/j.mcpro.2026.101530"
+  }
+}
+</script>
+{% endblock %}
+
 {% block footer %}
 <footer class="md-footer">
   {% if page.previous_page or page.next_page %}
