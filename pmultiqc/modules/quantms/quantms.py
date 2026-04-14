@@ -1337,7 +1337,8 @@ class QuantMSModule(BasePMultiqcModule):
 
         # mass spectrum files sorted based on experimental file
         for spectrum_name in self.exp_design_runs:
-            self.mzml_table[spectrum_name] = mzml_table[spectrum_name]
+            if spectrum_name in mzml_table:
+                self.mzml_table[spectrum_name] = mzml_table[spectrum_name]
 
     def parse_out_mztab(self):
 
