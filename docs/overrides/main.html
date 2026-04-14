@@ -1,5 +1,33 @@
 {% extends "base.html" %}
 
+{% block extrahead %}
+<meta property="og:image" content="https://pmultiqc.quantms.org/images/social-card.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "pmultiqc",
+  "description": "MultiQC plugin for proteomics quality control. Generates interactive HTML reports from quantms and quantmsdiann pipeline output.",
+  "applicationCategory": "Scientific Software",
+  "applicationSubCategory": "Proteomics",
+  "operatingSystem": "Linux, macOS, Windows",
+  "url": "https://pmultiqc.quantms.org",
+  "downloadUrl": "https://pypi.org/project/pmultiqc/",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": {
+    "@type": "Organization",
+    "name": "BigBio",
+    "url": "https://quantms.org"
+  },
+  "citation": {
+    "@type": "ScholarlyArticle",
+    "name": "pmultiqc: An open-source, lightweight, and metadata-oriented QC reporting library for MS proteomics",
+    "url": "https://doi.org/10.1016/j.mcpro.2026.101530"
+  }
+}
+</script>
+{% endblock %}
+
 {% block footer %}
 <footer class="md-footer">
   {% if page.previous_page or page.next_page %}
@@ -31,17 +59,7 @@
   <div class="qms-ecosystem-banner">
     <div class="qms-banner-inner">
       <div>
-        <div class="qms-brand">
-          <svg width="20" height="20" viewBox="0 0 70 70" fill="none">
-            <polygon points="35,56 10,46 35,36 60,46" fill="#60a5fa" opacity="0.4"/>
-            <polygon points="35,48 14,40 35,32 56,40" fill="#818cf8" opacity="0.6"/>
-            <polygon points="35,40 18,34 35,28 52,34" fill="#a78bfa" opacity="0.75"/>
-            <rect x="28" y="14" width="2.5" height="12" rx="0.8" fill="#c4b5fd" opacity="0.55"/>
-            <rect x="32" y="8" width="2.5" height="18" rx="0.8" fill="#a78bfa" opacity="0.9"/>
-            <rect x="36" y="12" width="2.5" height="14" rx="0.8" fill="#c4b5fd" opacity="0.6"/>
-          </svg>
-          quant<span>ms</span>
-        </div>
+        <div class="qms-brand"><svg width="20" height="20" viewBox="0 0 70 70" fill="none"><polygon points="35,56 10,46 35,36 60,46" fill="#60a5fa" opacity="0.4"/><polygon points="35,48 14,40 35,32 56,40" fill="#818cf8" opacity="0.6"/><polygon points="35,40 18,34 35,28 52,34" fill="#a78bfa" opacity="0.75"/><rect x="28" y="14" width="2.5" height="12" rx="0.8" fill="#c4b5fd" opacity="0.55"/><rect x="32" y="8" width="2.5" height="18" rx="0.8" fill="#a78bfa" opacity="0.9"/><rect x="36" y="12" width="2.5" height="14" rx="0.8" fill="#c4b5fd" opacity="0.6"/></svg><span class="qms-brand-text">quant<span>ms</span></span></div>
         <p>A complete, open-source ecosystem for quantitative proteomics analysis.</p>
       </div>
       <div>

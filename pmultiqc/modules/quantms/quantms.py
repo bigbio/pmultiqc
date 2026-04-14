@@ -1335,9 +1335,12 @@ class QuantMSModule(BasePMultiqcModule):
         self.comet_label = reader.comet_label
         self.sage_label = reader.sage_label
 
-        # mass spectrum files sorted based on experimental file
-        for spectrum_name in self.exp_design_runs:
-            self.mzml_table[spectrum_name] = mzml_table[spectrum_name]
+        # mass spectrum files sorted based on experimental file when available;
+        # otherwise preserve the mzml_table iteration order.
+        spectrum_names = self.exp_design_runs if self.exp_design_runs is not None else mzml_table.keys()
+        for spectrum_name in spectrum_names:
+            if spectrum_name in mzml_table:
+                self.mzml_table[spectrum_name] = mzml_table[spectrum_name]
 
     def parse_out_mztab(self):
 
