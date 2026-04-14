@@ -115,6 +115,7 @@ class IdXMLReader(BaseParser):
         ms_name = file_prefix(protein_ids[0].getMetaValue("spectra_data")[0].decode("UTF-8"))
         search_engine_name = protein_ids[0].getSearchEngine()
 
+        mzml_table.setdefault(ms_name, {})
         self._ensure_engine_slots(raw_id_name)
         hist = self._build_histograms()
 
