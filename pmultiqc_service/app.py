@@ -2458,7 +2458,7 @@ async def index(request: Request):
         HTMLResponse: index.html template with upload interface and PRIDE submission page
     """
     return templates.TemplateResponse(
-        "index.html", {"request": request, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}}
+        request, "index.html", {"config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}}
     )
 
 
@@ -2477,15 +2477,15 @@ async def submit_pride(request: Request):
     if not accession:
         # No accession provided, show the main page
         return templates.TemplateResponse(
-            "index.html", {"request": request, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}}
+            request, "index.html", {"config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}}
         )
 
     # Security: Validate accession format (PXD followed by 6 digits)
     if not re.match(r'^PXD\d{6}$', accession):
         return templates.TemplateResponse(
+            request,
             "index.html",
             {
-                "request": request,
                 "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
                 "error": f"Invalid PRIDE accession format: {accession}. Should be PXD followed by 6 digits (e.g., PXD012345).",
             },
@@ -2493,8 +2493,9 @@ async def submit_pride(request: Request):
 
     # Render the submission page with the accession pre-filled
     return templates.TemplateResponse(
+        request,
         "submit.html",
-        {"request": request, "accession": accession, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}},
+        {"accession": accession, "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE}},
     )
 
 
@@ -2514,9 +2515,9 @@ async def view_results(request: Request):
 
         if not job_id:
             return templates.TemplateResponse(
+                request,
                 "index.html",
                 {
-                    "request": request,
                     "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
                     "error": f"No job ID provided. Please provide a job ID using ?job={job_id}",
                 },
@@ -2527,9 +2528,9 @@ async def view_results(request: Request):
             uuid.UUID(job_id)
         except ValueError:
             return templates.TemplateResponse(
+                request,
                 "index.html",
                 {
-                    "request": request,
                     "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
                     "error": f"Invalid job ID format. {job_id}",
                 },
@@ -2643,9 +2644,9 @@ async def view_results(request: Request):
             job_data["download_url"] = f'{BASE_URL.rstrip("/")}/download-report/{job_id}'
 
         return templates.TemplateResponse(
+            request,
             "results.html",
             {
-                "request": request,
                 "job_id": job_id,
                 "job_data": job_data,
                 "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
@@ -2672,9 +2673,9 @@ async def view_results(request: Request):
             "download_url": None,
         }
         return templates.TemplateResponse(
+            request,
             "results.html",
             {
-                "request": request,
                 "job_id": job_data["job_id"],
                 "job_data": job_data,
                 "config": {"BASE_URL": BASE_URL, "PRIDE_BUTTON_VISIBLE": PRIDE_BUTTON_VISIBLE},
