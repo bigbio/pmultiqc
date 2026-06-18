@@ -366,6 +366,54 @@ def evidence_rt_count(evidence_data):
     return rt_count_dict
 
 
+# Mass difference between 13C and 12C (monoisotopic isotope step), in Da.
+# Used to undo the M+1 / M+2 precursor offset reported per-PSM by the search
+# engine via the mzTab `opt_global_isotope_error` column.
+ISOTOPE_STEP_DA = 1.00335
+
+
+def isotope_corrected_mz_delta(psm: pd.DataFrame) -> pd.Series:
+    """Precursor (exp - calc) m/z, corrected for the isotope envelope step
+    selected by the search engine.
+
+    quantms-style mzTab files record the isotope step the search engine
+    chose for each PSM in the optional column ``opt_global_isotope_error``
+    (integer count of 13C steps from the monoisotopic peak; 0 if the
+    monoisotopic peak was used). When the precursor was matched to an
+    M+1 / M+2 isotope, the raw ``exp_mass_to_charge - calc_mass_to_charge``
+    delta carries an offset of ``iso_err * 1.00335 / charge`` Th that has
+    nothing to do with mass-accuracy; it produces spurious +1 Da spikes in
+    the delta-mass plot, and those outliers dominate the auto-binning so
+    the central distribution collapses into very few visible bins.
+
+    Subtract that offset when the metadata is available; fall back to the
+    raw delta otherwise so older mzTabs keep working unchanged.
+
+    Parameters
+    ----------
+    psm : pd.DataFrame
+        PSM table containing at minimum ``exp_mass_to_charge`` and
+        ``calc_mass_to_charge``. If both ``opt_global_isotope_error`` and
+        ``charge`` are present, the isotope correction is applied per row.
+
+    Returns
+    -------
+    pd.Series
+        Delta in m/z units (Th). Multiply by ``charge`` for the neutral-mass
+        delta in Da.
+    """
+    delta_mz = psm["exp_mass_to_charge"] - psm["calc_mass_to_charge"]
+    if "opt_global_isotope_error" in psm.columns and "charge" in psm.columns:
+        iso = pd.to_numeric(psm["opt_global_isotope_error"], errors="coerce").fillna(0)
+        z = pd.to_numeric(psm["charge"], errors="coerce")
+        ok = z.notna() & (z != 0)
+        # Only correct rows that have a usable charge; leave the rest as-is.
+        z_safe = z.where(ok, 1)
+        correction = (iso * ISOTOPE_STEP_DA / z_safe).where(ok, 0.0)
+        delta_mz = delta_mz - correction
+    return delta_mz
+
+
 def evidence_calibrated_mass_error(
     evidence_data,
     recompute=False,

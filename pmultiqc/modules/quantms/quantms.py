@@ -39,6 +39,7 @@ from pmultiqc.modules.common.common_utils import (
     get_ms_path,
     evidence_rt_count,
     evidence_calibrated_mass_error,
+    isotope_corrected_mz_delta,
     parse_mzml,
     cal_num_table_at_sample,
     aggregate_msms_identified_rate,
@@ -1534,11 +1535,16 @@ class QuantMSModule(BasePMultiqcModule):
         quantms_rt_file_df.rename(columns={"filename": "raw file"}, inplace=True)
         self.quantms_ids_over_rt = evidence_rt_count(quantms_rt_file_df)
 
+        # Precursor delta, corrected for the isotope-envelope offset
+        # (`opt_global_isotope_error`) when the mzTab exposes it. Without this
+        # correction, PSMs matched to an M+1/M+2 precursor leak into the plot
+        # as spurious +1 Da spikes that dominate auto-binning.
+        psm_mz_delta = isotope_corrected_mz_delta(psm)
+
         # Delta Mass [ppm]
-        mass_error = psm[["filename", "calc_mass_to_charge", "exp_mass_to_charge"]].copy()
+        mass_error = psm[["filename", "calc_mass_to_charge"]].copy()
         mass_error["mass error [ppm]"] = (
-            (mass_error["exp_mass_to_charge"] - mass_error["calc_mass_to_charge"])
-            / mass_error["calc_mass_to_charge"]
+            psm_mz_delta / psm["calc_mass_to_charge"]
         ) * 1e6
         mass_error.rename(columns={"filename": "raw file"}, inplace=True)
         self.quantms_mass_error = evidence_calibrated_mass_error(mass_error)
@@ -1555,8 +1561,9 @@ class QuantMSModule(BasePMultiqcModule):
 
         target_bin_data = {}
         decoy_bin_data = {}
-        # TODO This is NOT a relative difference!
-        psm["relative_diff"] = psm["exp_mass_to_charge"] - psm["calc_mass_to_charge"]
+        # NB: kept as m/z (Th). Multiplying by charge would give neutral Da;
+        # the current plot title labels this as "Delta m/z".
+        psm["relative_diff"] = psm_mz_delta
         try:
             decoy_bin = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 1][
                 "relative_diff"
