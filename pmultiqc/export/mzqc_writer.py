@@ -81,15 +81,6 @@ class MzQCExporter:
                 "setQuality": set_quality_list
             }
         }
-
-
-
-logger = logging.getLogger(__name__)
-
-import os
-import json
-import logging
-
 logger = logging.getLogger(__name__)
 def extract_pca_coordinate_data(plot_id, plot_obj):
             datasets = plot_obj.get("datasets", [])
@@ -139,10 +130,10 @@ def extract_pca_coordinate_data(plot_id, plot_obj):
 
 def write_mzqc(output_dir: str, input_dir: str, job_id: str, workflow: str, json_path: str = None, ) -> None:
     """
-    Parses MultiQC's report_plot_data structure to extract mass spec metrics
-    using the 'cats' layer, and generates a validated mzQC output file.
+    Parses MultiQC's report_plot_data structure to extract  metrics
+    and generates mzQC output file.
     """
-    logger.info("Extracting metrics directly from MultiQC's plot data cache.")
+    logger.info("Extracting metrics from MultiQCs cache.")
     
     if json_path is not None:
         multiqc_json_path = json_path
@@ -150,25 +141,23 @@ def write_mzqc(output_dir: str, input_dir: str, job_id: str, workflow: str, json
         multiqc_json_path = os.path.join(output_dir, "multiqc_report_data", "multiqc_data.json")
     
     if not os.path.exists(multiqc_json_path):
-        logger.warning(f"MultiQC data dump not found at {multiqc_json_path}. Skipping.")
+        logger.warning(f"MultiQC data not found at {multiqc_json_path}. Skipping.")
         return
 
     run_metrics = {}
     set_metrics = {}
-    run_name = workflow
+    #run_name = workflow
     if not os.path.exists(multiqc_json_path):
-        logger.warning(f"MultiQC data dump not found at {multiqc_json_path}. Skipping.")
+        logger.warning(f"MultiQC data not found at {multiqc_json_path}. Skipping.")
         return
 
     if not os.path.exists(multiqc_json_path):
-            logger.warning(f"MultiQC data dump not found at {multiqc_json_path}. Skipping.")
+            logger.warning(f"MultiQC data not found at {multiqc_json_path}. Skipping.")
             return
 
         # --- UPDATED TO MATCH EXPECTED TEST PATTERN ---
         # This guarantees the file path matches what test.py is trying to assert
     target_mzqc_file = f"{multiqc_json_path}_quality.mzQC"
-
-    sample_metrics_accumulator = {}
     try:
         with open(multiqc_json_path, "r") as f:
             mq_data = json.load(f)
@@ -203,15 +192,29 @@ def write_mzqc(output_dir: str, input_dir: str, job_id: str, workflow: str, json
         # --- Extract targeted metrics using the verified path ---
         from pmultiqc.export.mapping import MZQC_METRIC_MAPPING
 
-        # --- Targeted Metric Execution ---
+        # --- Targeted Metric Execution - test -- TO DO - > external file
         target_metrics = [
-            "peptide_id_count", 
-            "protein_group_count", 
-            "msms_identified", 
-            "charge_state", 
-            "missed_cleavages",
-            "pca_of_raw_intensity",
-            "pca_of_lfq_intensity"
+                    # --- working ---
+            "peptide_id_count",          
+            "protein_group_count",      
+            "msms_identified",          
+            "charge_state",             
+            "missed_cleavages",          
+            "pca_of_raw_intensity",      
+            "pca_of_lfq_intensity",      
+                ##testing
+            "ms1_ion_injection_time_mean",    
+            "ms2_ion_injection_time_mean",      
+            "ms1_ion_injection_time_quantiles", 
+            "ms2_ion_injection_time_quantiles",
+            "xic_fwhm_quantiles",               
+            "xic_50_fraction",                  
+            "ms2_count",                        
+            "msms_identification_rate",         
+            "best_andromeda_score",             
+            "top_contaminants_per_raw_file",    
+            "potential_contaminants_per_group", 
+            "mbr_transferred_exclusive"         
         ]
 
         run_metrics = {}
@@ -222,7 +225,7 @@ def write_mzqc(output_dir: str, input_dir: str, job_id: str, workflow: str, json
             if not plot_obj:
                 continue
 
-            # 1. Parse the metrics out using our validated handlers
+            # Parse the metrics out with handlers
             if "pca_of_" in metric_id:
                 parsed_data = extract_pca_coordinate_data(metric_id, plot_obj)
                 metric_type_label = "PCA coordinates"
@@ -230,7 +233,7 @@ def write_mzqc(output_dir: str, input_dir: str, job_id: str, workflow: str, json
                 parsed_data = extract_categories_data(metric_id)
                 metric_type_label = "bar plot data"
 
-            # 2. Dynamically route to run_metrics or set_metrics based on metadata scope
+            #  route to run_metrics or set_metrics based on metadata scope
             if parsed_data:
                 metric_mapping = MZQC_METRIC_MAPPING.get(metric_id, {})
                 scope = metric_mapping.get("scope", "run")  # Default back to run if undefined
@@ -242,19 +245,16 @@ def write_mzqc(output_dir: str, input_dir: str, job_id: str, workflow: str, json
                     run_metrics[metric_id] = parsed_data
                     logger.info(f" routed to RUN metrics: {metric_id} ({metric_type_label})")
 
-        # --- Standardized Generation ---
-        from pmultiqc.export.mzqc_writer import MzQCExporter
+    
         exporter = MzQCExporter()
-        
-        
-        
+    
         mzqc_document = exporter.generate_mzqc(
             run_name=job_id,
             run_metrics=run_metrics,
             set_metrics=set_metrics
         )
 
-        # FORCE the output path to match exactly what job_id the test runner requests
+        # force output path 
         target_mzqc_file = os.path.join(output_dir, f"{job_id}.mzQC")
 
         with open(target_mzqc_file, "w") as f:

@@ -58,18 +58,15 @@ MZQC_METRIC_MAPPING = {
         "scope": "run",
         "value_type": "int"
     },
-
-
-
-    ####Fallbacks
-   
-    "msms_identified": {
-        "accession": "MS:4000001",
-        "name": "number of identified MS2 spectra",
+    "best_andromeda_score": {
+        "accession": "MS:1002338",
+        "name": "Andromeda:score",
         "scope": "run",
-        "fallback": True
+        "value_type": "float"  #  enforces xsd:double/float
     },
 
+   
+    ####---
     #### ion_injection_time_over_rt
     "ms1_ion_injection_time_mean": {
         "accession": "MS:4000132",
@@ -90,7 +87,8 @@ MZQC_METRIC_MAPPING = {
         "scope": "run",
         "value_type": "list"  # Expects a list of 3 floats: [Q1, Q2, Q3]
     },
-
+    ####---
+    ####---
     "xic_fwhm_quantiles": {
         "accession": "MS:4000051",
         "name": "XIC-FWHM quantiles",
@@ -102,7 +100,7 @@ MZQC_METRIC_MAPPING = {
         "name": "XIC50 fraction",
         "scope": "run",
         "value_type": "float" # Single ratio value
-    },
+    },####---
 
     ####SCOPE SET
     "pca_of_lfq_intensity": {
@@ -122,7 +120,7 @@ MZQC_METRIC_MAPPING = {
         "name": "contaminant protein abundance fraction",
         "scope": "set",
         "value_type": "float",
-         "fallback": False
+        "fallback": False
     },
 
 
