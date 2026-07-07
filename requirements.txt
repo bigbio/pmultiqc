@@ -1,6 +1,7 @@
 multiqc>=1.29, <=1.33
 pandas>=1.5
 pyteomics
+psims
 pyopenms<=3.4.0
 sdrf-pipelines>=0.1.2
 lxml

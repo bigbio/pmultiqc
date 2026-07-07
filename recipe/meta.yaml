@@ -29,6 +29,7 @@ requirements:
     - pandas
     - sdrf-pipelines >=0.1.2
     - pyteomics
+    - psims
     - pyopenms <=3.4.0
     - numpy >=1.23
     - pyarrow
