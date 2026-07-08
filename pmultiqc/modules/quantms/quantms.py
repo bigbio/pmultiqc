@@ -182,6 +182,7 @@ class QuantMSModule(BasePMultiqcModule):
         self.file_df = pd.DataFrame()
         self.long_trends = {}
         self.peptide_length = {}
+        self.current_sum_by_run = {}
 
     def get_data(self):
 
@@ -278,30 +279,33 @@ class QuantMSModule(BasePMultiqcModule):
                 self.out_mztab_path = os.path.join(f["root"], f["fn"])
                 self.parse_out_mztab()
 
-        (
-            self.mzml_table,
-            self.mzml_peaks_ms2_plot,
-            self.mzml_peak_distribution_plot,
-            self.ms_info,
-            self.total_ms2_spectra,
-            _,  # mzml_ms_df
-            self.heatmap_charge_score,
-            self.mzml_charge_plot,
-            self.ms1_tic,
-            self.ms1_bpc,
-            self.ms1_peaks,
-            self.ms1_general_stats,
-            self.current_sum_by_run,
-            self.long_trends
-        ) = parse_mzml(
-            is_bruker=self.is_bruker,
-            read_ms_info=self.read_ms_info,
-            ms_info_path=self.ms_info_path,
-            ms_with_psm=self.ms_with_psm,
-            identified_spectrum=self.identified_spectrum,
-            enable_dia=self.enable_dia,
-            ms_paths=self.ms_paths
-        )
+        if self.ms_paths or self.read_ms_info:
+            (
+                self.mzml_table,
+                self.mzml_peaks_ms2_plot,
+                self.mzml_peak_distribution_plot,
+                self.ms_info,
+                self.total_ms2_spectra,
+                _,  # mzml_ms_df
+                self.heatmap_charge_score,
+                self.mzml_charge_plot,
+                self.ms1_tic,
+                self.ms1_bpc,
+                self.ms1_peaks,
+                self.ms1_general_stats,
+                self.current_sum_by_run,
+                self.long_trends
+            ) = parse_mzml(
+                is_bruker=self.is_bruker,
+                read_ms_info=self.read_ms_info,
+                ms_info_path=self.ms_info_path,
+                ms_with_psm=self.ms_with_psm,
+                identified_spectrum=self.identified_spectrum,
+                enable_dia=self.enable_dia,
+                ms_paths=self.ms_paths
+            )
+        else:
+            log.warning("No mzML or ms_info files found; skipping MS file parsing.")
 
         self.idx_paths = []
         for idx_file in self.find_log_files("pmultiqc/idXML", filecontents=False):
@@ -317,19 +321,24 @@ class QuantMSModule(BasePMultiqcModule):
 
     def draw_plots(self):
 
-        general_stats_data = aggregate_general_stats(
-            ms1_general_stats=self.ms1_general_stats,
-            current_sum_by_run=self.current_sum_by_run,
-            sdrf_file_df=self.file_df
-        )
+        if self.current_sum_by_run:
 
-        draw_ms_information(
-            self.sub_sections["ms1"],
-            self.ms1_tic,
-            self.ms1_bpc,
-            self.ms1_peaks,
-            general_stats_data
-        )
+            general_stats_data = aggregate_general_stats(
+                ms1_general_stats=self.ms1_general_stats,
+                current_sum_by_run=self.current_sum_by_run,
+                sdrf_file_df=self.file_df
+            )
+
+            draw_ms_information(
+                self.sub_sections["ms1"],
+                self.ms1_tic,
+                self.ms1_bpc,
+                self.ms1_peaks,
+                general_stats_data
+            )
+        
+        else:
+            log.warning("No mzML or ms_info files found; skipping draw_ms_information.")
 
         # quantms: DIA
         if self.enable_dia:
@@ -401,15 +410,18 @@ class QuantMSModule(BasePMultiqcModule):
                 self.parse_idxml(self.mzml_table)
             self.cal_heat_map_score()
 
-            heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
-            draw_heatmap(
-                self.sub_sections["summary"],
-                self.heatmap_color_list,
-                heatmap_data,
-                heatmap_xnames,
-                heatmap_ynames,
-                "",
-            )
+            if self.heatmap_charge_score:
+                heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
+                draw_heatmap(
+                    self.sub_sections["summary"],
+                    self.heatmap_color_list,
+                    heatmap_data,
+                    heatmap_xnames,
+                    heatmap_ynames,
+                    "",
+                )
+            else:
+                log.warning("No mzML or ms_info files found; skipping draw_heatmap.")
 
             draw_summary_protein_ident_table(
                 sub_sections=self.sub_sections["summary"],
@@ -2273,21 +2285,41 @@ def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
     )
 
 
-def find_modification(peptide):
-    peptide = str(peptide)
-    pattern = re.compile(r"\((.*?)\)")
-    original_mods = pattern.findall(peptide)
-    peptide = re.sub(r"\(.*?\)", ".", peptide)
-    position = [i.start() for i in re.finditer(r"\.", peptide)]
-    for j in range(1, len(position)):
-        position[j] -= j
+def find_modification(peptide: str):
+    peptide_str = str(peptide)
 
-    for k, mod in enumerate(original_mods):
-        original_mods[k] = str(position[k]) + "-" + mod
+    unmodified_seq = []
+    original_mods = []
+    current_mod = []
+    depth = 0
 
-    original_mods = ",".join(str(i) for i in original_mods) if len(original_mods) > 0 else "nan"
+    current_aa_index = -1 
 
-    return AASequence.fromString(peptide).toUnmodifiedString(), original_mods
+    for char in peptide_str:
+        if char == '(':
+            depth += 1
+            if depth > 1:
+                current_mod.append(char)
+        elif char == ')':
+            if depth > 1:
+                current_mod.append(char)
+                depth -= 1
+            elif depth == 1:
+                mod_name = "".join(current_mod)
+                original_mods.append(f"{current_aa_index}-{mod_name}")
+                current_mod = []
+                depth = 0
+        else:
+            if depth == 0:
+                unmodified_seq.append(char)
+                current_aa_index += 1
+            else:
+                current_mod.append(char)
+
+    clean_peptide = "".join(unmodified_seq)
+    mods_str = ",".join(original_mods) if original_mods else "nan"
+
+    return AASequence.fromString(clean_peptide).toUnmodifiedString(), mods_str
 
 
 def cal_charge_state(psm, sdrf_file_df):
