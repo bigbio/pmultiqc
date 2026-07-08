@@ -94,6 +94,7 @@ New modules (supporting a new pipeline or file format) follow the `BasePMultiqcM
 5. Fill in the PR template: what changed, why, how to test it
 
 PR checklist:
+
 - [ ] Code formatted with black/isort
 - [ ] Tests added or updated and passing
 - [ ] Documentation updated (qc-metrics.md or relevant user guide)
