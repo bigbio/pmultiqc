@@ -336,7 +336,7 @@ class QuantMSModule(BasePMultiqcModule):
                 self.ms1_peaks,
                 general_stats_data
             )
-        
+
         else:
             log.warning("No mzML or ms_info files found; skipping draw_ms_information.")
 
@@ -2293,7 +2293,7 @@ def find_modification(peptide: str):
     current_mod = []
     depth = 0
 
-    current_aa_index = -1 
+    current_aa_index = -1
 
     for char in peptide_str:
         if char == '(':
