@@ -80,6 +80,12 @@ pmultiqc supports the following data sources:
 pip install pmultiqc
 ```
 
+### Install with uv
+
+```bash
+uv tool install multiqc --with pmultiqc
+```
+
 ### Install from Source (Without PyPI)
 
 ```bash
