@@ -122,12 +122,12 @@ class MsInfoReader(BaseParser):
                     log.warning(
                         f"identified_spectrum missing entries for '{m_name}'. Check your mzTab file."
                     )
-                    continue
-
-                identified_spectrum_scan_id = [
-                    spectra_ref_check(spectrum_id)
-                    for spectrum_id in self.identified_spectrum[m_name]
-                ]
+                    identified_spectrum_scan_id = []
+                else:
+                    identified_spectrum_scan_id = [
+                        spectra_ref_check(spectrum_id)
+                        for spectrum_id in self.identified_spectrum[m_name]
+                    ]
 
             add_ms_values(
                 group,
