@@ -24,8 +24,6 @@ from typing import Dict, List
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
-from . import sparklines
-
 from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common.dia_utils import (
     parse_diann_report,
@@ -87,6 +85,9 @@ from pmultiqc.modules.core.section_groups import (
 from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.quantms")
+
+# Set a data row threshold to prevent the report file from becoming too large.
+TABLE_ROW_COUNT = 500
 
 
 class QuantMSModule(BasePMultiqcModule):
@@ -480,64 +481,63 @@ class QuantMSModule(BasePMultiqcModule):
                 self.file_df
             )
 
-        try:
-            draw_identification(
-                self.sub_sections["identification"],
-                cal_num_table_data=self.cal_num_table_data,
-                quantms_missed_cleavages=self.quantms_missed_cleavages,
-                quantms_modified=self.quantms_modified,
-                msms_identified_rate=msms_identified_rate,
-            )
-        except Exception as e:
-            log.warning(f"Skipping draw_identification due to an error: {e}")
+        self._safe_draw(
+            draw_identification,
+            name="draw_identification",
+            sub_sections=self.sub_sections["identification"],
+            cal_num_table_data=self.cal_num_table_data,
+            quantms_missed_cleavages=self.quantms_missed_cleavages,
+            quantms_modified=self.quantms_modified,
+            msms_identified_rate=msms_identified_rate,
+        )
 
-        try:
-            self.draw_quantms_contaminants()
-        except Exception as e:
-            log.warning(f"Skipping draw_quantms_contaminants due to an error: {e}")
+        self._safe_draw(
+            self.draw_quantms_contaminants,
+            name="draw_quantms_contaminants"
+        )
 
         if self.long_trends:
-            try:
-                draw_long_trends(
-                    sub_sections=self.sub_sections,
-                    long_trends_data=self.long_trends
-                )
-            except Exception as e:
-                log.warning(f"Skipping draw_long_trends due to an error: {e}")
+            self._safe_draw(
+                draw_long_trends,
+                name="draw_long_trends",
+                sub_sections=self.sub_sections,
+                long_trends_data=self.long_trends
+            )
 
         # Peptide Length Distribution
         if self.peptide_length:
-            try:
-                draw_peptide_length_distribution(
-                    sub_section=self.sub_sections["identification"],
-                    plot_data=self.peptide_length
-                )
-            except Exception as e:
-                log.warning(f"Skipping draw_peptide_length_distribution due to an error: {e}")
+           self._safe_draw(
+                draw_peptide_length_distribution,
+                name="draw_peptide_length_distribution",
+                sub_section=self.sub_sections["identification"],
+                plot_data=self.peptide_length 
+           )
 
         if self.quantms_pep_intensity:
-            try:
-                draw_peptide_intensity(
-                    sub_section=self.sub_sections["quantification"],
-                    plot_data=self.quantms_pep_intensity
-                )
-            except Exception as e:
-                log.warning(f"Skipping draw_peptide_intensity due to an error: {e}")
+            self._safe_draw(
+                draw_peptide_intensity,
+                name="draw_peptide_intensity",
+                sub_section=self.sub_sections["quantification"],
+                plot_data=self.quantms_pep_intensity
+            )
 
-        try:
-            self.draw_quantms_msms_section()
-        except Exception as e:
-            log.warning(f"Skipping draw_quantms_msms_section due to an error: {e}")
+        self._safe_draw(
+            self.draw_quantms_msms_section,
+            name="draw_quantms_msms_section"
+        )
 
-        try:
-            self.draw_quantms_time_section()
-        except Exception as e:
-            log.warning(f"Skipping draw_quantms_time_section due to an error: {e}")
+        self._safe_draw(
+            self.draw_quantms_time_section,
+            name="draw_quantms_time_section"
+        )
 
         if self.msstats_input_valid:
             self.parse_msstats_input()
 
-        if config.kwargs["quantification_method"] == "spectral_counting":
+        if (
+            config.kwargs["quantification_method"] == "spectral_counting"
+            and self.psm_table_html
+        ):
             # Add a report section with psm table plot from mzTab for spectral counting
             add_sub_section(
                 sub_section=self.sub_sections["identification"],
@@ -555,10 +555,10 @@ class QuantMSModule(BasePMultiqcModule):
         # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
         # currently only draw protein tabel for spectral counting
         if (
-                not self.msstats_input_valid
-                and config.kwargs["quantification_method"] == "spectral_counting"
+            config.kwargs["quantification_method"] == "spectral_counting"
+            and self.protein_quantification_table_html
         ):
-            log.warning("MSstats input file not found!")
+            log.info("Draw quantification information of protein...")
             add_sub_section(
                 sub_section=self.sub_sections["quantification"],
                 plot=self.protein_quantification_table_html,
@@ -599,17 +599,8 @@ class QuantMSModule(BasePMultiqcModule):
             )
         }
         self.js = {
-            "assets/js/quantms.js": os.path.join(
-                os.path.dirname(__file__), "assets", "js", "quantms.js"
-            ),
             "assets/js/highcharts.js": os.path.join(
                 os.path.dirname(__file__), "assets", "js", "highcharts.js"
-            ),
-            "assets/js/axios.min.js": os.path.join(
-                os.path.dirname(__file__), "assets", "js", "axios.min.js"
-            ),
-            "assets/js/sql-optimized.js": os.path.join(
-                os.path.dirname(__file__), "assets", "js", "sql-optimized.js"
             ),
         }
 
@@ -1387,6 +1378,15 @@ class QuantMSModule(BasePMultiqcModule):
                 .explode()
                 .value_counts()
             )
+            if "search_engine_score[1]" in psm.columns:
+                psm_score = psm[["opt_global_cv_MS:1000889_peptidoform_sequence", "search_engine_score[1]"]]
+                self.peptide_search_score = (
+                    psm_score.groupby("opt_global_cv_MS:1000889_peptidoform_sequence")
+                    .agg("min")["search_engine_score[1]"]
+                    .to_dict()
+                )
+            else:
+                self.peptide_search_score = {}
         else:
             self.pep_table_exists = True
             # TODO the following assumes that we always only look
@@ -1639,74 +1639,54 @@ class QuantMSModule(BasePMultiqcModule):
             max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
             mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
             headers = OrderedDict()
-            headers["Sequence"] = {"name": "Sequence", "description": "Peptide Sequence"}
-            headers["Modification"] = {
-                "name": "Modification",
-                "description": "Modification in Peptide Sequence",
+            headers["Sequence"] = {
+                "title": "Sequence",
+                "description": "Peptide Sequence"
             }
-            headers["Accession"] = {"name": "Accession", "description": "Protein Name"}
+            headers["Accession"] = {
+                "title": "Accession",
+                "description": "Protein Name"
+            }
             headers["Search_Engine_Score"] = {
-                "name": "Search Engine Score",
+                "title": "Search Engine Score",
                 "format": "{:,.5e}",
                 "max": max_search_score,
                 "scale": False,
             }
+            headers["Spectra_Ref"] = {
+                "title": "Spectra_Ref"
+            }
+            headers["Modification"] = {
+                "title": "Modification",
+                "description": "Modification in Peptide Sequence",
+            }
 
-            pconfig = {
-                "id": "peptide spectrum matches",  # ID used for the table
-                "table_title": "information of peptide spectrum matches",   # Title of the table. Used in the column config modal
-                "sortRows": False,  # Whether to sort rows alphabetically
-                "only_defined_headers": False,  # Only show columns that are defined in the headers config
+            draw_config = {
+                "namespace": "",
+                "id": "peptide_spectrum_matches",
+                "title": "Information of PSMs",
+                "sort_rows": False,
+                "only_defined_headers": True,
                 "col1_header": "PSM_ID",
-                "format": "{:,.0f}",
                 "no_violin": True,
                 "save_data_file": False,
             }
 
-            mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
-            table_html = table.plot(mztab_data_psm_init, headers, pconfig)
-            pattern = re.compile(r'<small id="peptide_spectrum_matches_numrows_text"')
-            match = re.search(pattern, table_html)
-            if match is None:
-                log.warning("Could not find expected pattern in table HTML, using default insertion point")
-                index = len(table_html)
-            else:
-                index = match.span()[0]
-            options = "".join(f"<option>{key}</option>" for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"])
-            t_html = (
-                    table_html[:index]
-                    + '<input type="text" placeholder="search..." class="searchInput" '
-                      'onkeyup="searchPsmFunction()" id="psm_search">'
-                      f'<select name="psm_search_col" id="psm_search_col">{options}</select>'
+            # Set a data row threshold to prevent the report file from becoming too large.
+            self.psm_table_html = table.plot(
+                data=dict(itertools.islice(mztab_data_psm_full.items(), TABLE_ROW_COUNT)),
+                headers=headers,
+                pconfig=draw_config
             )
-            table_html = (
-                    t_html + "</select>" + '<button type="button" class="btn btn-default '
-                                           'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' + table_html[
-                        index:]
-            )
-            table_html = (
-                    table_html
-                    + r"""<div class="page_control"><span id="psmFirst">First Page</span><span
-            id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last
-            Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input
-            type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);"
-            onkeydown="psm_page_jump()" min="1"/> </div> """
-            )
-
-            self.psm_table_html = table_html
 
         # TODO implement the second option no msstats and feature intensity: draw protein quantification from mzTab
         # in the future with Protein and peptide tables from mzTab.
         # Draw protein table with spectral counting from mzTab file
         if (
-                not self.msstats_input_valid
-                and config.kwargs["quantification_method"] == "spectral_counting"
-                and not config.kwargs.get("disable_table", True)
+            config.kwargs["quantification_method"] == "spectral_counting"
+            and not config.kwargs.get("disable_table", True)
         ):
             mztab_data_dict_prot_full = dict()
-            conditions = self.sample_df.drop_duplicates(subset="Condition")[
-                "Condition"
-            ].tolist()
 
             def get_spectrum_count_across_rep(condition_count_dict: dict):
                 spc = []
@@ -1731,11 +1711,15 @@ class QuantMSModule(BasePMultiqcModule):
                     spc.append(res[c])
 
                 # Integer for average spectrum counting with NA=0 ignored across condition
-                res["Average Spectrum Counting"] = round(sum(spc) / len(np.nonzero(spc)[0]))
+                nonzero_len = len(np.nonzero(spc)[0])
+                if nonzero_len == 0:
+                    res["Average Spectrum Counting"] = 0
+                else:
+                    res["Average Spectrum Counting"] = round(sum(spc) / nonzero_len)
+
                 return res
 
-            for row in prot.itertuples(index=True):
-                index = row.Index
+            for index, row in prot.iterrows():
                 mztab_data_dict_prot_full[index] = {}
                 for abundance_col in prot_abundance_cols:
                     # map abundance assay to factor value
@@ -1760,20 +1744,15 @@ class QuantMSModule(BasePMultiqcModule):
 
                     # Consider technical replicates and biological replicates
                     # Access column by name using getattr (itertuples uses attribute access)
-                    abundance_value = getattr(row, abundance_col, None)
-                    if condition in mztab_data_dict_prot_full[index]:
-                        if sample_name in mztab_data_dict_prot_full[index][condition]:
-                            mztab_data_dict_prot_full[index][condition][sample_name].append(
-                                abundance_value
-                            )
-                        else:
-                            mztab_data_dict_prot_full[index][condition] = {
-                                sample_name: [abundance_value]
-                            }
-                    else:
-                        mztab_data_dict_prot_full[index][condition] = {
-                            sample_name: [abundance_value]
-                        }
+                    abundance_value = row.get(abundance_col, 0.0)
+                    if pd.isna(abundance_value):
+                        abundance_value = 0.0
+
+                    if condition not in mztab_data_dict_prot_full[index]:
+                        mztab_data_dict_prot_full[index][condition] = {}
+                    if sample_name not in mztab_data_dict_prot_full[index][condition]:
+                        mztab_data_dict_prot_full[index][condition][sample_name] = []
+                    mztab_data_dict_prot_full[index][condition][sample_name].append(abundance_value)
 
                 mztab_data_dict_prot_full[index] = get_spectrum_count_across_rep(
                     mztab_data_dict_prot_full[index]
@@ -1785,66 +1764,40 @@ class QuantMSModule(BasePMultiqcModule):
 
             headers = OrderedDict()
             headers["Peptides_Number"] = {
-                "name": "Number of Peptides",
+                "title": "Number of Peptides",
                 "description": "Number of peptides per proteins",
                 "format": "{:,.0f}",
             }
             headers["Average Spectrum Counting"] = {
-                "name": "Average Spectrum Counting",
+                "title": "Average Spectrum Counting",
                 "description": "Average Spectrum Counting across all conditions",
                 "format": "{:,.0f}",
             }
 
-            pconfig = {
-                "id": "quantification_of_protein",  # ID used for the table
-                "title": "quantification information of protein",
-                "anchor": "",   # Title of the table. Used in the column config modal
-                "save_file": False,  # Whether to save the table data to a file
-                "raw_data_fn": "multiqc_quantification_of_protein_table",  # File basename to use for raw data file
-                "sort_rows": False,  # Whether to sort rows alphabetically
-                "only_defined_headers": False,  # Only show columns that are defined in the headers config
+            draw_config = {
+                "namespace": "",
+                "id": "quantification_of_protein",
+                "title": "Quantification Information of Protein",
+                "sort_rows": False,
+                "only_defined_headers": True,
                 "col1_header": "ProteinName",
                 "no_violin": True,
                 "save_data_file": False,
             }
 
-            max_prot_intensity = 0
-            mztab_data_dict_prot_init = dict(
-                itertools.islice(mztab_data_dict_prot_full.items(), 50)
+            sorted_prot_items = sorted(
+                mztab_data_dict_prot_full.items(),
+                key=lambda x: x[1].get("Peptides_Number", 0),
+                reverse=True
             )
 
-            table_html = sparklines.plot(
-                mztab_data_dict_prot_init, headers, pconfig=pconfig, max_value=max_prot_intensity
-            )
-            pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
-            match = re.search(pattern, table_html)
-            if match is None:
-                log.warning("Could not find expected pattern in protein table HTML, using default insertion point")
-                index = len(table_html)
-            else:
-                index = match.span()[0]
-            options = "".join(f"<option>{key}</option>" for key in ["ProteinName"])
-            t_html = (
-                    table_html[:index]
-                    + '<input type="text" placeholder="search..." class="searchInput" '
-                      'onkeyup="searchProtFunction()" id="prot_search">'
-                      f'<select name="prot_search_col" id="prot_search_col">{options}</select>'
-            )
-            table_html = (
-                    t_html + "</select>" + '<button type="button" class="btn btn-default '
-                                           'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[
-                        index:]
-            )
-            table_html = (
-                    table_html
-                    + r"""<div class="page_control"><span id="protFirst">First Page</span><span
-            id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last
-            Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input
-            type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);"
-            onkeydown="prot_page_jump()" min="1"/> </div> """
+            # Set a data row threshold to prevent the report file from becoming too large.
+            self.protein_quantification_table_html = table.plot(
+                data=dict(itertools.islice(sorted_prot_items, TABLE_ROW_COUNT)),
+                headers=headers,
+                pconfig=draw_config
             )
 
-            self.protein_quantification_table_html = table_html
 
     def parse_msstats_input(self):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -1932,10 +1885,9 @@ class QuantMSModule(BasePMultiqcModule):
             "save_data_file": False,
         }
 
-        # only use the first 50 lines for the table
-        max_pep_intensity = 50
+        # Set a data row threshold to prevent the report file from becoming too large.
         table_html = table.plot(
-            dict(itertools.islice(msstats_data_dict_pep_full.items(), max_pep_intensity)),
+            dict(itertools.islice(msstats_data_dict_pep_full.items(), TABLE_ROW_COUNT)),
             headers=headers,
             pconfig=draw_config,
         )
@@ -1999,8 +1951,9 @@ class QuantMSModule(BasePMultiqcModule):
         msstats_data_prot.index = msstats_data_prot.index + 1
         msstats_data_dict_prot_full = msstats_data_prot.to_dict("index")
 
+        # Set a data row threshold to prevent the report file from becoming too large.
         msstats_data_dict_prot_init = dict(
-            itertools.islice(msstats_data_dict_prot_full.items(), 50)
+            itertools.islice(msstats_data_dict_prot_full.items(), TABLE_ROW_COUNT)
         )
 
         headers = {
@@ -2107,6 +2060,13 @@ class QuantMSModule(BasePMultiqcModule):
             draw_delta_mass_da_ppm(
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
+
+    def _safe_draw(self, func, *args, name="plot", **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            log.exception(f"Failed to generate {name}")
+            return None
 
 
 def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):

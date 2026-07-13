@@ -122,6 +122,7 @@ class MsInfoReader(BaseParser):
                     log.warning(
                         f"identified_spectrum missing entries for '{m_name}'. Check your mzTab file."
                     )
+                    # Skip runs missing from identified_spectrum as they lack MS2 data...
                     continue
                 else:
                     identified_spectrum_scan_id = [
