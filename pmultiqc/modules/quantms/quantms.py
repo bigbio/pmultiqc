@@ -5,11 +5,9 @@ import itertools
 import json
 import os
 import re
-import sqlite3
 from collections import OrderedDict
 from datetime import datetime
 from functools import reduce
-from operator import itemgetter
 
 import numpy as np
 import pandas as pd
@@ -190,23 +188,7 @@ class QuantMSModule(BasePMultiqcModule):
         log.info("Starting data recognition and processing...")
 
         if config.output_dir:
-            if os.path.exists(config.output_dir):
-                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
-            else:
-                os.makedirs(config.output_dir)
-                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
-        else:
-            self.con = sqlite3.connect("./quantms.db")
-
-        self.cur = self.con.cursor()
-        self.cur.execute("drop table if exists PROTQUANT")
-        self.con.commit()
-
-        self.cur.execute("drop table if exists PEPQUANT")
-        self.con.commit()
-
-        self.cur.execute("drop table if exists PSM")
-        self.con.commit()
+            os.makedirs(config.output_dir, exist_ok=True)
 
         # TODO what if multiple are found??
         for f in self.find_log_files("pmultiqc/exp_design", filecontents=False):
@@ -498,37 +480,59 @@ class QuantMSModule(BasePMultiqcModule):
                 self.file_df
             )
 
-        draw_identification(
-            self.sub_sections["identification"],
-            cal_num_table_data=self.cal_num_table_data,
-            quantms_missed_cleavages=self.quantms_missed_cleavages,
-            quantms_modified=self.quantms_modified,
-            msms_identified_rate=msms_identified_rate,
-        )
+        try:
+            draw_identification(
+                self.sub_sections["identification"],
+                cal_num_table_data=self.cal_num_table_data,
+                quantms_missed_cleavages=self.quantms_missed_cleavages,
+                quantms_modified=self.quantms_modified,
+                msms_identified_rate=msms_identified_rate,
+            )
+        except Exception as e:
+            log.warning(f"Skipping draw_identification due to an error: {e}")
 
-        self.draw_quantms_contaminants()
+        try:
+            self.draw_quantms_contaminants()
+        except Exception as e:
+            log.warning(f"Skipping draw_quantms_contaminants due to an error: {e}")
 
         if self.long_trends:
-            draw_long_trends(
-                sub_sections=self.sub_sections,
-                long_trends_data=self.long_trends
-            )
+            try:
+                draw_long_trends(
+                    sub_sections=self.sub_sections,
+                    long_trends_data=self.long_trends
+                )
+            except Exception as e:
+                log.warning(f"Skipping draw_long_trends due to an error: {e}")
 
         # Peptide Length Distribution
         if self.peptide_length:
-            draw_peptide_length_distribution(
-                sub_section=self.sub_sections["identification"],
-                plot_data=self.peptide_length
-            )
+            try:
+                draw_peptide_length_distribution(
+                    sub_section=self.sub_sections["identification"],
+                    plot_data=self.peptide_length
+                )
+            except Exception as e:
+                log.warning(f"Skipping draw_peptide_length_distribution due to an error: {e}")
 
         if self.quantms_pep_intensity:
-            draw_peptide_intensity(
-                sub_section=self.sub_sections["quantification"],
-                plot_data=self.quantms_pep_intensity
-            )
+            try:
+                draw_peptide_intensity(
+                    sub_section=self.sub_sections["quantification"],
+                    plot_data=self.quantms_pep_intensity
+                )
+            except Exception as e:
+                log.warning(f"Skipping draw_peptide_intensity due to an error: {e}")
 
-        self.draw_quantms_msms_section()
-        self.draw_quantms_time_section()
+        try:
+            self.draw_quantms_msms_section()
+        except Exception as e:
+            log.warning(f"Skipping draw_quantms_msms_section due to an error: {e}")
+
+        try:
+            self.draw_quantms_time_section()
+        except Exception as e:
+            log.warning(f"Skipping draw_quantms_time_section due to an error: {e}")
 
         if self.msstats_input_valid:
             self.parse_msstats_input()
@@ -1648,28 +1652,6 @@ class QuantMSModule(BasePMultiqcModule):
                 "scale": False,
             }
 
-            # upload PSMs table to sqlite database
-            self.cur.execute(
-                "CREATE TABLE PSM(PSM_ID INT(200), Sequence VARCHAR(200), Modification VARCHAR(100), Accession VARCHAR(100), Search_Engine_Score FLOAT(4,5), Spectra_Ref VARCHAR(100))"
-            )
-            self.con.commit()
-            sql_col = "PSM_ID,Sequence,Modification,Accession,Search_Engine_Score,Spectra_Ref"
-            sql_t = "(" + ",".join(["?"] * 6) + ")"
-
-            # PSM_ID is index
-            all_term = [
-                "Sequence",
-                "Modification",
-                "Accession",
-                "Search_Engine_Score",
-                "Spectra_Ref",
-            ]
-            self.cur.executemany(
-                "INSERT INTO PSM (" + sql_col + ") VALUES " + sql_t,
-                [(k, *itemgetter(*all_term)(v)) for k, v in mztab_data_psm_full.items()],
-            )
-            self.con.commit()
-
             pconfig = {
                 "id": "peptide spectrum matches",  # ID used for the table
                 "table_title": "information of peptide spectrum matches",   # Title of the table. Used in the column config modal
@@ -1813,38 +1795,6 @@ class QuantMSModule(BasePMultiqcModule):
                 "format": "{:,.0f}",
             }
 
-            # upload protein table to sqlite database
-            self.cur.execute(
-                'CREATE TABLE PROTQUANT(ProteinName VARCHAR(100), Peptides_Number INT(100), "Average Spectrum Counting" VARCHAR)'
-            )
-            self.con.commit()
-            sql_col = 'ProteinName,Peptides_Number,"Average Spectrum Counting"'
-            sql_t = "(" + ",".join(["?"] * (len(conditions) * 2 + 3)) + ")"
-
-            for s in conditions:
-                self.cur.execute('ALTER TABLE PROTQUANT ADD "' + str(s) + '" VARCHAR')
-                self.con.commit()
-                sql_col += ', "' + str(s) + '"'
-                headers[str(s)] = {"name": s}
-
-            for s in list(map(lambda x: str(x) + "_distribution", conditions)):
-                self.cur.execute('ALTER TABLE PROTQUANT ADD "' + s + '" VARCHAR(100)')
-                self.con.commit()
-                sql_col += ', "' + s + '"'
-                headers[str(s)] = {"name": s}
-
-            # ProteinName is index
-            all_term = (
-                    ["Peptides_Number", "Average Spectrum Counting"]
-                    + list(map(str, conditions))
-                    + list(map(lambda x: str(x) + "_distribution", conditions))
-            )
-            self.cur.executemany(
-                "INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
-                [(k, *itemgetter(*all_term)(v)) for k, v in mztab_data_dict_prot_full.items()],
-            )
-            self.con.commit()
-
             pconfig = {
                 "id": "quantification_of_protein",  # ID used for the table
                 "title": "quantification information of protein",
@@ -1953,13 +1903,6 @@ class QuantMSModule(BasePMultiqcModule):
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict("index")
 
-        self.cur.execute(
-            'CREATE TABLE PEPQUANT(PeptideID INT(100) PRIMARY KEY, PeptideSequence VARCHAR(100), Modification VARCHAR(100), ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), "Average Intensity" FLOAT(4,3))'
-        )
-        self.con.commit()
-        sql_col = 'PeptideID,PeptideSequence,Modification,ProteinName,BestSearchScore, "Average Intensity"'
-        sql_t = "(" + ",".join(["?"] * (len(conditions) * 2 + 6)) + ")"
-
         headers = {
             "ProteinName": {
                 "title": "Protein Name",
@@ -1976,33 +1919,7 @@ class QuantMSModule(BasePMultiqcModule):
         }
 
         for s in conditions:
-            self.cur.execute('ALTER TABLE PEPQUANT ADD "' + str(s) + '" VARCHAR')
-            self.con.commit()
-            sql_col += ', "' + str(s) + '"'
             headers[str(s)] = {"title": s, "format": "{:,.4f}"}
-
-        for s in list(map(lambda x: str(x) + "_distribution", conditions)):
-            self.cur.execute('ALTER TABLE PEPQUANT ADD "' + s + '" VARCHAR(100)')
-            self.con.commit()
-            sql_col += ', "' + s + '"'
-
-        # PeptideID is index
-        all_term = (
-                [
-                    "PeptideSequence",
-                    "Modification",
-                    "ProteinName",
-                    "BestSearchScore",
-                    "Average Intensity",
-                ]
-                + list(map(str, conditions))
-                + list(map(lambda x: str(x) + "_distribution", conditions))
-        )
-        self.cur.executemany(
-            "INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
-            [(k, *itemgetter(*all_term)(v)) for k, v in msstats_data_dict_pep_full.items()],
-        )
-        self.con.commit()
 
         draw_config = {
             "namespace": "",
@@ -2103,36 +2020,8 @@ class QuantMSModule(BasePMultiqcModule):
             },
         }
 
-        # upload protein table to sqlite database
-        self.cur.execute(
-            'CREATE TABLE PROTQUANT(ProteinID INT(100), ProteinName VARCHAR(100), Peptides_Number INT(100), "Average Intensity" VARCHAR)'
-        )
-        self.con.commit()
-        sql_col = 'ProteinID,ProteinName,Peptides_Number,"Average Intensity"'
-        sql_t = "(" + ",".join(["?"] * (len(conditions) * 2 + 4)) + ")"
-
         for s in conditions:
-            self.cur.execute('ALTER TABLE PROTQUANT ADD "' + str(s) + '" VARCHAR')
-            self.con.commit()
-            sql_col += ', "' + str(s) + '"'
             headers[str(s)] = {"title": s, "format": "{:,.4f}"}
-
-        for s in list(map(lambda x: str(x) + "_distribution", conditions)):
-            self.cur.execute('ALTER TABLE PROTQUANT ADD "' + s + '" VARCHAR(100)')
-            self.con.commit()
-            sql_col += ', "' + s + '"'
-
-        # ProteinID is index
-        all_term = (
-                ["ProteinName", "Peptides_Number", "Average Intensity"]
-                + list(map(str, conditions))
-                + list(map(lambda x: str(x) + "_distribution", conditions))
-        )
-        self.cur.executemany(
-            "INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
-            [(k, *itemgetter(*all_term)(v)) for k, v in msstats_data_dict_prot_full.items()],
-        )
-        self.con.commit()
 
         draw_config = {
             "namespace": "",
@@ -2218,15 +2107,6 @@ class QuantMSModule(BasePMultiqcModule):
             draw_delta_mass_da_ppm(
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
-
-    def __del__(self):
-        """Cleanup method to close SQLite connection."""
-        if hasattr(self, 'con') and self.con:
-            try:
-                self.con.close()
-            except Exception as e:
-                # Log error but don't raise during cleanup to avoid issues in destructor
-                log.debug(f"Error closing SQLite connection during cleanup: {e}")
 
 
 def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
