@@ -510,7 +510,7 @@ class QuantMSModule(BasePMultiqcModule):
                 draw_peptide_length_distribution,
                 name="draw_peptide_length_distribution",
                 sub_section=self.sub_sections["identification"],
-                plot_data=self.peptide_length 
+                plot_data=self.peptide_length
            )
 
         if self.quantms_pep_intensity:
