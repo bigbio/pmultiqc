@@ -593,16 +593,6 @@ class QuantMSModule(BasePMultiqcModule):
 
         add_group_modules(self.section_group_dict, "")
 
-        self.css = {
-            "assets/css/quantms.css": os.path.join(
-                os.path.dirname(__file__), "assets", "css", "quantms.css"
-            )
-        }
-        self.js = {
-            "assets/js/highcharts.js": os.path.join(
-                os.path.dirname(__file__), "assets", "js", "highcharts.js"
-            ),
-        }
 
     def calculate_heatmap(self):
 
