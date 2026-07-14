@@ -237,6 +237,9 @@ def generate_section_order(section_list: list):
 # Function of add sub_section
 def add_sub_section(sub_section, plot, order=0, description="", helptext=""):
 
+    if plot is None:
+        return
+
     sub_section.append(
         {
             "plot": plot,
