@@ -1417,7 +1417,7 @@ class QuantMSModule(BasePMultiqcModule):
                 mod_list = list()
                 for mod in set(modifi_matches):
                     unimod_entry = unimod_data.get_by_accession(mod.upper())
-                    
+
                     if unimod_entry is not None:
                         mod_list.append(unimod_entry.get_name())
                     else:
