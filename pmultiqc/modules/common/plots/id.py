@@ -289,11 +289,17 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
     if max(abs(x) for x in x_values) > range_abs:
 
         delta_mass_range = {k: v for k, v in delta_mass["count"].items() if abs(k) <= range_abs}
-        delta_mass_percent_range = {
-            k: v for k, v in delta_mass["frequency"].items() if abs(k) <= range_abs
-        }
 
-        x_values_adj = list(delta_mass_range.keys())
+        if not delta_mass_range:
+            x_values_adj = x_values
+            delta_mass_range = delta_mass["count"]
+            delta_mass_percent_range = delta_mass["frequency"]
+        else:
+            delta_mass_percent_range = {
+                k: v for k, v in delta_mass["frequency"].items() if abs(k) <= range_abs
+            }
+            x_values_adj = list(delta_mass_range.keys())
+
         range_step_adj = (max(x_values_adj) - min(x_values_adj)) * 0.05
 
         data_label = [

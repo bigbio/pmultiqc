@@ -1,0 +1,6 @@
+.github/
+docs/
+tests/
+pmultiqc_service/
+recipe/
+.gitignore
