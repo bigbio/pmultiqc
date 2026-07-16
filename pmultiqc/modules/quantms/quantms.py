@@ -5,11 +5,9 @@ import itertools
 import json
 import os
 import re
-import sqlite3
 from collections import OrderedDict
 from datetime import datetime
 from functools import reduce
-from operator import itemgetter
 
 import numpy as np
 import pandas as pd
@@ -25,8 +23,6 @@ from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
 from typing import Dict, List
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
-
-from . import sparklines
 
 from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common.dia_utils import (
@@ -89,6 +85,9 @@ from pmultiqc.modules.core.section_groups import (
 from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.quantms")
+
+# Set a data row threshold to prevent the report file from becoming too large.
+TABLE_ROW_COUNT = 500
 
 
 class QuantMSModule(BasePMultiqcModule):
@@ -190,23 +189,7 @@ class QuantMSModule(BasePMultiqcModule):
         log.info("Starting data recognition and processing...")
 
         if config.output_dir:
-            if os.path.exists(config.output_dir):
-                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
-            else:
-                os.makedirs(config.output_dir)
-                self.con = sqlite3.connect(os.path.join(config.output_dir, "quantms.db"))
-        else:
-            self.con = sqlite3.connect("./quantms.db")
-
-        self.cur = self.con.cursor()
-        self.cur.execute("drop table if exists PROTQUANT")
-        self.con.commit()
-
-        self.cur.execute("drop table if exists PEPQUANT")
-        self.con.commit()
-
-        self.cur.execute("drop table if exists PSM")
-        self.con.commit()
+            os.makedirs(config.output_dir, exist_ok=True)
 
         # TODO what if multiple are found??
         for f in self.find_log_files("pmultiqc/exp_design", filecontents=False):
@@ -498,42 +481,63 @@ class QuantMSModule(BasePMultiqcModule):
                 self.file_df
             )
 
-        draw_identification(
-            self.sub_sections["identification"],
+        self._safe_draw(
+            draw_identification,
+            name="draw_identification",
+            sub_sections=self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
             quantms_missed_cleavages=self.quantms_missed_cleavages,
             quantms_modified=self.quantms_modified,
             msms_identified_rate=msms_identified_rate,
         )
 
-        self.draw_quantms_contaminants()
+        self._safe_draw(
+            self.draw_quantms_contaminants,
+            name="draw_quantms_contaminants"
+        )
 
         if self.long_trends:
-            draw_long_trends(
+            self._safe_draw(
+                draw_long_trends,
+                name="draw_long_trends",
                 sub_sections=self.sub_sections,
                 long_trends_data=self.long_trends
             )
 
         # Peptide Length Distribution
         if self.peptide_length:
-            draw_peptide_length_distribution(
+           self._safe_draw(
+                draw_peptide_length_distribution,
+                name="draw_peptide_length_distribution",
                 sub_section=self.sub_sections["identification"],
                 plot_data=self.peptide_length
-            )
+           )
 
         if self.quantms_pep_intensity:
-            draw_peptide_intensity(
+            self._safe_draw(
+                draw_peptide_intensity,
+                name="draw_peptide_intensity",
                 sub_section=self.sub_sections["quantification"],
                 plot_data=self.quantms_pep_intensity
             )
 
-        self.draw_quantms_msms_section()
-        self.draw_quantms_time_section()
+        self._safe_draw(
+            self.draw_quantms_msms_section,
+            name="draw_quantms_msms_section"
+        )
+
+        self._safe_draw(
+            self.draw_quantms_time_section,
+            name="draw_quantms_time_section"
+        )
 
         if self.msstats_input_valid:
             self.parse_msstats_input()
 
-        if config.kwargs["quantification_method"] == "spectral_counting":
+        if (
+            config.kwargs["quantification_method"] == "spectral_counting"
+            and self.psm_table_html
+        ):
             # Add a report section with psm table plot from mzTab for spectral counting
             add_sub_section(
                 sub_section=self.sub_sections["identification"],
@@ -551,10 +555,10 @@ class QuantMSModule(BasePMultiqcModule):
         # TODO draw protein quantification from mzTab in the future with Protein and peptide tables from mzTab
         # currently only draw protein tabel for spectral counting
         if (
-                not self.msstats_input_valid
-                and config.kwargs["quantification_method"] == "spectral_counting"
+            config.kwargs["quantification_method"] == "spectral_counting"
+            and self.protein_quantification_table_html
         ):
-            log.warning("MSstats input file not found!")
+            log.info("Draw quantification information of protein...")
             add_sub_section(
                 sub_section=self.sub_sections["quantification"],
                 plot=self.protein_quantification_table_html,
@@ -589,25 +593,6 @@ class QuantMSModule(BasePMultiqcModule):
 
         add_group_modules(self.section_group_dict, "")
 
-        self.css = {
-            "assets/css/quantms.css": os.path.join(
-                os.path.dirname(__file__), "assets", "css", "quantms.css"
-            )
-        }
-        self.js = {
-            "assets/js/quantms.js": os.path.join(
-                os.path.dirname(__file__), "assets", "js", "quantms.js"
-            ),
-            "assets/js/highcharts.js": os.path.join(
-                os.path.dirname(__file__), "assets", "js", "highcharts.js"
-            ),
-            "assets/js/axios.min.js": os.path.join(
-                os.path.dirname(__file__), "assets", "js", "axios.min.js"
-            ),
-            "assets/js/sql-optimized.js": os.path.join(
-                os.path.dirname(__file__), "assets", "js", "sql-optimized.js"
-            ),
-        }
 
     def calculate_heatmap(self):
 
@@ -1383,6 +1368,15 @@ class QuantMSModule(BasePMultiqcModule):
                 .explode()
                 .value_counts()
             )
+            if "search_engine_score[1]" in psm.columns:
+                psm_score = psm[["opt_global_cv_MS:1000889_peptidoform_sequence", "search_engine_score[1]"]]
+                self.peptide_search_score = (
+                    psm_score.groupby("opt_global_cv_MS:1000889_peptidoform_sequence")
+                    .agg("min")["search_engine_score[1]"]
+                    .to_dict()
+                )
+            else:
+                self.peptide_search_score = {}
         else:
             self.pep_table_exists = True
             # TODO the following assumes that we always only look
@@ -1422,7 +1416,12 @@ class QuantMSModule(BasePMultiqcModule):
                 modifi_matches = modifi_pattern.findall(modifis)
                 mod_list = list()
                 for mod in set(modifi_matches):
-                    mod_list.append(unimod_data.get_by_accession(mod.upper()).get_name())
+                    unimod_entry = unimod_data.get_by_accession(mod.upper())
+
+                    if unimod_entry is not None:
+                        mod_list.append(unimod_entry.get_name())
+                    else:
+                        mod_list.append(mod.upper())
                 return ",".join(set(mod_list))
             return "Unmodified"
 
@@ -1612,119 +1611,85 @@ class QuantMSModule(BasePMultiqcModule):
         if config.kwargs["quantification_method"] == "spectral_counting" and not config.kwargs.get(
                 "disable_table", True
         ):
-            mztab_data_psm_full = psm[
-                [
-                    "opt_global_cv_MS:1000889_peptidoform_sequence",
-                    "accession",
-                    "search_engine_score[1]",
-                    "stand_spectra_ref",
-                ]
-            ].copy()
+            psm_cols = [
+                "opt_global_cv_MS:1000889_peptidoform_sequence",
+                "accession",
+                "stand_spectra_ref",
+            ]
+            has_search_score = "search_engine_score[1]" in psm.columns
+            if has_search_score:
+                psm_cols.append("search_engine_score[1]")
+
+            mztab_data_psm_full = psm[psm_cols].copy()
+
+            rename_dict = {
+                "opt_global_cv_MS:1000889_peptidoform_sequence": "Sequence",
+                "accession": "Accession",
+                "stand_spectra_ref": "Spectra_Ref",
+            }
+            if has_search_score:
+                rename_dict["search_engine_score[1]"] = "Search_Engine_Score"
+
             mztab_data_psm_full.rename(
-                columns={
-                    "opt_global_cv_MS:1000889_peptidoform_sequence": "Sequence",
-                    "accession": "Accession",
-                    "search_engine_score[1]": "Search_Engine_Score",
-                    "stand_spectra_ref": "Spectra_Ref",
-                },
+                columns=rename_dict,
                 inplace=True,
             )
             mztab_data_psm_full[["Sequence", "Modification"]] = mztab_data_psm_full.apply(
                 lambda x: find_modification(x["Sequence"]), axis=1, result_type="expand"
             )
-            max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
+            if has_search_score:
+                max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
             mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
             headers = OrderedDict()
-            headers["Sequence"] = {"name": "Sequence", "description": "Peptide Sequence"}
+            headers["Sequence"] = {
+                "title": "Sequence",
+                "description": "Peptide Sequence"
+            }
+            headers["Accession"] = {
+                "title": "Accession",
+                "description": "Protein Name"
+            }
+            if has_search_score:
+                headers["Search_Engine_Score"] = {
+                    "title": "Search Engine Score",
+                    "format": "{:,.5e}",
+                    "max": max_search_score,
+                    "scale": False,
+                }
+            headers["Spectra_Ref"] = {
+                "title": "Spectra_Ref"
+            }
             headers["Modification"] = {
-                "name": "Modification",
+                "title": "Modification",
                 "description": "Modification in Peptide Sequence",
             }
-            headers["Accession"] = {"name": "Accession", "description": "Protein Name"}
-            headers["Search_Engine_Score"] = {
-                "name": "Search Engine Score",
-                "format": "{:,.5e}",
-                "max": max_search_score,
-                "scale": False,
-            }
 
-            # upload PSMs table to sqlite database
-            self.cur.execute(
-                "CREATE TABLE PSM(PSM_ID INT(200), Sequence VARCHAR(200), Modification VARCHAR(100), Accession VARCHAR(100), Search_Engine_Score FLOAT(4,5), Spectra_Ref VARCHAR(100))"
-            )
-            self.con.commit()
-            sql_col = "PSM_ID,Sequence,Modification,Accession,Search_Engine_Score,Spectra_Ref"
-            sql_t = "(" + ",".join(["?"] * 6) + ")"
-
-            # PSM_ID is index
-            all_term = [
-                "Sequence",
-                "Modification",
-                "Accession",
-                "Search_Engine_Score",
-                "Spectra_Ref",
-            ]
-            self.cur.executemany(
-                "INSERT INTO PSM (" + sql_col + ") VALUES " + sql_t,
-                [(k, *itemgetter(*all_term)(v)) for k, v in mztab_data_psm_full.items()],
-            )
-            self.con.commit()
-
-            pconfig = {
-                "id": "peptide spectrum matches",  # ID used for the table
-                "table_title": "information of peptide spectrum matches",   # Title of the table. Used in the column config modal
-                "sortRows": False,  # Whether to sort rows alphabetically
-                "only_defined_headers": False,  # Only show columns that are defined in the headers config
+            draw_config = {
+                "namespace": "",
+                "id": "peptide_spectrum_matches",
+                "title": f"Information of PSMs (Showing {TABLE_ROW_COUNT} rows)",
+                "sort_rows": False,
+                "only_defined_headers": True,
                 "col1_header": "PSM_ID",
-                "format": "{:,.0f}",
                 "no_violin": True,
                 "save_data_file": False,
             }
 
-            mztab_data_psm_init = dict(itertools.islice(mztab_data_psm_full.items(), 50))
-            table_html = table.plot(mztab_data_psm_init, headers, pconfig)
-            pattern = re.compile(r'<small id="peptide_spectrum_matches_numrows_text"')
-            match = re.search(pattern, table_html)
-            if match is None:
-                log.warning("Could not find expected pattern in table HTML, using default insertion point")
-                index = len(table_html)
-            else:
-                index = match.span()[0]
-            options = "".join(f"<option>{key}</option>" for key in ["Sequence", "Modification", "Accession", "Spectra_Ref"])
-            t_html = (
-                    table_html[:index]
-                    + '<input type="text" placeholder="search..." class="searchInput" '
-                      'onkeyup="searchPsmFunction()" id="psm_search">'
-                      f'<select name="psm_search_col" id="psm_search_col">{options}</select>'
+            # Set a data row threshold to prevent the report file from becoming too large.
+            self.psm_table_html = table.plot(
+                data=dict(itertools.islice(mztab_data_psm_full.items(), TABLE_ROW_COUNT)),
+                headers=headers,
+                pconfig=draw_config
             )
-            table_html = (
-                    t_html + "</select>" + '<button type="button" class="btn btn-default '
-                                           'btn-sm" id="psm_reset" onclick="psmFirst()">Reset</button>' + table_html[
-                        index:]
-            )
-            table_html = (
-                    table_html
-                    + r"""<div class="page_control"><span id="psmFirst">First Page</span><span
-            id="psmPre"> Previous Page</span><span id="psmNext">Next Page </span><span id="psmLast">Last
-            Page</span><span id="psmPageNum"></span>Page/Total <span id="psmTotalPage"></span>Pages <input
-            type="number" name="" id="psm_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);"
-            onkeydown="psm_page_jump()" min="1"/> </div> """
-            )
-
-            self.psm_table_html = table_html
 
         # TODO implement the second option no msstats and feature intensity: draw protein quantification from mzTab
         # in the future with Protein and peptide tables from mzTab.
         # Draw protein table with spectral counting from mzTab file
         if (
-                not self.msstats_input_valid
-                and config.kwargs["quantification_method"] == "spectral_counting"
-                and not config.kwargs.get("disable_table", True)
+            config.kwargs["quantification_method"] == "spectral_counting"
+            and not config.kwargs.get("disable_table", True)
         ):
             mztab_data_dict_prot_full = dict()
-            conditions = self.sample_df.drop_duplicates(subset="Condition")[
-                "Condition"
-            ].tolist()
 
             def get_spectrum_count_across_rep(condition_count_dict: dict):
                 spc = []
@@ -1745,15 +1710,18 @@ class QuantMSModule(BasePMultiqcModule):
                             / len(np.nonzero(list(samples_spc.values()))[0])
                         )
                     samples_spc = dict(filter(lambda x: x[1] != 0.0, samples_spc.items()))
-                    res[c + "_distribution"] = str(samples_spc).replace("'", '"')
                     spc.append(res[c])
 
                 # Integer for average spectrum counting with NA=0 ignored across condition
-                res["Average Spectrum Counting"] = round(sum(spc) / len(np.nonzero(spc)[0]))
+                nonzero_len = len(np.nonzero(spc)[0])
+                if nonzero_len == 0:
+                    res["Average Spectrum Counting"] = 0
+                else:
+                    res["Average Spectrum Counting"] = round(sum(spc) / nonzero_len)
+
                 return res
 
-            for row in prot.itertuples(index=True):
-                index = row.Index
+            for index, row in prot.iterrows():
                 mztab_data_dict_prot_full[index] = {}
                 for abundance_col in prot_abundance_cols:
                     # map abundance assay to factor value
@@ -1778,20 +1746,15 @@ class QuantMSModule(BasePMultiqcModule):
 
                     # Consider technical replicates and biological replicates
                     # Access column by name using getattr (itertuples uses attribute access)
-                    abundance_value = getattr(row, abundance_col, None)
-                    if condition in mztab_data_dict_prot_full[index]:
-                        if sample_name in mztab_data_dict_prot_full[index][condition]:
-                            mztab_data_dict_prot_full[index][condition][sample_name].append(
-                                abundance_value
-                            )
-                        else:
-                            mztab_data_dict_prot_full[index][condition] = {
-                                sample_name: [abundance_value]
-                            }
-                    else:
-                        mztab_data_dict_prot_full[index][condition] = {
-                            sample_name: [abundance_value]
-                        }
+                    abundance_value = row.get(abundance_col, 0.0)
+                    if pd.isna(abundance_value):
+                        abundance_value = 0.0
+
+                    if condition not in mztab_data_dict_prot_full[index]:
+                        mztab_data_dict_prot_full[index][condition] = {}
+                    if sample_name not in mztab_data_dict_prot_full[index][condition]:
+                        mztab_data_dict_prot_full[index][condition][sample_name] = []
+                    mztab_data_dict_prot_full[index][condition][sample_name].append(abundance_value)
 
                 mztab_data_dict_prot_full[index] = get_spectrum_count_across_rep(
                     mztab_data_dict_prot_full[index]
@@ -1803,98 +1766,40 @@ class QuantMSModule(BasePMultiqcModule):
 
             headers = OrderedDict()
             headers["Peptides_Number"] = {
-                "name": "Number of Peptides",
+                "title": "Number of Peptides",
                 "description": "Number of peptides per proteins",
                 "format": "{:,.0f}",
             }
             headers["Average Spectrum Counting"] = {
-                "name": "Average Spectrum Counting",
+                "title": "Average Spectrum Counting",
                 "description": "Average Spectrum Counting across all conditions",
                 "format": "{:,.0f}",
             }
 
-            # upload protein table to sqlite database
-            self.cur.execute(
-                'CREATE TABLE PROTQUANT(ProteinName VARCHAR(100), Peptides_Number INT(100), "Average Spectrum Counting" VARCHAR)'
-            )
-            self.con.commit()
-            sql_col = 'ProteinName,Peptides_Number,"Average Spectrum Counting"'
-            sql_t = "(" + ",".join(["?"] * (len(conditions) * 2 + 3)) + ")"
-
-            for s in conditions:
-                self.cur.execute('ALTER TABLE PROTQUANT ADD "' + str(s) + '" VARCHAR')
-                self.con.commit()
-                sql_col += ', "' + str(s) + '"'
-                headers[str(s)] = {"name": s}
-
-            for s in list(map(lambda x: str(x) + "_distribution", conditions)):
-                self.cur.execute('ALTER TABLE PROTQUANT ADD "' + s + '" VARCHAR(100)')
-                self.con.commit()
-                sql_col += ', "' + s + '"'
-                headers[str(s)] = {"name": s}
-
-            # ProteinName is index
-            all_term = (
-                    ["Peptides_Number", "Average Spectrum Counting"]
-                    + list(map(str, conditions))
-                    + list(map(lambda x: str(x) + "_distribution", conditions))
-            )
-            self.cur.executemany(
-                "INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
-                [(k, *itemgetter(*all_term)(v)) for k, v in mztab_data_dict_prot_full.items()],
-            )
-            self.con.commit()
-
-            pconfig = {
-                "id": "quantification_of_protein",  # ID used for the table
-                "title": "quantification information of protein",
-                "anchor": "",   # Title of the table. Used in the column config modal
-                "save_file": False,  # Whether to save the table data to a file
-                "raw_data_fn": "multiqc_quantification_of_protein_table",  # File basename to use for raw data file
-                "sort_rows": False,  # Whether to sort rows alphabetically
-                "only_defined_headers": False,  # Only show columns that are defined in the headers config
+            draw_config = {
+                "namespace": "",
+                "id": "quantification_of_protein",
+                "title": f"Quantification Information of Protein (Showing {TABLE_ROW_COUNT} rows)",
+                "sort_rows": False,
+                "only_defined_headers": True,
                 "col1_header": "ProteinName",
                 "no_violin": True,
                 "save_data_file": False,
             }
 
-            max_prot_intensity = 0
-            mztab_data_dict_prot_init = dict(
-                itertools.islice(mztab_data_dict_prot_full.items(), 50)
+            sorted_prot_items = sorted(
+                mztab_data_dict_prot_full.items(),
+                key=lambda x: x[1].get("Peptides_Number", 0),
+                reverse=True
             )
 
-            table_html = sparklines.plot(
-                mztab_data_dict_prot_init, headers, pconfig=pconfig, max_value=max_prot_intensity
-            )
-            pattern = re.compile(r'<small id="quantification_of_protein_numrows_text"')
-            match = re.search(pattern, table_html)
-            if match is None:
-                log.warning("Could not find expected pattern in protein table HTML, using default insertion point")
-                index = len(table_html)
-            else:
-                index = match.span()[0]
-            options = "".join(f"<option>{key}</option>" for key in ["ProteinName"])
-            t_html = (
-                    table_html[:index]
-                    + '<input type="text" placeholder="search..." class="searchInput" '
-                      'onkeyup="searchProtFunction()" id="prot_search">'
-                      f'<select name="prot_search_col" id="prot_search_col">{options}</select>'
-            )
-            table_html = (
-                    t_html + "</select>" + '<button type="button" class="btn btn-default '
-                                           'btn-sm" id="prot_reset" onclick="protFirst()">Reset</button>' + table_html[
-                        index:]
-            )
-            table_html = (
-                    table_html
-                    + r"""<div class="page_control"><span id="protFirst">First Page</span><span
-            id="protPre"> Previous Page</span><span id="protNext">Next Page </span><span id="protLast">Last
-            Page</span><span id="protPageNum"></span>Page/Total <span id="protTotalPage"></span>Pages <input
-            type="number" name="" id="prot_page" class="page" value="" oninput="this.value=this.value.replace(/\D/g);"
-            onkeydown="prot_page_jump()" min="1"/> </div> """
+            # Set a data row threshold to prevent the report file from becoming too large.
+            self.protein_quantification_table_html = table.plot(
+                data=dict(itertools.islice(sorted_prot_items, TABLE_ROW_COUNT)),
+                headers=headers,
+                pconfig=draw_config
             )
 
-            self.protein_quantification_table_html = table_html
 
     def parse_msstats_input(self):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -1953,13 +1858,6 @@ class QuantMSModule(BasePMultiqcModule):
         msstats_data_pep_agg.index = msstats_data_pep_agg.index + 1
         msstats_data_dict_pep_full = msstats_data_pep_agg.to_dict("index")
 
-        self.cur.execute(
-            'CREATE TABLE PEPQUANT(PeptideID INT(100) PRIMARY KEY, PeptideSequence VARCHAR(100), Modification VARCHAR(100), ProteinName VARCHAR(100), BestSearchScore FLOAT(4,3), "Average Intensity" FLOAT(4,3))'
-        )
-        self.con.commit()
-        sql_col = 'PeptideID,PeptideSequence,Modification,ProteinName,BestSearchScore, "Average Intensity"'
-        sql_t = "(" + ",".join(["?"] * (len(conditions) * 2 + 6)) + ")"
-
         headers = {
             "ProteinName": {
                 "title": "Protein Name",
@@ -1976,38 +1874,12 @@ class QuantMSModule(BasePMultiqcModule):
         }
 
         for s in conditions:
-            self.cur.execute('ALTER TABLE PEPQUANT ADD "' + str(s) + '" VARCHAR')
-            self.con.commit()
-            sql_col += ', "' + str(s) + '"'
             headers[str(s)] = {"title": s, "format": "{:,.4f}"}
-
-        for s in list(map(lambda x: str(x) + "_distribution", conditions)):
-            self.cur.execute('ALTER TABLE PEPQUANT ADD "' + s + '" VARCHAR(100)')
-            self.con.commit()
-            sql_col += ', "' + s + '"'
-
-        # PeptideID is index
-        all_term = (
-                [
-                    "PeptideSequence",
-                    "Modification",
-                    "ProteinName",
-                    "BestSearchScore",
-                    "Average Intensity",
-                ]
-                + list(map(str, conditions))
-                + list(map(lambda x: str(x) + "_distribution", conditions))
-        )
-        self.cur.executemany(
-            "INSERT INTO PEPQUANT (" + sql_col + ") VALUES " + sql_t,
-            [(k, *itemgetter(*all_term)(v)) for k, v in msstats_data_dict_pep_full.items()],
-        )
-        self.con.commit()
 
         draw_config = {
             "namespace": "",
             "id": "peptides_quantification_table",
-            "title": "Peptides Quantification Table",
+            "title": f"Peptides Quantification Table (Showing {TABLE_ROW_COUNT} rows)",
             "sort_rows": False,
             "only_defined_headers": True,
             "col1_header": "PeptideID",
@@ -2015,10 +1887,9 @@ class QuantMSModule(BasePMultiqcModule):
             "save_data_file": False,
         }
 
-        # only use the first 50 lines for the table
-        max_pep_intensity = 50
+        # Set a data row threshold to prevent the report file from becoming too large.
         table_html = table.plot(
-            dict(itertools.islice(msstats_data_dict_pep_full.items(), max_pep_intensity)),
+            dict(itertools.islice(msstats_data_dict_pep_full.items(), TABLE_ROW_COUNT)),
             headers=headers,
             pconfig=draw_config,
         )
@@ -2082,8 +1953,9 @@ class QuantMSModule(BasePMultiqcModule):
         msstats_data_prot.index = msstats_data_prot.index + 1
         msstats_data_dict_prot_full = msstats_data_prot.to_dict("index")
 
+        # Set a data row threshold to prevent the report file from becoming too large.
         msstats_data_dict_prot_init = dict(
-            itertools.islice(msstats_data_dict_prot_full.items(), 50)
+            itertools.islice(msstats_data_dict_prot_full.items(), TABLE_ROW_COUNT)
         )
 
         headers = {
@@ -2103,41 +1975,13 @@ class QuantMSModule(BasePMultiqcModule):
             },
         }
 
-        # upload protein table to sqlite database
-        self.cur.execute(
-            'CREATE TABLE PROTQUANT(ProteinID INT(100), ProteinName VARCHAR(100), Peptides_Number INT(100), "Average Intensity" VARCHAR)'
-        )
-        self.con.commit()
-        sql_col = 'ProteinID,ProteinName,Peptides_Number,"Average Intensity"'
-        sql_t = "(" + ",".join(["?"] * (len(conditions) * 2 + 4)) + ")"
-
         for s in conditions:
-            self.cur.execute('ALTER TABLE PROTQUANT ADD "' + str(s) + '" VARCHAR')
-            self.con.commit()
-            sql_col += ', "' + str(s) + '"'
             headers[str(s)] = {"title": s, "format": "{:,.4f}"}
-
-        for s in list(map(lambda x: str(x) + "_distribution", conditions)):
-            self.cur.execute('ALTER TABLE PROTQUANT ADD "' + s + '" VARCHAR(100)')
-            self.con.commit()
-            sql_col += ', "' + s + '"'
-
-        # ProteinID is index
-        all_term = (
-                ["ProteinName", "Peptides_Number", "Average Intensity"]
-                + list(map(str, conditions))
-                + list(map(lambda x: str(x) + "_distribution", conditions))
-        )
-        self.cur.executemany(
-            "INSERT INTO PROTQUANT (" + sql_col + ") VALUES " + sql_t,
-            [(k, *itemgetter(*all_term)(v)) for k, v in msstats_data_dict_prot_full.items()],
-        )
-        self.con.commit()
 
         draw_config = {
             "namespace": "",
             "id": "protein_quant_result",
-            "title": "Protein Quantification Table",
+            "title": f"Protein Quantification Table (Showing {TABLE_ROW_COUNT} rows)",
             "save_file": False,
             "sort_rows": False,
             "only_defined_headers": True,
@@ -2219,14 +2063,12 @@ class QuantMSModule(BasePMultiqcModule):
                 self.sub_sections["mass_error"], self.quantms_mass_error, "quantms_ppm"
             )
 
-    def __del__(self):
-        """Cleanup method to close SQLite connection."""
-        if hasattr(self, 'con') and self.con:
-            try:
-                self.con.close()
-            except Exception as e:
-                # Log error but don't raise during cleanup to avoid issues in destructor
-                log.debug(f"Error closing SQLite connection during cleanup: {e}")
+    def _safe_draw(self, func, *args, name="plot", **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            log.exception(f"Failed to generate {name}")
+            return None
 
 
 def draw_mzml_ms(sub_section, spectrum_tracking, header_cols):
