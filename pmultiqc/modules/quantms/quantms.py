@@ -1422,7 +1422,6 @@ class QuantMSModule(BasePMultiqcModule):
                         mod_list.append(unimod_entry.get_name())
                     else:
                         mod_list.append(mod.upper())
-                        
                 return ",".join(set(mod_list))
             return "Unmodified"
 
@@ -1612,27 +1611,34 @@ class QuantMSModule(BasePMultiqcModule):
         if config.kwargs["quantification_method"] == "spectral_counting" and not config.kwargs.get(
                 "disable_table", True
         ):
-            mztab_data_psm_full = psm[
-                [
-                    "opt_global_cv_MS:1000889_peptidoform_sequence",
-                    "accession",
-                    "search_engine_score[1]",
-                    "stand_spectra_ref",
-                ]
-            ].copy()
+            psm_cols = [
+                "opt_global_cv_MS:1000889_peptidoform_sequence",
+                "accession",
+                "stand_spectra_ref",
+            ]
+            has_search_score = "search_engine_score[1]" in psm.columns
+            if has_search_score:
+                psm_cols.append("search_engine_score[1]")
+
+            mztab_data_psm_full = psm[psm_cols].copy()
+
+            rename_dict = {
+                "opt_global_cv_MS:1000889_peptidoform_sequence": "Sequence",
+                "accession": "Accession",
+                "stand_spectra_ref": "Spectra_Ref",
+            }
+            if has_search_score:
+                rename_dict["search_engine_score[1]"] = "Search_Engine_Score"
+
             mztab_data_psm_full.rename(
-                columns={
-                    "opt_global_cv_MS:1000889_peptidoform_sequence": "Sequence",
-                    "accession": "Accession",
-                    "search_engine_score[1]": "Search_Engine_Score",
-                    "stand_spectra_ref": "Spectra_Ref",
-                },
+                columns=rename_dict,
                 inplace=True,
             )
             mztab_data_psm_full[["Sequence", "Modification"]] = mztab_data_psm_full.apply(
                 lambda x: find_modification(x["Sequence"]), axis=1, result_type="expand"
             )
-            max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
+            if has_search_score:
+                max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
             mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
             headers = OrderedDict()
             headers["Sequence"] = {
@@ -1643,12 +1649,13 @@ class QuantMSModule(BasePMultiqcModule):
                 "title": "Accession",
                 "description": "Protein Name"
             }
-            headers["Search_Engine_Score"] = {
-                "title": "Search Engine Score",
-                "format": "{:,.5e}",
-                "max": max_search_score,
-                "scale": False,
-            }
+            if has_search_score:
+                headers["Search_Engine_Score"] = {
+                    "title": "Search Engine Score",
+                    "format": "{:,.5e}",
+                    "max": max_search_score,
+                    "scale": False,
+                }
             headers["Spectra_Ref"] = {
                 "title": "Spectra_Ref"
             }
@@ -1660,7 +1667,7 @@ class QuantMSModule(BasePMultiqcModule):
             draw_config = {
                 "namespace": "",
                 "id": "peptide_spectrum_matches",
-                "title": "Information of PSMs",
+                "title": f"Information of PSMs (Showing {TABLE_ROW_COUNT} rows)",
                 "sort_rows": False,
                 "only_defined_headers": True,
                 "col1_header": "PSM_ID",
@@ -1703,7 +1710,6 @@ class QuantMSModule(BasePMultiqcModule):
                             / len(np.nonzero(list(samples_spc.values()))[0])
                         )
                     samples_spc = dict(filter(lambda x: x[1] != 0.0, samples_spc.items()))
-                    res[c + "_distribution"] = str(samples_spc).replace("'", '"')
                     spc.append(res[c])
 
                 # Integer for average spectrum counting with NA=0 ignored across condition
@@ -1773,7 +1779,7 @@ class QuantMSModule(BasePMultiqcModule):
             draw_config = {
                 "namespace": "",
                 "id": "quantification_of_protein",
-                "title": "Quantification Information of Protein",
+                "title": f"Quantification Information of Protein (Showing {TABLE_ROW_COUNT} rows)",
                 "sort_rows": False,
                 "only_defined_headers": True,
                 "col1_header": "ProteinName",
@@ -1873,7 +1879,7 @@ class QuantMSModule(BasePMultiqcModule):
         draw_config = {
             "namespace": "",
             "id": "peptides_quantification_table",
-            "title": "Peptides Quantification Table",
+            "title": f"Peptides Quantification Table (Showing {TABLE_ROW_COUNT} rows)",
             "sort_rows": False,
             "only_defined_headers": True,
             "col1_header": "PeptideID",
@@ -1975,7 +1981,7 @@ class QuantMSModule(BasePMultiqcModule):
         draw_config = {
             "namespace": "",
             "id": "protein_quant_result",
-            "title": "Protein Quantification Table",
+            "title": f"Protein Quantification Table (Showing {TABLE_ROW_COUNT} rows)",
             "save_file": False,
             "sort_rows": False,
             "only_defined_headers": True,

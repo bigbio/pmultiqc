@@ -110,6 +110,12 @@ class MsInfoReader(BaseParser):
             group = mzml_df[mzml_df["ms_level"] == 2]
             del mzml_df
 
+            # Calculate heatmap_charge only for current file (not all files in each iteration)
+            if mzml_table[m_name]["MS2_Num"] > 0:
+                heatmap_charge[m_name] = mzml_table[m_name]["Charge_2"] / mzml_table[m_name]["MS2_Num"]
+            else:
+                heatmap_charge[m_name] = 0
+
             if self.enable_dia:
                 identified_spectrum_scan_id = []
             else:
@@ -144,12 +150,6 @@ class MsInfoReader(BaseParser):
                 self.ms_without_psm,
                 self.enable_dia,
             )
-
-            # Calculate heatmap_charge only for current file (not all files in each iteration)
-            if mzml_table[m_name]["MS2_Num"] > 0:
-                heatmap_charge[m_name] = mzml_table[m_name]["Charge_2"] / mzml_table[m_name]["MS2_Num"]
-            else:
-                heatmap_charge[m_name] = 0
 
             self.log.info(
                 "{}: Done aggregating ms_statistics dataframe {}...".format(
