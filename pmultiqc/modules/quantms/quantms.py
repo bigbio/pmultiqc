@@ -1416,7 +1416,13 @@ class QuantMSModule(BasePMultiqcModule):
                 modifi_matches = modifi_pattern.findall(modifis)
                 mod_list = list()
                 for mod in set(modifi_matches):
-                    mod_list.append(unimod_data.get_by_accession(mod.upper()).get_name())
+                    unimod_entry = unimod_data.get_by_accession(mod.upper())
+                    
+                    if unimod_entry is not None:
+                        mod_list.append(unimod_entry.get_name())
+                    else:
+                        mod_list.append(mod.upper())
+                        
                 return ",".join(set(mod_list))
             return "Unmodified"
 
