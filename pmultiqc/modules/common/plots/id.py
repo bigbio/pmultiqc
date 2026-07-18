@@ -648,6 +648,10 @@ def draw_identi_num(
         file_df=None,
         cal_num_table_data=None
 ):
+    if not cal_num_table_data:
+        log.warning("cal_num_table_data not available, skipping draw_identi_num.")
+        return
+
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
     if enable_exp or enable_sdrf:
