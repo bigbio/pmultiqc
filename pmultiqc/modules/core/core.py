@@ -82,23 +82,28 @@ class PMultiQC(BaseMultiqcModule):
 
             if config.kwargs.get(flag, False):
 
-                ModuleClass = get_module(module_name, class_name)
-
-                if "proteobench_plugin" == flag:
-                    plugin = ModuleClass(self.find_log_files, None, None)
-                elif "mhcquant_plugin" == flag:
-                    plugin = ModuleClass(None, self.sub_sections, None)
-                else:
-                    plugin = ModuleClass(
-                        self.find_log_files,
-                        self.sub_sections,
-                        self.heatmap_color_list
-                    )
-
-                if plugin.get_data():
-                    plugin.draw_plots()
-
                 plugin_loaded = True
+
+                try:
+                    ModuleClass = get_module(module_name, class_name)
+
+                    if "proteobench_plugin" == flag:
+                        plugin = ModuleClass(self.find_log_files, None, None)
+                    elif "mhcquant_plugin" == flag:
+                        plugin = ModuleClass(None, self.sub_sections, None)
+                    else:
+                        plugin = ModuleClass(
+                            self.find_log_files,
+                            self.sub_sections,
+                            self.heatmap_color_list
+                        )
+
+                    if plugin.get_data():
+                        plugin.draw_plots()
+
+                except Exception as e:
+                    logger.warning(f"pmultiqc plugin '{class_name}' encountered an error and was skipped: {e}", exc_info=True)
+
                 return
 
         if not plugin_loaded:
