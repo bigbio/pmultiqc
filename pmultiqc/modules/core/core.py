@@ -102,12 +102,13 @@ class PMultiQC(BaseMultiqcModule):
                         plugin.draw_plots()
 
                 except Exception as e:
-                    logger.warning(f"pmultiqc plugin '{class_name}' encountered an error and was skipped: {e}", exc_info=True)
+                    logger.warning(f"pmultiqc plugin '{class_name}' encountered an error and was skipped: {e}")
+                    logger.debug("Detailed error traceback:", exc_info=True)
 
                 return
 
         if not plugin_loaded:
-            raise ValueError("No pmultiqc plugin selected; skipping.")
+            logger.warning("No pmultiqc plugin selected; skipping.")
 
 def get_module(module_name, class_name):
     module = import_module(f"..{module_name}", __package__)
