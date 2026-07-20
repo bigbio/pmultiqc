@@ -55,7 +55,7 @@ def parse_diann_report(
     report_data = _load_and_preprocess_diann_data(diann_report_path)
 
     # Draw various plots
-    _draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, file_df, msstats_input_valid)
+    #_draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, file_df, msstats_input_valid)
 
     # Process statistics and modifications
     total_protein_quantified, total_peptide_count, pep_plot = _process_diann_statistics(report_data)

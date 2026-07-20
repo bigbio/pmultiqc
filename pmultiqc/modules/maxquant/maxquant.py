@@ -49,7 +49,29 @@ class MaxQuantModule(BasePMultiqcModule):
             "get_msms_scans_dicts": get_msms_scans_dicts,
             "maxquant_heatmap": maxquant_heatmap,
         }
-
+        ### mzqc file 
+        try:
+            from pmultiqc.export.mzqc_exporter import MzQcExporter
+            from multiqc.utils import config
+            
+            output_directory = getattr(config, "output_dir", "./")
+            
+            exporter = MzQcExporter(
+                pipeline_name="MaxQuant",
+                raw_data=self.mq_results,
+                output_dir=output_directory
+            )
+            
+            # 1. Parse the metrics
+            mzqc_metrics = exporter._parse_maxquant()
+            self.log.info(f"mzQC: Successfully extracted {len(mzqc_metrics)} metrics.")
+            
+            # 2. Write them down to disk!
+            saved_file_path = exporter.export_to_file(mzqc_metrics, filename="maxquant_qc.mzQC")
+            self.log.info(f"mzQC: Generated output saved directly to: {saved_file_path}")
+            
+        except Exception as e:
+            self.log.warning(f"mzQC: Metric extraction or export failed: {e}")
         return bool(self.mq_results)
 
     def _process_sdrf_file(self):

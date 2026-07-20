@@ -106,6 +106,7 @@ class MzIdentMLModule(BasePMultiqcModule):
 
     def get_data(self) -> bool | None:
         self.log.info("Start parsing the MzIdentML results and spectra files...")
+        self.mzid_files = self.find_log_files("mzidentml")
 
         self.ms_paths = []
         for mzml_current_file in self.find_log_files("pmultiqc/mzML", filecontents=False):
@@ -161,6 +162,41 @@ class MzIdentMLModule(BasePMultiqcModule):
                     quantms_modified=self.quantms_modified,
                     msms_identified_rate=msms_identified_rate
                 )
+        try:
+            self.log.info("[TEST-mzQC] Initializing test export for mzIdentML...")
+            
+            # 1. Package the relevant raw parameters from this module run
+            raw_payload = {
+                "protein_group_count": self.total_protein_identified,
+                "total_peptide_ids": self.total_peptide_count,
+                "total_psm_count": self.total_ms2_spectra_identified,
+                "missed_cleavages": self.quantms_missed_cleavages,
+                "charge_state": self.heatmap_charge_score,
+                "identified_peptides_over_rt": self.id_rt_score,
+                "peptide_modification_frequency": self.quantms_modified,
+                "fdr_threshold_applied": 0.01,  # Test value
+                "target_decoy_ratio": 1.0       # Test value
+            }
+
+
+            from pmultiqc.export.mzqc_exporter import MzQcExporter  
+            exporter = MzQcExporter(
+                pipeline_name="mzidentml", 
+                raw_data=raw_payload, 
+                output_dir="./test_output" 
+            )
+
+            # 3. Process registry dictionary to QualityMetric items
+            metrics_list = exporter._parse_mzidentml(raw_payload)
+
+            # 4. Generate and save the file
+            test_file_path = exporter.export_to_file(metrics_list, filename="test_mzidentml.mzQC")
+            self.log.info(f"[TEST-mzQC] Export successful! File saved to: {test_file_path}")
+
+        except Exception as test_error:
+            self.log.error(f"[TEST-mzQC] Verification failed with error: {test_error}", exc_info=True)
+
+                
 
         return True
 
@@ -208,18 +244,36 @@ class MzIdentMLModule(BasePMultiqcModule):
                 charge_plot=self.mgf_charge_plot,
                 ms_info=self.ms_info
             )
+            # Check if the dictionary exists and actually has plotting data
+        # Ensure self.ms_info exists and contains data before attempting to plot
+            if hasattr(self, "ms_info") and self.ms_info and self.ms_info.get("peaks_per_ms2"):
+                draw_peaks_per_ms2(
+                    self.sub_sections["ms2"],
+                    self.mgf_peaks_ms2_plot,
+                    self.ms_info
+                )
+            else:
+                log.warning("Skipping 'Peaks per MS2' plot: No valid spectrum datasets to plot.")
 
-            draw_peaks_per_ms2(
-                self.sub_sections["ms2"],
-                self.mgf_peaks_ms2_plot,
-                self.ms_info
-            )
+            if hasattr(self, "ms_info") and self.ms_info and self.ms_info.get("peak_intensity_distribution"):
+                draw_peak_intensity_distribution(
+                    self.sub_sections["ms2"],
+                    self.mgf_peak_distribution_plot,
+                    self.ms_info
+                )
+            else:
+                self.log.warning("Skipping 'Peak Intensity Distribution' plot: No valid spectrum datasets to plot.")
+            # draw_peaks_per_ms2(
+            #     self.sub_sections["ms2"],
+            #     self.mgf_peaks_ms2_plot,
+            #     self.ms_info
+            # )
 
-            draw_peak_intensity_distribution(
-                self.sub_sections["ms2"],
-                self.mgf_peak_distribution_plot,
-                self.ms_info
-            )
+            # draw_peak_intensity_distribution(
+            #     self.sub_sections["ms2"],
+            #     self.mgf_peak_distribution_plot,
+            #     self.ms_info
+            # )
         else:
             draw_precursor_charge_distribution(
                 self.sub_sections["ms2"],
@@ -360,9 +414,12 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         enzyme_list = list(set(enzyme_list))
         enzyme = enzyme_list[0] if len(enzyme_list) == 1 else "Trypsin"
-        psm["missed_cleavages"] = psm.apply(
-            lambda x: self.cal_miss_cleavages(x["PeptideSequence"], enzyme), axis=1
-        )
+        if not psm.empty:
+            psm["missed_cleavages"] = psm.apply(
+                lambda x: self.cal_miss_cleavages(x["PeptideSequence"], enzyme), axis=1
+            )
+        else:
+            psm["missed_cleavages"] = pd.Series(dtype=int)
 
         # Calculate the ID RT Score
         if "retention_time" not in psm.columns and self.mgf_paths:
@@ -610,7 +667,8 @@ class MzIdentMLModule(BasePMultiqcModule):
                 mgf_rtinseconds["spectrumID"].append(title)
                 mgf_rtinseconds["filename"].append(m)
 
-                rtinseconds = float(spectrum.get("params", {}).get("rtinseconds", None))
+                rt_val = spectrum.get("params", {}).get("rtinseconds", None)
+                rtinseconds = float(rt_val) if rt_val is not None else 0.0
                 mgf_rtinseconds["retention_time"].append(rtinseconds)
 
                 if m in self.ms_with_psm:
@@ -683,16 +741,54 @@ class MzIdentMLModule(BasePMultiqcModule):
         mzid_reader.parse()
         mzid_table = mzid_reader.filtered_mzid_df
 
-        self.ms_with_psm = mzid_table["filename"].unique().tolist()
+        if "filename" in mzid_table.columns:
+            self.ms_with_psm = mzid_table["filename"].unique().tolist()
+        else:
+        # Fallback to empty list or extract from path if missing
+            self.ms_with_psm = []
 
         # TODO remove_decoy
         if config.kwargs["remove_decoy"]:
-            mzid_table = mzid_table[~mzid_table["isDecoy"]]
+            if "isDecoy" in mzid_table.columns:
+                # Convert to string and lower to handle booleans or "True"/"False" string variations safely
+                mzid_table = mzid_table[mzid_table["isDecoy"].astype(str).str.lower() != "true"]
+            elif "isdecoy" in mzid_table.columns:
+                mzid_table = mzid_table[mzid_table["isdecoy"].astype(str).str.lower() != "true"]
+            else:
+                # If no decoy column exists, skip filtering and log a warning
+                self.log.warning("Could not filter decoy hits: 'isDecoy' column is missing from the parsed table.")
 
-        self.total_protein_identified = mzid_table["accession_group"].nunique()
+        if "accession_group" in mzid_table.columns:
+            self.total_protein_identified = mzid_table["accession_group"].nunique()
+        elif "accession" in mzid_table.columns:
+            self.total_protein_identified = mzid_table["accession"].nunique()
+        elif "dbSequence_ref" in mzid_table.columns:
+            self.total_protein_identified = mzid_table["dbSequence_ref"].nunique()
+        else:
+            # Fallback to 0 if absolutely no protein tracking column exists
+            self.total_protein_identified = 0
 
         self.pep_plot = Histogram("Number of peptides per proteins", plot_category="frequency")
+        
+        # Normalize peptide seq column
+        if "PeptideSequence" not in mzid_table.columns:
+            if "sequence" in mzid_table.columns:
+                mzid_table["PeptideSequence"] = mzid_table["sequence"]
+            elif "Sequence" in mzid_table.columns:
+                mzid_table["PeptideSequence"] = mzid_table["Sequence"]
+            else:
+                mzid_table["PeptideSequence"] = ""
 
+        # Normalize Protein Accession column
+        if "accession" not in mzid_table.columns:
+            if "dbSequence_ref" in mzid_table.columns:
+                mzid_table["accession"] = mzid_table["dbSequence_ref"]
+            elif "protein" in mzid_table.columns:
+                mzid_table["accession"] = mzid_table["protein"]
+            elif "Protein" in mzid_table.columns:
+                mzid_table["accession"] = mzid_table["Protein"]
+            else:
+                mzid_table["accession"] = ""
         counts_per_acc = (
             mzid_table[["PeptideSequence", "accession"]]
             .drop_duplicates()["accession"]
@@ -723,7 +819,24 @@ class MzIdentMLModule(BasePMultiqcModule):
         if "retention_time" not in mzid_table.columns:
             psm_cols.remove("retention_time")
 
-        psm = mzid_table[psm_cols].drop_duplicates().reset_index(drop=True)
+        active_psm_cols = psm_cols.copy()
+
+        if "search_engine_score" not in mzid_table.columns:
+            # Try to find any column containing 'score' or 'expect' or 'e-value'
+            score_candidates = [col for col in mzid_table.columns if any(x in col.lower() for x in ["score", "expect", "value", "pvalue"])]
+            if score_candidates:
+                mzid_table["search_engine_score"] = mzid_table[score_candidates[0]]
+            else:
+                # Fallback to NaN if no score column is found
+                import numpy as np
+                mzid_table["search_engine_score"] = np.nan
+
+        # Check if any other columns in active_psm_cols are completely missing 
+        for col in list(active_psm_cols):
+            if col not in mzid_table.columns:
+                mzid_table[col] = ""  # Fill with empty strings to avoid KeyErrors
+
+        psm = mzid_table[active_psm_cols].drop_duplicates().reset_index(drop=True)
 
         num_table_at_run = dict()
         identified_msms_spectra = dict()

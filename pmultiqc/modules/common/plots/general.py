@@ -17,7 +17,8 @@ from pmultiqc.modules.common.common_utils import (
 FLAT_THRESHOLD = 100000
 
 def plot_html_check(plot_html):
-
+    if plot_html is None:
+        return None
     checked_html = remove_subtitle(plot_html)
     checked_html = apply_hoverinfo_config(checked_html)
 
