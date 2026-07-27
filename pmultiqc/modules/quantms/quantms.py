@@ -112,8 +112,6 @@ class QuantMSModule(BasePMultiqcModule):
         self.oversampling_plot = None
         self.psm_table_html = None
         self.protein_quantification_table_html = None
-        self.pep_plot = None
-        self.peptide_search_score = None
         self.ms_without_psm = None
         self.ms_with_psm = list()
         self.total_protein_identified = 0
@@ -183,6 +181,8 @@ class QuantMSModule(BasePMultiqcModule):
         self.long_trends = {}
         self.peptide_length = {}
         self.current_sum_by_run = {}
+        self.mztab_data = None
+        self.delta_mass = {}
 
     def get_data(self):
 
@@ -370,10 +370,11 @@ class QuantMSModule(BasePMultiqcModule):
                 cal_num_table_data=self.cal_num_table_data
             )
 
-            draw_num_pep_per_protein(
-                self.sub_sections["identification"],
-                self.pep_plot
-            )
+            if self.pep_plot:
+                draw_num_pep_per_protein(
+                    self.sub_sections["identification"],
+                    self.pep_plot
+                )
 
             if len(self.ms_info_path) > 0 and not self.is_bruker:
                 draw_peaks_per_ms2(
@@ -427,10 +428,11 @@ class QuantMSModule(BasePMultiqcModule):
                 self.cal_num_table_data
             )
 
-            draw_num_pep_per_protein(
-                self.sub_sections["identification"],
-                self.pep_plot
-            )
+            if self.pep_plot:
+                draw_num_pep_per_protein(
+                    self.sub_sections["identification"],
+                    self.pep_plot
+                )
 
             spectrum_tracking_data, spectrum_tracking_headers = aggregate_spectrum_tracking(
                 mzml_table=self.mzml_table,
@@ -465,13 +467,16 @@ class QuantMSModule(BasePMultiqcModule):
                     self.ms_info
                 )
 
-            draw_oversampling(
-                self.sub_sections["ms2"],
-                self.oversampling,
-                self.oversampling_plot.dict["cats"],
-                "",
-            )
-            self.draw_delta_mass()
+            if self.oversampling_plot:
+                draw_oversampling(
+                    self.sub_sections["ms2"],
+                    self.oversampling,
+                    self.oversampling_plot.dict["cats"],
+                    "",
+                )
+
+            if self.delta_mass and any(self.delta_mass.values()):
+                self.draw_delta_mass()
 
         msms_identified_rate = None
         if self.mzml_table and self.identified_msms_spectra:
@@ -1095,6 +1100,11 @@ class QuantMSModule(BasePMultiqcModule):
         #     )
 
     def cal_heat_map_score(self):
+
+        if self.mztab_data is None:
+            log.warning("No mzTab found, skipping heatmap score calculation.")
+            return
+
         timestamp = datetime.now().strftime("%H:%M:%S")
         log.info(f"{timestamp}: Calculating Heatmap Scores...")
 
@@ -1807,9 +1817,15 @@ class QuantMSModule(BasePMultiqcModule):
         msstats_data = pd.read_csv(self.msstats_input_path)
         # TODO we probably shouldn't even write out 0-intensity values to MSstats csv
         msstats_data = msstats_data[msstats_data["Intensity"] != 0]
-        msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[:, "PeptideSequence"].map(
-            self.peptide_search_score
-        )
+
+        if self.peptide_search_score:
+            msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[:, "PeptideSequence"].map(
+                self.peptide_search_score
+            )
+        else:
+            log.warning("No mzTab found. Setting BestSearchScore to NaN.")
+            msstats_data.loc[:, "BestSearchScore"] = np.nan
+
         msstats_data[["PeptideSequence", "Modification"]] = msstats_data.apply(
             lambda x: find_modification(x["PeptideSequence"]), axis=1, result_type="expand"
         )
