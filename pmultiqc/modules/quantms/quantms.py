@@ -475,7 +475,7 @@ class QuantMSModule(BasePMultiqcModule):
                     "",
                 )
 
-            if self.delta_mass:
+            if self.delta_mass and any(self.delta_mass.values()):
                 self.draw_delta_mass()
 
         msms_identified_rate = None
