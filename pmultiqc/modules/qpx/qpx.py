@@ -428,7 +428,7 @@ class QpxModule(BasePMultiqcModule):
                 )
 
     def _is_valid(self, df):
-            return df is not None and not df.empty
+        return df is not None and not df.empty
 
     def _safe_draw(self, func, *args, name="plot", **kwargs):
         try:
