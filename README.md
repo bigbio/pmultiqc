@@ -71,6 +71,12 @@ pmultiqc supports the following data sources:
 7. **[nf-core/mhcquant](https://nf-co.re/mhcquant)** result files:
    - `mhcquant/results-*`: folder containing mhcquant results
 
+8. **[nf-core/QPX](https://github.com/bigbio/qpx)** files:
+   - `*.psm.parquet`: QPX PSMs
+   - `*.pg.parquet`: QPX PG
+   - `*.feature.parquet`: QPX feature
+   - `*sdrf.tsv`: SDRF-Proteomics (optional)
+
 ## Installation
 
 ### Install from PyPI
@@ -163,6 +169,12 @@ multiqc --fragpipe-plugin /path/to/fragpipe/files -o ./report
 multiqc --mhcquant-plugin /path/to/mhcquant/files -o ./report
 ```
 
+#### For qpx files
+
+```bash
+multiqc --qpx-plugin /path/to/qpx/files -o ./report
+```
+
 ### Command-line Options
 
 | Option | Description | Default |
@@ -184,6 +196,7 @@ multiqc --mhcquant-plugin /path/to/mhcquant/files -o ./report
 | `--mzid-plugin` | Generate reports based on mzIdentML files | `False` |
 | `--fragpipe-plugin` | Generate reports based on FragPipe files | `False` |
 | `--mhcquant-plugin` | Generate reports based on mhcquant files | `False` |
+| `--qpx-plugin` | Generate reports based on qpx files | `False` |
 | `--disable-hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
 
 ## QC Metrics and Visualizations

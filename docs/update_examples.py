@@ -179,6 +179,16 @@ def run_pmultiqc(download_path, report_path, plugin_type):
         ]
     elif plugin_name == "diann":
         command = ["multiqc", "--diann-plugin", download_path, "-o", report_path]
+    elif plugin_name == "qpx":
+        command = [
+            "multiqc",
+            "--qpx-plugin",
+            download_path,
+            "--config",
+            os.path.join(download_path, "results/multiqc_config.yml"),
+            "-o",
+            report_path
+        ]
     else:
         raise ValueError(f"Unknown plugin type: {plugin_name}")
 

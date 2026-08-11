@@ -179,4 +179,21 @@ def pmultiqc_plugin_execution_start():
             {"pmultiqc/fragger_params": {"fn": "*.params", "num_lines": 0}},
         )
 
+    # QPX file (https://github.com/bigbio/qpx)
+    if "pmultiqc/qpx_psm" not in  config.sp:
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/qpx_psm": {"fn": "*.psm.parquet", "num_lines": 0}},
+        )
+    if "pmultiqc/qpx_pg" not in  config.sp:
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/qpx_pg": {"fn": "*.pg.parquet", "num_lines": 0}},
+        )
+    if "pmultiqc/qpx_feature" not in  config.sp:
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/qpx_feature": {"fn": "*.feature.parquet", "num_lines": 0}},
+        )
+
     config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})

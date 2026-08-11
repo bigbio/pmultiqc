@@ -485,7 +485,8 @@ def draw_identification(
         order=3,
         description="Number of protein groups per raw file.",
         helptext="""
-            Based on statistics calculated from mzTab, mzIdentML (mzid), DIA-NN report files, or FragPipe psm.tsv.
+            Based on statistics calculated from mzTab, mzIdentML (mzid),
+            DIA-NN report files, FragPipe psm.tsv or QPX pg.parquet.
             """,
     )
 
@@ -567,14 +568,14 @@ def rebuild_dict_structure(sc_dict):
 
 
 def draw_summary_protein_ident_table(
-        sub_sections,
-        use_two_columns: bool = False,
-        total_peptide_count: int = 0,
-        total_protein_quantified: int = 0,
-        total_ms2_spectra: int = 0,
-        total_ms2_spectra_identified: int = 0,
-        total_protein_identified: int = 0,
-        enable_mzid: bool = False
+    sub_sections,
+    use_two_columns: bool = False,
+    total_peptide_count: int = 0,
+    total_protein_quantified: int = 0,
+    total_ms2_spectra: int = 0,
+    total_ms2_spectra_identified: int = 0,
+    total_protein_identified: int = 0,
+    enable_mzid: bool = False
 ):
     headers = OrderedDict()
     if use_two_columns:
@@ -1144,6 +1145,9 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
 # Peptide Intensity Distribution
 def draw_peptide_intensity(sub_section, plot_data):
 
+    if not plot_data or not plot_data[0]:
+        return
+
     draw_config = {
         "id": "peptide_intensity_distribution_box",
         "cpswitch": False,
@@ -1151,10 +1155,15 @@ def draw_peptide_intensity(sub_section, plot_data):
         "title": "Peptide Intensity Distribution",
         "tt_decimals": 2,
         "xlab": "log2(Intensity)",
-        "data_labels": ["by Run", "by Sample"],
         "sort_samples": False,
         "save_data_file": False,
     }
+
+    if len(plot_data) > 1 and plot_data[1]:
+        draw_config["data_labels"] = ["by Run", "by Sample"]
+    else:
+        plot_data = [plot_data[0]]
+
     box_html = box.plot(plot_data, pconfig=draw_config)
 
     # box_html.flat
