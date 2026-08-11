@@ -1,9 +1,11 @@
 from __future__ import absolute_import
 
 from pmultiqc.modules.common.logging import get_logger
-
 from pmultiqc.modules.common.plots.general import (
     stat_pep_intensity
+)
+from pmultiqc.modules.common.common_utils import (
+    cal_miss_cleavages
 )
 
 
@@ -105,3 +107,57 @@ def get_pep_intensity(pep_table, sdrf_file_df):
         pep_intensity_by_run[run_name] = stat_pep_intensity(group["intensity"])
 
     return [pep_intensity_by_run, pep_intensity_by_sample]
+
+
+def get_missed_cleavages(psm_df, run_df, sdrf_file_df):
+
+    enzyme = _get_enzyme_name(run_df)
+    psm_df["missed_cleavages"] = psm_df["sequence"].apply(
+        lambda seq: cal_miss_cleavages(seq, enzyme)
+    )
+
+    mc_by_run = {}
+    mc_by_sample = {}
+
+    for name, group in psm_df.groupby("run"):
+        sc = group["missed_cleavages"].value_counts()
+        mc_by_run[str(name)] = sc.to_dict()
+
+    if sdrf_file_df is not None and not sdrf_file_df.empty:
+        merged_df = psm_df.merge(
+            right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
+            left_on="run",
+            right_on="Run",
+            how="left"
+        )
+
+        merged_df = merged_df.dropna(subset=["Sample"])
+
+        for name, group in merged_df.groupby("Sample", sort=True):
+            sc = group["missed_cleavages"].value_counts()
+            mc_by_sample[f"Sample {str(name)}"] = sc.to_dict()
+
+    return {
+        "sdrf_samples": mc_by_sample,
+        "ms_runs": mc_by_run,
+    }
+
+
+def _get_enzyme_name(df):
+
+    enzyme_name = "Trypsin"
+
+    if df is None or (hasattr(df, "empty") and df.empty):
+        return enzyme_name
+
+    col_name = "enzymes"
+    if hasattr(df, "columns") and col_name in df.columns:
+        valid_data = df[col_name].dropna()
+
+        if not valid_data.empty:
+            first_row_array = valid_data.iloc[0]
+
+            if len(first_row_array) > 0:
+                enzyme_name = first_row_array[0]
+
+    return enzyme_name

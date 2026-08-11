@@ -36,7 +36,8 @@ from pmultiqc.modules.qpx.qpx_plot import (
 from pmultiqc.modules.qpx.qpx_utils import (
     calculate_run_stat,
     get_unimod_mod_qpx,
-    get_pep_intensity
+    get_pep_intensity,
+    get_missed_cleavages
 )
 from pmultiqc.modules.common.ms_io import del_openms_convert_tsv
 
@@ -66,6 +67,7 @@ class QpxModule(BasePMultiqcModule):
         self.psm_df = None
         self.pg_df = None
         self.feature_df = None
+        self.run_df = None
         self.psm_df_valid = False
         self.pg_df_valid = False
         self.feature_df_valid = False
@@ -129,9 +131,15 @@ class QpxModule(BasePMultiqcModule):
             )
             break
 
-        self.psm_df_valid = self.psm_df is not None and not self.psm_df.empty
-        self.pg_df_valid = self.pg_df is not None and not self.pg_df.empty
-        self.feature_df_valid = self.feature_df is not None and not self.feature_df.empty
+        for f in self.find_log_files("pmultiqc/qpx_run", filecontents=False):
+            run_file_path = os.path.join(f["root"], f["fn"])
+
+            self.run_df = pd.read_parquet(run_file_path)
+            break
+
+        self.psm_df_valid = self._is_valid(self.psm_df)
+        self.pg_df_valid = self._is_valid(self.pg_df)
+        self.feature_df_valid = self._is_valid(self.feature_df)
 
         if self.psm_df_valid or self.pg_df_valid or self.feature_df_valid:
             log.info(
@@ -291,6 +299,7 @@ class QpxModule(BasePMultiqcModule):
 
         psm_modified = {}
         peptide_length = {}
+        missed_cleavages = {}
 
         if self.psm_df_valid:
 
@@ -328,11 +337,14 @@ class QpxModule(BasePMultiqcModule):
                 sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
             )
 
+            # Missed Cleavages
+            missed_cleavages = get_missed_cleavages(psm, self.run_df, self.file_df)
+
         draw_identification(
             sub_sections=self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
-            quantms_missed_cleavages=None,
-            quantms_modified=psm_modified,
+            missed_cleavages=missed_cleavages,
+            modified=psm_modified,
             msms_identified_rate=None,
         )
 
@@ -415,6 +427,8 @@ class QpxModule(BasePMultiqcModule):
                     report_type=""
                 )
 
+    def _is_valid(self, df):
+            return df is not None and not df.empty
 
     def _safe_draw(self, func, *args, name="plot", **kwargs):
         try:

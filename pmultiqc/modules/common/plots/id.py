@@ -406,8 +406,8 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
 def draw_identification(
     sub_sections,
     cal_num_table_data=None,
-    quantms_missed_cleavages=None,
-    quantms_modified=None,
+    missed_cleavages=None,
+    modified=None,
     msms_identified_rate=None,
     draw_peptide_id_count=True,
 ):
@@ -519,13 +519,13 @@ def draw_identification(
                 """,
         )
 
-    if quantms_missed_cleavages:
+    if missed_cleavages:
 
         mc_ratio = list()
 
         for k in ["ms_runs", "sdrf_samples"]:
-            if quantms_missed_cleavages.get(k, {}):
-                mc_ratio.append(rebuild_dict_structure(quantms_missed_cleavages[k]))
+            if missed_cleavages.get(k, {}):
+                mc_ratio.append(rebuild_dict_structure(missed_cleavages[k]))
 
         mc_data = {
             "plot_data": mc_ratio,
@@ -534,8 +534,8 @@ def draw_identification(
 
         draw_msms_missed_cleavages(sub_sections, mc_data, False)
 
-    if quantms_modified:
-        draw_modifications(sub_sections, quantms_modified)
+    if modified:
+        draw_modifications(sub_sections, modified)
 
     if msms_identified_rate:
         draw_ms_ms_identified(sub_sections, msms_identified_rate)
