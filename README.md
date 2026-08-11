@@ -71,7 +71,7 @@ pmultiqc supports the following data sources:
 7. **[nf-core/mhcquant](https://nf-co.re/mhcquant)** result files:
    - `mhcquant/results-*`: folder containing mhcquant results
 
-8. **[nf-core/QPX](https://github.com/bigbio/qpx)** files:
+8. **[QPX](https://github.com/bigbio/qpx)** files:
    - `*.psm.parquet`: QPX PSMs
    - `*.pg.parquet`: QPX PG
    - `*.feature.parquet`: QPX feature
