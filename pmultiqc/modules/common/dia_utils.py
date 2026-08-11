@@ -35,7 +35,7 @@ def parse_diann_report(
         heatmap_color_list,
         sample_df,
         ms_with_psm,
-        quantms_modified,
+        modified,
         ms_paths,
         file_df=None,
         msstats_input_valid=False
@@ -64,7 +64,7 @@ def parse_diann_report(
 
     # Process run-specific data (requires Modifications column from _process_modifications)
     if modifications_ok:
-        cal_num_table_data = _process_run_data(report_data, ms_with_psm, quantms_modified, file_df)
+        cal_num_table_data = _process_run_data(report_data, ms_with_psm, modified, file_df)
     else:
         log.warning("Skipping run data processing due to missing modifications data")
         cal_num_table_data = {"sdrf_samples": {}, "ms_runs": {}}
@@ -82,7 +82,7 @@ def parse_diann_report(
         peptide_search_score,
         ms_with_psm,
         cal_num_table_data,
-        quantms_modified,
+        modified,
         ms_without_psm,
         peptide_length
     )

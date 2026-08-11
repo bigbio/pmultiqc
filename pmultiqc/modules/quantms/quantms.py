@@ -44,7 +44,8 @@ from pmultiqc.modules.common.common_utils import (
     aggregate_general_stats,
     sum_matching_dict_values,
     top_n_contaminant_percent,
-    cal_contaminant_percent
+    cal_contaminant_percent,
+    cal_miss_cleavages
 )
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.ms import idxml as ms_idxml
@@ -1236,7 +1237,7 @@ class QuantMSModule(BasePMultiqcModule):
         enzyme_list = [i for i in meta_data.values() if str(i).startswith("enzyme:")]
         enzyme = enzyme_list[0].split(":")[1] if len(enzyme_list) == 1 else "Trypsin"
         psm.loc[:, "missed_cleavages"] = psm.apply(
-            lambda x: self.cal_miss_cleavages(x["sequence"], enzyme), axis=1
+            lambda x: cal_miss_cleavages(x["sequence"], enzyme), axis=1
         )
 
         missed_cleavages_by_run = dict()
@@ -1298,31 +1299,6 @@ class QuantMSModule(BasePMultiqcModule):
         )
         timestamp = datetime.now().strftime("%H:%M:%S")
         log.info(f"{timestamp}: Done calculating Heatmap Scores.")
-
-    # if missed.cleavages is not given, it is assumed that Trypsin was used for digestion
-    @staticmethod
-    def cal_miss_cleavages(sequence, enzyme):
-        if enzyme == "Trypsin/P":
-            miss_cleavages = len(sequence[:-1]) - len(
-                sequence[:-1].replace("K", "").replace("R", "").replace("P", "")
-            )
-        elif enzyme == "Arg-C":
-            miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace("R", ""))
-        elif enzyme == "Asp-N":
-            miss_cleavages = len(sequence[:-1]) - len(
-                sequence[:-1].replace("B", "").replace("D", "")
-            )
-        elif enzyme == "Chymotrypsin":
-            miss_cleavages = len(sequence[:-1]) - len(
-                sequence[:-1].replace("F", "").replace("W", "").replace("Y", "").replace("L", "")
-            )
-        elif enzyme == "Lys-C":
-            miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace("K", ""))
-        else:
-            miss_cleavages = len(sequence[:-1]) - len(
-                sequence[:-1].replace("K", "").replace("R", "")
-            )
-        return miss_cleavages
 
     def parse_idxml(self, mzml_table):
         # Instantiate the reader directly and parse

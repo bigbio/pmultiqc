@@ -149,7 +149,7 @@ class DiannModule(BasePMultiqcModule):
         self.total_peptide_count = 0
         self.total_protein_quantified = 0
         self.cal_num_table_data = {}
-        self.quantms_modified = {}
+        self.modified = {}
 
         # Draw DIA-NN metadata table (version info) in the experiment section
         if self.diann_version:
@@ -176,7 +176,7 @@ class DiannModule(BasePMultiqcModule):
             self.peptide_search_score,
             self.ms_with_psm,
             self.cal_num_table_data,
-            self.quantms_modified,
+            self.modified,
             self.ms_without_psm,
             self.peptide_length
         ) = parse_diann_report(
@@ -186,7 +186,7 @@ class DiannModule(BasePMultiqcModule):
             sample_df=self.sample_df,
             file_df=self.file_df,
             ms_with_psm=self.ms_with_psm,
-            quantms_modified=self.quantms_modified,
+            modified=self.modified,
             ms_paths=self.ms_paths
         )
 
@@ -228,7 +228,7 @@ class DiannModule(BasePMultiqcModule):
         draw_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
-            quantms_modified=self.quantms_modified
+            modified=self.modified
         )
 
         if self.long_trends:
