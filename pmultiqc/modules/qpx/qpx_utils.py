@@ -52,7 +52,7 @@ def get_unimod_mod_qpx(modifis, unimod_data):
             continue
 
         unimod_entry = unimod_data.get_by_accession(acc.upper())
-        
+
         if unimod_entry is not None:
             mod_list.append(unimod_entry.get_name())
         else:

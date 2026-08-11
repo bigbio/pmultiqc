@@ -54,7 +54,6 @@ class QpxModule(BasePMultiqcModule):
             heatmap_colors
         ):
         """Initialize the QpxModule."""
-
         super().__init__(
             find_log_files_func,
             sub_sections,
