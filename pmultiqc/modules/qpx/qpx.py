@@ -53,6 +53,7 @@ class QpxModule(BasePMultiqcModule):
             sub_sections,
             heatmap_colors
         ):
+        """Initialize the QpxModule."""
 
         super().__init__(
             find_log_files_func,
@@ -143,7 +144,7 @@ class QpxModule(BasePMultiqcModule):
             return True
         else:
             log.warning("[get_data] No valid PSM or PG or feature data found. Files may be missing or empty.")
-            return False 
+            return False
 
 
     def draw_plots(self):

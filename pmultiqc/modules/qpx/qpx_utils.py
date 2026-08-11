@@ -13,7 +13,6 @@ log = get_logger("pmultiqc.modules.qpx.qpx_utils")
 
 def calculate_run_stat(psm_df_sub, proteins):
     """Calculate statistics for a specific run."""
-
     peptides = set(psm_df_sub["peptidoform"])
 
     # TODO need protein_accessions in psm.parquet
@@ -44,7 +43,7 @@ def get_unimod_mod_qpx(modifis, unimod_data):
 
     if modifis is None or len(modifis) == 0:
         return "Unmodified"
-    
+
     mod_list = []
 
     for mod_dict in modifis:
@@ -90,14 +89,14 @@ def get_pep_intensity(pep_table, sdrf_file_df):
         sdrf_subset["Label"] = sdrf_subset["Label"].astype(str)
 
         pep_table = pep_table.merge(
-            sdrf_subset, 
-            left_on=["run", "Label"], 
-            right_on=["Run", "Label"], 
+            sdrf_subset,
+            left_on=["run", "Label"],
+            right_on=["Run", "Label"],
             how="left"
         )
 
         for sample_id, group in pep_table.groupby("Sample", sort=True):
-            sample_name_str = f"Sample {str(sample_id)}" 
+            sample_name_str = f"Sample {str(sample_id)}"
 
             pep_intensity_by_sample[sample_name_str] = stat_pep_intensity(group["intensity"])
 
