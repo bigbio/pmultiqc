@@ -235,7 +235,7 @@ class TestCliPluginOptions:
 
         section = re.search(
             r'\[project\.entry-points\."multiqc\.cli_options\.v1"\](.*?)(?=\n\[|\Z)',
-            pyproject.read_text(),
+            pyproject.read_text(encoding="utf-8"),
             re.DOTALL,
         )
         assert section, "cli_options entry-point section not found"
@@ -255,7 +255,9 @@ class TestInternalCallSiteKeywords:
     def test_no_unknown_keyword_arguments(self):
         trees = {}
         for path in sorted(PACKAGE_DIR.rglob("*.py")):
-            trees[path] = ast.parse(path.read_text())
+            # Explicit encoding: the runner's default may be ASCII, and several
+            # sources contain non-ASCII characters.
+            trees[path] = ast.parse(path.read_text(encoding="utf-8"))
 
         # Collect unambiguous, **kwargs-free function definitions.
         definitions = {}
