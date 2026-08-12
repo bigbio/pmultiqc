@@ -37,6 +37,30 @@ QPX_COLUMNS = {
 }
 
 
+def has_data(df, *columns):
+    """True only if every named column exists AND holds at least one non-null value.
+
+    quantms.io declares many fields as optional, and different producers populate
+    different subsets -- a DIA-NN-sourced project fills fields a DDA/OpenMS one leaves
+    null, and vice versa. Several columns are present in the schema but entirely empty
+    in real files (mass_error_ppm, missed_cleavages, unique, ...). Presence is therefore
+    not usability: every section must test the data, not the schema.
+    """
+    if df is None or getattr(df, "empty", True):
+        return False
+
+    for column in columns:
+        if column not in df.columns:
+            return False
+        try:
+            if not df[column].notna().any():
+                return False
+        except (TypeError, ValueError):
+            return False
+
+    return True
+
+
 def select_columns(df, columns, context):
     """Return ``df[columns]`` only if every column is present, else ``None``.
 

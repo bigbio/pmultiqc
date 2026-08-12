@@ -21,6 +21,7 @@ from pmultiqc.modules.common.plots.general import (
 )
 from pmultiqc.modules.common.dia_utils import draw_protein_table
 from pmultiqc.modules.common.plots.id import (
+    draw_delta_mass_da_ppm,
     draw_identi_num,
     draw_identification,
     draw_peptide_length_distribution,
@@ -32,6 +33,7 @@ from pmultiqc.modules.core.section_groups import add_group_modules
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.qpx.qpx_design import build_design_from_parquet
 from pmultiqc.modules.qpx.qpx_heatmap import calculate_qpx_heatmap
+from pmultiqc.modules.qpx.qpx_mass_error import calculate_mass_error
 from pmultiqc.modules.qpx.qpx_io import parse_qpx_parquet, select_columns
 from pmultiqc.modules.qpx.qpx_quant import (
     create_qpx_protein_table,
@@ -468,9 +470,31 @@ class QpxModule(BasePMultiqcModule):
 
     # Mass Error Trends
     def plot_mass_error(self):
-        log.info(
-            "mass_error_ppm column is entirely empty in psm.parquet, may need separate calculation."
-        )
+
+        log.info("[Mass Error] Starting generation...")
+
+        if not self.psm_df_valid:
+            return
+
+        ppm_dict, da_dict, _ = calculate_mass_error(self.psm_df)
+
+        if da_dict:
+            self._safe_draw(
+                draw_delta_mass_da_ppm,
+                name="draw_delta_mass_da",
+                sub_section=self.sub_sections["mass_error"],
+                delta_mass=da_dict,
+                delta_mass_type="Mass Error [Da]",
+            )
+
+        if ppm_dict:
+            self._safe_draw(
+                draw_delta_mass_da_ppm,
+                name="draw_delta_mass_ppm",
+                sub_section=self.sub_sections["mass_error"],
+                delta_mass=ppm_dict,
+                delta_mass_type="quantms_ppm",
+            )
 
     # RT Quality Control
     def plot_rt(self):
