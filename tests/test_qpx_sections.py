@@ -326,60 +326,59 @@ class TestContaminantsZeroSignal:
         assert calculate_contaminants(pg, "CONT") == (None, None)
 
 
-class TestTrimBoxOutliers:
-    """MultiQC's box plot ignores xmin/xmax, so readability comes from the data."""
+class TestSummariseBoxData:
+    """MultiQC flips a plot to a static image past 100k points; that image does not
+    fill the panel. Summarising to box statistics keeps it interactive."""
 
     @staticmethod
-    def _long_tailed():
+    def _raw():
         rng = np.random.default_rng(0)
-        core = list(rng.normal(26, 1.2, 5000))
-        return [{"r1": core + [20.3, 36.1, 35.0, 19.8]}]
+        return [{"r1": list(rng.normal(26, 1.2, 50000)) + [36.1, 20.3]}]
 
-    def test_tightens_the_range(self):
-        from pmultiqc.modules.common.plots.general import trim_box_outliers
+    def test_collapses_to_six_numbers(self):
+        from pmultiqc.modules.common.plots.general import summarise_box_data
 
-        data = self._long_tailed()
-        before = data[0]["r1"]
-        trimmed, dropped = trim_box_outliers(data)
-        after = trimmed[0]["r1"]
+        stats = summarise_box_data(self._raw())[0]["r1"]
 
-        assert dropped > 0
-        assert (max(after) - min(after)) < (max(before) - min(before)) / 2
+        assert set(stats) == {"min", "q1", "median", "q3", "max", "mean"}
 
-    def test_leaves_quartiles_essentially_unchanged(self):
-        from pmultiqc.modules.common.plots.general import trim_box_outliers
+    def test_quartiles_match_the_raw_data(self):
+        from pmultiqc.modules.common.plots.general import summarise_box_data
 
-        data = self._long_tailed()
-        before = np.percentile(data[0]["r1"], [25, 50, 75])
-        trimmed, _ = trim_box_outliers(data)
-        after = np.percentile(trimmed[0]["r1"], [25, 50, 75])
+        raw = self._raw()
+        expected = np.percentile(raw[0]["r1"], [25, 50, 75])
+        stats = summarise_box_data(raw)[0]["r1"]
 
-        assert np.allclose(before, after, atol=0.1), "trimming must not move the box"
+        assert np.allclose(
+            [stats["q1"], stats["median"], stats["q3"]], expected, atol=1e-6
+        )
 
-    def test_small_series_untouched(self):
-        from pmultiqc.modules.common.plots.general import trim_box_outliers
+    def test_fences_exclude_outliers(self):
+        from pmultiqc.modules.common.plots.general import summarise_box_data
 
-        data = [{"r1": [1.0, 2.0, 100.0]}]
-        trimmed, dropped = trim_box_outliers(data)
+        stats = summarise_box_data(self._raw())[0]["r1"]
 
-        assert dropped == 0 and trimmed == data
+        assert stats["max"] < 36.1, "upper fence must exclude the extreme point"
+        assert stats["min"] > 20.3, "lower fence must exclude the extreme point"
 
-    def test_never_empties_a_sample(self):
-        from pmultiqc.modules.common.plots.general import trim_box_outliers
+    def test_point_count_drops_below_the_flat_threshold(self):
+        from pmultiqc.modules.common.plots.general import FLAT_THRESHOLD, summarise_box_data
 
-        rng = np.random.default_rng(1)
-        data = [{"bulk": list(rng.normal(0, 1, 5000)), "outlier_only": [999.0, 998.0]}]
-        trimmed, _ = trim_box_outliers(data)
+        raw = [{f"r{i}": list(np.random.default_rng(i).normal(26, 1, 40000)) for i in range(6)}]
+        assert sum(len(v) for v in raw[0].values()) > FLAT_THRESHOLD
 
-        assert trimmed[0]["outlier_only"], "a sample must not vanish from the plot"
+        stats = summarise_box_data(raw)
+        assert sum(len(v) for v in stats[0].values()) < FLAT_THRESHOLD
+
+    def test_already_summarised_is_passed_through(self):
+        from pmultiqc.modules.common.plots.general import summarise_box_data
+
+        stats = {"r1": {"min": 1, "q1": 2, "median": 3, "q3": 4, "max": 5}}
+        assert summarise_box_data([stats])[0] == stats
 
     def test_preserves_shape(self):
-        from pmultiqc.modules.common.plots.general import trim_box_outliers
+        from pmultiqc.modules.common.plots.general import summarise_box_data
 
-        rng = np.random.default_rng(2)
-        as_dict = {"r1": list(rng.normal(0, 1, 500))}
-        trimmed, _ = trim_box_outliers(as_dict)
-        assert isinstance(trimmed, dict)
-
-        trimmed_list, _ = trim_box_outliers([as_dict])
-        assert isinstance(trimmed_list, list)
+        as_dict = {"r1": list(np.random.default_rng(2).normal(0, 1, 500))}
+        assert isinstance(summarise_box_data(as_dict), dict)
+        assert isinstance(summarise_box_data([as_dict]), list)

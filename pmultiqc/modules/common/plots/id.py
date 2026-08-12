@@ -8,7 +8,7 @@ from multiqc.plots.table_object import InputRow
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
 from pmultiqc.modules.common.plots.general import (
-    trim_box_outliers,
+    summarise_box_data,
     plot_html_check,
     plot_data_check
 )
@@ -1160,9 +1160,9 @@ def draw_peptide_intensity(sub_section, plot_data):
         "save_data_file": False,
     }
 
-    # MultiQC's box plot auto-scales its value axis and ignores xmin/xmax, so the only
-    # way to keep the boxes readable is to trim the long log2-intensity tails.
-    plot_data, dropped = trim_box_outliers(plot_data)
+    # Summarise to box statistics: several hundred thousand raw values would push the
+    # plot over the flat-image threshold, and a flat plot does not fill the panel.
+    plot_data = summarise_box_data(plot_data)
 
     if len(plot_data) > 1 and plot_data[1]:
         draw_config["data_labels"] = ["by Run", "by Sample"]
@@ -1184,11 +1184,7 @@ def draw_peptide_intensity(sub_section, plot_data):
         sub_section=sub_section,
         plot=box_html,
         order=5,
-        description=(
-            "Peptide intensity per Run."
-            + (f" The most extreme {dropped:,} values are omitted so the boxes stay legible."
-               if dropped else "")
-        ),
+        description="Peptide intensity per Run.",
         helptext="""
             quantms: Calculate the average of peptide_abundance_study_variable[1-n] values for each peptide from the
             peptide table in the 'mzTab', and then apply a log2 transformation.

@@ -424,69 +424,63 @@ def draw_search_engine_scores(sub_section, plot_data, plot_type):
     )
 
 
-def trim_box_outliers(plot_data, lower_percentile=1.0, upper_percentile=99.0):
-    """Drop values outside a percentile window so the auto-scaled axis stays readable.
+def summarise_box_data(plot_data, whisker_iqr=1.5):
+    """Replace raw per-sample value lists with the box statistics MultiQC can plot.
 
-    MultiQC's box plot ignores xmin/xmax and ymin/ymax: it renders horizontally and
-    rebuilds layout.xaxis from the y settings, discarding any range, so the value axis
-    is always auto-scaled to the data. The only way to control it is to control what is
-    plotted.
+    MultiQC switches a plot to a flat static image once it exceeds FLAT_THRESHOLD data
+    points, and a flat image does not stretch to the panel width -- the peptide
+    intensity box carried ~450,000 values and rendered at roughly half width because of
+    it. Its box plot also accepts pre-computed statistics: when a sample maps to a dict
+    rather than a list, it is used directly.
 
-    log2 intensity distributions have long tails -- for peptide intensity the
-    interquartile range is under 15% of the min-max span -- so a handful of extreme
-    points flatten every box. Trimming the outer 1% at each end keeps the axis tight
-    while leaving the box, median and whiskers essentially unchanged.
+    Summarising to {min, q1, median, q3, max, mean} keeps the plot interactive (a few
+    dozen numbers instead of hundreds of thousands), so it fills the panel, and removes
+    any need to discard data for display. Fences follow the usual Tukey convention, so
+    the whiskers show the data range excluding outliers rather than the absolute
+    extremes -- which is what a box plot conventionally depicts anyway.
 
-    Returns a new structure of the same shape (list of dicts, or a single dict). The
-    number of dropped points is returned alongside so callers can disclose it.
+    Returns a structure of the same shape (list of dicts, or a single dict).
     """
     if not plot_data:
-        return plot_data, 0
+        return plot_data
 
     was_list = isinstance(plot_data, list)
     datasets = plot_data if was_list else [plot_data]
 
-    values = []
+    summarised = []
     for dataset in datasets:
         if not isinstance(dataset, dict):
+            summarised.append(dataset)
             continue
-        for series in dataset.values():
-            if series is None:
-                continue
-            try:
-                values.extend(v for v in series if v is not None and np.isfinite(v))
-            except TypeError:
-                continue
 
-    if len(values) < 100:
-        # Too few points for percentile trimming to be meaningful.
-        return plot_data, 0
-
-    array = np.asarray(values, dtype=float)
-    low = float(np.percentile(array, lower_percentile))
-    high = float(np.percentile(array, upper_percentile))
-    if not np.isfinite(low) or not np.isfinite(high) or high <= low:
-        return plot_data, 0
-
-    dropped = 0
-    trimmed_datasets = []
-    for dataset in datasets:
-        if not isinstance(dataset, dict):
-            trimmed_datasets.append(dataset)
-            continue
-        trimmed = {}
+        out = {}
         for sample, series in dataset.items():
-            if series is None:
-                trimmed[sample] = series
+            if isinstance(series, dict):
+                out[sample] = series  # already statistics
                 continue
             try:
-                kept = [v for v in series if v is not None and low <= v <= high]
-            except TypeError:
-                trimmed[sample] = series
+                array = np.asarray([v for v in series if v is not None], dtype=float)
+            except (TypeError, ValueError):
+                out[sample] = series
                 continue
-            dropped += len(series) - len(kept)
-            # Never empty a sample entirely -- that would drop it from the plot.
-            trimmed[sample] = kept if kept else list(series)
-        trimmed_datasets.append(trimmed)
 
-    return (trimmed_datasets if was_list else trimmed_datasets[0]), dropped
+            array = array[np.isfinite(array)]
+            if array.size == 0:
+                continue
+
+            q1, median, q3 = (float(v) for v in np.percentile(array, [25, 50, 75]))
+            iqr = q3 - q1
+            low_fence = float(array[array >= q1 - whisker_iqr * iqr].min()) if iqr > 0 else float(array.min())
+            high_fence = float(array[array <= q3 + whisker_iqr * iqr].max()) if iqr > 0 else float(array.max())
+
+            out[sample] = {
+                "min": low_fence,
+                "q1": q1,
+                "median": median,
+                "q3": q3,
+                "max": high_fence,
+                "mean": float(array.mean()),
+            }
+        summarised.append(out)
+
+    return summarised if was_list else summarised[0]

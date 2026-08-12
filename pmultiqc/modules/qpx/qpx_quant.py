@@ -16,7 +16,7 @@ from multiqc.plots import box
 
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.plots.general import (
-    trim_box_outliers,
+    summarise_box_data,
     plot_html_check,
     stat_pep_intensity,
 )
@@ -284,7 +284,7 @@ def draw_protein_intensity(sub_section, plot_data):
     else:
         plot_data = [plot_data[0]]
 
-    plot_data, dropped = trim_box_outliers(plot_data)
+    plot_data = summarise_box_data(plot_data)
 
     box_html = plot_html_check(box.plot(plot_data, pconfig=draw_config))
 
@@ -292,11 +292,7 @@ def draw_protein_intensity(sub_section, plot_data):
         sub_section=sub_section,
         plot=box_html,
         order=6,
-        description=(
-            "Protein group intensity per Run."
-            + (f" The most extreme {dropped:,} values are omitted so the boxes stay legible."
-               if dropped else "")
-        ),
+        description="Protein group intensity per Run.",
         helptext="""
             The intensity of each protein group is taken from the `intensity` column of
             pg.parquet and log2-transformed. Zero and missing intensities are ignored.
@@ -455,7 +451,7 @@ def draw_intensity_std(sub_section, box_data):
         "save_data_file": False,
     }
 
-    box_data, dropped = trim_box_outliers(box_data)
+    box_data = summarise_box_data(box_data)
 
     box_html = plot_html_check(box.plot(list_of_data_by_sample=box_data, pconfig=draw_config))
 
