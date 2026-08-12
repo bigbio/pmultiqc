@@ -91,6 +91,12 @@ pmultiqc supports the following data sources:
 ### 7. [nf-core/mhcquant](https://nf-co.re/mhcquant) result files:
    - `mhcquant/results-*`: folder containing mhcquant results
 
+8. **[QPX](https://github.com/bigbio/qpx)** files:
+   - `*.psm.parquet`: QPX PSMs
+   - `*.pg.parquet`: QPX PG
+   - `*.feature.parquet`: QPX feature
+   - `*sdrf.tsv`: SDRF-Proteomics (optional)
+
 ## 💾 Installation
 
 ### Install from PyPI
@@ -178,6 +184,12 @@ multiqc --fragpipe-plugin /path/to/fragpipe/files -o ./report
 multiqc --mhcquant-plugin /path/to/mhcquant/files -o ./report
 ```
 
+#### For qpx files
+
+```bash
+multiqc --qpx-plugin /path/to/qpx/files -o ./report
+```
+
 ### Command-line Options
 
 | Option | Description | Default |
@@ -199,6 +211,7 @@ multiqc --mhcquant-plugin /path/to/mhcquant/files -o ./report
 | `--mzid-plugin` | Generate reports based on mzIdentML files | `False` |
 | `--fragpipe-plugin` | Generate reports based on FragPipe files | `False` |
 | `--mhcquant-plugin` | Generate reports based on mhcquant files | `False` |
+| `--qpx-plugin` | Generate reports based on qpx files | `False` |
 | `--disable-hoverinfo` | Disable interactive hover tooltips in the plots | `False` |
 
 ## 📊 QC Metrics and Visualizations
@@ -255,6 +268,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) | [PXD054720 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/) |
 | FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD062399/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062399_disable_hoverinfo/multiqc_report.html)) | [PXD062399.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062399.zip) |
 | mhcquant | mhcquant results | [mhcquant Example](https://pmultiqc.quantms.org/mhcquant/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/mhcquant_disable_hoverinfo/multiqc_report.html)) | [mhcquant_3-1-0_results.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant_3-1-0_results.zip) |
+| QPX | QPX results | [QPX Example](https://pmultiqc.quantms.org/qpx/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/qpx_disable_hoverinfo/multiqc_report.html)) | [qpx_example.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/qpx_example.zip) |
 
 ### 🔍 Large-Scale Dataset Reports
 

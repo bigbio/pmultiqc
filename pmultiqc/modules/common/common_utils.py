@@ -897,3 +897,28 @@ def mods_statistics(df: pd.DataFrame, run_col: str):
                     "cats": list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))}
 
     return modified_dict
+
+
+# if missed.cleavages is not given, it is assumed that Trypsin was used for digestion
+def cal_miss_cleavages(sequence, enzyme):
+    if enzyme == "Trypsin/P":
+        miss_cleavages = len(sequence[:-1]) - len(
+            sequence[:-1].replace("K", "").replace("R", "").replace("P", "")
+        )
+    elif enzyme == "Arg-C":
+        miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace("R", ""))
+    elif enzyme == "Asp-N":
+        miss_cleavages = len(sequence[:-1]) - len(
+            sequence[:-1].replace("B", "").replace("D", "")
+        )
+    elif enzyme == "Chymotrypsin":
+        miss_cleavages = len(sequence[:-1]) - len(
+            sequence[:-1].replace("F", "").replace("W", "").replace("Y", "").replace("L", "")
+        )
+    elif enzyme == "Lys-C":
+        miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace("K", ""))
+    else:
+        miss_cleavages = len(sequence[:-1]) - len(
+            sequence[:-1].replace("K", "").replace("R", "")
+        )
+    return miss_cleavages

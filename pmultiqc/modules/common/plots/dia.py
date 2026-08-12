@@ -4,6 +4,7 @@ import pandas as pd
 from multiqc.plots import heatmap, box, bargraph, linegraph
 
 from pmultiqc.modules.common.plots.general import (
+    summarise_box_data,
     plot_html_check,
     plot_data_check
 )
@@ -119,6 +120,10 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
         "sort_samples": False,
         "save_data_file": False,
     }
+
+    # Summarise to box statistics so a large report stays interactive rather than
+    # falling back to a flat image that does not fill the panel.
+    box_data = summarise_box_data(box_data)
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 

@@ -35,7 +35,7 @@ def parse_diann_report(
         heatmap_color_list,
         sample_df,
         ms_with_psm,
-        quantms_modified,
+        modified,
         ms_paths,
         file_df=None,
         msstats_input_valid=False
@@ -64,7 +64,7 @@ def parse_diann_report(
 
     # Process run-specific data (requires Modifications column from _process_modifications)
     if modifications_ok:
-        cal_num_table_data = _process_run_data(report_data, ms_with_psm, quantms_modified, file_df)
+        cal_num_table_data = _process_run_data(report_data, ms_with_psm, modified, file_df)
     else:
         log.warning("Skipping run data processing due to missing modifications data")
         cal_num_table_data = {"sdrf_samples": {}, "ms_runs": {}}
@@ -82,7 +82,7 @@ def parse_diann_report(
         peptide_search_score,
         ms_with_psm,
         cal_num_table_data,
-        quantms_modified,
+        modified,
         ms_without_psm,
         peptide_length
     )
@@ -590,6 +590,19 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
 
             * Peptides_Number: The number of peptides for each protein.
             * Average Intensity: Average intensity of each protein(0 or NA ignored).
+            """
+    elif report_type == "qpx":
+        description_text = """
+            This plot shows the quantification information of proteins in the final result (quantms.io pg.parquet).
+            """
+        helptext_text = """
+            The quantification information of proteins is obtained from the `intensity` column of pg.parquet.
+            Proteins are sorted by average intensity, and the most abundant ones are shown.
+
+            * Peptides_Number: The number of distinct peptide sequences for each protein.
+            * Average Intensity: log10 of the average protein group intensity across runs (0 or NA ignored).
+            * Global Q-value: The best (lowest) global q-value reported for the protein group.
+            * Protein intensity in each condition: log10 average intensity within that condition.
             """
     else:
         description_text = ""

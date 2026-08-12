@@ -56,6 +56,7 @@ from pmultiqc.modules.common.common_utils import (
 from pmultiqc.modules.common.plots.general import (
     plot_html_check,
     plot_data_check,
+    summarise_box_data,
     stat_pep_intensity,
     search_engine_score_bins,
     draw_search_engine_scores,
@@ -1033,6 +1034,10 @@ class FragPipeModule(BasePMultiqcModule):
             "save_data_file": False,
         }
 
+        # Summarise to box statistics so a large report stays interactive rather than
+        # falling back to a flat image that does not fill the panel.
+        distribution = summarise_box_data(distribution)
+
         box_html = box.plot(list_of_data_by_sample=distribution, pconfig=draw_config)
 
         box_html = plot_data_check(
@@ -1229,6 +1234,8 @@ class FragPipeModule(BasePMultiqcModule):
             "xlab": "log2(Intensity)",
             "save_data_file": False,
         }
+
+        distribution_box = summarise_box_data(distribution_box)
 
         box_html = box.plot(list_of_data_by_sample=distribution_box, pconfig=draw_config)
 

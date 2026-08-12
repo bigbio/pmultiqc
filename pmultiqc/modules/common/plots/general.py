@@ -142,6 +142,15 @@ def draw_exp_design(sub_sections, exp_design):
     # Currently this only supports the OpenMS two-table format (default in quantms pipeline)
     sample_df, file_df = read_openms_design(exp_design)
 
+    return draw_exp_design_tables(sub_sections, sample_df, file_df)
+
+
+def draw_exp_design_tables(sub_sections, sample_df, file_df):
+    """Render the Experimental Design table from already-parsed design tables.
+
+    Split out of draw_exp_design so callers that derive the design from somewhere
+    other than an OpenMS design file (e.g. quantms.io parquet) can reuse it.
+    """
     exp_design_runs = file_df["Run"].unique().tolist()
 
     is_bruker = False
@@ -413,3 +422,86 @@ def draw_search_engine_scores(sub_section, plot_data, plot_type):
         description="",
         helptext=plot_config["helptext"],
     )
+
+
+def summarise_box_data(plot_data, whisker_iqr=1.5, max_points=None):
+    """Replace raw per-sample value lists with the box statistics MultiQC can plot.
+
+    MultiQC switches a plot to a flat static image once it exceeds FLAT_THRESHOLD data
+    points, and a flat image does not stretch to the panel width -- the peptide
+    intensity box carried ~450,000 values and rendered at roughly half width because of
+    it. Its box plot also accepts pre-computed statistics: when a sample maps to a dict
+    rather than a list, it is used directly.
+
+    Summarising to {min, q1, median, q3, max, mean} keeps the plot interactive (a few
+    dozen numbers instead of hundreds of thousands), so it fills the panel, and removes
+    any need to discard data for display. Fences follow the usual Tukey convention, so
+    the whiskers show the data range excluding outliers rather than the absolute
+    extremes -- which is what a box plot conventionally depicts anyway.
+
+    Only applied when the raw point count would actually trip the threshold: below it
+    the raw values are returned untouched, so smaller reports keep showing individual
+    outlier points as before.
+
+    Returns a structure of the same shape (list of dicts, or a single dict).
+    """
+    if not plot_data:
+        return plot_data
+
+    was_list = isinstance(plot_data, list)
+    datasets = plot_data if was_list else [plot_data]
+
+    # Only summarise when the raw data would otherwise trip the flat-image fallback.
+    # Below that, keep the raw values so the plot still shows individual outlier points.
+    limit = FLAT_THRESHOLD if max_points is None else max_points
+    total = 0
+    for dataset in datasets:
+        if not isinstance(dataset, dict):
+            continue
+        for series in dataset.values():
+            if isinstance(series, dict) or series is None:
+                continue
+            try:
+                total += len(series)
+            except TypeError:
+                continue
+    if total < limit:
+        return plot_data
+
+    summarised = []
+    for dataset in datasets:
+        if not isinstance(dataset, dict):
+            summarised.append(dataset)
+            continue
+
+        out = {}
+        for sample, series in dataset.items():
+            if isinstance(series, dict):
+                out[sample] = series  # already statistics
+                continue
+            try:
+                array = np.asarray([v for v in series if v is not None], dtype=float)
+            except (TypeError, ValueError):
+                out[sample] = series
+                continue
+
+            array = array[np.isfinite(array)]
+            if array.size == 0:
+                continue
+
+            q1, median, q3 = (float(v) for v in np.percentile(array, [25, 50, 75]))
+            iqr = q3 - q1
+            low_fence = float(array[array >= q1 - whisker_iqr * iqr].min()) if iqr > 0 else float(array.min())
+            high_fence = float(array[array <= q3 + whisker_iqr * iqr].max()) if iqr > 0 else float(array.max())
+
+            out[sample] = {
+                "min": low_fence,
+                "q1": q1,
+                "median": median,
+                "q3": q3,
+                "max": high_fence,
+                "mean": float(array.mean()),
+            }
+        summarised.append(out)
+
+    return summarised if was_list else summarised[0]

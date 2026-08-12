@@ -18,6 +18,7 @@ PLUGIN_MAP = {
     "proteobench_plugin": ("proteobench", "ProteoBenchModule"),
     "fragpipe_plugin": ("fragpipe", "FragPipeModule"),
     "mhcquant_plugin": ("mhcquant", "MhcquantModule"),
+    "qpx_plugin": ("qpx", "QpxModule"),
 }
 
 class PMultiQC(BaseMultiqcModule):
@@ -36,7 +37,8 @@ class PMultiQC(BaseMultiqcModule):
                 <a href='https://www.maxquant.org'>MaxQuant</a>,
                 <a href='https://aptila.bio'>DIA-NN</a>,
                 <a href='https://fragpipe.nesvilab.org/'>FragPipe</a>,
-                and <a href='https://nf-co.re/mhcquant'>nf-core/mhcquant</a>
+                <a href='https://nf-co.re/mhcquant'>nf-core/mhcquant</a>,
+                and <a href='https://github.com/bigbio/qpx'>QPX</a>
                 """,
         )
 

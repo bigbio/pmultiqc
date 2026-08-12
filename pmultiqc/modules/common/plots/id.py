@@ -8,6 +8,7 @@ from multiqc.plots.table_object import InputRow
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
 from pmultiqc.modules.common.plots.general import (
+    summarise_box_data,
     plot_html_check,
     plot_data_check
 )
@@ -73,6 +74,15 @@ def draw_potential_contaminants(sub_section, contaminant_percent, report_type):
             fraction of total protein intensity attributable to contaminants.
 
             Note that this plot is based on experimental groups, and therefore may not correspond 1:1 to Raw files.
+            """
+    elif report_type == "qpx":
+        description_text = "Potential contaminants per run from pg.parquet."
+        help_text = """
+            Share of the summed protein-group intensity in each run that comes from
+            contaminant protein groups. A group counts as a contaminant when
+            pg.parquet marks it with the `contaminant` flag, or -- when that flag marks
+            nothing, as some converters leave it unset -- when its accession contains
+            the configured contaminant affix (`--contaminant-affix`, default CONT).
             """
     elif report_type == "fragpipe":
         description_text = "Potential contaminants per group from psm.tsv."
@@ -406,8 +416,8 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
 def draw_identification(
     sub_sections,
     cal_num_table_data=None,
-    quantms_missed_cleavages=None,
-    quantms_modified=None,
+    missed_cleavages=None,
+    modified=None,
     msms_identified_rate=None,
     draw_peptide_id_count=True,
 ):
@@ -485,7 +495,8 @@ def draw_identification(
         order=3,
         description="Number of protein groups per raw file.",
         helptext="""
-            Based on statistics calculated from mzTab, mzIdentML (mzid), DIA-NN report files, or FragPipe psm.tsv.
+            Based on statistics calculated from mzTab, mzIdentML (mzid),
+            DIA-NN report files, FragPipe psm.tsv or QPX pg.parquet.
             """,
     )
 
@@ -518,13 +529,13 @@ def draw_identification(
                 """,
         )
 
-    if quantms_missed_cleavages:
+    if missed_cleavages:
 
         mc_ratio = list()
 
         for k in ["ms_runs", "sdrf_samples"]:
-            if quantms_missed_cleavages.get(k, {}):
-                mc_ratio.append(rebuild_dict_structure(quantms_missed_cleavages[k]))
+            if missed_cleavages.get(k, {}):
+                mc_ratio.append(rebuild_dict_structure(missed_cleavages[k]))
 
         mc_data = {
             "plot_data": mc_ratio,
@@ -533,8 +544,8 @@ def draw_identification(
 
         draw_msms_missed_cleavages(sub_sections, mc_data, False)
 
-    if quantms_modified:
-        draw_modifications(sub_sections, quantms_modified)
+    if modified:
+        draw_modifications(sub_sections, modified)
 
     if msms_identified_rate:
         draw_ms_ms_identified(sub_sections, msms_identified_rate)
@@ -567,14 +578,14 @@ def rebuild_dict_structure(sc_dict):
 
 
 def draw_summary_protein_ident_table(
-        sub_sections,
-        use_two_columns: bool = False,
-        total_peptide_count: int = 0,
-        total_protein_quantified: int = 0,
-        total_ms2_spectra: int = 0,
-        total_ms2_spectra_identified: int = 0,
-        total_protein_identified: int = 0,
-        enable_mzid: bool = False
+    sub_sections,
+    use_two_columns: bool = False,
+    total_peptide_count: int = 0,
+    total_protein_quantified: int = 0,
+    total_ms2_spectra: int = 0,
+    total_ms2_spectra_identified: int = 0,
+    total_protein_identified: int = 0,
+    enable_mzid: bool = False
 ):
     headers = OrderedDict()
     if use_two_columns:
@@ -1144,6 +1155,9 @@ def draw_ids_rt_count(sub_section, rt_count_data, report_type):
 # Peptide Intensity Distribution
 def draw_peptide_intensity(sub_section, plot_data):
 
+    if not plot_data or not plot_data[0]:
+        return
+
     draw_config = {
         "id": "peptide_intensity_distribution_box",
         "cpswitch": False,
@@ -1151,10 +1165,19 @@ def draw_peptide_intensity(sub_section, plot_data):
         "title": "Peptide Intensity Distribution",
         "tt_decimals": 2,
         "xlab": "log2(Intensity)",
-        "data_labels": ["by Run", "by Sample"],
         "sort_samples": False,
         "save_data_file": False,
     }
+
+    # Summarise to box statistics: several hundred thousand raw values would push the
+    # plot over the flat-image threshold, and a flat plot does not fill the panel.
+    plot_data = summarise_box_data(plot_data)
+
+    if len(plot_data) > 1 and plot_data[1]:
+        draw_config["data_labels"] = ["by Run", "by Sample"]
+    else:
+        plot_data = [plot_data[0]]
+
     box_html = box.plot(plot_data, pconfig=draw_config)
 
     # box_html.flat
