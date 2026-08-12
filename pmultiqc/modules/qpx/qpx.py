@@ -211,7 +211,11 @@ class QpxModule(BasePMultiqcModule):
         if self.psm_df_valid:
 
             # Summary Table & Pipeline Result Statistics
-            total_ms2_spectra_identified = self.psm_df.groupby(["run", "scan"]).ngroups
+            # 'scan' is a list column (list<int32>) in psm.parquet, so .str[0] unwraps
+            # the scan number; the column itself is unhashable and cannot be grouped on.
+            total_ms2_spectra_identified = self.psm_df.groupby(
+                ["run", self.psm_df["scan"].str[0]]
+            ).ngroups
             total_peptide_count = self.psm_df["sequence"].nunique()
 
         if self.pg_df_valid:

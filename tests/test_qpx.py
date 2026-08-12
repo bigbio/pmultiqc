@@ -96,20 +96,39 @@ class TestPepIntensitySdrfMerge:
 
 
 class TestIdentifiedSpectraCount:
-    """The identified-MS2 count is over distinct (run, scan) pairs."""
+    """The identified-MS2 count is over distinct (run, scan) pairs.
 
-    def test_scan_ids_sharing_a_first_character_are_counted_separately(self):
-        psm_df = pd.DataFrame(
+    ``scan`` is a ``list<int32>`` column in psm.parquet, so the count unwraps it with
+    ``.str[0]``. The raw column holds numpy arrays and is unhashable, so grouping on
+    the column directly raises TypeError -- this pins that down.
+    """
+
+    @staticmethod
+    def _psm_df():
+        import numpy as np
+
+        return pd.DataFrame(
             {
                 "run": ["run1", "run1", "run1", "run2"],
-                "scan": ["scan=1", "scan=2", "scan=3", "scan=1"],
-                "sequence": ["PEPTIDEA", "PEPTIDEB", "PEPTIDEC", "PEPTIDEA"],
+                "scan": [
+                    np.array([1], dtype="int32"),
+                    np.array([2], dtype="int32"),
+                    np.array([2], dtype="int32"),
+                    np.array([1], dtype="int32"),
+                ],
+                "sequence": ["PEPTIDEA", "PEPTIDEB", "PEPTIDEB", "PEPTIDEA"],
             }
         )
 
-        assert psm_df.groupby(["run", "scan"]).ngroups == 4
-        # The buggy form collapsed every scan id onto its first character.
-        assert psm_df.groupby(["run", psm_df["scan"].str[0]]).ngroups == 2
+    def test_counts_distinct_run_scan_pairs(self):
+        psm_df = self._psm_df()
+        # run1 has scans {1, 2} (2 rows share scan 2), run2 has scan {1} -> 3 pairs.
+        assert psm_df.groupby(["run", psm_df["scan"].str[0]]).ngroups == 3
+
+    def test_scan_column_is_not_directly_groupable(self):
+        psm_df = self._psm_df()
+        with pytest.raises(TypeError):
+            psm_df.groupby(["run", "scan"]).ngroups
 
 
 class TestQpxParquetDiscovery:
