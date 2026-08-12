@@ -142,6 +142,15 @@ def draw_exp_design(sub_sections, exp_design):
     # Currently this only supports the OpenMS two-table format (default in quantms pipeline)
     sample_df, file_df = read_openms_design(exp_design)
 
+    return draw_exp_design_tables(sub_sections, sample_df, file_df)
+
+
+def draw_exp_design_tables(sub_sections, sample_df, file_df):
+    """Render the Experimental Design table from already-parsed design tables.
+
+    Split out of draw_exp_design so callers that derive the design from somewhere
+    other than an OpenMS design file (e.g. quantms.io parquet) can reuse it.
+    """
     exp_design_runs = file_df["Run"].unique().tolist()
 
     is_bruker = False

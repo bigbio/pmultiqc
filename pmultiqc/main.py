@@ -200,5 +200,10 @@ def pmultiqc_plugin_execution_start():
             config.sp,
             {"pmultiqc/qpx_run": {"fn": "*.run.parquet", "num_lines": 0}},
         )
+    if "pmultiqc/qpx_sample" not in config.sp:
+        config.update_dict(
+            config.sp,
+            {"pmultiqc/qpx_sample": {"fn": "*.sample.parquet", "num_lines": 0}},
+        )
 
     config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})

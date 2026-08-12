@@ -15,7 +15,8 @@ from pmultiqc.modules.common.common_utils import (
     evidence_rt_count
 )
 from pmultiqc.modules.common.plots.general import (
-    draw_exp_design
+    draw_exp_design,
+    draw_exp_design_tables
 )
 from pmultiqc.modules.common.plots.id import (
     draw_identi_num,
@@ -27,6 +28,7 @@ from pmultiqc.modules.common.plots.id import (
 
 from pmultiqc.modules.core.section_groups import add_group_modules
 from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.qpx.qpx_design import build_design_from_parquet
 from pmultiqc.modules.qpx.qpx_io import parse_qpx_parquet
 from pmultiqc.modules.qpx.qpx_plot import (
     draw_summary_table,
@@ -68,6 +70,7 @@ class QpxModule(BasePMultiqcModule):
         self.pg_df = None
         self.feature_df = None
         self.run_df = None
+        self.sample_parquet_df = None
         self.psm_df_valid = False
         self.pg_df_valid = False
         self.feature_df_valid = False
@@ -108,6 +111,7 @@ class QpxModule(BasePMultiqcModule):
         self.pg_df = self._read_qpx_parquets("pmultiqc/qpx_pg", "pg")
         self.feature_df = self._read_qpx_parquets("pmultiqc/qpx_feature", "feature")
         self.run_df = self._read_qpx_parquets("pmultiqc/qpx_run", None)
+        self.sample_parquet_df = self._read_qpx_parquets("pmultiqc/qpx_sample", None)
 
         self.psm_df_valid = self._is_valid(self.psm_df)
         self.pg_df_valid = self._is_valid(self.pg_df)
@@ -142,6 +146,11 @@ class QpxModule(BasePMultiqcModule):
                 self.sub_sections["experiment"],
                 self.exp_design
             )
+        else:
+            # No external design file: quantms.io describes the experiment itself, so
+            # derive it from run.parquet + sample.parquet instead of dropping every
+            # sample-level section.
+            self._draw_exp_design_from_parquet()
 
         # Results Overview
         self._safe_draw(
@@ -400,6 +409,33 @@ class QpxModule(BasePMultiqcModule):
                     rt_count_data=qpx_ids_over_rt,
                     report_type=""
                 )
+
+    def _draw_exp_design_from_parquet(self):
+        """Derive and render the experimental design from the quantms.io parquet tables.
+
+        Leaves the existing empty defaults in place if the tables cannot supply one,
+        so a project without them behaves exactly as before.
+        """
+        sample_df, file_df = build_design_from_parquet(self.run_df, self.sample_parquet_df)
+
+        if sample_df is None or file_df is None or file_df.empty:
+            log.info(
+                "[draw_plots] No experimental design file and none derivable from "
+                "run.parquet/sample.parquet; sample-level sections will be skipped."
+            )
+            return
+
+        (
+            self.sample_df,
+            self.file_df,
+            self.exp_design_runs,
+            self.is_bruker,
+            self.is_multi_conditions
+        ) = draw_exp_design_tables(
+            self.sub_sections["experiment"],
+            sample_df,
+            file_df
+        )
 
     def _read_qpx_parquets(self, search_pattern, qpx_type):
         """Read every parquet file matching search_pattern and concatenate them.
