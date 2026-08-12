@@ -424,12 +424,21 @@ def draw_search_engine_scores(sub_section, plot_data, plot_type):
     )
 
 
-def box_axis_range(plot_data, margin_fraction=0.05):
-    """Axis bounds fitted to box-plot data, or None when it cannot be determined.
+def box_axis_range(plot_data, lower_percentile=1.0, upper_percentile=99.0, margin_fraction=0.05):
+    """Axis bounds fitted to the bulk of box-plot data, or None if undeterminable.
 
-    Box plots of log2 intensity sit far from zero, so an axis left to default from 0
-    compresses every box into a fraction of the plot. Returns ``(xmin, xmax)`` padded
-    by a small margin so the whiskers are not flush against the edges.
+    Two problems with leaving the axis to default. log2 intensities sit far from zero,
+    so an axis anchored at 0 wastes most of the width. And fitting to absolute min/max
+    is barely better when the tails are long: a handful of extreme points stretch the
+    axis until every box collapses -- for peptide intensity the interquartile range is
+    only ~15% of the min-max span.
+
+    So the range is taken from percentiles (1st-99th by default), which keeps the boxes
+    and whiskers legible. Points outside that range are still drawn by the plotting
+    library but may fall beyond the visible axis; widen the percentiles if every outlier
+    must be on screen. The result never extends past the real data.
+
+    Returns ``(xmin, xmax)``.
     """
     if not plot_data:
         return None
@@ -451,9 +460,20 @@ def box_axis_range(plot_data, margin_fraction=0.05):
     if not values:
         return None
 
-    low, high = float(min(values)), float(max(values))
+    array = np.asarray(values, dtype=float)
+    array = array[np.isfinite(array)]
+    if array.size == 0:
+        return None
+
+    low = float(np.percentile(array, lower_percentile))
+    high = float(np.percentile(array, upper_percentile))
+
+    # Degenerate percentiles (e.g. a near-constant series) fall back to the full range.
     if not np.isfinite(low) or not np.isfinite(high) or high <= low:
+        low, high = float(array.min()), float(array.max())
+    if high <= low:
         return None
 
     margin = (high - low) * margin_fraction
-    return low - margin, high + margin
+    # Never claim range the data does not occupy.
+    return max(low - margin, float(array.min())), min(high + margin, float(array.max()))

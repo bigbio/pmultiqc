@@ -4,6 +4,7 @@ import pandas as pd
 from multiqc.plots import heatmap, box, bargraph, linegraph
 
 from pmultiqc.modules.common.plots.general import (
+    box_axis_range,
     plot_html_check,
     plot_data_check
 )
@@ -119,6 +120,12 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
         "sort_samples": False,
         "save_data_file": False,
     }
+
+    # log2 intensities sit far from zero and have long tails, so an unset axis both
+    # wastes the left half and lets a few outliers shrink every box.
+    x_range = box_axis_range(box_data)
+    if x_range:
+        draw_config["xmin"], draw_config["xmax"] = x_range
 
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
