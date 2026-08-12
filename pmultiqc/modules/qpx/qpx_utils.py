@@ -20,9 +20,14 @@ def calculate_run_stat(psm_df_sub, proteins):
     # TODO need protein_accessions in psm.parquet
     unique_peptides = set()
 
-    modified_pep = set(
-        psm_df_sub[psm_df_sub["modifications"].notna()]["peptidoform"]
-    )
+    # 'modifications' is optional: writers may omit it, and the reader only loads
+    # columns the file actually has.
+    if "modifications" in psm_df_sub.columns:
+        modified_pep = set(
+            psm_df_sub[psm_df_sub["modifications"].notna()]["peptidoform"]
+        )
+    else:
+        modified_pep = set()
 
     stat_run = {
         "protein_num": len(proteins),

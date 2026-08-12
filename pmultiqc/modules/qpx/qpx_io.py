@@ -37,6 +37,28 @@ QPX_COLUMNS = {
 }
 
 
+def select_columns(df, columns, context):
+    """Return ``df[columns]`` only if every column is present, else ``None``.
+
+    Because the reader skips columns a file does not have, a loaded table may
+    legitimately lack one. Selecting a fixed list would raise KeyError, which the
+    module's _safe_draw swallows -- silently dropping a whole section. Callers use
+    this to skip that plot deliberately, with a log line saying why.
+    """
+    if df is None or getattr(df, "empty", True):
+        return None
+
+    missing = [column for column in columns if column not in df.columns]
+    if missing:
+        log.warning(
+            f"[{context}] Skipped: required column(s) not present in the parquet data: "
+            f"{', '.join(missing)}."
+        )
+        return None
+
+    return df[list(columns)].copy()
+
+
 def parse_qpx_parquet(file_path, qpx_type):
 
     req_columns = QPX_COLUMNS[qpx_type]

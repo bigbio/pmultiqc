@@ -205,3 +205,48 @@ class TestProteinIntensity:
 
     def test_empty_input(self):
         assert get_protein_intensity(None, None) == [{}, {}]
+
+
+class TestSelectColumns:
+    """The reader omits absent columns, so downstream selection must be guarded."""
+
+    def test_returns_frame_when_all_present(self):
+        from pmultiqc.modules.qpx.qpx_io import select_columns
+
+        df = pd.DataFrame({"a": [1], "b": [2], "c": [3]})
+        out = select_columns(df, ["a", "b"], "ctx")
+
+        assert list(out.columns) == ["a", "b"]
+
+    def test_returns_none_when_a_column_is_missing(self):
+        from pmultiqc.modules.qpx.qpx_io import select_columns
+
+        df = pd.DataFrame({"a": [1]})
+        assert select_columns(df, ["a", "missing"], "ctx") is None
+
+    def test_returns_none_for_empty_or_absent_frame(self):
+        from pmultiqc.modules.qpx.qpx_io import select_columns
+
+        assert select_columns(None, ["a"], "ctx") is None
+        assert select_columns(pd.DataFrame(), ["a"], "ctx") is None
+
+    def test_result_is_a_copy(self):
+        from pmultiqc.modules.qpx.qpx_io import select_columns
+
+        df = pd.DataFrame({"a": [1]})
+        out = select_columns(df, ["a"], "ctx")
+        out.loc[0, "a"] = 99
+
+        assert df.loc[0, "a"] == 1, "caller mutations must not touch the source frame"
+
+
+class TestRunStatWithoutModifications:
+    def test_missing_modifications_column_is_tolerated(self):
+        from pmultiqc.modules.qpx.qpx_utils import calculate_run_stat
+
+        df = pd.DataFrame({"peptidoform": ["A", "B"]})
+        stat, data = calculate_run_stat(df, {"P1"})
+
+        assert stat["peptide_num"] == 2
+        assert stat["modified_peptide_num"] == 0
+        assert data["modified_peps"] == set()

@@ -32,7 +32,7 @@ from pmultiqc.modules.core.section_groups import add_group_modules
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.qpx.qpx_design import build_design_from_parquet
 from pmultiqc.modules.qpx.qpx_heatmap import calculate_qpx_heatmap
-from pmultiqc.modules.qpx.qpx_io import parse_qpx_parquet
+from pmultiqc.modules.qpx.qpx_io import parse_qpx_parquet, select_columns
 from pmultiqc.modules.qpx.qpx_quant import (
     create_qpx_protein_table,
     draw_protein_intensity,
@@ -300,10 +300,16 @@ class QpxModule(BasePMultiqcModule):
         psm_modified = {}
         peptide_length = {}
         missed_cleavages = {}
+        psm = None
 
         if self.psm_df_valid:
+            psm = select_columns(
+                self.psm_df,
+                ["run", "sequence", "charge", "modifications"],
+                "Identification Summary",
+            )
 
-            psm = self.psm_df[["run", "sequence", "charge", "modifications"]].copy()
+        if psm is not None:
 
             psm["pep_length"] = psm["sequence"].str.len()
 
@@ -392,8 +398,13 @@ class QpxModule(BasePMultiqcModule):
         qpx_pep_intensity = []
 
         if self.feature_df_valid:
-            feature_tmp = self.feature_df[["run", "peptidoform", "intensities"]].copy()
-            qpx_pep_intensity = get_pep_intensity(feature_tmp, self.file_df)
+            feature_tmp = select_columns(
+                self.feature_df,
+                ["run", "peptidoform", "intensities"],
+                "Peptide Intensity Distribution",
+            )
+            if feature_tmp is not None:
+                qpx_pep_intensity = get_pep_intensity(feature_tmp, self.file_df)
 
         if qpx_pep_intensity:
             self._safe_draw(
@@ -434,9 +445,11 @@ class QpxModule(BasePMultiqcModule):
         log.info("[MS2 and Spectral Stats] Starting generation...")
 
         if self.feature_df_valid:
-            feature_tmp = self.feature_df[["run", "charge"]].copy()
+            feature_tmp = select_columns(
+                self.feature_df, ["run", "charge"], "MS2 and Spectral Stats"
+            )
 
-            if not feature_tmp.empty:
+            if feature_tmp is not None and not feature_tmp.empty:
 
                 self._safe_draw(
                     draw_whole_exp_charge,
@@ -466,7 +479,10 @@ class QpxModule(BasePMultiqcModule):
 
         if self.psm_df_valid:
 
-            psm = self.psm_df[["run", "rt"]].copy()
+            psm = select_columns(self.psm_df, ["run", "rt"], "RT Quality Control")
+            if psm is None:
+                return
+
             psm["retention time"] = psm["rt"] / 60
             psm.rename(columns={"run": "raw file"}, inplace=True)
             qpx_ids_over_rt = evidence_rt_count(psm)
