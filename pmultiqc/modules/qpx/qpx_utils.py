@@ -87,7 +87,7 @@ def get_pep_intensity(pep_table, sdrf_file_df):
     if sdrf_file_df.empty:
         log.info("No SDRF found, displaying pep_intensity according to run")
     else:
-        sdrf_subset = sdrf_file_df[["Label", "Run", "Sample"]].copy()
+        sdrf_subset = sdrf_file_df[["Label", "Run", "Sample"]].drop_duplicates()
         sdrf_subset["Label"] = sdrf_subset["Label"].astype(str)
 
         pep_table = pep_table.merge(
@@ -155,9 +155,37 @@ def _get_enzyme_name(df):
         valid_data = df[col_name].dropna()
 
         if not valid_data.empty:
-            first_row_array = valid_data.iloc[0]
-
-            if len(first_row_array) > 0:
-                enzyme_name = first_row_array[0]
+            name = _first_enzyme_value(valid_data.iloc[0])
+            if name:
+                enzyme_name = name
 
     return enzyme_name
+
+
+def _first_enzyme_value(cell):
+    """Extract the enzyme name from an 'enzymes' cell.
+
+    The column may hold a plain string, a list/array of names, or a struct such as
+    {"name": "Trypsin", ...}, so unwrap those shapes instead of blindly indexing [0]
+    (which turns the string "Trypsin" into "T").
+    """
+    if cell is None:
+        return None
+
+    if isinstance(cell, str):
+        return cell.strip() or None
+
+    if isinstance(cell, dict):
+        for key in ("name", "enzyme", "enzyme_name"):
+            if cell.get(key):
+                return _first_enzyme_value(cell[key])
+        return next((_first_enzyme_value(v) for v in cell.values() if v), None)
+
+    # list, tuple, numpy array, pyarrow list scalar, ...
+    try:
+        if len(cell) > 0:
+            return _first_enzyme_value(cell[0])
+    except TypeError:
+        return str(cell).strip() or None
+
+    return None

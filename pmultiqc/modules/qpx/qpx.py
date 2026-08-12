@@ -104,38 +104,10 @@ class QpxModule(BasePMultiqcModule):
                 self.exp_design = "experimental_design.tsv"
                 self.enable_sdrf = True
 
-        for f in self.find_log_files("pmultiqc/qpx_psm", filecontents=False):
-            psm_file_path = os.path.join(f["root"], f["fn"])
-
-            self.psm_df = parse_qpx_parquet(
-                file_path=psm_file_path,
-                qpx_type="psm"
-            )
-            break
-
-        for f in self.find_log_files("pmultiqc/qpx_pg", filecontents=False):
-            pg_file_path = os.path.join(f["root"], f["fn"])
-
-            self.pg_df = parse_qpx_parquet(
-                file_path=pg_file_path,
-                qpx_type="pg"
-            )
-            break
-
-        for f in self.find_log_files("pmultiqc/qpx_feature", filecontents=False):
-            feature_file_path = os.path.join(f["root"], f["fn"])
-
-            self.feature_df = parse_qpx_parquet(
-                file_path=feature_file_path,
-                qpx_type="feature"
-            )
-            break
-
-        for f in self.find_log_files("pmultiqc/qpx_run", filecontents=False):
-            run_file_path = os.path.join(f["root"], f["fn"])
-
-            self.run_df = pd.read_parquet(run_file_path)
-            break
+        self.psm_df = self._read_qpx_parquets("pmultiqc/qpx_psm", "psm")
+        self.pg_df = self._read_qpx_parquets("pmultiqc/qpx_pg", "pg")
+        self.feature_df = self._read_qpx_parquets("pmultiqc/qpx_feature", "feature")
+        self.run_df = self._read_qpx_parquets("pmultiqc/qpx_run", None)
 
         self.psm_df_valid = self._is_valid(self.psm_df)
         self.pg_df_valid = self._is_valid(self.pg_df)
@@ -239,9 +211,7 @@ class QpxModule(BasePMultiqcModule):
         if self.psm_df_valid:
 
             # Summary Table & Pipeline Result Statistics
-            total_ms2_spectra_identified = self.psm_df.groupby(
-                ["run", self.psm_df["scan"].str[0]]
-            ).ngroups
+            total_ms2_spectra_identified = self.psm_df.groupby(["run", "scan"]).ngroups
             total_peptide_count = self.psm_df["sequence"].nunique()
 
         if self.pg_df_valid:
@@ -426,6 +396,28 @@ class QpxModule(BasePMultiqcModule):
                     rt_count_data=qpx_ids_over_rt,
                     report_type=""
                 )
+
+    def _read_qpx_parquets(self, search_pattern, qpx_type):
+        """Read every parquet file matching search_pattern and concatenate them.
+
+        A quantms.io project may split a table across several parquet files, so all
+        matches are read rather than only the first one. Returns None if nothing matched.
+        """
+        dfs = []
+        for f in self.find_log_files(search_pattern, filecontents=False):
+            file_path = os.path.join(f["root"], f["fn"])
+            if qpx_type is None:
+                dfs.append(pd.read_parquet(file_path))
+            else:
+                dfs.append(parse_qpx_parquet(file_path=file_path, qpx_type=qpx_type))
+
+        if not dfs:
+            return None
+        if len(dfs) == 1:
+            return dfs[0]
+
+        log.info(f"[get_data] Concatenating {len(dfs)} files for '{search_pattern}'.")
+        return pd.concat(dfs, ignore_index=True)
 
     def _is_valid(self, df):
         return df is not None and not df.empty
