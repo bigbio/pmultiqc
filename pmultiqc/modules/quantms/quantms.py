@@ -349,7 +349,7 @@ class QuantMSModule(BasePMultiqcModule):
                 sample_df=self.sample_df,
                 file_df=self.file_df,
                 ms_with_psm=self.ms_with_psm,
-                quantms_modified=self.quantms_modified,
+                modified=self.quantms_modified,
                 ms_paths=self.ms_paths,
                 msstats_input_valid=self.msstats_input_valid
             )
@@ -492,8 +492,8 @@ class QuantMSModule(BasePMultiqcModule):
             name="draw_identification",
             sub_sections=self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
-            quantms_missed_cleavages=self.quantms_missed_cleavages,
-            quantms_modified=self.quantms_modified,
+            missed_cleavages=self.quantms_missed_cleavages,
+            modified=self.quantms_modified,
             msms_identified_rate=msms_identified_rate,
         )
 

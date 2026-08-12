@@ -8,6 +8,7 @@ from multiqc.plots.table_object import InputRow
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
 from pmultiqc.modules.common.plots.general import (
+    summarise_box_data,
     plot_html_check,
     plot_data_check
 )
@@ -73,6 +74,15 @@ def draw_potential_contaminants(sub_section, contaminant_percent, report_type):
             fraction of total protein intensity attributable to contaminants.
 
             Note that this plot is based on experimental groups, and therefore may not correspond 1:1 to Raw files.
+            """
+    elif report_type == "qpx":
+        description_text = "Potential contaminants per run from pg.parquet."
+        help_text = """
+            Share of the summed protein-group intensity in each run that comes from
+            contaminant protein groups. A group counts as a contaminant when
+            pg.parquet marks it with the `contaminant` flag, or -- when that flag marks
+            nothing, as some converters leave it unset -- when its accession contains
+            the configured contaminant affix (`--contaminant-affix`, default CONT).
             """
     elif report_type == "fragpipe":
         description_text = "Potential contaminants per group from psm.tsv."
@@ -1158,6 +1168,10 @@ def draw_peptide_intensity(sub_section, plot_data):
         "sort_samples": False,
         "save_data_file": False,
     }
+
+    # Summarise to box statistics: several hundred thousand raw values would push the
+    # plot over the flat-image threshold, and a flat plot does not fill the panel.
+    plot_data = summarise_box_data(plot_data)
 
     if len(plot_data) > 1 and plot_data[1]:
         draw_config["data_labels"] = ["by Run", "by Sample"]
