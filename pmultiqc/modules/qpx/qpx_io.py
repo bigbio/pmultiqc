@@ -95,6 +95,11 @@ def select_columns(df, columns, context):
 
 
 def parse_qpx_parquet(file_path, qpx_type):
+    """Read one quantms.io parquet table, keeping only columns the file actually has.
+
+    Applies the optional decoy filter, then normalises run_file_name (psm/feature) or
+    grouped_runs (pg) into a single ``run`` column.
+    """
 
     req_columns = QPX_COLUMNS[qpx_type]
     if "is_decoy" not in req_columns:

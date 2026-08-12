@@ -59,6 +59,7 @@ def calculate_run_stat(psm_df_sub, proteins, unambiguous_peptides=None):
 
 
 def get_unimod_mod_qpx(modifis, unimod_data):
+    """Map a modifications cell to UniMod names for the modifications plot."""
 
     if modifis is None or len(modifis) == 0:
         return "Unmodified"
@@ -81,6 +82,7 @@ def get_unimod_mod_qpx(modifis, unimod_data):
 
 
 def get_pep_intensity(pep_table, sdrf_file_df):
+    """Peptide intensity distributions as ``[by_run, by_sample]`` (log2)."""
 
     pep_intensity_by_run = dict()
     pep_intensity_by_sample = dict()
@@ -127,6 +129,7 @@ def get_pep_intensity(pep_table, sdrf_file_df):
 
 
 def get_missed_cleavages(psm_df, run_df, sdrf_file_df):
+    """Missed-cleavage counts per run and per sample, using the run table's enzyme."""
 
     enzyme = _get_enzyme_name(run_df)
     psm_df["missed_cleavages"] = psm_df["sequence"].apply(
@@ -161,6 +164,7 @@ def get_missed_cleavages(psm_df, run_df, sdrf_file_df):
 
 
 def _get_enzyme_name(df):
+    """Enzyme name from the run table, defaulting to Trypsin when unavailable."""
 
     enzyme_name = "Trypsin"
 

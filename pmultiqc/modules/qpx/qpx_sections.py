@@ -197,6 +197,7 @@ def _contaminant_labels(df, affix):
 
 
 def _protein_names(df):
+    """Display names for protein groups, preferring the anchor accession."""
     if "anchor_protein" in df.columns:
         return df["anchor_protein"].astype(str).fillna("unknown")
     return protein_group_key(df).astype(str)
@@ -348,6 +349,11 @@ def _pick_score(id_df):
 
 
 def _score_names(series, sample_size=5000):
+    """Collect the score names present in an additional_scores column.
+
+    Sampled rather than exhaustive: the names are consistent within a project and the
+    column can hold hundreds of thousands of rows.
+    """
     names = set()
     for cell in series.head(sample_size):
         if cell is None:
@@ -362,6 +368,7 @@ def _score_names(series, sample_size=5000):
 
 
 def _extract_score(series, name):
+    """Pull one named score out of every additional_scores cell, as a numeric series."""
     def pull(cell):
         if cell is None:
             return None

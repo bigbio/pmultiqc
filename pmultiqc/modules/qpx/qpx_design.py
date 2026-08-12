@@ -178,6 +178,7 @@ def _label_number(label):
 
 
 def _as_int(value, default):
+    """Coerce a value to int, falling back to a default for null or malformed input."""
     try:
         if value is None or (isinstance(value, float) and pd.isna(value)):
             return default

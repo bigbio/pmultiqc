@@ -86,6 +86,7 @@ def _da_series(psm_df):
 
 
 def _binned(series, name):
+    """Bin a mass-error series for plotting, or None when it has no usable spread."""
     if series is None:
         return None
 
