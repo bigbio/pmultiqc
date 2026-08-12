@@ -424,26 +424,27 @@ def draw_search_engine_scores(sub_section, plot_data, plot_type):
     )
 
 
-def box_axis_range(plot_data, lower_percentile=1.0, upper_percentile=99.0, margin_fraction=0.05):
-    """Axis bounds fitted to the bulk of box-plot data, or None if undeterminable.
+def trim_box_outliers(plot_data, lower_percentile=1.0, upper_percentile=99.0):
+    """Drop values outside a percentile window so the auto-scaled axis stays readable.
 
-    Two problems with leaving the axis to default. log2 intensities sit far from zero,
-    so an axis anchored at 0 wastes most of the width. And fitting to absolute min/max
-    is barely better when the tails are long: a handful of extreme points stretch the
-    axis until every box collapses -- for peptide intensity the interquartile range is
-    only ~15% of the min-max span.
+    MultiQC's box plot ignores xmin/xmax and ymin/ymax: it renders horizontally and
+    rebuilds layout.xaxis from the y settings, discarding any range, so the value axis
+    is always auto-scaled to the data. The only way to control it is to control what is
+    plotted.
 
-    So the range is taken from percentiles (1st-99th by default), which keeps the boxes
-    and whiskers legible. Points outside that range are still drawn by the plotting
-    library but may fall beyond the visible axis; widen the percentiles if every outlier
-    must be on screen. The result never extends past the real data.
+    log2 intensity distributions have long tails -- for peptide intensity the
+    interquartile range is under 15% of the min-max span -- so a handful of extreme
+    points flatten every box. Trimming the outer 1% at each end keeps the axis tight
+    while leaving the box, median and whiskers essentially unchanged.
 
-    Returns ``(xmin, xmax)``.
+    Returns a new structure of the same shape (list of dicts, or a single dict). The
+    number of dropped points is returned alongside so callers can disclose it.
     """
     if not plot_data:
-        return None
+        return plot_data, 0
 
-    datasets = plot_data if isinstance(plot_data, list) else [plot_data]
+    was_list = isinstance(plot_data, list)
+    datasets = plot_data if was_list else [plot_data]
 
     values = []
     for dataset in datasets:
@@ -457,23 +458,35 @@ def box_axis_range(plot_data, lower_percentile=1.0, upper_percentile=99.0, margi
             except TypeError:
                 continue
 
-    if not values:
-        return None
+    if len(values) < 100:
+        # Too few points for percentile trimming to be meaningful.
+        return plot_data, 0
 
     array = np.asarray(values, dtype=float)
-    array = array[np.isfinite(array)]
-    if array.size == 0:
-        return None
-
     low = float(np.percentile(array, lower_percentile))
     high = float(np.percentile(array, upper_percentile))
-
-    # Degenerate percentiles (e.g. a near-constant series) fall back to the full range.
     if not np.isfinite(low) or not np.isfinite(high) or high <= low:
-        low, high = float(array.min()), float(array.max())
-    if high <= low:
-        return None
+        return plot_data, 0
 
-    margin = (high - low) * margin_fraction
-    # Never claim range the data does not occupy.
-    return max(low - margin, float(array.min())), min(high + margin, float(array.max()))
+    dropped = 0
+    trimmed_datasets = []
+    for dataset in datasets:
+        if not isinstance(dataset, dict):
+            trimmed_datasets.append(dataset)
+            continue
+        trimmed = {}
+        for sample, series in dataset.items():
+            if series is None:
+                trimmed[sample] = series
+                continue
+            try:
+                kept = [v for v in series if v is not None and low <= v <= high]
+            except TypeError:
+                trimmed[sample] = series
+                continue
+            dropped += len(series) - len(kept)
+            # Never empty a sample entirely -- that would drop it from the plot.
+            trimmed[sample] = kept if kept else list(series)
+        trimmed_datasets.append(trimmed)
+
+    return (trimmed_datasets if was_list else trimmed_datasets[0]), dropped

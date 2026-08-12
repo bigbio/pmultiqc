@@ -324,3 +324,62 @@ class TestContaminantsZeroSignal:
             }
         )
         assert calculate_contaminants(pg, "CONT") == (None, None)
+
+
+class TestTrimBoxOutliers:
+    """MultiQC's box plot ignores xmin/xmax, so readability comes from the data."""
+
+    @staticmethod
+    def _long_tailed():
+        rng = np.random.default_rng(0)
+        core = list(rng.normal(26, 1.2, 5000))
+        return [{"r1": core + [20.3, 36.1, 35.0, 19.8]}]
+
+    def test_tightens_the_range(self):
+        from pmultiqc.modules.common.plots.general import trim_box_outliers
+
+        data = self._long_tailed()
+        before = data[0]["r1"]
+        trimmed, dropped = trim_box_outliers(data)
+        after = trimmed[0]["r1"]
+
+        assert dropped > 0
+        assert (max(after) - min(after)) < (max(before) - min(before)) / 2
+
+    def test_leaves_quartiles_essentially_unchanged(self):
+        from pmultiqc.modules.common.plots.general import trim_box_outliers
+
+        data = self._long_tailed()
+        before = np.percentile(data[0]["r1"], [25, 50, 75])
+        trimmed, _ = trim_box_outliers(data)
+        after = np.percentile(trimmed[0]["r1"], [25, 50, 75])
+
+        assert np.allclose(before, after, atol=0.1), "trimming must not move the box"
+
+    def test_small_series_untouched(self):
+        from pmultiqc.modules.common.plots.general import trim_box_outliers
+
+        data = [{"r1": [1.0, 2.0, 100.0]}]
+        trimmed, dropped = trim_box_outliers(data)
+
+        assert dropped == 0 and trimmed == data
+
+    def test_never_empties_a_sample(self):
+        from pmultiqc.modules.common.plots.general import trim_box_outliers
+
+        rng = np.random.default_rng(1)
+        data = [{"bulk": list(rng.normal(0, 1, 5000)), "outlier_only": [999.0, 998.0]}]
+        trimmed, _ = trim_box_outliers(data)
+
+        assert trimmed[0]["outlier_only"], "a sample must not vanish from the plot"
+
+    def test_preserves_shape(self):
+        from pmultiqc.modules.common.plots.general import trim_box_outliers
+
+        rng = np.random.default_rng(2)
+        as_dict = {"r1": list(rng.normal(0, 1, 500))}
+        trimmed, _ = trim_box_outliers(as_dict)
+        assert isinstance(trimmed, dict)
+
+        trimmed_list, _ = trim_box_outliers([as_dict])
+        assert isinstance(trimmed_list, list)
