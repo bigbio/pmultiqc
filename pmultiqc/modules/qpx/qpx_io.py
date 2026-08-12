@@ -32,7 +32,12 @@ QPX_COLUMNS = {
     "feature": [
         "feature_id", "sequence", "peptidoform",
         "charge", "is_decoy", "run_file_name",
-        "intensities", "anchor_protein"
+        "intensities", "anchor_protein",
+        # Needed so peptide counts key on the same protein-group identity as pg.parquet;
+        # keying on anchor_protein alone silently loses every multi-accession group.
+        # Optional (absent in older writers); skipped automatically when missing.
+        "pg_accessions", "modifications", "rt",
+        "calculated_mz", "observed_mz", "unique"
     ]
 }
 

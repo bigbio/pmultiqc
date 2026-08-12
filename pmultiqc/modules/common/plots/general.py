@@ -422,3 +422,38 @@ def draw_search_engine_scores(sub_section, plot_data, plot_type):
         description="",
         helptext=plot_config["helptext"],
     )
+
+
+def box_axis_range(plot_data, margin_fraction=0.05):
+    """Axis bounds fitted to box-plot data, or None when it cannot be determined.
+
+    Box plots of log2 intensity sit far from zero, so an axis left to default from 0
+    compresses every box into a fraction of the plot. Returns ``(xmin, xmax)`` padded
+    by a small margin so the whiskers are not flush against the edges.
+    """
+    if not plot_data:
+        return None
+
+    datasets = plot_data if isinstance(plot_data, list) else [plot_data]
+
+    values = []
+    for dataset in datasets:
+        if not isinstance(dataset, dict):
+            continue
+        for series in dataset.values():
+            if series is None:
+                continue
+            try:
+                values.extend(v for v in series if v is not None and np.isfinite(v))
+            except TypeError:
+                continue
+
+    if not values:
+        return None
+
+    low, high = float(min(values)), float(max(values))
+    if not np.isfinite(low) or not np.isfinite(high) or high <= low:
+        return None
+
+    margin = (high - low) * margin_fraction
+    return low - margin, high + margin

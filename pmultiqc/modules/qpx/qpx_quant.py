@@ -16,6 +16,7 @@ from multiqc.plots import box
 
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.plots.general import (
+    box_axis_range,
     plot_html_check,
     stat_pep_intensity,
 )
@@ -283,6 +284,10 @@ def draw_protein_intensity(sub_section, plot_data):
     else:
         plot_data = [plot_data[0]]
 
+    x_range = box_axis_range(plot_data)
+    if x_range:
+        draw_config["xmin"], draw_config["xmax"] = x_range
+
     box_html = plot_html_check(box.plot(plot_data, pconfig=draw_config))
 
     add_sub_section(
@@ -447,6 +452,10 @@ def draw_intensity_std(sub_section, box_data):
         "xlab": "Standard Deviation of log2(Intensity)",
         "save_data_file": False,
     }
+
+    x_range = box_axis_range(box_data)
+    if x_range:
+        draw_config["xmin"], draw_config["xmax"] = x_range
 
     box_html = plot_html_check(box.plot(list_of_data_by_sample=box_data, pconfig=draw_config))
 

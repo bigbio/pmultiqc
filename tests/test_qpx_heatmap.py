@@ -110,10 +110,22 @@ class TestContaminants:
         scores = _contaminant_scores(_pg_df(), "CONT")
         assert scores == {"r1": 0.9, "r2": 0.8}
 
-    def test_flag_takes_precedence_over_affix(self):
-        # Nothing flagged -> score 1.0 even though accessions carry the affix.
+    def test_affix_match_is_unioned_with_the_flag(self):
+        """A False flag must not hide accessions the affix matches.
+
+        The OpenMS-consensus converter reports contaminant=False for the "Cont_"-prefixed
+        accessions these projects actually use, so trusting the flag alone reports a
+        confident 0% contamination for data that is 5-10% contaminant.
+        """
         scores = _contaminant_scores(_pg_df(contaminant=[False] * 4), "CONT")
-        assert scores == {"r1": 1.0, "r2": 1.0}
+        assert scores == {"r1": 0.9, "r2": 0.8}
+
+    def test_case_insensitive_affix(self):
+        df = _pg_df()
+        df["anchor_protein"] = ["P1", "sp|Cont_P00330|ADH1", "P1", "sp|Cont_P00330|ADH1"]
+        df["pg_accessions"] = [["P1"], ["sp|Cont_P00330|ADH1"], ["P1"], ["sp|Cont_P00330|ADH1"]]
+        scores = _contaminant_scores(df, "CONT")
+        assert scores == {"r1": 0.9, "r2": 0.8}, "'Cont_' must match affix 'CONT'"
 
     def test_no_intensity_column(self):
         assert _contaminant_scores(pd.DataFrame({"run": ["r1"]}), "CONT") == {}

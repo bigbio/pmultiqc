@@ -116,7 +116,8 @@ class TestContaminants:
         per_run, top_n = calculate_contaminants(self._pg([False, True]), "CONT")
 
         assert per_run["r1"]["Potential Contaminants"] == 10.0
-        assert top_n["r1"]["CONT_P2"] == 10.0
+        assert top_n["plot_data"]["r1"]["CONT_P2"] == 10.0
+        assert "CONT_P2" in top_n["cats"]
 
     def test_all_null_flag_falls_back_to_the_affix(self):
         """Null means unknown, so fall through rather than claiming 0%."""
@@ -129,13 +130,39 @@ class TestContaminants:
 
     def test_known_clean_is_skipped(self):
         """Known-clean is a real answer, but an all-zero chart conveys nothing."""
-        assert calculate_contaminants(self._pg([False, False]), "CONT") == (None, None)
+        clean = pd.DataFrame(
+            {
+                "run": ["r1", "r1"],
+                "anchor_protein": ["P1", "P2"],
+                "pg_accessions": [["P1"], ["P2"]],
+                "intensity": [900.0, 100.0],
+                "contaminant": [False, False],
+            }
+        )
+        assert calculate_contaminants(clean, "CONT") == (None, None)
+
+    def test_affix_match_overrides_a_false_flag(self):
+        """Converters disagree: OpenMS-consensus reports False for Cont_-prefixed
+        accessions, so an explicit affix must still find them."""
+        mislabelled = pd.DataFrame(
+            {
+                "run": ["r1", "r1"],
+                "anchor_protein": ["sp|P1|A", "sp|Cont_P00330|ADH1_YEAST"],
+                "pg_accessions": [["sp|P1|A"], ["sp|Cont_P00330|ADH1_YEAST"]],
+                "intensity": [900.0, 100.0],
+                "contaminant": [False, False],
+            }
+        )
+        per_run, top_n = calculate_contaminants(mislabelled, "CONT")
+
+        assert per_run["r1"]["Potential Contaminants"] == 10.0, "case-insensitive match"
+        assert top_n is not None
 
     def test_partial_contamination_still_reports_top_n(self):
         per_run, top_n = calculate_contaminants(self._pg([False, True]), "CONT")
 
         assert per_run["r1"]["Potential Contaminants"] == 10.0
-        assert set(top_n["r1"]) == {"CONT_P2"}
+        assert set(top_n["plot_data"]["r1"]) == {"CONT_P2"}
 
 
 class TestSearchEngineScores:

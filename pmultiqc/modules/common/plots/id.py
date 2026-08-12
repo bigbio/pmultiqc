@@ -8,6 +8,7 @@ from multiqc.plots.table_object import InputRow
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
 from pmultiqc.modules.common.plots.general import (
+    box_axis_range,
     plot_html_check,
     plot_data_check
 )
@@ -1158,6 +1159,12 @@ def draw_peptide_intensity(sub_section, plot_data):
         "sort_samples": False,
         "save_data_file": False,
     }
+
+    # log2 intensities sit far from zero (typically ~20-35), so an axis anchored at 0
+    # squeezes every box into a fraction of the plot width. Fit the axis to the data.
+    x_range = box_axis_range(plot_data)
+    if x_range:
+        draw_config["xmin"], draw_config["xmax"] = x_range
 
     if len(plot_data) > 1 and plot_data[1]:
         draw_config["data_labels"] = ["by Run", "by Sample"]

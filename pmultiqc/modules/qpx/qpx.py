@@ -65,6 +65,7 @@ from pmultiqc.modules.qpx.qpx_plot import (
 )
 from pmultiqc.modules.qpx.qpx_utils import (
     calculate_run_stat,
+    get_unambiguous_peptides,
     get_unimod_mod_qpx,
     get_pep_intensity,
     get_missed_cleavages
@@ -316,13 +317,16 @@ class QpxModule(BasePMultiqcModule):
 
             pg_by_run = self.pg_df.assign(_key=protein_group_key(self.pg_df))
             pg_prots_by_run = pg_by_run.groupby("run")["_key"].apply(set).to_dict()
+            unambiguous = get_unambiguous_peptides(
+                self.feature_df if self.feature_df_valid else self.id_df
+            )
             for run, psm_group in self.id_df.groupby("run"):
                 run_str = str(run)
                 prots = pg_prots_by_run.get(run_str, set())
                 (
                     stat_at_run[run_str],
                     data_per_run[run_str]
-                ) = calculate_run_stat(psm_group, prots)
+                ) = calculate_run_stat(psm_group, prots, unambiguous)
 
             num_table_at_sample = cal_num_table_at_sample(self.file_df, data_per_run)
 

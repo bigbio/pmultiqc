@@ -151,22 +151,32 @@ def calculate_contaminants(pg_df, contaminant_affix):
     return per_run, top_n
 
 
+def resolve_contaminant_flags(df, affix):
+    """Boolean contaminant mask, or None when it cannot be determined.
+
+    Shared by the Contaminants section and the heatmap metric so they can never
+    disagree. Unions the producer's flag with a case-insensitive accession match: the
+    flag is authoritative when set, but the OpenMS-consensus heuristic misses the
+    "Cont_" prefix these projects use and reports False for genuine contaminants.
+    """
+    flags = None
+
+    if "contaminant" in df.columns and df["contaminant"].notna().any():
+        flags = df["contaminant"].fillna(False).astype(bool)
+
+    affix_flags = _affix_flags(df, affix)
+    if affix_flags is not None:
+        flags = affix_flags if flags is None else (flags | affix_flags)
+
+    return flags
+
+
 def _contaminant_labels(df, affix):
     """Label each row 'CONTAMINANT:<name>' or 'NOT_CONTAMINANT'; None if undeterminable."""
     names = _protein_names(df)
 
-    if "contaminant" in df.columns and df["contaminant"].notna().any():
-        flags = df["contaminant"].fillna(False).astype(bool)
-    elif affix:
-        if "pg_accessions" in df.columns:
-            flags = df["pg_accessions"].apply(
-                lambda cell: _cell_contains(cell, affix)
-            )
-        elif "anchor_protein" in df.columns:
-            flags = df["anchor_protein"].astype(str).str.contains(affix, regex=False)
-        else:
-            return None
-    else:
+    flags = resolve_contaminant_flags(df, affix)
+    if flags is None:
         return None
 
     return pd.Series(
@@ -181,13 +191,26 @@ def _protein_names(df):
     return protein_group_key(df).astype(str)
 
 
+def _affix_flags(df, affix):
+    """Case-insensitive affix match over accessions, or None when not possible."""
+    if not affix:
+        return None
+    if "pg_accessions" in df.columns:
+        return df["pg_accessions"].apply(lambda cell: _cell_contains(cell, affix))
+    if "anchor_protein" in df.columns:
+        return df["anchor_protein"].astype(str).str.contains(affix, case=False, regex=False)
+    return None
+
+
 def _cell_contains(cell, affix):
+    """Case-insensitive: accession prefixes vary in case (CON__, Cont_, contaminant_)."""
     if cell is None:
         return False
+    needle = affix.lower()
     try:
-        return any(affix in str(a) for a in cell)
+        return any(needle in str(a).lower() for a in cell)
     except TypeError:
-        return affix in str(cell)
+        return needle in str(cell).lower()
 
 
 def _top_n_contaminants(df):
@@ -220,7 +243,18 @@ def _top_n_contaminants(df):
             run_data["Other"] = float(other / total * 100)
         result[str(run)] = run_data
 
-    return result or None
+    if not result:
+        return None
+
+    # draw_top_n_contaminants expects {"plot_data": ..., "cats": ...}, not a flat dict.
+    categories = [name.replace(CONTAMINANT_MARKER, "") for name in top]
+    if any("Other" in run_data for run_data in result.values()):
+        categories.append("Other")
+
+    return {
+        "plot_data": result,
+        "cats": {name: {"name": name} for name in categories},
+    }
 
 
 # ------------------------------------------------------------- search engine scores

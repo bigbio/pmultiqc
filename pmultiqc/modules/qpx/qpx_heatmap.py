@@ -13,6 +13,7 @@ import pandas as pd
 
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.stats import cal_hm_charge, nanmedian, qual_uniform
+from pmultiqc.modules.qpx.qpx_sections import resolve_contaminant_flags
 
 
 log = get_logger("pmultiqc.modules.qpx.qpx_heatmap")
@@ -95,29 +96,16 @@ def _contaminant_scores(pg_df, contaminant_affix):
     df = pg_df[["run", "intensity"]].copy()
     df["intensity"] = pd.to_numeric(df["intensity"], errors="coerce")
 
-    # The spec makes 'contaminant' nullable and DIA-NN/FragPipe emit None outright, so
-    # null means "unknown", not "not a contaminant". Reporting 100% clean from an
-    # all-null column would be inventing a result: fall through to the accession affix,
-    # and if that is unavailable too, drop the metric.
-    if "contaminant" in pg_df.columns and pg_df["contaminant"].notna().any():
-        flags = pg_df["contaminant"]
-        if flags.isna().any():
-            log.debug(
-                "pg 'contaminant' is partially null; unknown rows counted as non-contaminant."
-            )
-        df["is_contaminant"] = flags.fillna(False).astype(bool)
-    elif "pg_accessions" in pg_df.columns and contaminant_affix:
-        df["is_contaminant"] = _accessions_match(pg_df["pg_accessions"], contaminant_affix)
-    elif "anchor_protein" in pg_df.columns and contaminant_affix:
-        df["is_contaminant"] = (
-            pg_df["anchor_protein"].astype(str).str.contains(contaminant_affix, regex=False)
-        )
-    else:
+    # Resolved by the shared helper so this metric and the Contaminants section can
+    # never disagree: the producer flag unioned with a case-insensitive affix match.
+    flags = resolve_contaminant_flags(pg_df, contaminant_affix)
+    if flags is None:
         log.info(
-            "[HeatMap] Contaminants omitted: 'contaminant' is entirely null (unknown for "
-            "this producer) and no accession column is available to match the affix."
+            "[HeatMap] Contaminants omitted: the 'contaminant' flag is entirely null "
+            "(unknown for this producer) and no accession column matches the affix."
         )
         return {}
+    df["is_contaminant"] = flags
 
     df = df.dropna(subset=["intensity"])
     if df.empty:
