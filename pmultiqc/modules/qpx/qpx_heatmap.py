@@ -95,13 +95,28 @@ def _contaminant_scores(pg_df, contaminant_affix):
     df = pg_df[["run", "intensity"]].copy()
     df["intensity"] = pd.to_numeric(df["intensity"], errors="coerce")
 
+    # The spec makes 'contaminant' nullable and DIA-NN/FragPipe emit None outright, so
+    # null means "unknown", not "not a contaminant". Reporting 100% clean from an
+    # all-null column would be inventing a result: fall through to the accession affix,
+    # and if that is unavailable too, drop the metric.
     if "contaminant" in pg_df.columns and pg_df["contaminant"].notna().any():
-        df["is_contaminant"] = pg_df["contaminant"].fillna(False).astype(bool)
+        flags = pg_df["contaminant"]
+        if flags.isna().any():
+            log.debug(
+                "pg 'contaminant' is partially null; unknown rows counted as non-contaminant."
+            )
+        df["is_contaminant"] = flags.fillna(False).astype(bool)
+    elif "pg_accessions" in pg_df.columns and contaminant_affix:
+        df["is_contaminant"] = _accessions_match(pg_df["pg_accessions"], contaminant_affix)
     elif "anchor_protein" in pg_df.columns and contaminant_affix:
         df["is_contaminant"] = (
             pg_df["anchor_protein"].astype(str).str.contains(contaminant_affix, regex=False)
         )
     else:
+        log.info(
+            "[HeatMap] Contaminants omitted: 'contaminant' is entirely null (unknown for "
+            "this producer) and no accession column is available to match the affix."
+        )
         return {}
 
     df = df.dropna(subset=["intensity"])
@@ -116,6 +131,19 @@ def _contaminant_scores(pg_df, contaminant_affix):
         contaminated = group.loc[group["is_contaminant"], "intensity"].sum()
         result[str(run)] = float(max(0.0, 1.0 - contaminated / total))
     return result
+
+
+def _accessions_match(accessions, affix):
+    """Match an affix against a list<string> accession column."""
+    def matches(cell):
+        if cell is None:
+            return False
+        try:
+            return any(affix in str(a) for a in cell)
+        except TypeError:
+            return affix in str(cell)
+
+    return accessions.apply(matches)
 
 
 def _peptide_intensity_scores(feature_df):

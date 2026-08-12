@@ -35,13 +35,20 @@ def create_qpx_protein_table(pg_df, feature_df, sample_df, file_df):
     """
     if pg_df is None or getattr(pg_df, "empty", True):
         return None, None
-    if "anchor_protein" not in pg_df.columns or "intensity" not in pg_df.columns:
-        log.debug("pg.parquet lacks anchor_protein/intensity; no protein table.")
+    if "intensity" not in pg_df.columns:
+        log.debug("pg.parquet lacks intensity; no protein table.")
         return None, None
 
     df = pg_df.copy()
     df["intensity"] = pd.to_numeric(df["intensity"], errors="coerce")
-    df = df[df["intensity"] > 0].dropna(subset=["anchor_protein"])
+    df = df[df["intensity"] > 0]
+
+    # The spec is explicit that anchor_protein is a display label only and must not key
+    # per-protein statistics -- protein groups are not guaranteed disjoint, so several
+    # groups can share an anchor. Group on the full accession set instead and keep
+    # anchor_protein purely for the displayed name.
+    df["_group_key"] = protein_group_key(df)
+    df = df.dropna(subset=["_group_key"])
     if df.empty:
         log.debug("pg.parquet has no positive intensities; no protein table.")
         return None, None
@@ -49,17 +56,17 @@ def create_qpx_protein_table(pg_df, feature_df, sample_df, file_df):
     peptides_per_protein = _peptides_per_protein(feature_df)
 
     table_dict = {}
-    for protein, group in df.groupby("anchor_protein"):
-        protein = str(protein)
+    for group_key, group in df.groupby("_group_key"):
+        protein = _display_name(group)
         entry = {
             "ProteinName": protein,
             "Average Intensity": float(np.log10(group["intensity"].mean())),
         }
-        if protein in peptides_per_protein:
-            entry["Peptides_Number"] = int(peptides_per_protein[protein])
+        if group_key in peptides_per_protein:
+            entry["Peptides_Number"] = int(peptides_per_protein[group_key])
         if "global_qvalue" in group.columns and group["global_qvalue"].notna().any():
             entry["Global Q-value"] = float(group["global_qvalue"].min())
-        table_dict[protein] = entry
+        table_dict[group_key] = entry
 
     headers = {
         "ProteinName": {
@@ -106,19 +113,83 @@ def create_qpx_protein_table(pg_df, feature_df, sample_df, file_df):
     return result_dict, headers
 
 
+def _accession_key(cell):
+    """Stable key for a list<string> accession set, or None when unusable."""
+    if cell is None:
+        return None
+    if isinstance(cell, str):
+        return cell or None
+    try:
+        parts = sorted({str(a) for a in cell if a is not None and str(a) != ""})
+    except TypeError:
+        text = str(cell)
+        return text or None
+    return ";".join(parts) or None
+
+
+def protein_group_key(df):
+    """Key protein groups by their accession set, never by anchor_protein.
+
+    Protein groups are not guaranteed disjoint and anchor_protein is documented as a
+    display label, so two distinct groups can share one anchor. pg_accessions is the
+    identifying set; anchor_protein is only a fallback when it is unavailable.
+    """
+    if "pg_accessions" in df.columns:
+        keys = df["pg_accessions"].apply(_accession_key)
+        if keys.notna().any():
+            return keys
+    if "anchor_protein" in df.columns:
+        return df["anchor_protein"].astype(str).where(df["anchor_protein"].notna())
+    return pd.Series([None] * len(df), index=df.index)
+
+
+def _display_name(group):
+    """Human-readable label for a protein group: the anchor when present."""
+    if "anchor_protein" in group.columns and group["anchor_protein"].notna().any():
+        return str(group["anchor_protein"].dropna().iloc[0])
+    return str(group.name if hasattr(group, "name") else group.index[0])
+
+
 def _peptides_per_protein(feature_df):
-    """Count distinct peptide sequences per anchor protein, if features are available."""
+    """Count distinct peptide sequences per protein group, keyed like the pg table."""
     if feature_df is None or getattr(feature_df, "empty", True):
         return {}
-    if "anchor_protein" not in feature_df.columns or "sequence" not in feature_df.columns:
+    if "sequence" not in feature_df.columns:
         return {}
 
-    counts = (
-        feature_df.dropna(subset=["anchor_protein", "sequence"])
-        .groupby("anchor_protein")["sequence"]
-        .nunique()
-    )
+    df = feature_df.copy()
+    # feature.pg_accessions is a list<struct> (accession/start/end); reduce to accessions.
+    if "pg_accessions" in df.columns:
+        df["_group_key"] = df["pg_accessions"].apply(_feature_accession_key)
+    elif "anchor_protein" in df.columns:
+        df["_group_key"] = df["anchor_protein"].astype(str)
+    else:
+        return {}
+
+    df = df.dropna(subset=["_group_key", "sequence"])
+    if df.empty:
+        return {}
+
+    counts = df.groupby("_group_key")["sequence"].nunique()
     return {str(k): v for k, v in counts.items()}
+
+
+def _feature_accession_key(cell):
+    """feature.pg_accessions holds structs; pull out the accession strings."""
+    if cell is None:
+        return None
+    try:
+        accessions = []
+        for entry in cell:
+            if isinstance(entry, dict):
+                value = entry.get("accession")
+            else:
+                value = entry
+            if value is not None and str(value) != "":
+                accessions.append(str(value))
+    except TypeError:
+        return _accession_key(cell)
+    return ";".join(sorted(set(accessions))) or None
 
 
 def _add_condition_intensities(table_dict, df, sample_df, file_df):
@@ -146,8 +217,8 @@ def _add_condition_intensities(table_dict, df, sample_df, file_df):
     for condition, condition_group in merged.groupby("Condition"):
         condition = str(condition)
         conditions.append(condition)
-        for protein, group in condition_group.groupby("anchor_protein"):
-            entry = table_dict.get(str(protein))
+        for group_key, group in condition_group.groupby("_group_key"):
+            entry = table_dict.get(group_key)
             if entry is not None:
                 entry[condition] = float(np.log10(group["intensity"].mean()))
 

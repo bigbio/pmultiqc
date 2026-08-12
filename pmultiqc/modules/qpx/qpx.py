@@ -37,6 +37,7 @@ from pmultiqc.modules.qpx.qpx_mass_error import calculate_mass_error
 from pmultiqc.modules.qpx.qpx_io import parse_qpx_parquet, select_columns
 from pmultiqc.modules.qpx.qpx_quant import (
     create_qpx_protein_table,
+    protein_group_key,
     draw_protein_intensity,
     get_protein_intensity
 )
@@ -93,6 +94,9 @@ class QpxModule(BasePMultiqcModule):
 
         self.cal_num_table_data = {}
         self.missed_cleavages_by_run = {}
+        self.id_df = None
+        self.id_source = None
+        self.id_df_valid = False
 
     def get_data(self):
 
@@ -127,6 +131,25 @@ class QpxModule(BasePMultiqcModule):
         self.psm_df_valid = self._is_valid(self.psm_df)
         self.pg_df_valid = self._is_valid(self.pg_df)
         self.feature_df_valid = self._is_valid(self.feature_df)
+
+        # DIA-NN-sourced QPX projects contain no psm.parquet at all (the PSM view is
+        # DDA-specific per the spec), but feature.parquet carries the same per-run
+        # identification fields. Everything PSM-derived reads this frame so a DIA
+        # project produces a populated report instead of an empty one.
+        if self.psm_df_valid:
+            self.id_df = self.psm_df
+            self.id_source = "psm"
+        elif self.feature_df_valid:
+            self.id_df = self.feature_df
+            self.id_source = "feature"
+            log.info(
+                "[get_data] No psm.parquet (expected for DIA-NN projects); "
+                "using feature.parquet for identification-level plots."
+            )
+        else:
+            self.id_df = None
+            self.id_source = None
+        self.id_df_valid = self.id_df is not None
 
         if self.psm_df_valid or self.pg_df_valid or self.feature_df_valid:
             log.info(
@@ -236,30 +259,35 @@ class QpxModule(BasePMultiqcModule):
         total_protein_identified = 0
         total_protein_quantified = 0
 
-        if self.psm_df_valid:
+        if self.id_df_valid:
 
             # Summary Table & Pipeline Result Statistics
-            # 'scan' is a list column (list<int32>) in psm.parquet, so .str[0] unwraps
-            # the scan number; the column itself is unhashable and cannot be grouped on.
-            total_ms2_spectra_identified = self.psm_df.groupby(
-                ["run", self.psm_df["scan"].str[0]]
+            # 'scan' is a list column (list<int32>), so .str[0] unwraps the scan number;
+            # the column itself is unhashable and cannot be grouped on. DIA-NN may write
+            # an empty list, which yields NaN and is dropped by groupby.
+            total_ms2_spectra_identified = self.id_df.groupby(
+                ["run", self.id_df["scan"].str[0]]
             ).ngroups
-            total_peptide_count = self.psm_df["sequence"].nunique()
+            total_peptide_count = self.id_df["sequence"].nunique()
 
         if self.pg_df_valid:
-            total_protein_identified = self.pg_df["anchor_protein"].nunique()
+            # Count protein groups by their accession set: anchor_protein is a display
+            # label and several groups may share one, so it undercounts.
+            pg_keys = protein_group_key(self.pg_df)
+            total_protein_identified = pg_keys.nunique()
 
             valid_intensity = self.pg_df["intensity"].notna() & (self.pg_df["intensity"] != "")
-            total_protein_quantified = self.pg_df.loc[valid_intensity, "anchor_protein"].nunique()
+            total_protein_quantified = pg_keys[valid_intensity].nunique()
 
         # Pipeline Result Statistics
-        if self.psm_df_valid and self.pg_df_valid:
+        if self.id_df_valid and self.pg_df_valid:
 
             stat_at_run = dict()
             data_per_run = dict()
 
-            pg_prots_by_run = self.pg_df.groupby("run")["anchor_protein"].apply(set).to_dict()
-            for run, psm_group in self.psm_df.groupby("run"):
+            pg_by_run = self.pg_df.assign(_key=protein_group_key(self.pg_df))
+            pg_prots_by_run = pg_by_run.groupby("run")["_key"].apply(set).to_dict()
+            for run, psm_group in self.id_df.groupby("run"):
                 run_str = str(run)
                 prots = pg_prots_by_run.get(run_str, set())
                 (
@@ -304,9 +332,9 @@ class QpxModule(BasePMultiqcModule):
         missed_cleavages = {}
         psm = None
 
-        if self.psm_df_valid:
+        if self.id_df_valid:
             psm = select_columns(
-                self.psm_df,
+                self.id_df,
                 ["run", "sequence", "charge", "modifications"],
                 "Identification Summary",
             )
@@ -373,7 +401,7 @@ class QpxModule(BasePMultiqcModule):
         log.info("[HeatMap] Starting generation...")
 
         heat_map_score, xnames, ynames = calculate_qpx_heatmap(
-            psm_df=self.psm_df if self.psm_df_valid else None,
+            psm_df=self.id_df if self.id_df_valid else None,
             pg_df=self.pg_df if self.pg_df_valid else None,
             feature_df=self.feature_df if self.feature_df_valid else None,
             missed_cleavages_by_run=self.missed_cleavages_by_run,
@@ -473,10 +501,10 @@ class QpxModule(BasePMultiqcModule):
 
         log.info("[Mass Error] Starting generation...")
 
-        if not self.psm_df_valid:
+        if not self.id_df_valid:
             return
 
-        ppm_dict, da_dict, _ = calculate_mass_error(self.psm_df)
+        ppm_dict, da_dict, _ = calculate_mass_error(self.id_df)
 
         if da_dict:
             self._safe_draw(
@@ -501,9 +529,9 @@ class QpxModule(BasePMultiqcModule):
 
         log.info("[RT Quality Control] Starting generation...")
 
-        if self.psm_df_valid:
+        if self.id_df_valid:
 
-            psm = select_columns(self.psm_df, ["run", "rt"], "RT Quality Control")
+            psm = select_columns(self.id_df, ["run", "rt"], "RT Quality Control")
             if psm is None:
                 return
 
