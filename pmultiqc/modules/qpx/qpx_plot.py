@@ -22,6 +22,7 @@ def draw_summary_table(
     total_protein_identified: int = 0,
     total_protein_quantified: int = 0
 ):
+    """Global summary table: identified spectra, peptides and proteins."""
     log.info("Summary table generation...")
 
     summary_table = {
@@ -78,6 +79,7 @@ def draw_summary_table(
 
 # Distribution of Precursor Charges
 def draw_whole_exp_charge(sub_section, df):
+    """Precursor charge distribution across the whole experiment."""
 
     df["charge"] = df["charge"].astype("str")
 
@@ -120,6 +122,7 @@ def draw_whole_exp_charge(sub_section, df):
 
 # Charge-state
 def draw_qpx_ms2_charge(sub_section, df=None, sdrf_file_df=None):
+    """Per-run (and per-sample) precursor charge state distribution."""
 
     if df is None:
         df = pd.DataFrame()

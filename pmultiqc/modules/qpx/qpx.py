@@ -78,6 +78,13 @@ log = get_logger("pmultiqc.modules.qpx.qpx")
 
 
 class QpxModule(BasePMultiqcModule):
+    """MultiQC module for quantms.io (QPX) parquet projects.
+
+    Reads psm/feature/pg/run/sample.parquet and renders the report sections each one
+    can support. Producers populate very different field subsets -- DIA-NN writes no
+    psm.parquet at all -- so every section is gated on the data actually being present
+    and usable rather than on the schema declaring it.
+    """
 
     def __init__(
             self,
@@ -117,6 +124,11 @@ class QpxModule(BasePMultiqcModule):
         self.id_df_valid = False
 
     def get_data(self):
+        """Discover and load the project's parquet tables.
+
+        Returns True when at least one of psm/pg/feature holds data, which is the signal
+        MultiQC uses to decide whether the module produced anything.
+        """
 
         log.info("[get_data] Starting data recognition and processing...")
 
@@ -183,6 +195,7 @@ class QpxModule(BasePMultiqcModule):
 
 
     def draw_plots(self):
+        """Render every section, each guarded so one failure cannot lose the report."""
 
         log.info("[draw_plots] Starting data processing and plot generation...")
 
@@ -281,6 +294,7 @@ class QpxModule(BasePMultiqcModule):
 
     # Results Overview
     def plot_results_overview(self):
+        """Summary table and per-run pipeline statistics (Results Overview)."""
 
         log.info("[Results Overview] Starting generation...")
 
@@ -364,6 +378,7 @@ class QpxModule(BasePMultiqcModule):
 
     # Identification Summary
     def plot_id_summary(self):
+        """Identification Summary: counts, modifications, missed cleavages, peptide length."""
 
         log.info("[Identification Summary] Starting generation...")
 
@@ -472,6 +487,7 @@ class QpxModule(BasePMultiqcModule):
 
     # QC HeatMap
     def plot_heatmap(self):
+        """QC heatmap. Runs after the identification step so it can reuse its counts."""
 
         log.info("[HeatMap] Starting generation...")
 
@@ -497,6 +513,7 @@ class QpxModule(BasePMultiqcModule):
 
     # Search Engine Scores
     def plot_search_engine_scores(self):
+        """Distribution of whichever search-engine score the project carries."""
 
         log.info("[Search Engine Scores] Starting generation...")
 
@@ -517,6 +534,7 @@ class QpxModule(BasePMultiqcModule):
 
     # Contaminants
     def plot_contaminants(self):
+        """Per-run contaminant intensity share and the top-N breakdown."""
 
         log.info("[Contaminants] Starting generation...")
 
@@ -546,6 +564,7 @@ class QpxModule(BasePMultiqcModule):
 
     # Quantification Analysis
     def plot_quant_analysis(self):
+        """Quantification Analysis: peptide/protein intensity, tables, PCA and spread."""
 
         log.info("[Quantification Analysis] Starting generation...")
 
@@ -633,6 +652,7 @@ class QpxModule(BasePMultiqcModule):
 
     # MS2 and Spectral Stats
     def plot_ms2_stats(self):
+        """MS2 and Spectral Stats: precursor charge distributions."""
         log.info("[MS2 and Spectral Stats] Starting generation...")
 
         if self.feature_df_valid:
@@ -659,6 +679,7 @@ class QpxModule(BasePMultiqcModule):
 
     # Mass Error Trends
     def plot_mass_error(self):
+        """Mass Error Trends, derived from m/z when mass_error_ppm is not populated."""
 
         log.info("[Mass Error] Starting generation...")
 
@@ -687,6 +708,7 @@ class QpxModule(BasePMultiqcModule):
 
     # RT Quality Control
     def plot_rt(self):
+        """RT Quality Control: identifications over retention time."""
 
         log.info("[RT Quality Control] Starting generation...")
 
@@ -763,9 +785,13 @@ class QpxModule(BasePMultiqcModule):
         return pd.concat(dfs, ignore_index=True)
 
     def _is_valid(self, df):
+        """True when a loaded table exists and holds at least one row."""
         return df is not None and not df.empty
 
     def _safe_draw(self, func, *args, name="plot", **kwargs):
+        """Call a draw function, logging and swallowing failures so one plot cannot take
+        down the whole report.
+        """
         try:
             return func(*args, **kwargs)
         except Exception:
@@ -774,6 +800,7 @@ class QpxModule(BasePMultiqcModule):
 
 
 def _sample_level_mods(df, sdrf_file_df):
+    """Aggregate modification counts per sample, using the experimental design."""
 
     mod_plot = dict()
 

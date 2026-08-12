@@ -161,6 +161,7 @@ def _peptide_intensity_scores(feature_df):
 
 
 def _charge_scores(psm_df):
+    """Charge metric: deviation of each run's charge-2 fraction from the median."""
     if "charge" not in psm_df.columns or psm_df["charge"].isna().all():
         return {}
     return {str(k): float(v) for k, v in cal_hm_charge(psm_df, "run", "charge").items()}
@@ -196,6 +197,7 @@ def _variance_scores(base_scores):
 
 
 def _id_rate_over_rt_scores(psm_df):
+    """ID-rate-over-RT metric: how uniformly identifications spread over the gradient."""
     if "rt" not in psm_df.columns or psm_df["rt"].isna().all():
         return {}
     return {
