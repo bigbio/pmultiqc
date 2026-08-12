@@ -295,3 +295,169 @@ def draw_protein_intensity(sub_section, plot_data):
             pg.parquet and log2-transformed. Zero and missing intensities are ignored.
             """,
     )
+
+
+def create_qpx_peptide_table(feature_df, sample_df, file_df):
+    """Peptide-level quantification table, mirroring the protein one.
+
+    Returns ``(table_dict, headers)`` or ``(None, None)``.
+    """
+    from pmultiqc.modules.qpx.qpx_io import has_data
+
+    if not has_data(feature_df, "peptidoform", "intensities"):
+        log.debug("feature.parquet lacks peptidoform/intensities; no peptide table.")
+        return None, None
+
+    df = feature_df.dropna(subset=["intensities"]).explode("intensities")
+    df = df.dropna(subset=["intensities"])
+    if df.empty:
+        return None, None
+
+    df["intensity"] = pd.to_numeric(df["intensities"].str.get("intensity"), errors="coerce")
+    df = df[df["intensity"] > 0]
+    if df.empty:
+        return None, None
+
+    df["_group_key"] = protein_group_key(df) if "pg_accessions" in df.columns else None
+
+    table_dict = {}
+    for peptidoform, group in df.groupby("peptidoform"):
+        entry = {
+            "PeptideID": str(peptidoform),
+            "Average Intensity": float(np.log10(group["intensity"].mean())),
+        }
+        if "anchor_protein" in group.columns and group["anchor_protein"].notna().any():
+            entry["ProteinName"] = str(group["anchor_protein"].dropna().iloc[0])
+        if "charge" in group.columns and group["charge"].notna().any():
+            entry["Charge"] = int(group["charge"].dropna().iloc[0])
+        table_dict[str(peptidoform)] = entry
+
+    headers = {"PeptideID": {"title": "Peptidoform", "description": "Peptide sequence with modifications"}}
+    if any("ProteinName" in e for e in table_dict.values()):
+        headers["ProteinName"] = {"title": "Protein Name", "description": "Anchor protein of the group"}
+    if any("Charge" in e for e in table_dict.values()):
+        headers["Charge"] = {"title": "Charge", "description": "Precursor charge", "format": "{:,.0f}"}
+    headers["Average Intensity"] = {
+        "title": "Average Intensity",
+        "description": "log10 of the average peptide intensity across runs",
+        "format": "{:,.4f}",
+    }
+
+    ordered = sorted(table_dict.values(), key=lambda e: e.get("Average Intensity", 0), reverse=True)
+    result = {i: entry for i, entry in enumerate(ordered, start=1)}
+    log.info(f"[Quantification] Peptide quantification table: {len(table_dict)} peptidoform(s).")
+    return result, headers
+
+
+def protein_intensity_pca(pg_df):
+    """PCA of the protein-group x run intensity matrix. None if not computable."""
+    try:
+        from sklearn.decomposition import PCA
+        from sklearn.preprocessing import StandardScaler
+    except ImportError:
+        log.debug("[Quantification] scikit-learn unavailable; skipping PCA.")
+        return None
+
+    from pmultiqc.modules.qpx.qpx_io import has_data
+
+    if not has_data(pg_df, "run", "intensity"):
+        return None
+
+    df = pg_df.copy()
+    df["intensity"] = pd.to_numeric(df["intensity"], errors="coerce")
+    df["_group_key"] = protein_group_key(df)
+    df = df.dropna(subset=["intensity", "_group_key"])
+    df = df[df["intensity"] > 0]
+    if df.empty:
+        return None
+
+    matrix = df.pivot_table(
+        index="_group_key", columns="run", values="intensity", aggfunc="mean"
+    )
+    # PCA needs at least two runs, and rows complete across them.
+    matrix = matrix.dropna()
+    if matrix.shape[1] < 2 or matrix.shape[0] < 2:
+        log.info(
+            "[Quantification] PCA skipped: needs >=2 runs and >=2 proteins quantified in "
+            f"all of them (got {matrix.shape[0]} x {matrix.shape[1]})."
+        )
+        return None
+
+    scaled = StandardScaler().fit_transform(np.log2(matrix).T)
+    result = PCA(n_components=2).fit_transform(scaled)
+
+    log.info(
+        f"[Quantification] PCA over {matrix.shape[0]} protein groups x {matrix.shape[1]} runs."
+    )
+    return {
+        str(run): {"x": float(result[i, 0]), "y": float(result[i, 1])}
+        for i, run in enumerate(matrix.columns)
+    }
+
+
+def calculate_intensity_std(feature_df, sample_df, file_df):
+    """Per-condition standard deviation of log2 peptide intensity."""
+    from pmultiqc.modules.qpx.qpx_io import has_data
+
+    if not has_data(feature_df, "peptidoform", "intensities", "run"):
+        return {}
+    if sample_df is None or getattr(sample_df, "empty", True):
+        return {}
+    if file_df is None or getattr(file_df, "empty", True):
+        return {}
+    if not {"Sample", "Condition"}.issubset(sample_df.columns):
+        return {}
+    if not {"Sample", "Run"}.issubset(file_df.columns):
+        return {}
+
+    df = feature_df[["run", "peptidoform", "intensities"]].dropna(subset=["intensities"])
+    df = df.explode("intensities").dropna(subset=["intensities"])
+    df["intensity"] = pd.to_numeric(df["intensities"].str.get("intensity"), errors="coerce")
+    df = df[df["intensity"] > 0]
+    if df.empty:
+        return {}
+
+    df = df.merge(
+        file_df[["Sample", "Run"]].drop_duplicates(), left_on="run", right_on="Run", how="inner"
+    ).merge(sample_df[["Sample", "Condition"]].drop_duplicates(), on="Sample", how="inner")
+    if df.empty:
+        return {}
+
+    df["log2_intensity"] = np.log2(df["intensity"])
+
+    result = {}
+    for condition, group in df.groupby("Condition"):
+        stds = group.groupby("peptidoform")["log2_intensity"].std().dropna()
+        if not stds.empty:
+            result[str(condition)] = stds.tolist()
+
+    return result
+
+
+def draw_intensity_std(sub_section, box_data):
+    """Box plot of per-condition standard deviation of log2 peptide intensity."""
+    if not box_data:
+        return
+
+    draw_config = {
+        "id": "qpx_std_intensity_box",
+        "title": "Standard Deviation of Intensity",
+        "cpswitch": False,
+        "tt_decimals": 5,
+        "xlab": "Standard Deviation of log2(Intensity)",
+        "save_data_file": False,
+    }
+
+    box_html = plot_html_check(box.plot(list_of_data_by_sample=box_data, pconfig=draw_config))
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=box_html,
+        order=8,
+        description="Spread of each peptide's log2 intensity within a condition.",
+        helptext="""
+            For every peptidoform the standard deviation of its log2 intensity is computed
+            across the runs of one condition; the box shows the distribution of those values.
+            A tight distribution indicates reproducible quantification within the condition.
+            """,
+    )

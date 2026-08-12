@@ -299,7 +299,14 @@ class TestInternalCallSiteKeywords:
                     continue
                 callee, keywords = resolve(node)
                 defs = definitions.get(callee)
-                if not defs or len(defs) > 1 or defs[0][1]:
+                if not defs or any(has_kwargs for _, has_kwargs in defs):
+                    continue
+                # Several modules define same-named drawers (e.g. draw_peptides_table in
+                # both dia_utils and mzidentml_utils). That is still checkable as long as
+                # every definition accepts the same parameters -- only genuinely
+                # divergent signatures are ambiguous enough to skip.
+                param_sets = {frozenset(params) for params, _ in defs}
+                if len(param_sets) > 1:
                     continue
                 params = defs[0][0]
                 for keyword in keywords:

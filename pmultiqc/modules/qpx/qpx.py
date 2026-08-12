@@ -19,9 +19,13 @@ from pmultiqc.modules.common.plots.general import (
     draw_exp_design_tables,
     draw_heatmap
 )
-from pmultiqc.modules.common.dia_utils import draw_protein_table
+from pmultiqc.modules.common.dia_utils import draw_protein_table, draw_peptides_table
 from pmultiqc.modules.common.plots.id import (
     draw_delta_mass_da_ppm,
+    draw_num_pep_per_protein,
+    draw_oversampling,
+    draw_potential_contaminants,
+    draw_top_n_contaminants,
     draw_identi_num,
     draw_identification,
     draw_peptide_length_distribution,
@@ -35,9 +39,22 @@ from pmultiqc.modules.qpx.qpx_design import build_design_from_parquet
 from pmultiqc.modules.qpx.qpx_heatmap import calculate_qpx_heatmap
 from pmultiqc.modules.qpx.qpx_mass_error import calculate_mass_error
 from pmultiqc.modules.qpx.qpx_io import parse_qpx_parquet, select_columns
+from pmultiqc.modules.qpx.qpx_sections import (
+    build_peptides_per_protein,
+    draw_qpx_search_engine_scores,
+    calculate_contaminants,
+    calculate_oversampling,
+    calculate_search_engine_scores
+)
+from pmultiqc.modules.maxquant.maxquant_plots import draw_pg_pca
 from pmultiqc.modules.qpx.qpx_quant import (
+    calculate_intensity_std,
+    create_qpx_peptide_table,
     create_qpx_protein_table,
+    draw_intensity_std,
     protein_group_key,
+    protein_intensity_pca,
+    _peptides_per_protein,
     draw_protein_intensity,
     get_protein_intensity
 )
@@ -212,6 +229,18 @@ class QpxModule(BasePMultiqcModule):
             name="plot_quant_analysis"
         )
 
+        # Search Engine Scores
+        self._safe_draw(
+            self.plot_search_engine_scores,
+            name="plot_search_engine_scores"
+        )
+
+        # Contaminants
+        self._safe_draw(
+            self.plot_contaminants,
+            name="plot_contaminants"
+        )
+
         # MS2 and Spectral Stats
         self._safe_draw(
             self.plot_ms2_stats,
@@ -235,8 +264,8 @@ class QpxModule(BasePMultiqcModule):
             "experiment_sub_section": self.sub_sections["experiment"],
             "summary_sub_section": self.sub_sections["summary"],
             "identification_sub_section": self.sub_sections["identification"],
-            # "search_engine_sub_section": self.sub_sections["search_engine"],
-            # "contaminants_sub_section": self.sub_sections["contaminants"],
+            "search_engine_sub_section": self.sub_sections["search_engine"],
+            "contaminants_sub_section": self.sub_sections["contaminants"],
             "quantification_sub_section": self.sub_sections["quantification"],
             # "ms1_sub_section": self.sub_sections["ms1"],
             "ms2_sub_section": self.sub_sections["ms2"],
@@ -386,6 +415,31 @@ class QpxModule(BasePMultiqcModule):
             msms_identified_rate=None,
         )
 
+        # Number of Peptides identified Per Protein
+        if self.feature_df_valid:
+            pep_plot = build_peptides_per_protein(
+                self.feature_df, _peptides_per_protein(self.feature_df)
+            )
+            if pep_plot is not None:
+                self._safe_draw(
+                    draw_num_pep_per_protein,
+                    name="draw_num_pep_per_protein",
+                    sub_sections=self.sub_sections["identification"],
+                    pep_plot=pep_plot,
+                )
+
+        # MS/MS Counts Per 3D-peak
+        oversampling, oversampling_cats = calculate_oversampling(self.id_df)
+        if oversampling:
+            self._safe_draw(
+                draw_oversampling,
+                name="draw_oversampling",
+                sub_section=self.sub_sections["ms2"],
+                oversampling=oversampling,
+                oversampling_plot=oversampling_cats,
+                data_type="qpx",
+            )
+
         # Peptide Length Distribution
         if peptide_length:
            self._safe_draw(
@@ -419,6 +473,55 @@ class QpxModule(BasePMultiqcModule):
             heatmap_ynames=ynames,
             report_type="",
         )
+
+    # Search Engine Scores
+    def plot_search_engine_scores(self):
+
+        log.info("[Search Engine Scores] Starting generation...")
+
+        if not self.id_df_valid:
+            return
+
+        plot_data, score_name = calculate_search_engine_scores(self.id_df)
+        if not plot_data:
+            return
+
+        self._safe_draw(
+            draw_qpx_search_engine_scores,
+            name="draw_qpx_search_engine_scores",
+            sub_section=self.sub_sections["search_engine"],
+            plot_data=plot_data,
+            score_name=score_name,
+        )
+
+    # Contaminants
+    def plot_contaminants(self):
+
+        log.info("[Contaminants] Starting generation...")
+
+        if not self.pg_df_valid:
+            return
+
+        per_run, top_n = calculate_contaminants(
+            self.pg_df, config.kwargs.get("contaminant_affix", "CONT")
+        )
+
+        if per_run:
+            self._safe_draw(
+                draw_potential_contaminants,
+                name="draw_potential_contaminants",
+                sub_section=self.sub_sections["contaminants"],
+                contaminant_percent=per_run,
+                report_type="qpx",
+            )
+
+        if top_n:
+            self._safe_draw(
+                draw_top_n_contaminants,
+                name="draw_top_n_contaminants",
+                sub_section=self.sub_sections["contaminants"],
+                top_contaminants_data=top_n,
+            )
 
     # Quantification Analysis
     def plot_quant_analysis(self):
@@ -469,6 +572,44 @@ class QpxModule(BasePMultiqcModule):
                 sub_section=self.sub_sections["quantification"],
                 plot_data=get_protein_intensity(self.pg_df, self.file_df),
             )
+
+            # PCA of protein intensity
+            pca_data = protein_intensity_pca(self.pg_df)
+            if pca_data:
+                self._safe_draw(
+                    draw_pg_pca,
+                    name="draw_pg_pca",
+                    sub_section=self.sub_sections["quantification"],
+                    pca_data=pca_data,
+                    fig_type="raw_intensity",
+                )
+
+        if self.feature_df_valid:
+            # Peptides Quantification Table
+            peptide_table, peptide_headers = create_qpx_peptide_table(
+                self.feature_df, self.sample_df, self.file_df
+            )
+            if peptide_table:
+                self._safe_draw(
+                    draw_peptides_table,
+                    name="draw_peptides_table",
+                    sub_section=self.sub_sections["quantification"],
+                    table_data=peptide_table,
+                    headers=peptide_headers,
+                    report_type="qpx",
+                )
+
+            # Standard Deviation of Intensity
+            std_data = calculate_intensity_std(
+                self.feature_df, self.sample_df, self.file_df
+            )
+            if std_data:
+                self._safe_draw(
+                    draw_intensity_std,
+                    name="draw_intensity_std",
+                    sub_section=self.sub_sections["quantification"],
+                    box_data=std_data,
+                )
 
     # MS2 and Spectral Stats
     def plot_ms2_stats(self):
