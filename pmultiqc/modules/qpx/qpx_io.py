@@ -4,6 +4,8 @@ from pmultiqc.modules.common.logging import get_logger
 from multiqc import config
 
 import pandas as pd
+import pyarrow.parquet as pq
+
 from pmultiqc.modules.common.file_utils import file_prefix
 
 
@@ -23,7 +25,9 @@ QPX_COLUMNS = {
     "pg": [
         "pg_accessions", "anchor_protein",
         "grouped_runs", "global_qvalue",
-        "intensity", "is_decoy"
+        "intensity", "is_decoy",
+        # Optional (absent in older writers); skipped automatically when missing.
+        "contaminant"
     ],
     "feature": [
         "feature_id", "sequence", "peptidoform",
@@ -39,8 +43,18 @@ def parse_qpx_parquet(file_path, qpx_type):
     if "is_decoy" not in req_columns:
         req_columns = list(req_columns) + ["is_decoy"]
 
+    # Only request columns the file actually has: quantms.io writers vary by version,
+    # and pyarrow raises rather than ignoring an absent column.
+    available = set(pq.ParquetFile(file_path).schema_arrow.names)
+    missing = [column for column in req_columns if column not in available]
+    if missing:
+        log.debug(f"{qpx_type}.parquet has no {', '.join(missing)}; reading without them.")
+    req_columns = [column for column in req_columns if column in available]
+
     remove_decoy = config.kwargs.get("remove_decoy", False)
-    parquet_filters = [("is_decoy", "==", False)] if remove_decoy else None
+    parquet_filters = (
+        [("is_decoy", "==", False)] if remove_decoy and "is_decoy" in available else None
+    )
 
     df = pd.read_parquet(
         path=file_path,

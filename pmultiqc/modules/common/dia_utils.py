@@ -591,6 +591,19 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
             * Peptides_Number: The number of peptides for each protein.
             * Average Intensity: Average intensity of each protein(0 or NA ignored).
             """
+    elif report_type == "qpx":
+        description_text = """
+            This plot shows the quantification information of proteins in the final result (quantms.io pg.parquet).
+            """
+        helptext_text = """
+            The quantification information of proteins is obtained from the `intensity` column of pg.parquet.
+            Proteins are sorted by average intensity, and the most abundant ones are shown.
+
+            * Peptides_Number: The number of distinct peptide sequences for each protein.
+            * Average Intensity: log10 of the average protein group intensity across runs (0 or NA ignored).
+            * Global Q-value: The best (lowest) global q-value reported for the protein group.
+            * Protein intensity in each condition: log10 average intensity within that condition.
+            """
     else:
         description_text = ""
         helptext_text = ""

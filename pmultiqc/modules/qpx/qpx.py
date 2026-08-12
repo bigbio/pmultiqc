@@ -16,8 +16,10 @@ from pmultiqc.modules.common.common_utils import (
 )
 from pmultiqc.modules.common.plots.general import (
     draw_exp_design,
-    draw_exp_design_tables
+    draw_exp_design_tables,
+    draw_heatmap
 )
+from pmultiqc.modules.common.dia_utils import draw_protein_table
 from pmultiqc.modules.common.plots.id import (
     draw_identi_num,
     draw_identification,
@@ -29,7 +31,13 @@ from pmultiqc.modules.common.plots.id import (
 from pmultiqc.modules.core.section_groups import add_group_modules
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.qpx.qpx_design import build_design_from_parquet
+from pmultiqc.modules.qpx.qpx_heatmap import calculate_qpx_heatmap
 from pmultiqc.modules.qpx.qpx_io import parse_qpx_parquet
+from pmultiqc.modules.qpx.qpx_quant import (
+    create_qpx_protein_table,
+    draw_protein_intensity,
+    get_protein_intensity
+)
 from pmultiqc.modules.qpx.qpx_plot import (
     draw_summary_table,
     draw_whole_exp_charge,
@@ -82,6 +90,7 @@ class QpxModule(BasePMultiqcModule):
         self.is_multi_conditions = False
 
         self.cal_num_table_data = {}
+        self.missed_cleavages_by_run = {}
 
     def get_data(self):
 
@@ -162,6 +171,14 @@ class QpxModule(BasePMultiqcModule):
         self._safe_draw(
             self.plot_id_summary,
             name="plot_id_summary"
+        )
+
+        # QC HeatMap. Drawn after the identification step because it reuses the
+        # missed-cleavage counts computed there; add_sub_section places it by order,
+        # so it still appears inside the Results Overview section.
+        self._safe_draw(
+            self.plot_heatmap,
+            name="plot_heatmap"
         )
 
         # Quantification Analysis
@@ -322,6 +339,8 @@ class QpxModule(BasePMultiqcModule):
 
             # Missed Cleavages
             missed_cleavages = get_missed_cleavages(psm, self.run_df, self.file_df)
+            # Reused by the QC heatmap, which is rendered after this step.
+            self.missed_cleavages_by_run = missed_cleavages.get("ms_runs", {})
 
         draw_identification(
             sub_sections=self.sub_sections["identification"],
@@ -340,6 +359,31 @@ class QpxModule(BasePMultiqcModule):
                 plot_data=peptide_length
            )
 
+    # QC HeatMap
+    def plot_heatmap(self):
+
+        log.info("[HeatMap] Starting generation...")
+
+        heat_map_score, xnames, ynames = calculate_qpx_heatmap(
+            psm_df=self.psm_df if self.psm_df_valid else None,
+            pg_df=self.pg_df if self.pg_df_valid else None,
+            feature_df=self.feature_df if self.feature_df_valid else None,
+            missed_cleavages_by_run=self.missed_cleavages_by_run,
+            contaminant_affix=config.kwargs.get("contaminant_affix", "CONT"),
+        )
+
+        if not heat_map_score:
+            return
+
+        draw_heatmap(
+            sub_sections=self.sub_sections["summary"],
+            hm_colors=self.heatmap_color_list,
+            heatmap_data=heat_map_score,
+            heatmap_xnames=xnames,
+            heatmap_ynames=ynames,
+            report_type="",
+        )
+
     # Quantification Analysis
     def plot_quant_analysis(self):
 
@@ -357,6 +401,32 @@ class QpxModule(BasePMultiqcModule):
                 name="draw_peptide_intensity",
                 sub_section=self.sub_sections["quantification"],
                 plot_data=qpx_pep_intensity
+            )
+
+        if self.pg_df_valid:
+            # Protein Quantification Table
+            table_data, headers = create_qpx_protein_table(
+                pg_df=self.pg_df,
+                feature_df=self.feature_df if self.feature_df_valid else None,
+                sample_df=self.sample_df,
+                file_df=self.file_df,
+            )
+            if table_data:
+                self._safe_draw(
+                    draw_protein_table,
+                    name="draw_protein_table",
+                    sub_sections=self.sub_sections["quantification"],
+                    table_data=table_data,
+                    headers=headers,
+                    report_type="qpx",
+                )
+
+            # Protein Intensity Distribution
+            self._safe_draw(
+                draw_protein_intensity,
+                name="draw_protein_intensity",
+                sub_section=self.sub_sections["quantification"],
+                plot_data=get_protein_intensity(self.pg_df, self.file_df),
             )
 
     # MS2 and Spectral Stats
