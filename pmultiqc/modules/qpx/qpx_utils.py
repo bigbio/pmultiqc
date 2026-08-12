@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import pandas as pd
+
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.plots.general import (
     stat_pep_intensity
@@ -13,28 +15,43 @@ from pmultiqc.modules.common.common_utils import (
 log = get_logger("pmultiqc.modules.qpx.qpx_utils")
 
 
-def calculate_run_stat(psm_df_sub, proteins):
-    """Calculate statistics for a specific run."""
+def calculate_run_stat(psm_df_sub, proteins, unambiguous_peptides=None):
+    """Calculate statistics for a specific run.
+
+    ``unambiguous_peptides`` is the project-wide set of peptide sequences mapping to a
+    single protein group (see :func:`get_unambiguous_peptides`). It is passed in rather
+    than derived here because uniqueness is a property of the whole project, not of one
+    run. When it is None the count is reported as unavailable rather than as zero.
+    """
     peptides = set(psm_df_sub["peptidoform"])
 
-    # TODO need protein_accessions in psm.parquet
-    unique_peptides = set()
+    if unambiguous_peptides is None:
+        unique_peptides = None
+    elif "sequence" in psm_df_sub.columns:
+        unique_peptides = set(psm_df_sub["sequence"]) & unambiguous_peptides
+    else:
+        unique_peptides = None
 
-    modified_pep = set(
-        psm_df_sub[psm_df_sub["modifications"].notna()]["peptidoform"]
-    )
+    # 'modifications' is optional: writers may omit it, and the reader only loads
+    # columns the file actually has.
+    if "modifications" in psm_df_sub.columns:
+        modified_pep = set(
+            psm_df_sub[psm_df_sub["modifications"].notna()]["peptidoform"]
+        )
+    else:
+        modified_pep = set()
 
     stat_run = {
         "protein_num": len(proteins),
         "peptide_num": len(peptides),
-        "unique_peptide_num": len(unique_peptides),
+        "unique_peptide_num": len(unique_peptides) if unique_peptides is not None else "",
         "modified_peptide_num": len(modified_pep)
     }
 
     data_per_run = {
         "proteins": proteins,
         "peptides": peptides,
-        "unique_peptides": unique_peptides,
+        "unique_peptides": unique_peptides if unique_peptides is not None else set(),
         "modified_peps": modified_pep
     }
 
@@ -189,3 +206,58 @@ def _first_enzyme_value(cell):
         return str(cell).strip() or None
 
     return None
+
+
+def get_unambiguous_peptides(feature_df):
+    """Peptide sequences that map to exactly one protein group across the project.
+
+    Prefers the ``unique`` flag when the producer sets it (DIA-NN does; the
+    OpenMS-consensus route leaves it null). Otherwise derives it from the protein
+    accessions each sequence is observed with. Returns None when neither is possible,
+    so callers can distinguish "no unambiguous peptides" from "cannot tell".
+    """
+    if feature_df is None or getattr(feature_df, "empty", True):
+        return None
+    if "sequence" not in feature_df.columns:
+        return None
+
+    if "unique" in feature_df.columns and feature_df["unique"].notna().any():
+        flagged = feature_df[feature_df["unique"].fillna(False).astype(bool)]
+        log.info("[Identification] Unambiguous peptides taken from the 'unique' flag.")
+        return set(flagged["sequence"].dropna())
+
+    if "pg_accessions" not in feature_df.columns:
+        return None
+
+    accessions = feature_df["pg_accessions"].apply(_feature_accessions)
+    if not accessions.map(bool).any():
+        return None
+
+    df = pd.DataFrame({"sequence": feature_df["sequence"], "_acc": accessions})
+    df = df.dropna(subset=["sequence"])
+
+    per_sequence = df.groupby("sequence")["_acc"].apply(
+        lambda groups: set().union(*groups) if len(groups) else set()
+    )
+    unambiguous = {seq for seq, accs in per_sequence.items() if len(accs) == 1}
+
+    log.info(
+        f"[Identification] Unambiguous peptides derived from protein accessions: "
+        f"{len(unambiguous)} of {len(per_sequence)} sequences map to a single protein group."
+    )
+    return unambiguous
+
+
+def _feature_accessions(cell):
+    """Accession strings from feature.pg_accessions (a list of structs)."""
+    if cell is None:
+        return set()
+    try:
+        out = set()
+        for entry in cell:
+            value = entry.get("accession") if isinstance(entry, dict) else entry
+            if value is not None and str(value) != "":
+                out.add(str(value))
+        return out
+    except TypeError:
+        return set()
