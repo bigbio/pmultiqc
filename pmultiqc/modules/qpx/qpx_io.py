@@ -20,7 +20,9 @@ QPX_COLUMNS = {
         "posterior_error_probability", "is_decoy",
         "calculated_mz", "observed_mz",
         "mass_error_ppm", "run_file_name",
-        "scan", "rt", "protein_accessions"
+        "scan", "rt", "protein_accessions",
+        # Search-engine scores; free-form names, so read and inspected at runtime.
+        "additional_scores"
     ],
     "pg": [
         "pg_accessions", "anchor_protein",
@@ -37,7 +39,11 @@ QPX_COLUMNS = {
         # keying on anchor_protein alone silently loses every multi-accession group.
         # Optional (absent in older writers); skipped automatically when missing.
         "pg_accessions", "modifications", "rt",
-        "calculated_mz", "observed_mz", "unique"
+        "calculated_mz", "observed_mz", "unique",
+        # DIA-NN emits no psm.parquet, so feature.parquet stands in for it: these are
+        # the columns the identification-level plots read.
+        "scan", "posterior_error_probability", "additional_scores",
+        "mass_error_ppm", "missed_cleavages"
     ]
 }
 

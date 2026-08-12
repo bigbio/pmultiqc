@@ -38,15 +38,15 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.qpx.qpx_design import build_design_from_parquet
 from pmultiqc.modules.qpx.qpx_heatmap import calculate_qpx_heatmap
 from pmultiqc.modules.qpx.qpx_mass_error import calculate_mass_error
-from pmultiqc.modules.qpx.qpx_io import parse_qpx_parquet, select_columns
+from pmultiqc.modules.qpx.qpx_io import has_data, parse_qpx_parquet, select_columns
 from pmultiqc.modules.qpx.qpx_sections import (
     build_peptides_per_protein,
+    draw_qpx_pca,
     draw_qpx_search_engine_scores,
     calculate_contaminants,
     calculate_oversampling,
     calculate_search_engine_scores
 )
-from pmultiqc.modules.maxquant.maxquant_plots import draw_pg_pca
 from pmultiqc.modules.qpx.qpx_quant import (
     calculate_intensity_std,
     create_qpx_peptide_table,
@@ -293,11 +293,18 @@ class QpxModule(BasePMultiqcModule):
 
             # Summary Table & Pipeline Result Statistics
             # 'scan' is a list column (list<int32>), so .str[0] unwraps the scan number;
-            # the column itself is unhashable and cannot be grouped on. DIA-NN may write
-            # an empty list, which yields NaN and is dropped by groupby.
-            total_ms2_spectra_identified = self.id_df.groupby(
-                ["run", self.id_df["scan"].str[0]]
-            ).ngroups
+            # the column itself is unhashable and cannot be grouped on. It is optional,
+            # and DIA-NN may write an empty list, so fall back to counting rows.
+            if has_data(self.id_df, "scan"):
+                total_ms2_spectra_identified = self.id_df.groupby(
+                    ["run", self.id_df["scan"].str[0]]
+                ).ngroups
+            else:
+                total_ms2_spectra_identified = len(self.id_df)
+                log.info(
+                    "[Results Overview] No usable 'scan' column; reporting identified "
+                    "spectra as the identification count."
+                )
             total_peptide_count = self.id_df["sequence"].nunique()
 
         if self.pg_df_valid:
@@ -366,45 +373,55 @@ class QpxModule(BasePMultiqcModule):
         psm = None
 
         if self.id_df_valid:
-            psm = select_columns(
-                self.id_df,
-                ["run", "sequence", "charge", "modifications"],
-                "Identification Summary",
-            )
+            # 'modifications' is optional in the spec; without it we still want peptide
+            # length and missed cleavages, so it is added only when present.
+            wanted = ["run", "sequence", "charge"]
+            if "modifications" in self.id_df.columns:
+                wanted.append("modifications")
+            else:
+                log.info(
+                    "[Identification Summary] No 'modifications' column; the "
+                    "modifications plot will be skipped but the rest is unaffected."
+                )
+            psm = select_columns(self.id_df, wanted, "Identification Summary")
 
         if psm is not None:
 
             psm["pep_length"] = psm["sequence"].str.len()
 
-            unimod_data = UnimodDatabase()
-            psm["modifications"] = psm["modifications"].apply(
-                get_unimod_mod_qpx,
-                args=(unimod_data,)
-            )
+            has_mods = "modifications" in psm.columns
+            if has_mods:
+                unimod_data = UnimodDatabase()
+                psm["modifications"] = psm["modifications"].apply(
+                    get_unimod_mod_qpx,
+                    args=(unimod_data,)
+                )
 
             mod_plot_by_run = {}
             modified_cats = []
 
             for m, group in psm.groupby("run"):
 
-                mod_plot_dict, modified_cat = summarize_modifications(
-                    group[["sequence", "charge", "modifications"]].drop_duplicates()
-                )
-                mod_plot_by_run[m] = mod_plot_dict
-                modified_cats.extend(modified_cat)
+                if has_mods:
+                    mod_plot_dict, modified_cat = summarize_modifications(
+                        group[["sequence", "charge", "modifications"]].drop_duplicates()
+                    )
+                    mod_plot_by_run[m] = mod_plot_dict
+                    modified_cats.extend(modified_cat)
 
                 peptide_length[m] = group["pep_length"].value_counts().sort_index().to_dict()
 
-            mod_plot_by_sample = _sample_level_mods(
-                df=psm,
-                sdrf_file_df=self.file_df
-            )
+            if has_mods:
+                mod_plot_by_sample = _sample_level_mods(
+                    df=psm,
+                    sdrf_file_df=self.file_df
+                )
 
-            # Modifications
-            psm_modified["plot_data"] = [mod_plot_by_run, mod_plot_by_sample]
-            psm_modified["cats"] = list(
-                sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
-            )
+                # Modifications
+                psm_modified["plot_data"] = [mod_plot_by_run, mod_plot_by_sample]
+                psm_modified["cats"] = list(
+                    sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))
+                )
 
             # Missed Cleavages
             missed_cleavages = get_missed_cleavages(psm, self.run_df, self.file_df)
@@ -581,11 +598,10 @@ class QpxModule(BasePMultiqcModule):
             pca_data = protein_intensity_pca(self.pg_df)
             if pca_data:
                 self._safe_draw(
-                    draw_pg_pca,
-                    name="draw_pg_pca",
+                    draw_qpx_pca,
+                    name="draw_qpx_pca",
                     sub_section=self.sub_sections["quantification"],
                     pca_data=pca_data,
-                    fig_type="raw_intensity",
                 )
 
         if self.feature_df_valid:
@@ -719,6 +735,10 @@ class QpxModule(BasePMultiqcModule):
             sample_df,
             file_df
         )
+
+        # Downstream sample-level plots gate on this flag; without it the design we
+        # just derived would be computed and then ignored.
+        self.enable_exp = True
 
     def _read_qpx_parquets(self, search_pattern, qpx_type):
         """Read every parquet file matching search_pattern and concatenate them.

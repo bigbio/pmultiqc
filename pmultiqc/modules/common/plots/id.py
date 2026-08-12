@@ -75,6 +75,15 @@ def draw_potential_contaminants(sub_section, contaminant_percent, report_type):
 
             Note that this plot is based on experimental groups, and therefore may not correspond 1:1 to Raw files.
             """
+    elif report_type == "qpx":
+        description_text = "Potential contaminants per run from pg.parquet."
+        help_text = """
+            Share of the summed protein-group intensity in each run that comes from
+            contaminant protein groups. A group counts as a contaminant when
+            pg.parquet marks it with the `contaminant` flag, or -- when that flag marks
+            nothing, as some converters leave it unset -- when its accession contains
+            the configured contaminant affix (`--contaminant-affix`, default CONT).
+            """
     elif report_type == "fragpipe":
         description_text = "Potential contaminants per group from psm.tsv."
         help_text = """

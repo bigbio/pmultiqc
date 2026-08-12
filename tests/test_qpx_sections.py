@@ -382,3 +382,90 @@ class TestSummariseBoxData:
         as_dict = {"r1": list(np.random.default_rng(2).normal(0, 1, 500))}
         assert isinstance(summarise_box_data(as_dict), dict)
         assert isinstance(summarise_box_data([as_dict]), list)
+
+
+class TestReviewRegressions:
+    """Guards for the defects the code review surfaced."""
+
+    def test_feature_columns_cover_the_psm_fallback(self):
+        """DIA-NN has no psm.parquet, so feature must carry what those plots read."""
+        from pmultiqc.modules.qpx.qpx_io import QPX_COLUMNS
+
+        for column in ["scan", "posterior_error_probability", "additional_scores"]:
+            assert column in QPX_COLUMNS["feature"], column
+
+    def test_psm_reads_additional_scores(self):
+        """Search-engine scores live here; without it the whole path is dead code."""
+        from pmultiqc.modules.qpx.qpx_io import QPX_COLUMNS
+
+        assert "additional_scores" in QPX_COLUMNS["psm"]
+
+    def test_display_name_falls_back_to_the_key_not_an_index(self):
+        from pmultiqc.modules.qpx.qpx_quant import create_qpx_protein_table
+
+        pg = pd.DataFrame(
+            {
+                "run": ["r1", "r1"],
+                "pg_accessions": [["P1"], ["P2"]],
+                "intensity": [10.0, 20.0],
+            }
+        )
+        table, _ = create_qpx_protein_table(pg, None, None, None)
+        names = {e["ProteinName"] for e in table.values()}
+
+        assert names == {"P1", "P2"}, "must not label proteins '0'/'1'"
+
+    def test_peptides_number_header_only_when_populated(self):
+        from pmultiqc.modules.qpx.qpx_quant import create_qpx_protein_table
+
+        pg = pd.DataFrame(
+            {"run": ["r1"], "pg_accessions": [["P1"]], "intensity": [10.0]}
+        )
+        # feature keys on a different protein group -> no counts join
+        feature = pd.DataFrame(
+            {"sequence": ["PEP"], "pg_accessions": [[{"accession": "OTHER"}]]}
+        )
+        _, headers = create_qpx_protein_table(pg, feature, None, None)
+
+        assert "Peptides_Number" not in headers
+
+    def test_explicit_contaminant_flag_is_not_overridden(self):
+        """The affix may only supplement a flag that marks nothing, never flip a True/False."""
+        from pmultiqc.modules.qpx.qpx_sections import resolve_contaminant_flags
+
+        df = pd.DataFrame(
+            {
+                "anchor_protein": ["sp|Cont_A|X", "sp|B|Y"],
+                "pg_accessions": [["sp|Cont_A|X"], ["sp|B|Y"]],
+                "contaminant": [False, True],
+            }
+        )
+        flags = resolve_contaminant_flags(df, "CONT")
+
+        assert list(flags) == [False, True], "producer flag wins when it marks anything"
+
+    def test_affix_supplements_an_empty_flag(self):
+        from pmultiqc.modules.qpx.qpx_sections import resolve_contaminant_flags
+
+        df = pd.DataFrame(
+            {
+                "anchor_protein": ["sp|Cont_A|X", "sp|B|Y"],
+                "pg_accessions": [["sp|Cont_A|X"], ["sp|B|Y"]],
+                "contaminant": [False, False],
+            }
+        )
+        assert list(resolve_contaminant_flags(df, "CONT")) == [True, False]
+
+    def test_sample_merge_survives_mixed_dtypes(self):
+        """Sample is int from the derived design and str from an OpenMS design file."""
+        from pmultiqc.modules.qpx.qpx_quant import create_qpx_protein_table
+
+        pg = pd.DataFrame(
+            {"run": ["r1"], "pg_accessions": [["P1"]], "intensity": [10.0]}
+        )
+        sample_df = pd.DataFrame({"Sample": ["1"], "Condition": ["A"]})   # str
+        file_df = pd.DataFrame({"Sample": [1], "Run": ["r1"]})            # int
+
+        table, headers = create_qpx_protein_table(pg, None, sample_df, file_df)
+
+        assert "A" in headers, "condition column must survive the dtype mismatch"

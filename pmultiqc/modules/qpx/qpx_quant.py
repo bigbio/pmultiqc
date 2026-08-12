@@ -58,7 +58,7 @@ def create_qpx_protein_table(pg_df, feature_df, sample_df, file_df):
 
     table_dict = {}
     for group_key, group in df.groupby("_group_key"):
-        protein = _display_name(group)
+        protein = _display_name(group, group_key)
         entry = {
             "ProteinName": protein,
             "Average Intensity": float(np.log10(group["intensity"].mean())),
@@ -75,7 +75,7 @@ def create_qpx_protein_table(pg_df, feature_df, sample_df, file_df):
             "description": "Name/Identifier(s) of the protein (group)",
         },
     }
-    if peptides_per_protein:
+    if any("Peptides_Number" in entry for entry in table_dict.values()):
         headers["Peptides_Number"] = {
             "title": "Number of Peptides",
             "description": "Number of distinct peptide sequences per protein",
@@ -144,11 +144,15 @@ def protein_group_key(df):
     return pd.Series([None] * len(df), index=df.index)
 
 
-def _display_name(group):
-    """Human-readable label for a protein group: the anchor when present."""
+def _display_name(group, group_key):
+    """Human-readable label for a protein group: the anchor when present.
+
+    Falls back to the group key (the accession set), never to a positional index --
+    a DataFrame has no .name, so the old fallback labelled proteins "0", "1", "2".
+    """
     if "anchor_protein" in group.columns and group["anchor_protein"].notna().any():
         return str(group["anchor_protein"].dropna().iloc[0])
-    return str(group.name if hasattr(group, "name") else group.index[0])
+    return str(group_key)
 
 
 def _peptides_per_protein(feature_df):
@@ -193,6 +197,17 @@ def _feature_accession_key(cell):
     return ";".join(sorted(set(accessions))) or None
 
 
+def _merge_key(frame, column):
+    """Copy of a frame with the merge key coerced to str.
+
+    'Sample' arrives as int from the parquet-derived design but as str from an OpenMS
+    design file, and pandas refuses to merge int64 against object.
+    """
+    out = frame.copy()
+    out[column] = out[column].astype(str)
+    return out
+
+
 def _add_condition_intensities(table_dict, df, sample_df, file_df):
     """Add a per-condition average intensity column, when a design is available."""
     if sample_df is None or getattr(sample_df, "empty", True):
@@ -206,8 +221,10 @@ def _add_condition_intensities(table_dict, df, sample_df, file_df):
     if not {"Sample", "Run"}.issubset(file_df.columns):
         return []
 
-    run_to_sample = file_df[["Sample", "Run"]].drop_duplicates()
-    sample_to_condition = sample_df[["Sample", "Condition"]].drop_duplicates()
+    run_to_sample = _merge_key(file_df[["Sample", "Run"]].drop_duplicates(), "Sample")
+    sample_to_condition = _merge_key(
+        sample_df[["Sample", "Condition"]].drop_duplicates(), "Sample"
+    )
 
     merged = df.merge(run_to_sample, left_on="run", right_on="Run", how="inner")
     merged = merged.merge(sample_to_condition, on="Sample", how="inner")
@@ -321,8 +338,6 @@ def create_qpx_peptide_table(feature_df, sample_df, file_df):
     if df.empty:
         return None, None
 
-    df["_group_key"] = protein_group_key(df) if "pg_accessions" in df.columns else None
-
     table_dict = {}
     for peptidoform, group in df.groupby("peptidoform"):
         entry = {
@@ -421,8 +436,12 @@ def calculate_intensity_std(feature_df, sample_df, file_df):
         return {}
 
     df = df.merge(
-        file_df[["Sample", "Run"]].drop_duplicates(), left_on="run", right_on="Run", how="inner"
-    ).merge(sample_df[["Sample", "Condition"]].drop_duplicates(), on="Sample", how="inner")
+        _merge_key(file_df[["Sample", "Run"]].drop_duplicates(), "Sample"),
+        left_on="run", right_on="Run", how="inner",
+    ).merge(
+        _merge_key(sample_df[["Sample", "Condition"]].drop_duplicates(), "Sample"),
+        on="Sample", how="inner",
+    )
     if df.empty:
         return {}
 

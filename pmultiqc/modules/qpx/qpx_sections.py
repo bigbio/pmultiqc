@@ -164,9 +164,20 @@ def resolve_contaminant_flags(df, affix):
     if "contaminant" in df.columns and df["contaminant"].notna().any():
         flags = df["contaminant"].fillna(False).astype(bool)
 
-    affix_flags = _affix_flags(df, affix)
-    if affix_flags is not None:
-        flags = affix_flags if flags is None else (flags | affix_flags)
+    # Only supplement with the affix when the producer flagged nothing at all. Where it
+    # did flag rows the column is authoritative and must not be overridden -- but an
+    # all-False column is indistinguishable from "this converter does not set it", and
+    # the OpenMS-consensus heuristic demonstrably misses the "Cont_" prefix these
+    # projects use.
+    if flags is None or not bool(flags.any()):
+        affix_flags = _affix_flags(df, affix)
+        if affix_flags is not None and bool(affix_flags.any()):
+            if flags is not None:
+                log.info(
+                    "[Contaminants] The 'contaminant' flag marks no rows, but "
+                    f"accessions match '{affix}'; using the accession match."
+                )
+            flags = affix_flags
 
     return flags
 
@@ -421,5 +432,45 @@ def draw_qpx_search_engine_scores(sub_section, plot_data, score_name):
             <code>{score_name}</code>. Bin edges span the observed 1st-99th percentile
             range rather than a fixed scale, because score ranges differ by orders of
             magnitude between engines and between q-values, PEPs and raw scores.
+            """,
+    )
+
+
+def draw_qpx_pca(sub_section, pca_data):
+    """PCA scatter of the protein-group intensity matrix.
+
+    A dedicated drawer rather than maxquant_plots.draw_pg_pca, whose helptext describes
+    proteinGroups.txt columns that do not exist in a QPX project.
+    """
+    from multiqc.plots import scatter
+
+    from pmultiqc.modules.common.plots.general import plot_html_check
+    from pmultiqc.modules.core.section_groups import add_sub_section
+
+    if not pca_data:
+        return
+
+    draw_config = {
+        "id": "pca_of_raw_intensity",
+        "cpswitch": False,
+        "cpswitch_c_active": False,
+        "title": "PCA of Protein Intensity",
+        "xlab": "PC #1",
+        "ylab": "PC #2",
+        "save_data_file": False,
+    }
+
+    scatter_html = plot_html_check(scatter.plot(data=pca_data, pconfig=draw_config))
+
+    add_sub_section(
+        sub_section=sub_section,
+        plot=scatter_html,
+        order=4,
+        description="Principal components of the protein group intensity matrix.",
+        helptext="""
+            Protein group intensities from pg.parquet are arranged as a protein x run
+            matrix, restricted to groups quantified in every run, log2-transformed and
+            standardised before PCA. Runs of the same condition are expected to cluster;
+            a run sitting apart from its group is a candidate outlier.
             """,
     )
