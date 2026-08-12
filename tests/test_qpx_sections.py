@@ -332,8 +332,9 @@ class TestSummariseBoxData:
 
     @staticmethod
     def _raw():
+        # Over FLAT_THRESHOLD so summarisation actually engages.
         rng = np.random.default_rng(0)
-        return [{"r1": list(rng.normal(26, 1.2, 50000)) + [36.1, 20.3]}]
+        return [{"r1": list(rng.normal(26, 1.2, 120000)) + [36.1, 20.3]}]
 
     def test_collapses_to_six_numbers(self):
         from pmultiqc.modules.common.plots.general import summarise_box_data
@@ -369,6 +370,16 @@ class TestSummariseBoxData:
 
         stats = summarise_box_data(raw)
         assert sum(len(v) for v in stats[0].values()) < FLAT_THRESHOLD
+
+    def test_small_data_is_left_raw(self):
+        """Below the flat threshold the plot is already interactive, so keep the raw
+        points -- summarising would drop the outlier dots for no benefit."""
+        from pmultiqc.modules.common.plots.general import summarise_box_data
+
+        small = [{"r1": list(np.random.default_rng(3).normal(0, 1, 5000))}]
+        out = summarise_box_data(small)
+
+        assert out == small, "small series must be returned untouched"
 
     def test_already_summarised_is_passed_through(self):
         from pmultiqc.modules.common.plots.general import summarise_box_data

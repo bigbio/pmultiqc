@@ -7,7 +7,8 @@ from multiqc.types import SampleGroup, SampleName
 
 from pmultiqc.modules.common.plots.general import (
     plot_html_check,
-    plot_data_check
+    plot_data_check,
+    summarise_box_data
 )
 from pmultiqc.modules.core.section_groups import add_sub_section
 
@@ -242,6 +243,10 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
     else:
         boxplot_label = ["Sample"]
         distribution_box = distribution_box[:1]
+
+    # Summarise to box statistics: past FLAT_THRESHOLD data points MultiQC falls back to
+    # a flat static image, which renders at a fixed size instead of filling the panel.
+    distribution_box = summarise_box_data(distribution_box)
 
     # 'intensity'
     if fig_type == "intensity":

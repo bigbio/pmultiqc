@@ -424,7 +424,7 @@ def draw_search_engine_scores(sub_section, plot_data, plot_type):
     )
 
 
-def summarise_box_data(plot_data, whisker_iqr=1.5):
+def summarise_box_data(plot_data, whisker_iqr=1.5, max_points=None):
     """Replace raw per-sample value lists with the box statistics MultiQC can plot.
 
     MultiQC switches a plot to a flat static image once it exceeds FLAT_THRESHOLD data
@@ -439,6 +439,10 @@ def summarise_box_data(plot_data, whisker_iqr=1.5):
     the whiskers show the data range excluding outliers rather than the absolute
     extremes -- which is what a box plot conventionally depicts anyway.
 
+    Only applied when the raw point count would actually trip the threshold: below it
+    the raw values are returned untouched, so smaller reports keep showing individual
+    outlier points as before.
+
     Returns a structure of the same shape (list of dicts, or a single dict).
     """
     if not plot_data:
@@ -446,6 +450,23 @@ def summarise_box_data(plot_data, whisker_iqr=1.5):
 
     was_list = isinstance(plot_data, list)
     datasets = plot_data if was_list else [plot_data]
+
+    # Only summarise when the raw data would otherwise trip the flat-image fallback.
+    # Below that, keep the raw values so the plot still shows individual outlier points.
+    limit = FLAT_THRESHOLD if max_points is None else max_points
+    total = 0
+    for dataset in datasets:
+        if not isinstance(dataset, dict):
+            continue
+        for series in dataset.values():
+            if isinstance(series, dict) or series is None:
+                continue
+            try:
+                total += len(series)
+            except TypeError:
+                continue
+    if total < limit:
+        return plot_data
 
     summarised = []
     for dataset in datasets:
