@@ -231,7 +231,7 @@
         {
             "accession": "qpx",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/qpx_example.zip"
+                "https://github.com/user-attachments/files/31028778/qpx_example.zip"
             ],
             "path": "docs/qpx",
             "file_type": ["qpx", ""]
@@ -239,7 +239,7 @@
         {
             "accession": "qpx_disable_hoverinfo",
             "urls": [
-                "https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/qpx_example.zip"
+                "https://github.com/user-attachments/files/31028778/qpx_example.zip"
             ],
             "path": "docs/qpx_disable_hoverinfo",
             "file_type": ["qpx", "disable_hoverinfo"]

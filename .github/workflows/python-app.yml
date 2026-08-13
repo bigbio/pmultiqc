@@ -366,7 +366,9 @@ jobs:
         run: pip install .
       - name: Test qpx dataset
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/qpx_example.zip
+          # Hosted as a GitHub release attachment: the PRIDE copy of this file
+          # returns 404 (other PRIDE assets used by this workflow are unaffected).
+          wget -nv -O qpx_example.zip https://github.com/user-attachments/files/31028778/qpx_example.zip
           unzip -d ./qpx_example qpx_example.zip
           multiqc --qpx-plugin ./qpx_example --config ./qpx_example/results/multiqc_config.yml -o ./results_qpx
       - uses: actions/upload-artifact@v4
