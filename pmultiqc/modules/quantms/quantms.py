@@ -563,6 +563,9 @@ class QuantMSModule(BasePMultiqcModule):
                         self.pep_plot
                     )
 
+                if self.delta_mass and any(self.delta_mass.values()):
+                    self.draw_delta_mass()
+
             spectrum_tracking_data, spectrum_tracking_headers = aggregate_spectrum_tracking(
                 mzml_table=self.mzml_table,
                 peptide_map_by_sample=self.peptide_map_by_sample,
@@ -603,9 +606,6 @@ class QuantMSModule(BasePMultiqcModule):
                     self.oversampling_plot.dict["cats"],
                     "",
                 )
-
-            if self.delta_mass and any(self.delta_mass.values()):
-                self.draw_delta_mass()
 
         msms_identified_rate = None
         if self.mzml_table and self.identified_msms_spectra:
@@ -665,7 +665,7 @@ class QuantMSModule(BasePMultiqcModule):
             name="draw_quantms_time_section"
         )
 
-        if self.msstats_input_valid:
+        if self.qpx_source is None and self.msstats_input_valid:
             self.parse_msstats_input()
 
         if (
