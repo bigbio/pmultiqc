@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import re
+
 import os
 import pandas as pd
 
@@ -123,6 +125,11 @@ class QpxModule(BasePMultiqcModule):
         self.id_source = None
         self.id_df_valid = False
 
+        # Set False by a host module that registers the section groups itself.
+        self.register_section_groups = True
+        # Set False by a host module that draws the experimental design itself.
+        self.draw_experimental_design = True
+
     def get_data(self):
         """Discover and load the project's parquet tables.
 
@@ -200,7 +207,12 @@ class QpxModule(BasePMultiqcModule):
         log.info("[draw_plots] Starting data processing and plot generation...")
 
         # draw the experimental design
-        if self.enable_exp or self.enable_sdrf:
+        if not self.draw_experimental_design:
+            # A host module owns this section. Still derive the design -- the
+            # sample-level plots below need the run -> sample mapping -- but do not
+            # render it a second time.
+            self._derive_design_only()
+        elif self.enable_exp or self.enable_sdrf:
             (
                 self.sample_df,
                 self.file_df,
@@ -287,7 +299,11 @@ class QpxModule(BasePMultiqcModule):
             "rt_qc_sub_section": self.sub_sections["rt_qc"],
         }
 
-        add_group_modules(self.section_group_dict, "")
+        # Suppressed when another module hosts these sections (quantms delegates its
+        # DDA identification/quantification sections here) so the groups are registered
+        # once by the host rather than twice.
+        if self.register_section_groups:
+            add_group_modules(self.section_group_dict, "")
 
         if self.enable_sdrf:
             del_openms_convert_tsv()
@@ -731,6 +747,29 @@ class QpxModule(BasePMultiqcModule):
                     report_type=""
                 )
 
+    def _derive_design_only(self):
+        """Derive the design from parquet without rendering the section.
+
+        Used when a host module (quantms) renders the experimental design itself but
+        the sample-level plots here still need the run -> sample mapping.
+        """
+        sample_df, file_df = build_design_from_parquet(self.run_df, self.sample_parquet_df)
+
+        if sample_df is None or file_df is None or file_df.empty:
+            return
+
+        self.sample_df = sample_df
+        self.file_df = file_df
+        self.exp_design_runs = file_df["Run"].unique().tolist()
+
+        # The design is a five-value unit: draw_exp_design_tables returns them together
+        # and the sample-level plots read all of them. Setting only the frames leaves
+        # enable_exp False, which gates out the per-sample view, and is_multi_conditions
+        # False, which renders a multi-condition design through the single-condition path.
+        self.enable_exp = True
+        self.is_bruker = _design_is_bruker(file_df)
+        self.is_multi_conditions = _design_is_multi_conditions(sample_df)
+
     def _draw_exp_design_from_parquet(self):
         """Derive and render the experimental design from the quantms.io parquet tables.
 
@@ -823,3 +862,22 @@ def _sample_level_mods(df, sdrf_file_df):
         mod_plot[f"Sample {str(sample)}"] = mod_plot_dict
 
     return mod_plot
+
+
+def _design_is_bruker(file_df):
+    """Bruker projects are identified by the spectra file extension."""
+    if file_df is None or file_df.empty or "Filename" not in file_df.columns:
+        return False
+    return str(file_df["Filename"].iloc[0]).endswith((".d", ".d.tar"))
+
+
+def _design_is_multi_conditions(sample_df):
+    """True when every Condition uses the key=value;key=value multi-factor form.
+
+    Mirrors the test in draw_exp_design_tables so a derived design classifies the same
+    way as one read from an OpenMS design file.
+    """
+    if sample_df is None or sample_df.empty or "Condition" not in sample_df.columns:
+        return False
+    pattern = r"^(\w+=[^=;]+)(;\w+=[^=;]+)*$"
+    return all(bool(re.match(pattern, str(c))) for c in sample_df["Condition"])

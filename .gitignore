@@ -148,3 +148,7 @@ pmultiqc_service/docker_compose/docker-compose.arm64.yml
 .cursor/
 CLAUDE.md
 .claude/
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
