@@ -26,8 +26,13 @@ def download_file(url, save_path, max_retries=3, backoff_factor=2):
     ftp_host = ftp_parsed.hostname
     ftp_path = ftp_parsed.path
 
+    # Only hosts that actually serve FTP are worth trying. Without this, an HTTPS-only
+    # host (e.g. a GitHub-hosted asset) burns three connection timeouts plus backoff
+    # before reaching the HTTPS path that was always going to be the working one.
+    ftp_available = bool(ftp_host) and ftp_host.startswith("ftp.")
+
     # -------- Try FTP first --------
-    for attempt in range(1, max_retries + 1):
+    for attempt in range(1, max_retries + 1 if ftp_available else 1):
         try:
             print(f"[Attempt {attempt}] Trying FTP download: {ftp_host}{ftp_path}")
             ftp = FTP(ftp_host, timeout=30)
