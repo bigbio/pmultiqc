@@ -183,6 +183,10 @@ class QuantMSModule(BasePMultiqcModule):
         self.peptide_length = {}
         self.current_sum_by_run = {}
         self.mztab_data = None
+        # Never initialised before: any read of this attribute in a project without an
+        # mzTab raised AttributeError rather than taking a no-mzTab path.
+        self.out_mztab_path = None
+        self.qpx_source = None
         self.delta_mass = {}
 
     def get_data(self):
@@ -264,6 +268,14 @@ class QuantMSModule(BasePMultiqcModule):
                 self.out_mztab_path = os.path.join(f["root"], f["fn"])
                 self.parse_out_mztab()
 
+            # Source ladder for the DDA identification/quantification sections:
+            # quantms.io parquet first, then mzTab. quantms is dropping mzTab, and
+            # everything it fed here (heatmap, per-run statistics, modifications,
+            # missed cleavages, peptide length, intensities) is available from the
+            # parquet tables, so prefer them when present.
+            if self.out_mztab_path is None:
+                self._init_qpx_source()
+
         if self.ms_paths or self.read_ms_info:
             (
                 self.mzml_table,
@@ -303,6 +315,58 @@ class QuantMSModule(BasePMultiqcModule):
         log.info("Data recognition and processing completed.")
 
         return True
+
+
+    def _init_qpx_source(self):
+        """Load quantms.io parquet as the DDA identification/quantification source.
+
+        Sets ``self.qpx_source`` to a prepared QpxModule when the project ships
+        quantms.io parquet, or leaves it None. Reuses the QPX module rather than
+        reimplementing its readers so the two stay consistent by construction.
+        """
+        from pmultiqc.modules.qpx.qpx import QpxModule
+
+        qpx = QpxModule(self.find_log_files, self.sub_sections, self.heatmap_color_list)
+
+        try:
+            if not qpx.get_data():
+                return
+        except Exception:
+            log.exception("Failed to read quantms.io parquet; falling back.")
+            return
+
+        qpx.register_section_groups = False
+        # quantms already renders the experimental design from the OpenMS design file.
+        qpx.draw_experimental_design = not (self.enable_exp or self.enable_sdrf)
+        self.qpx_source = qpx
+        log.info(
+            "[quantms] No mzTab found; using quantms.io parquet for the identification "
+            "and quantification sections."
+        )
+
+    def _draw_qpx_source(self):
+        """Render the parquet-derived sections through the QPX module.
+
+        The QPX module owns the sections it can build from parquet. quantms keeps the
+        ones parquet cannot supply -- MS1 chromatograms, spectrum tracking and search
+        engine scores, all of which come from mzML/idXML and are drawn before this.
+
+        Section groups are registered once, by quantms, so the QPX module's own
+        registration is suppressed to avoid duplicate groups in the report.
+        """
+        qpx = self.qpx_source
+
+        try:
+            qpx.draw_plots()
+        except Exception:
+            log.exception("[quantms] Failed to draw the quantms.io parquet sections.")
+            return
+
+        # Carry the design across so quantms' remaining plots see the same samples.
+        if getattr(qpx, "file_df", None) is not None and not qpx.file_df.empty:
+            self.file_df = qpx.file_df
+            self.sample_df = qpx.sample_df
+            self.enable_exp = True
 
     def draw_plots(self):
 
@@ -389,6 +453,10 @@ class QuantMSModule(BasePMultiqcModule):
                     self.mzml_peak_distribution_plot,
                     self.ms_info
                 )
+        # quantms: DDA from quantms.io parquet (mzTab absent)
+        elif self.qpx_source is not None:
+            self._draw_qpx_source()
+
         # quantms: LFQ or TMT
         else:
 

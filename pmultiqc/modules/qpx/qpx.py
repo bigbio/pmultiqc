@@ -123,6 +123,11 @@ class QpxModule(BasePMultiqcModule):
         self.id_source = None
         self.id_df_valid = False
 
+        # Set False by a host module that registers the section groups itself.
+        self.register_section_groups = True
+        # Set False by a host module that draws the experimental design itself.
+        self.draw_experimental_design = True
+
     def get_data(self):
         """Discover and load the project's parquet tables.
 
@@ -200,7 +205,12 @@ class QpxModule(BasePMultiqcModule):
         log.info("[draw_plots] Starting data processing and plot generation...")
 
         # draw the experimental design
-        if self.enable_exp or self.enable_sdrf:
+        if not self.draw_experimental_design:
+            # A host module owns this section. Still derive the design -- the
+            # sample-level plots below need the run -> sample mapping -- but do not
+            # render it a second time.
+            self._derive_design_only()
+        elif self.enable_exp or self.enable_sdrf:
             (
                 self.sample_df,
                 self.file_df,
@@ -287,7 +297,11 @@ class QpxModule(BasePMultiqcModule):
             "rt_qc_sub_section": self.sub_sections["rt_qc"],
         }
 
-        add_group_modules(self.section_group_dict, "")
+        # Suppressed when another module hosts these sections (quantms delegates its
+        # DDA identification/quantification sections here) so the groups are registered
+        # once by the host rather than twice.
+        if self.register_section_groups:
+            add_group_modules(self.section_group_dict, "")
 
         if self.enable_sdrf:
             del_openms_convert_tsv()
@@ -730,6 +744,21 @@ class QpxModule(BasePMultiqcModule):
                     rt_count_data=qpx_ids_over_rt,
                     report_type=""
                 )
+
+    def _derive_design_only(self):
+        """Derive the design from parquet without rendering the section.
+
+        Used when a host module (quantms) renders the experimental design itself but
+        the sample-level plots here still need the run -> sample mapping.
+        """
+        sample_df, file_df = build_design_from_parquet(self.run_df, self.sample_parquet_df)
+
+        if sample_df is None or file_df is None or file_df.empty:
+            return
+
+        self.sample_df = sample_df
+        self.file_df = file_df
+        self.exp_design_runs = file_df["Run"].unique().tolist()
 
     def _draw_exp_design_from_parquet(self):
         """Derive and render the experimental design from the quantms.io parquet tables.

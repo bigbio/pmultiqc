@@ -174,3 +174,28 @@ class TestQpxModuleSections:
         )
 
         assert module.sub_sections["identification"]
+
+
+class TestHostDelegation:
+    """QpxModule can be hosted by another module (quantms) rather than run standalone."""
+
+    def test_section_group_registration_can_be_suppressed(self):
+        module = _module()
+        module.register_section_groups = False
+        assert module.get_data() is True
+
+        module.draw_plots()
+
+        # Sections are still populated; only the group registration is the host's job.
+        assert module.sub_sections["identification"]
+
+    def test_design_is_derived_even_when_not_rendered(self):
+        """The host renders the design, but the sample-level plots still need it."""
+        module = _module()
+        module.draw_experimental_design = False
+        module.get_data()
+        module.draw_plots()
+
+        assert not module.file_df.empty, "run -> sample mapping must still be derived"
+        assert "Sample" in module.file_df.columns
+        assert not module.sub_sections["experiment"], "host owns this section"
