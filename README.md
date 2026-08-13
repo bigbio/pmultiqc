@@ -75,6 +75,8 @@ pmultiqc supports the following data sources:
    - `*.psm.parquet`: QPX PSMs
    - `*.pg.parquet`: QPX PG
    - `*.feature.parquet`: QPX feature
+   - `*.run.parquet`: QPX run
+   - `*.sample.parquet`: QPX sample
    - `*sdrf.tsv`: SDRF-Proteomics (optional)
 
 ## Installation
