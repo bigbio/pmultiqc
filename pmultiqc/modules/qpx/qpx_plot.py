@@ -122,14 +122,19 @@ def draw_whole_exp_charge(sub_section, df):
 
 # Charge-state
 def draw_qpx_ms2_charge(sub_section, df=None, sdrf_file_df=None):
-    """Per-run (and per-sample) precursor charge state distribution."""
+    """
+    Per-run (and per-sample) precursor charge state distribution.
+    """
 
-    if df is None:
-        df = pd.DataFrame()
+    if df is None or df.empty or "charge" not in df.columns:
+        return
     if sdrf_file_df is None:
         sdrf_file_df = pd.DataFrame()
 
     df["charge"] = df["charge"].astype("str")
+
+    if "run" not in df.columns:
+        return
 
     stat_data_by_run = group_charge(df, "run", "charge")
 
