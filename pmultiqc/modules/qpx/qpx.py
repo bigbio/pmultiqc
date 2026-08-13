@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import re
+
 import os
 import pandas as pd
 
@@ -760,6 +762,14 @@ class QpxModule(BasePMultiqcModule):
         self.file_df = file_df
         self.exp_design_runs = file_df["Run"].unique().tolist()
 
+        # The design is a five-value unit: draw_exp_design_tables returns them together
+        # and the sample-level plots read all of them. Setting only the frames leaves
+        # enable_exp False, which gates out the per-sample view, and is_multi_conditions
+        # False, which renders a multi-condition design through the single-condition path.
+        self.enable_exp = True
+        self.is_bruker = _design_is_bruker(file_df)
+        self.is_multi_conditions = _design_is_multi_conditions(sample_df)
+
     def _draw_exp_design_from_parquet(self):
         """Derive and render the experimental design from the quantms.io parquet tables.
 
@@ -852,3 +862,22 @@ def _sample_level_mods(df, sdrf_file_df):
         mod_plot[f"Sample {str(sample)}"] = mod_plot_dict
 
     return mod_plot
+
+
+def _design_is_bruker(file_df):
+    """Bruker projects are identified by the spectra file extension."""
+    if file_df is None or file_df.empty or "Filename" not in file_df.columns:
+        return False
+    return str(file_df["Filename"].iloc[0]).endswith((".d", ".d.tar"))
+
+
+def _design_is_multi_conditions(sample_df):
+    """True when every Condition uses the key=value;key=value multi-factor form.
+
+    Mirrors the test in draw_exp_design_tables so a derived design classifies the same
+    way as one read from an OpenMS design file.
+    """
+    if sample_df is None or sample_df.empty or "Condition" not in sample_df.columns:
+        return False
+    pattern = r"^(\w+=[^=;]+)(;\w+=[^=;]+)*$"
+    return all(bool(re.match(pattern, str(c))) for c in sample_df["Condition"])

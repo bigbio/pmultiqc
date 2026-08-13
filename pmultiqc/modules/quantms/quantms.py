@@ -275,6 +275,13 @@ class QuantMSModule(BasePMultiqcModule):
                 for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
                     self.out_mztab_path = os.path.join(f["root"], f["fn"])
                     self.parse_out_mztab()
+            else:
+                # parse_mzml/ms_info below consume the identification state that mzTab
+                # would have populated. Without it the ms_info reader raises outright,
+                # and the mzML reader treats every run as having no PSMs -- so the
+                # identified MS2 charge and peak distributions come out empty rather
+                # than merely approximate. Derive it from the parquet instead.
+                self._populate_identification_state_from_qpx()
 
         if self.ms_paths or self.read_ms_info:
             (
@@ -363,10 +370,56 @@ class QuantMSModule(BasePMultiqcModule):
             return
 
         # Carry the design across so quantms' remaining plots see the same samples.
-        if getattr(qpx, "file_df", None) is not None and not qpx.file_df.empty:
+        # All five values travel together: leaving exp_design_runs at None while
+        # enable_exp claims a design was found is the inconsistency a50f897 guards
+        # against, and a stale is_multi_conditions renders the wrong view. Only adopt it
+        # when quantms has no design of its own -- an OpenMS design file is
+        # authoritative over one derived from parquet.
+        host_has_design = self.file_df is not None and not self.file_df.empty
+        if not host_has_design and getattr(qpx, "file_df", None) is not None \
+                and not qpx.file_df.empty:
             self.file_df = qpx.file_df
             self.sample_df = qpx.sample_df
+            self.exp_design_runs = qpx.exp_design_runs
+            self.is_bruker = qpx.is_bruker
+            self.is_multi_conditions = qpx.is_multi_conditions
             self.enable_exp = True
+
+    def _populate_identification_state_from_qpx(self):
+        """Fill ms_with_psm / identified_spectrum / identified_msms_spectra from parquet.
+
+        These are normally produced by mzTab parsing and are consumed by parse_mzml
+        before draw_plots runs, so they must exist once the source ladder has chosen
+        parquet.
+        """
+        qpx = self.qpx_source
+        id_df = getattr(qpx, "id_df", None)
+
+        if id_df is None or getattr(id_df, "empty", True) or "run" not in id_df.columns:
+            log.warning(
+                "[quantms] quantms.io parquet has no per-run identifications; "
+                "identified-MS2 plots will be empty."
+            )
+            return
+
+        runs = [str(r) for r in id_df["run"].dropna().unique()]
+        self.ms_with_psm = runs
+
+        if "scan" in id_df.columns:
+            # 'scan' is a list column; .str[0] unwraps the scan number.
+            scans = id_df[["run", "scan"]].copy()
+            scans["_scan"] = scans["scan"].str[0]
+            scans = scans.dropna(subset=["_scan"])
+
+            for run, group in scans.groupby("run"):
+                ids = [str(v) for v in group["_scan"].tolist()]
+                self.identified_spectrum[str(run)] = ids
+                self.identified_msms_spectra[str(run)] = {"Identified": len(set(ids))}
+
+        log.info(
+            f"[quantms] Identification state derived from quantms.io parquet for "
+            f"{len(runs)} run(s)."
+        )
 
     def draw_plots(self):
 
@@ -457,52 +510,58 @@ class QuantMSModule(BasePMultiqcModule):
         # quantms: LFQ or TMT
         else:
 
-            # quantms: DDA from quantms.io parquet (mzTab absent)
-            if self.qpx_source is not None:
-                self._draw_qpx_source()
-
+            # idXML carries the search-engine scores whichever identification source
+            # was selected, so parse it before the branch rather than inside it.
             if not config.kwargs["ignored_idxml"] and self.idx_paths:
                 self.parse_idxml(self.mzml_table)
-            self.cal_heat_map_score()
 
-            if self.heatmap_charge_score:
-                heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
-                draw_heatmap(
-                    self.sub_sections["summary"],
-                    self.heatmap_color_list,
-                    heatmap_data,
-                    heatmap_xnames,
-                    heatmap_ynames,
-                    "",
-                )
+            if self.qpx_source is not None:
+                # quantms.io parquet supplies the identification and quantification
+                # sections. The mzTab-derived block below must not also run: it would
+                # redraw them from empty state and collide on plot ids (that produced
+                # a duplicate identification_summary_table).
+                self._draw_qpx_source()
             else:
-                log.warning("No mzML or ms_info files found; skipping draw_heatmap.")
+                self.cal_heat_map_score()
 
-            draw_summary_protein_ident_table(
-                sub_sections=self.sub_sections["summary"],
-                use_two_columns=self.enable_dia,
-                total_peptide_count=self.total_peptide_count,
-                total_protein_quantified=self.total_protein_quantified,
-                total_ms2_spectra_identified=self.total_ms2_spectra_identified,
-                total_ms2_spectra=self.total_ms2_spectra,
-                total_protein_identified=self.total_protein_identified
-            )
+                if self.heatmap_charge_score:
+                    heatmap_data, heatmap_xnames, heatmap_ynames = self.calculate_heatmap()
+                    draw_heatmap(
+                        self.sub_sections["summary"],
+                        self.heatmap_color_list,
+                        heatmap_data,
+                        heatmap_xnames,
+                        heatmap_ynames,
+                        "",
+                    )
+                else:
+                    log.warning("No mzML or ms_info files found; skipping draw_heatmap.")
 
-            draw_identi_num(
-                self.sub_sections["summary"],
-                self.enable_exp,
-                self.enable_sdrf,
-                self.is_multi_conditions,
-                self.sample_df,
-                self.file_df,
-                self.cal_num_table_data
-            )
-
-            if self.pep_plot:
-                draw_num_pep_per_protein(
-                    self.sub_sections["identification"],
-                    self.pep_plot
+                draw_summary_protein_ident_table(
+                    sub_sections=self.sub_sections["summary"],
+                    use_two_columns=self.enable_dia,
+                    total_peptide_count=self.total_peptide_count,
+                    total_protein_quantified=self.total_protein_quantified,
+                    total_ms2_spectra_identified=self.total_ms2_spectra_identified,
+                    total_ms2_spectra=self.total_ms2_spectra,
+                    total_protein_identified=self.total_protein_identified
                 )
+
+                draw_identi_num(
+                    self.sub_sections["summary"],
+                    self.enable_exp,
+                    self.enable_sdrf,
+                    self.is_multi_conditions,
+                    self.sample_df,
+                    self.file_df,
+                    self.cal_num_table_data
+                )
+
+                if self.pep_plot:
+                    draw_num_pep_per_protein(
+                        self.sub_sections["identification"],
+                        self.pep_plot
+                    )
 
             spectrum_tracking_data, spectrum_tracking_headers = aggregate_spectrum_tracking(
                 mzml_table=self.mzml_table,
