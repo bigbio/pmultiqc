@@ -127,7 +127,7 @@ def draw_qpx_ms2_charge(sub_section, df=None, sdrf_file_df=None):
     """
 
     if df is None or df.empty or "charge" not in df.columns:
-        return 
+        return
     if sdrf_file_df is None:
         sdrf_file_df = pd.DataFrame()
 
