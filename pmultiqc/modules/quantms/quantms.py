@@ -264,17 +264,17 @@ class QuantMSModule(BasePMultiqcModule):
                 break
 
         if not self.enable_dia:
-            for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
-                self.out_mztab_path = os.path.join(f["root"], f["fn"])
-                self.parse_out_mztab()
-
             # Source ladder for the DDA identification/quantification sections:
             # quantms.io parquet first, then mzTab. quantms is dropping mzTab, and
             # everything it fed here (heatmap, per-run statistics, modifications,
             # missed cleavages, peptide length, intensities) is available from the
             # parquet tables, so prefer them when present.
-            if self.out_mztab_path is None:
-                self._init_qpx_source()
+            self._init_qpx_source()
+
+            if self.qpx_source is None:
+                for f in self.find_log_files("pmultiqc/mztab", filecontents=False):
+                    self.out_mztab_path = os.path.join(f["root"], f["fn"])
+                    self.parse_out_mztab()
 
         if self.ms_paths or self.read_ms_info:
             (
@@ -453,12 +453,13 @@ class QuantMSModule(BasePMultiqcModule):
                     self.mzml_peak_distribution_plot,
                     self.ms_info
                 )
-        # quantms: DDA from quantms.io parquet (mzTab absent)
-        elif self.qpx_source is not None:
-            self._draw_qpx_source()
 
         # quantms: LFQ or TMT
         else:
+
+            # quantms: DDA from quantms.io parquet (mzTab absent)
+            if self.qpx_source is not None:
+                self._draw_qpx_source()
 
             if not config.kwargs["ignored_idxml"] and self.idx_paths:
                 self.parse_idxml(self.mzml_table)
