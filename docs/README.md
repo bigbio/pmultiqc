@@ -270,7 +270,7 @@ You can find example reports on the [docs page](https://bigbio.github.io/pmultiq
 | mzIdentML with MGF | mzIdentML with MGF files | [mzIdentML with MGF Example](https://pmultiqc.quantms.org/PXD054720/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD054720_disable_hoverinfo/multiqc_report.html)) | [PXD054720 folder](https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD054720/) |
 | FragPipe | FragPipe results | [FragPipe Example](https://pmultiqc.quantms.org/PXD062399/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/PXD062399_disable_hoverinfo/multiqc_report.html)) | [PXD062399.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD062399.zip) |
 | mhcquant | mhcquant results | [mhcquant Example](https://pmultiqc.quantms.org/mhcquant/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/mhcquant_disable_hoverinfo/multiqc_report.html)) | [mhcquant_3-1-0_results.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/mhcquant/mhcquant_3-1-0_results.zip) |
-| QPX | QPX results | [QPX Example](https://pmultiqc.quantms.org/qpx/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/qpx_disable_hoverinfo/multiqc_report.html)) | [qpx_example.zip](https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/qpx_example.zip) |
+| QPX | QPX results | [QPX Example](https://pmultiqc.quantms.org/qpx/multiqc_report.html) ([disable_hoverinfo](https://pmultiqc.quantms.org/qpx_disable_hoverinfo/multiqc_report.html)) | [qpx_example.zip](https://github.com/user-attachments/files/31028778/qpx_example.zip) |
 
 ### 🔍 Large-Scale Dataset Reports
 
