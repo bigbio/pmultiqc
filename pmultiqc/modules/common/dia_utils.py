@@ -367,7 +367,16 @@ def _get_peptide_length(df):
 
 
 def draw_dia_intensitys(sub_section, report_df, sdrf_file_df):
-    df_sub = report_df[report_df["Precursor.Quantity"] > 0].copy()
+    # Both consumers below only ever read these columns, so narrow the frame before
+    # copying it. Copying the full report here materialises every column (including
+    # the wide object-dtype string columns) for every row, which is what makes this
+    # step run out of memory on experiments with thousands of runs.
+    keep_cols = [
+        col
+        for col in ("Run", "Modified.Sequence", "Protein.Group", "Precursor.Quantity")
+        if col in report_df.columns
+    ]
+    df_sub = report_df.loc[report_df["Precursor.Quantity"] > 0, keep_cols].copy()
     df_sub["log_intensity"] = np.log2(df_sub["Precursor.Quantity"])
 
     dia_plots.draw_dia_intensity_dis(sub_section, df_sub, sdrf_file_df)
@@ -400,8 +409,26 @@ def draw_dia_mass_error(sub_section, df):
 
 
 # DIA-NN: RT Quality Control
+# Columns read by draw_dia_rt_qc and the helpers it calls. Anything else in the
+# DIA-NN report is irrelevant here and must not be carried into the local copy.
+RT_QC_COLUMNS = (
+    "Run",
+    "RT",
+    "Normalisation.Factor",
+    "FWHM",
+    "RT.Start",
+    "RT.Stop",
+    "Predicted.RT",
+    "iRT",
+)
+
+
 def draw_dia_rt_qc(sub_section, report_df):
-    df = report_df.copy()
+    # This function adds derived columns ("peak_width", "rt_error"), so it needs its
+    # own copy — but only of the columns it actually uses. Copying the whole report
+    # is what makes this step scale with report width as well as length.
+    keep_cols = [col for col in RT_QC_COLUMNS if col in report_df.columns]
+    df = report_df[keep_cols].copy()
 
     # IDs over RT
     draw_dia_ids_rt(sub_section, df)
