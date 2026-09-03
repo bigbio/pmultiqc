@@ -3,8 +3,10 @@
 import os
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
+from pmultiqc.modules.common import dia_utils
 from pmultiqc.modules.common.dia_utils import parse_diann_version
 
 TEST_DATA_DIR = Path(os.path.dirname(__file__)) / "resources" / "diann"
@@ -56,8 +58,6 @@ class TestDiaReportMemory:
     @staticmethod
     def _report_df():
         """A DIA-NN-shaped report with extra columns none of these plots use."""
-        import pandas as pd
-
         return pd.DataFrame(
             {
                 "Run": ["run1", "run1", "run2", "run2"],
@@ -80,9 +80,6 @@ class TestDiaReportMemory:
 
     def test_draw_dia_intensitys_narrows_columns(self, monkeypatch):
         """Only Run/Modified.Sequence/Protein.Group/intensity reach the plots."""
-        from pmultiqc.modules.common import dia_utils
-        import pandas as pd
-
         captured = []
 
         def capture(sub_section, df, sdrf_file_df):
@@ -109,15 +106,8 @@ class TestDiaReportMemory:
 
     def test_draw_dia_intensitys_does_not_mutate_report(self, monkeypatch):
         """The caller's report must not gain a log_intensity column."""
-        from pmultiqc.modules.common import dia_utils
-        import pandas as pd
-
-        monkeypatch.setattr(
-            dia_utils.dia_plots, "draw_dia_intensity_dis", lambda *a, **k: None
-        )
-        monkeypatch.setattr(
-            dia_utils.dia_plots, "draw_dia_intensity_std", lambda *a, **k: None
-        )
+        monkeypatch.setattr(dia_utils.dia_plots, "draw_dia_intensity_dis", lambda *a, **k: None)
+        monkeypatch.setattr(dia_utils.dia_plots, "draw_dia_intensity_std", lambda *a, **k: None)
 
         report_df = self._report_df()
         before = list(report_df.columns)
@@ -128,8 +118,6 @@ class TestDiaReportMemory:
 
     def test_draw_dia_rt_qc_narrows_columns(self, monkeypatch):
         """RT QC copies only the RT-related columns, not the whole report."""
-        from pmultiqc.modules.common import dia_utils
-
         captured = []
 
         def capture_ids_rt(sub_section, report_df):
@@ -150,8 +138,6 @@ class TestDiaReportMemory:
 
     def test_draw_dia_rt_qc_tolerates_missing_optional_columns(self, monkeypatch):
         """A report without the optional RT columns still works."""
-        from pmultiqc.modules.common import dia_utils
-
         monkeypatch.setattr(dia_utils, "draw_dia_ids_rt", lambda *a, **k: None)
         monkeypatch.setattr(dia_utils, "cal_feature_avg_rt", lambda df, col: None)
         monkeypatch.setattr(dia_utils, "cal_rt_irt_loess", lambda df: None)

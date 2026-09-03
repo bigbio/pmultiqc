@@ -367,6 +367,7 @@ def _get_peptide_length(df):
 
 
 def draw_dia_intensitys(sub_section, report_df, sdrf_file_df):
+    """Draw the precursor intensity distribution and standard-deviation plots."""
     # Both consumers below only ever read these columns, so narrow the frame before
     # copying it. Copying the full report here materialises every column (including
     # the wide object-dtype string columns) for every row, which is what makes this
@@ -424,6 +425,7 @@ RT_QC_COLUMNS = (
 
 
 def draw_dia_rt_qc(sub_section, report_df):
+    """Draw the retention-time quality-control plots."""
     # This function adds derived columns ("peak_width", "rt_error"), so it needs its
     # own copy — but only of the columns it actually uses. Copying the whole report
     # is what makes this step scale with report width as well as length.
