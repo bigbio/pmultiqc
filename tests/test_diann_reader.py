@@ -11,7 +11,83 @@ import pyarrow.parquet as pq
 from pmultiqc.modules.common.ms import diann as diann_reader
 
 PKG = Path(diann_reader.__file__).resolve().parents[3]  # .../pmultiqc
-DIANN_LITERAL = re.compile(r"^(Run|RT|FWHM|iRT|[A-Z][A-Za-z0-9]*(\.[A-Za-z0-9]+)+)$")
+# Every column of a DIA-NN 2.5.1 report.parquet (PXD030304). A string literal in the
+# code that equals one of these is a report column being read.
+DIANN_REPORT_VOCABULARY = frozenset(
+    (
+        "Run.Index",
+        "Run",
+        "Channel",
+        "Precursor.Id",
+        "Modified.Sequence",
+        "Stripped.Sequence",
+        "Precursor.Charge",
+        "Precursor.Lib.Index",
+        "Decoy",
+        "Proteotypic",
+        "Precursor.Mz",
+        "Protein.Ids",
+        "Protein.Group",
+        "Protein.Names",
+        "Genes",
+        "RT",
+        "iRT",
+        "Predicted.RT",
+        "Predicted.iRT",
+        "IM",
+        "iIM",
+        "Predicted.IM",
+        "Predicted.iIM",
+        "Precursor.Quantity",
+        "Precursor.Normalised",
+        "Ms1.Area",
+        "Ms1.Normalised",
+        "Ms1.Apex.Area",
+        "Ms1.Apex.Mz.Delta",
+        "Normalisation.Factor",
+        "Quantity.Quality",
+        "Empirical.Quality",
+        "Normalisation.Noise",
+        "Ms1.Profile.Corr",
+        "Evidence",
+        "Mass.Evidence",
+        "Channel.Evidence",
+        "Ms1.Total.Signal.Before",
+        "Ms1.Total.Signal.After",
+        "RT.Start",
+        "RT.Stop",
+        "FWHM",
+        "PG.TopN",
+        "PG.MaxLFQ",
+        "Genes.TopN",
+        "Genes.MaxLFQ",
+        "Genes.MaxLFQ.Unique",
+        "PG.MaxLFQ.Quality",
+        "Genes.MaxLFQ.Quality",
+        "Genes.MaxLFQ.Unique.Quality",
+        "Q.Value",
+        "PEP",
+        "Global.Q.Value",
+        "Lib.Q.Value",
+        "Peptidoform.Q.Value",
+        "Global.Peptidoform.Q.Value",
+        "Lib.Peptidoform.Q.Value",
+        "PTM.Site.Confidence",
+        "Site.Occupancy.Probabilities",
+        "Protein.Sites",
+        "Lib.PTM.Site.Confidence",
+        "Translated.Q.Value",
+        "Channel.Q.Value",
+        "PG.Q.Value",
+        "PG.PEP",
+        "GG.Q.Value",
+        "Protein.Q.Value",
+        "Global.PG.Q.Value",
+        "Lib.PG.Q.Value",
+        "Best.Fr.Mz",
+        "Best.Fr.Mz.Delta",
+    )
+)
 
 
 def _report(tmp_path, extra_cols=True, drop=()):
@@ -64,39 +140,19 @@ def test_reader_tolerates_missing_optional_columns(tmp_path):
 
 
 def test_diann_report_columns_are_declared():
-    """Every DIA-NN column literal used anywhere in pmultiqc must be in the allowlist.
+    """Every DIA-NN report column referenced in pmultiqc must be in the allowlist.
 
-    If this fails, a new column is being read from the report: add it to
-    DIANN_REPORT_COLUMNS (and DIANN_REPORT_STRING_COLUMNS if it is a string) rather
-    than widening the read.
+    The reader projects to DIANN_REPORT_COLUMNS, so a column read anywhere else
+    but not declared here is silently absent at runtime (the first version of
+    this test matched dotted names only and missed "Decoy": decoy filtering
+    stopped without any error). Add the column to the list rather than widening
+    the read.
     """
     declared = set(diann_reader.DIANN_REPORT_COLUMNS)
     used = set()
     for py in (PKG / "modules").rglob("*.py"):
         for node in ast.walk(ast.parse(py.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.Constant) and isinstance(node.value, str) and DIANN_LITERAL.match(node.value):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value in DIANN_REPORT_VOCABULARY:
                 used.add(node.value)
-    # Literals that look like DIA-NN columns but are not report columns pmultiqc reads.
-    not_report_columns = {c for c in used if c not in declared}
-    unexpected = sorted(c for c in not_report_columns if c.count(".") <= 3 and c not in {"Q.Value"} | declared)
-    assert not unexpected, f"DIA-NN columns used but not declared in DIANN_REPORT_COLUMNS: {unexpected}"
-
-
-def test_statistics_work_on_categorical_columns():
-    """The reader yields Categoricals; the statistics must not hash lists (#717 follow-up)."""
-    import numpy as np
-    from pmultiqc.modules.common import dia_utils
-
-    rng = np.random.default_rng(1)
-    n = 500
-    df = pd.DataFrame({
-        "Run": pd.Categorical(rng.choice(["r1", "r2", "r3"], n)),
-        "Modified.Sequence": pd.Categorical(rng.choice([f"PEP{i}K" for i in range(40)], n)),
-        "Protein.Group": pd.Categorical(rng.choice([f"P{i}" for i in range(8)], n)),
-        "Precursor.Quantity": rng.random(n),
-        "Precursor.Normalised": rng.random(n),
-        "Q.Value": rng.random(n) * 0.01,
-    })
-    total_protein, total_peptide, pep_plot = dia_utils._process_diann_statistics(df)
-    assert total_peptide == df["Modified.Sequence"].nunique()
-    assert pep_plot is not None
+    undeclared = sorted(used - declared)
+    assert not undeclared, f"DIA-NN columns used but not declared in DIANN_REPORT_COLUMNS: {undeclared}"

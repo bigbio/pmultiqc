@@ -85,6 +85,10 @@ DIANN_REPORT_COLUMNS = (
     "Normalisation.Factor",
     "Ms1.Area",
     "Ms1.Apex.Mz.Delta",
+    # Undotted names are easy to miss; the test checks against the full
+    # DIA-NN column vocabulary, not a dotted-name regex.
+    "Decoy",
+    "Proteotypic",
 )
 
 # String columns; read dictionary-encoded so pandas gets a Categorical instead of
