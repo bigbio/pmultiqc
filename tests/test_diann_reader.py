@@ -257,3 +257,11 @@ def test_sample_level_modifications_without_merge_matches_merge_reference():
             assert np.isclose(got[k][m], expected[k][m]), (k, m)
     codes = dia_utils.run_to_sample_codes(df["Run"], file_df)
     assert codes.isna().sum() == (df["Run"].astype(str) == "run5").sum()
+
+
+def test_dia_utils_imports_cleanly_first():
+    """multiqc imports dia_utils before plots.dia; a cycle there skips the whole module (#717)."""
+    import subprocess, sys
+    code = "import pmultiqc.modules.common.dia_utils as d; import pmultiqc.modules.common.plots.dia; print(callable(d.run_to_sample_codes))"
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert out.returncode == 0 and out.stdout.strip() == "True", out.stderr[-800:]
