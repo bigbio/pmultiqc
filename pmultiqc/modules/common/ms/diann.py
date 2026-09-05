@@ -33,8 +33,8 @@ class DiannReader(BaseParser):
             )
 
         else:
-            report_data = pd.read_parquet(self.file_path)
-            report_data["Modified.Sequence"] = report_data["Modified.Sequence"].apply(_sanitize_sequence)
+            report_data = _read_report_parquet(self.file_path, self.log)
+            report_data["Modified.Sequence"] = _sanitize_column(report_data["Modified.Sequence"])
 
         self.log.info(
             "{}: Done parsing DIANN file {}...".format(
@@ -49,3 +49,78 @@ class DiannReader(BaseParser):
 def _sanitize_sequence(seq):
     seq = seq.replace("(SILAC)", "")
     return seq
+
+
+def _sanitize_column(col: pd.Series) -> pd.Series:
+    """Apply ``_sanitize_sequence`` without densifying a categorical column.
+
+    On a 231 M-row report ``Series.apply`` on an object column is one Python call
+    per row and, on a categorical, would first expand it back to objects.
+    Rewriting the categories touches each distinct sequence once instead.
+    """
+    if isinstance(col.dtype, pd.CategoricalDtype):
+        return col.cat.rename_categories([_sanitize_sequence(c) for c in col.cat.categories])
+    return col.apply(_sanitize_sequence)
+
+
+# Every DIA-NN report column pmultiqc reads. Keep in step with the code: the
+# test ``test_diann_report_columns_are_declared`` scans pmultiqc/modules for
+# DIA-NN column literals and fails if one is used that is not listed here.
+DIANN_REPORT_COLUMNS = (
+    "Run",
+    "RT",
+    "Modified.Sequence",
+    "Stripped.Sequence",
+    "Precursor.Quantity",
+    "Precursor.Normalised",
+    "Precursor.Charge",
+    "Protein.Group",
+    "Protein.Names",
+    "Q.Value",
+    "iRT",
+    "Predicted.RT",
+    "RT.Start",
+    "RT.Stop",
+    "FWHM",
+    "Normalisation.Factor",
+    "Ms1.Area",
+    "Ms1.Apex.Mz.Delta",
+)
+
+# String columns; read dictionary-encoded so pandas gets a Categorical instead of
+# one Python object per row.
+DIANN_REPORT_STRING_COLUMNS = (
+    "Run",
+    "Modified.Sequence",
+    "Stripped.Sequence",
+    "Protein.Group",
+    "Protein.Names",
+)
+
+
+def _read_report_parquet(path, log) -> pd.DataFrame:
+    """Read only the columns pmultiqc uses, with strings as categoricals.
+
+    A DIA-NN report has ~70 columns; pmultiqc reads 18. Reading the whole table
+    into pandas materialises every column, with the five string columns as
+    Python objects, which is why the summary step needed 234 GB on a 231 M-row
+    report (bigbio/pmultiqc#717). Projecting to the used columns and reading the
+    string columns dictionary-encoded brought the measured load to 52 GB.
+
+    Columns missing from the file are simply not requested, so older or
+    differently configured DIA-NN reports still load; downstream code already
+    guards the optional ones.
+    """
+    import pyarrow.parquet as pq
+
+    # pyarrow raises KeyError for a read_dictionary column the file lacks, so
+    # look at the schema first (footer only, cheap) and request what exists.
+    present = set(pq.ParquetFile(path).schema_arrow.names)
+    dictionary = [c for c in DIANN_REPORT_STRING_COLUMNS if c in present]
+    pf = pq.ParquetFile(path, read_dictionary=dictionary)
+    columns = [c for c in DIANN_REPORT_COLUMNS if c in present]
+    missing = [c for c in DIANN_REPORT_COLUMNS if c not in present]
+    if missing:
+        log.debug("DIA-NN report lacks %s; reading without them.", ", ".join(missing))
+    log.info("Reading %d of %d columns from %s", len(columns), len(present), path)
+    return pf.read(columns=columns).to_pandas()
