@@ -205,3 +205,27 @@ def test_modifications_computed_per_category():
     assert isinstance(mods.dtype, pd.CategoricalDtype)
     assert list(mods.astype(str))[1] == "Unmodified"
     assert list(mods.astype(str))[0] == list(mods.astype(str))[2] != "Unmodified"
+
+
+def test_identification_counts_match_the_set_based_logic():
+    """Per-run/per-sample counts must equal what the old per-run sets produced (#717)."""
+    import numpy as np
+    from pmultiqc.modules.common import dia_utils
+    from pmultiqc.modules.common.common_utils import cal_num_table_at_sample
+
+    rng = np.random.default_rng(3)
+    n = 3000
+    runs = [f"run{i}" for i in range(6)]
+    df = pd.DataFrame({
+        "Run": pd.Categorical(rng.choice(runs, n)),
+        "Modified.Sequence": pd.Categorical(rng.choice([f"PEP{i}K" for i in range(150)] + [f"PEP{i}(UniMod:4)K" for i in range(50)], n)),
+        "Protein.Group": pd.Categorical(rng.choice([f"P{i}" for i in range(30)], n)),
+        "Proteotypic": rng.integers(0, 2, n),
+    })
+    file_df = pd.DataFrame({"Run": runs, "Sample": [1, 1, 2, 2, 3, 3]})
+    old_run, data_per_run = {}, {}
+    for run, group in df.groupby("Run", observed=True):
+        old_run[str(run)], data_per_run[str(run)] = dia_utils._calculate_run_statistics(group)
+    old_sample = cal_num_table_at_sample(file_df, data_per_run)
+    assert dia_utils._run_identification_counts(df) == old_run
+    assert dia_utils._sample_identification_counts(df, file_df) == old_sample

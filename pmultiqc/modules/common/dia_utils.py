@@ -281,10 +281,7 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
     mod_plot_by_run = dict()
     modified_cats = list()
 
-    statistics_at_run = dict()
-    data_per_run = dict()
-
-    for run_file, group in report_data.groupby("Run"):
+    for run_file, group in report_data.groupby("Run", observed=True):
         run_file = str(run_file)
         ms_with_psm.append(run_file)
 
@@ -293,10 +290,13 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
         mod_plot_by_run[run_file] = mod_plot_dict
         modified_cats.extend(modified_cat)
 
-        # Calculate statistics for this run
-        statistics_at_run[run_file], data_per_run[run_file] = _calculate_run_statistics(group)
-
-    num_table_at_sample = cal_num_table_at_sample(sdrf_file_df, data_per_run)
+    # Per-run and per-sample identification counts as vectorised groupbys.
+    # The previous version kept a Python set of every peptide and protein for
+    # every run (5,798 runs x ~40k peptidoforms on PXD030304) only so the
+    # sample table could union them later; that climbed to >90 GB and was the
+    # stage that OOM-killed the summary after every other fix (#717).
+    statistics_at_run = _run_identification_counts(report_data)
+    num_table_at_sample = _sample_identification_counts(report_data, sdrf_file_df)
 
     cal_num_table_data = {
         "sdrf_samples": num_table_at_sample,
@@ -315,6 +315,46 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
     )
 
     return cal_num_table_data
+
+
+def _is_modified(sequences: pd.Series) -> pd.Series:
+    """True where the peptidoform carries a modification (a parenthesised group)."""
+    if isinstance(sequences.dtype, pd.CategoricalDtype):
+        flags = pd.Series(sequences.cat.categories, dtype="object").str.contains(r"\(.*?\)", regex=True)
+        return pd.Series(flags.to_numpy()[sequences.cat.codes.to_numpy()], index=sequences.index)
+    return sequences.astype(str).str.contains(r"\(.*?\)", regex=True)
+
+
+def _identification_counts(df: pd.DataFrame, by: str) -> dict:
+    """{key: {protein_num, peptide_num, unique_peptide_num, modified_peptide_num}} per ``by`` group."""
+    modified = _is_modified(df["Modified.Sequence"])
+    grouped = df.groupby(by, observed=True)
+    out = pd.DataFrame({
+        "protein_num": grouped["Protein.Group"].nunique(),
+        "peptide_num": grouped["Modified.Sequence"].nunique(),
+        "unique_peptide_num": df.loc[df["Proteotypic"] == 1].groupby(by, observed=True)["Modified.Sequence"].nunique(),
+        "modified_peptide_num": df.loc[modified].groupby(by, observed=True)["Modified.Sequence"].nunique(),
+    }).fillna(0).astype(int)
+    return {str(k): v for k, v in out.to_dict(orient="index").items()}
+
+
+def _run_identification_counts(report_data: pd.DataFrame) -> dict:
+    return _identification_counts(report_data, "Run")
+
+
+def _sample_identification_counts(report_data: pd.DataFrame, file_df: pd.DataFrame) -> dict:
+    """Counts per sample, de-duplicated across the sample's runs (what the per-run sets used to feed)."""
+    if file_df is None or file_df.empty or not {"Sample", "Run"} <= set(file_df.columns):
+        return dict()
+    run_to_sample = file_df[["Run", "Sample"]].drop_duplicates().set_index("Run")["Sample"].astype(int)
+    sample = report_data["Run"].astype(str).map(run_to_sample)
+    keep = sample.notna()
+    if not keep.any():
+        return dict()
+    df = report_data.loc[keep, ["Modified.Sequence", "Protein.Group", "Proteotypic"]].copy()
+    df["Sample"] = sample[keep].astype(int).to_numpy()
+    counts = _identification_counts(df, "Sample")
+    return {k: counts[k] for k in sorted(counts, key=int)}
 
 
 def _calculate_run_statistics(group):
