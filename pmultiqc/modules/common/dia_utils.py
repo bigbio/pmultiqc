@@ -169,11 +169,15 @@ def _process_diann_statistics(report_data):
 
     # Create peptide plot
     log.info("Processing DIA pep_plot.")
-    protein_pep_map = report_data.groupby("Protein.Group")["Modified.Sequence"].agg(list).to_dict()
+    # Distinct peptides per protein group. Not agg(list): that materialises a
+    # Python list per group over every row (231 M on PXD030304) and, on the
+    # categorical column the parquet reader now produces, pandas tries to hash
+    # the lists and fails with "unhashable type: 'list'", which made MultiQC
+    # skip the whole QuantMS module. nunique() is the quantity actually used.
+    peptides_per_protein = report_data.groupby("Protein.Group", observed=True)["Modified.Sequence"].nunique()
     pep_plot = Histogram("number of peptides per proteins", plot_category="frequency")
-    for _, peps in protein_pep_map.items():
-        number = len(set(peps))
-        pep_plot.add_value(number)
+    for number in peptides_per_protein.to_numpy():
+        pep_plot.add_value(int(number))
 
     categorys = OrderedDict()
     categorys["Frequency"] = {

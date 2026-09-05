@@ -73,10 +73,30 @@ def test_diann_report_columns_are_declared():
     declared = set(diann_reader.DIANN_REPORT_COLUMNS)
     used = set()
     for py in (PKG / "modules").rglob("*.py"):
-        for node in ast.walk(ast.parse(py.read_text())):
+        for node in ast.walk(ast.parse(py.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Constant) and isinstance(node.value, str) and DIANN_LITERAL.match(node.value):
                 used.add(node.value)
     # Literals that look like DIA-NN columns but are not report columns pmultiqc reads.
     not_report_columns = {c for c in used if c not in declared}
     unexpected = sorted(c for c in not_report_columns if c.count(".") <= 3 and c not in {"Q.Value"} | declared)
     assert not unexpected, f"DIA-NN columns used but not declared in DIANN_REPORT_COLUMNS: {unexpected}"
+
+
+def test_statistics_work_on_categorical_columns():
+    """The reader yields Categoricals; the statistics must not hash lists (#717 follow-up)."""
+    import numpy as np
+    from pmultiqc.modules.common import dia_utils
+
+    rng = np.random.default_rng(1)
+    n = 500
+    df = pd.DataFrame({
+        "Run": pd.Categorical(rng.choice(["r1", "r2", "r3"], n)),
+        "Modified.Sequence": pd.Categorical(rng.choice([f"PEP{i}K" for i in range(40)], n)),
+        "Protein.Group": pd.Categorical(rng.choice([f"P{i}" for i in range(8)], n)),
+        "Precursor.Quantity": rng.random(n),
+        "Precursor.Normalised": rng.random(n),
+        "Q.Value": rng.random(n) * 0.01,
+    })
+    total_protein, total_peptide, pep_plot = dia_utils._process_diann_statistics(df)
+    assert total_peptide == df["Modified.Sequence"].nunique()
+    assert pep_plot is not None
