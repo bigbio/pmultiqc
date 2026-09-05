@@ -1,0 +1,101 @@
+[Term]
+id: MS:4000216
+name: identified peptides over retention time
+def: "A list of identified peptide counts calculated over chromatography retention time segments, derived from peptide identification results." [PSI:MS]
+is_a: MS:4000004 ! n-tuple
+relationship: has_metric_category MS:4000008 ! ID based metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:int ! The allowed value-type for this CV term
+
+[Term]
+id: MS:4000217
+name: identified peptide modifications frequency
+def: "A table mapping observed post-translational or chemical peptide modifications to their frequency counts." [PSI:MS]
+is_a: MS:4000005 ! table
+relationship: has_metric_category MS:4000008 ! ID based metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:string ! The allowed value-type for this CV term
+
+[Term]
+id: MS:4000218
+name: number of peptides per protein distribution
+def: "An n-tuple or list indicating the distribution profile of identified peptide counts mapped to each individual protein group." [PSI:MS]
+is_a: MS:4000004 ! n-tuple
+relationship: has_metric_category MS:4000008 ! ID based metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:int ! The allowed value-type for this CV term
+
+[Term]
+id: MS:4000219
+name: MS2 trigger oversampling distribution
+def: "A statistical distribution or list of MS2 trigger oversampling rates across chromatographic run times." [PSI:MS]
+is_a: MS:4000004 ! n-tuple
+relationship: has_metric_category MS:4000009 ! ID free metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:double ! The allowed value-type for this CV term
+
+[Term]
+id: MS:4000220
+name: chromatographic peak width over retention time
+def: "An n-tuple or paired distribution of measured full-width at half-maximum (FWHM) values of extracted ion chromatograms (XICs) plotted across retention time." [PSI:MS]
+is_a: MS:4000004 ! n-tuple
+relationship: has_metric_category MS:4000009 ! ID free metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:double ! The allowed value-type for this CV term
+relationship: has_units UO:0000010 ! second
+
+[Term]
+id: MS:4000221
+name: total number of identified peptides
+def: "The absolute single-value count of unique peptide sequences confidently identified in the run." [PSI:MS]
+is_a: MS:4000003 ! single value
+relationship: has_metric_category MS:4000008 ! ID based metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:integer ! The allowed value-type for this CV term
+relationship: has_units UO:0000189 ! count unit
+
+[Term]
+id: MS:4000222
+name: peptide amino acid length distribution
+def: "An n-tuple or array outlining the distribution of sequence lengths (in amino acid residues) for identified peptides." [PSI:MS]
+is_a: MS:4000004 ! n-tuple
+relationship: has_metric_category MS:4000008 ! ID based metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:int ! The allowed value-type for this CV term
+
+[Term]
+id: MS:4000223
+name: protein level quantification matrix summary
+def: "A comparative table containing statistical results of parsed protein-group-level relative or absolute abundance quantifications." [PSI:MS]
+is_a: MS:4000005 ! table
+relationship: has_metric_category MS:4000008 ! ID based metric
+relationship: has_metric_category MS:4000013 ! multi run based metric
+relationship: has_value_type xsd:double ! The allowed value-type for this CV term
+
+[Term]
+id: MS:4000224
+name: data-dependent top N acquisition setting
+def: "The designated hardware top-N parameter setting, specifying the maximum number of selected precursor candidates chosen for fragmentation per cycle." [PSI:MS]
+is_a: MS:4000003 ! single value
+relationship: has_metric_category MS:4000009 ! ID free metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:integer ! The allowed value-type for this CV term
+relationship: has_units UO:0000189 ! count unit
+
+[Term]
+id: MS:4000225
+name: MS2 scans triggered per duty cycle over retention time
+def: "A continuous list of actual MS2 target triggers executed per physical instrument cycle over the course of retention time." [PSI:MS]
+is_a: MS:4000004 ! n-tuple
+relationship: has_metric_category MS:4000009 ! ID free metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:int ! The allowed value-type for this CV term
+
+[Term]
+id: MS:4000226
+name: uncalibrated precursor mass error distribution
+def: "The raw (pre-calibration) mass measurement offsets of precursor ions mapped across the run, typically represented as distribution quantiles." [PSI:MS]
+is_a: MS:4000004 ! n-tuple
+relationship: has_metric_category MS:4000009 ! ID free metric
+relationship: has_metric_category MS:4000012 ! single run based metric
+relationship: has_value_type xsd:double ! The allowed value-type for this CV term
