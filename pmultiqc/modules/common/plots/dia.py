@@ -12,7 +12,6 @@ from pmultiqc.modules.common.plots.general import (
     plot_data_check
 )
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
-from pmultiqc.modules.common.dia_utils import run_to_sample_codes
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.common_utils import group_charge
