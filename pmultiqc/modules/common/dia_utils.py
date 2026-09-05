@@ -317,6 +317,25 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
     return cal_num_table_data
 
 
+def run_to_sample_codes(runs: pd.Series, file_df: pd.DataFrame) -> pd.Series:
+    """Sample id per row from the Run column, without materialising strings.
+
+    Merging the report with the SDRF sample table on ``Run`` was measured to be
+    the largest transient in the summary: it upcasts the categorical key to
+    object for every row (231 M on PXD030304) and adds an object Sample column.
+    Mapping through the category codes touches one small array instead.
+    Rows whose run is not in ``file_df`` get NaN.
+    """
+    run_to_sample = file_df[["Run", "Sample"]].drop_duplicates().set_index("Run")["Sample"]
+    run_to_sample.index = run_to_sample.index.astype(str)
+    if isinstance(runs.dtype, pd.CategoricalDtype):
+        per_category = run_to_sample.reindex(runs.cat.categories.astype(str)).to_numpy(dtype="float64", na_value=np.nan)
+        codes = runs.cat.codes.to_numpy()
+        values = np.where(codes >= 0, per_category[np.clip(codes, 0, None)], np.nan)
+        return pd.Series(values, index=runs.index)
+    return runs.astype(str).map(run_to_sample).astype("float64")
+
+
 def _is_modified(sequences: pd.Series) -> pd.Series:
     """True where the peptidoform carries a modification (a parenthesised group)."""
     if isinstance(sequences.dtype, pd.CategoricalDtype):
@@ -346,8 +365,7 @@ def _sample_identification_counts(report_data: pd.DataFrame, file_df: pd.DataFra
     """Counts per sample, de-duplicated across the sample's runs (what the per-run sets used to feed)."""
     if file_df is None or file_df.empty or not {"Sample", "Run"} <= set(file_df.columns):
         return dict()
-    run_to_sample = file_df[["Run", "Sample"]].drop_duplicates().set_index("Run")["Sample"].astype(int)
-    sample = report_data["Run"].astype(str).map(run_to_sample)
+    sample = run_to_sample_codes(report_data["Run"], file_df)
     keep = sample.notna()
     if not keep.any():
         return dict()
@@ -1070,14 +1088,14 @@ def dia_sample_level_modifications(df, sdrf_file_df):
     if sdrf_file_df is None or sdrf_file_df.empty:
         return {}
 
-    report_data = df.copy()
-
-    report_data = report_data.merge(
-        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-        on="Run"
-    )
-
-    report_data["Sample"] = report_data["Sample"].astype(int)
+    # No merge: it upcast the categorical Run key to object for every row and
+    # was the transient that OOM-killed the summary in this stage (#717).
+    sample = run_to_sample_codes(df["Run"], sdrf_file_df)
+    keep = sample.notna()
+    # Keep Run: drop_duplicates below counts a peptidoform once per run within a
+    # sample, as the merge-based version did.
+    report_data = df.loc[keep, ["Run", "Modified.Sequence", "Modifications", "Protein.Group"]].copy()
+    report_data["Sample"] = sample[keep].astype(int).to_numpy()
 
     mod_plot = dict()
     for sample, group in report_data.groupby("Sample", sort=True, observed=True):
