@@ -176,3 +176,32 @@ def test_statistics_work_on_categorical_columns():
     total_protein, total_peptide, pep_plot = dia_utils._process_diann_statistics(df)
     assert total_peptide == df["Modified.Sequence"].nunique()
     assert pep_plot is not None
+
+
+def test_reader_drops_decoys_while_reading(tmp_path):
+    data = {
+        "Run": ["r1", "r1", "r2", "r2"],
+        "Modified.Sequence": ["PEPTIDEK", "DECOYK", "PEPTIDER", "DECOYR"],
+        "Protein.Group": ["P1", "rev_P1", "P2", "rev_P2"],
+        "Precursor.Quantity": [1.0, 2.0, 3.0, 4.0],
+        "Decoy": [0, 1, 0, 1],
+    }
+    path = tmp_path / "diann_report.parquet"
+    pq.write_table(pa.table(data), path)
+    reader = diann_reader.DiannReader(path)
+    reader.parse()
+    df = reader.report_data
+    assert len(df) == 2 and set(df["Modified.Sequence"]) == {"PEPTIDEK", "PEPTIDER"}
+    assert "Decoy" not in df.columns, "Decoy must not be carried into pandas"
+
+
+def test_modifications_computed_per_category():
+    from pmultiqc.modules.common import dia_utils
+
+    seqs = pd.Categorical(["PEP(UniMod:4)TIDEK", "PEPTIDEK", "PEP(UniMod:4)TIDEK", "PEP(UniMod:35)K"])
+    df = pd.DataFrame({"Modified.Sequence": seqs})
+    assert dia_utils._process_modifications(df) is True
+    mods = df["Modifications"]
+    assert isinstance(mods.dtype, pd.CategoricalDtype)
+    assert list(mods.astype(str))[1] == "Unmodified"
+    assert list(mods.astype(str))[0] == list(mods.astype(str))[2] != "Unmodified"

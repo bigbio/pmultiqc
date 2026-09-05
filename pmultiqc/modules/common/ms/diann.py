@@ -121,10 +121,18 @@ def _read_report_parquet(path, log) -> pd.DataFrame:
     # look at the schema first (footer only, cheap) and request what exists.
     present = set(pq.ParquetFile(path).schema_arrow.names)
     dictionary = [c for c in DIANN_REPORT_STRING_COLUMNS if c in present]
-    pf = pq.ParquetFile(path, read_dictionary=dictionary)
     columns = [c for c in DIANN_REPORT_COLUMNS if c in present]
     missing = [c for c in DIANN_REPORT_COLUMNS if c not in present]
     if missing:
         log.debug("DIA-NN report lacks %s; reading without them.", ", ".join(missing))
-    log.info("Reading %d of %d columns from %s", len(columns), len(present), path)
-    return pf.read(columns=columns).to_pandas()
+    # Drop decoys while reading, in Arrow. Doing it in pandas afterwards costs two
+    # more copies of the whole frame (the boolean index and the .copy()) at the
+    # point where memory is already highest; on PXD030304 that alone crossed the
+    # 72 GB budget. The Decoy column is then not carried into the frame, so the
+    # pandas-side guard in _load_and_preprocess_diann_data does nothing.
+    filters = [("Decoy", "==", 0)] if "Decoy" in present else None
+    columns = [c for c in columns if c != "Decoy"]
+    log.info("Reading %d of %d columns from %s%s", len(columns), len(present), path,
+             " (decoys filtered while reading)" if filters else "")
+    table = pq.read_table(path, columns=columns, filters=filters, read_dictionary=dictionary)
+    return table.to_pandas()

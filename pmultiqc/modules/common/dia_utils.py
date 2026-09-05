@@ -96,8 +96,10 @@ def _load_and_preprocess_diann_data(diann_report_path):
     report_data = diann_reader.report_data
 
     # Filter out decoy entries if present
+    # The parquet reader has already dropped decoys (and the column); this is
+    # the TSV path. One allocation, not the boolean index plus a .copy().
     if "Decoy" in report_data.columns:
-        report_data = report_data[report_data["Decoy"] == 0].copy()
+        report_data = report_data.loc[report_data["Decoy"] == 0].reset_index(drop=True)
 
     # Calculate normalisation factor if needed
     _calculate_normalisation_factor(report_data)
@@ -235,7 +237,15 @@ def _process_modifications(report_data):
                 return "Unmodified"
         return None
 
-    report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
+    sequences = report_data["Modified.Sequence"]
+    if isinstance(sequences.dtype, pd.CategoricalDtype):
+        # One call per distinct peptidoform, not one per row (231 M on
+        # PXD030304), and the result stays categorical: a few thousand strings
+        # instead of a full-length object column.
+        per_category = pd.Series([find_diann_modified(c) for c in sequences.cat.categories], dtype="object")
+        report_data["Modifications"] = pd.Categorical(per_category.to_numpy()[sequences.cat.codes.to_numpy()])
+    else:
+        report_data["Modifications"] = sequences.apply(find_diann_modified)
     return True
 
 
