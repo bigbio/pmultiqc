@@ -204,7 +204,7 @@ def _process_peptide_search_scores(report_data):
     pattern = re.compile(r"\((.*?)\)")
     unimod_data = UnimodDatabase()
 
-    for peptide, group in report_data.groupby("Modified.Sequence"):
+    for peptide, group in report_data.groupby("Modified.Sequence", observed=True):
         origianl_mods = re.findall(pattern, peptide)
         for mod in set(origianl_mods):
             peptide = peptide.replace(mod, _get_safe_mod_name(mod, unimod_data))
@@ -410,7 +410,7 @@ def _get_peptide_length(df):
     df_sub["length"] = df_sub["Stripped.Sequence"].str.len()
 
     plot_data = {}
-    for run, group in df_sub.groupby("Run"):
+    for run, group in df_sub.groupby("Run", observed=True):
         stats_dict = group["length"].value_counts().sort_index().to_dict()
         plot_data[run] = stats_dict
 
@@ -740,7 +740,7 @@ def heatmap_cont_pep_intensity(report_df):
     )
 
     heatmap_dict = {}
-    for run, group in df.groupby("Run"):
+    for run, group in df.groupby("Run", observed=True):
 
         # 1. "Contaminants"
         cont_intensity_sum = group[group["is_contaminant"]]["Precursor.Quantity"].sum()
@@ -806,7 +806,7 @@ def cal_feature_avg_rt(report_data, col):
 
     plot_dict = {
         str(run): group.set_index("RT_bin_mid")[col].to_dict()
-        for run, group in result.groupby("Run")
+        for run, group in result.groupby("Run", observed=True)
     }
 
     return plot_dict
@@ -834,7 +834,7 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
     bins = np.linspace(x_min, x_max, data_bins)
 
     plot_dict = dict()
-    for run, group in df.groupby("Run"):
+    for run, group in df.groupby("Run", observed=True):
 
         group_sorted = group.sort_values("iRT")
         x = group_sorted["iRT"].values
@@ -963,7 +963,7 @@ def create_peptides_table(report_df, sample_df, file_df):
         report_data["BestSearchScore"] = 1 - report_data["Q.Value"]
 
     table_dict = {}
-    for sequence_protein, group in report_data.groupby(["Stripped.Sequence", "Protein.Names"]):
+    for sequence_protein, group in report_data.groupby(["Stripped.Sequence", "Protein.Names"], observed=True):
         entry = {
             "ProteinName": sequence_protein[1],
             "PeptideSequence": sequence_protein[0],
@@ -994,10 +994,10 @@ def create_peptides_table(report_df, sample_df, file_df):
         cond_intensity_col = cond_report_data.attrs.get("intensity_col", intensity_col)
         for sequence_protein, group in cond_report_data.groupby(
                 ["Stripped.Sequence", "Protein.Names"]
-        ):
+        , observed=True):
             condition_data = {
                 str(cond): np.log10(sub_group[cond_intensity_col].mean())
-                for cond, sub_group in group.groupby("Condition")
+                for cond, sub_group in group.groupby("Condition", observed=True)
             }
             if sequence_protein in table_dict:
                 table_dict[sequence_protein].update(condition_data)
@@ -1024,7 +1024,7 @@ def create_protein_table(report_df, sample_df, file_df):
     intensity_col = report_data.attrs.get("intensity_col", "Precursor.Normalised")
 
     table_dict = {}
-    for protein_name, group in report_data.groupby("Protein.Names"):
+    for protein_name, group in report_data.groupby("Protein.Names", observed=True):
         table_dict[protein_name] = {
             "ProteinName": protein_name,
             "Peptides_Number": group["Stripped.Sequence"].nunique(),
@@ -1051,10 +1051,10 @@ def create_protein_table(report_df, sample_df, file_df):
     cond_report_data, unique_conditions = _merge_condition_data(report_data, sample_df, file_df)
     if cond_report_data is not None and not cond_report_data.empty:
         cond_intensity_col = cond_report_data.attrs.get("intensity_col", intensity_col)
-        for protein_name, group in cond_report_data.groupby("Protein.Names"):
+        for protein_name, group in cond_report_data.groupby("Protein.Names", observed=True):
             condition_data = {
                 str(cond): np.log10(sub_group[cond_intensity_col].mean())
-                for cond, sub_group in group.groupby("Condition")
+                for cond, sub_group in group.groupby("Condition", observed=True)
             }
             if protein_name in table_dict:
                 table_dict[protein_name].update(condition_data)
@@ -1080,7 +1080,7 @@ def dia_sample_level_modifications(df, sdrf_file_df):
     report_data["Sample"] = report_data["Sample"].astype(int)
 
     mod_plot = dict()
-    for sample, group in report_data.groupby("Sample", sort=True):
+    for sample, group in report_data.groupby("Sample", sort=True, observed=True):
 
         mod_plot_dict, _ = summarize_modifications(
             group.drop_duplicates()
