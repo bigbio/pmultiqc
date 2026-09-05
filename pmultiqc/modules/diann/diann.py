@@ -262,7 +262,7 @@ class DiannModule(BasePMultiqcModule):
         add_group_modules(self.section_group_dict, "")
         try:
             from pmultiqc.export.mzqc_exporter import MzQcExporter
-            from multiqc.utils import config
+            from multiqc import config
             
             output_directory = getattr(config, "output_dir", "./")
             

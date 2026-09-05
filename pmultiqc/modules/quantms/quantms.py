@@ -84,7 +84,6 @@ from pmultiqc.modules.core.section_groups import (
     add_sub_section
 )
 from pmultiqc.modules.common.logging import get_logger
-from multiqc.utils import config
 log = get_logger("pmultiqc.modules.quantms")
 
 # Set a data row threshold to prevent the report file from becoming too large.
