@@ -96,8 +96,10 @@ def _load_and_preprocess_diann_data(diann_report_path):
     report_data = diann_reader.report_data
 
     # Filter out decoy entries if present
+    # The parquet reader has already dropped decoys (and the column); this is
+    # the TSV path. One allocation, not the boolean index plus a .copy().
     if "Decoy" in report_data.columns:
-        report_data = report_data[report_data["Decoy"] == 0].copy()
+        report_data = report_data.loc[report_data["Decoy"] == 0].reset_index(drop=True)
 
     # Calculate normalisation factor if needed
     _calculate_normalisation_factor(report_data)
@@ -169,11 +171,15 @@ def _process_diann_statistics(report_data):
 
     # Create peptide plot
     log.info("Processing DIA pep_plot.")
-    protein_pep_map = report_data.groupby("Protein.Group")["Modified.Sequence"].agg(list).to_dict()
+    # Distinct peptides per protein group. Not agg(list): that materialises a
+    # Python list per group over every row (231 M on PXD030304) and, on the
+    # categorical column the parquet reader now produces, pandas tries to hash
+    # the lists and fails with "unhashable type: 'list'", which made MultiQC
+    # skip the whole QuantMS module. nunique() is the quantity actually used.
+    peptides_per_protein = report_data.groupby("Protein.Group", observed=True)["Modified.Sequence"].nunique()
     pep_plot = Histogram("number of peptides per proteins", plot_category="frequency")
-    for _, peps in protein_pep_map.items():
-        number = len(set(peps))
-        pep_plot.add_value(number)
+    for number in peptides_per_protein.to_numpy():
+        pep_plot.add_value(int(number))
 
     categorys = OrderedDict()
     categorys["Frequency"] = {
@@ -198,7 +204,7 @@ def _process_peptide_search_scores(report_data):
     pattern = re.compile(r"\((.*?)\)")
     unimod_data = UnimodDatabase()
 
-    for peptide, group in report_data.groupby("Modified.Sequence"):
+    for peptide, group in report_data.groupby("Modified.Sequence", observed=True):
         origianl_mods = re.findall(pattern, peptide)
         for mod in set(origianl_mods):
             peptide = peptide.replace(mod, _get_safe_mod_name(mod, unimod_data))
@@ -231,7 +237,15 @@ def _process_modifications(report_data):
                 return "Unmodified"
         return None
 
-    report_data["Modifications"] = report_data["Modified.Sequence"].apply(find_diann_modified)
+    sequences = report_data["Modified.Sequence"]
+    if isinstance(sequences.dtype, pd.CategoricalDtype):
+        # One call per distinct peptidoform, not one per row (231 M on
+        # PXD030304), and the result stays categorical: a few thousand strings
+        # instead of a full-length object column.
+        per_category = pd.Series([find_diann_modified(c) for c in sequences.cat.categories], dtype="object")
+        report_data["Modifications"] = pd.Categorical(per_category.to_numpy()[sequences.cat.codes.to_numpy()])
+    else:
+        report_data["Modifications"] = sequences.apply(find_diann_modified)
     return True
 
 
@@ -267,10 +281,7 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
     mod_plot_by_run = dict()
     modified_cats = list()
 
-    statistics_at_run = dict()
-    data_per_run = dict()
-
-    for run_file, group in report_data.groupby("Run"):
+    for run_file, group in report_data.groupby("Run", observed=True):
         run_file = str(run_file)
         ms_with_psm.append(run_file)
 
@@ -279,10 +290,13 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
         mod_plot_by_run[run_file] = mod_plot_dict
         modified_cats.extend(modified_cat)
 
-        # Calculate statistics for this run
-        statistics_at_run[run_file], data_per_run[run_file] = _calculate_run_statistics(group)
-
-    num_table_at_sample = cal_num_table_at_sample(sdrf_file_df, data_per_run)
+    # Per-run and per-sample identification counts as vectorised groupbys.
+    # The previous version kept a Python set of every peptide and protein for
+    # every run (5,798 runs x ~40k peptidoforms on PXD030304) only so the
+    # sample table could union them later; that climbed to >90 GB and was the
+    # stage that OOM-killed the summary after every other fix (#717).
+    statistics_at_run = _run_identification_counts(report_data)
+    num_table_at_sample = _sample_identification_counts(report_data, sdrf_file_df)
 
     cal_num_table_data = {
         "sdrf_samples": num_table_at_sample,
@@ -301,6 +315,46 @@ def _process_run_data(df, ms_with_psm, quantms_modified, sdrf_file_df):
     )
 
     return cal_num_table_data
+
+
+def _is_modified(sequences: pd.Series) -> pd.Series:
+    """True where the peptidoform carries a modification (a parenthesised group)."""
+    if isinstance(sequences.dtype, pd.CategoricalDtype):
+        flags = pd.Series(sequences.cat.categories, dtype="object").str.contains(r"\(.*?\)", regex=True)
+        return pd.Series(flags.to_numpy()[sequences.cat.codes.to_numpy()], index=sequences.index)
+    return sequences.astype(str).str.contains(r"\(.*?\)", regex=True)
+
+
+def _identification_counts(df: pd.DataFrame, by: str) -> dict:
+    """{key: {protein_num, peptide_num, unique_peptide_num, modified_peptide_num}} per ``by`` group."""
+    modified = _is_modified(df["Modified.Sequence"])
+    grouped = df.groupby(by, observed=True)
+    out = pd.DataFrame({
+        "protein_num": grouped["Protein.Group"].nunique(),
+        "peptide_num": grouped["Modified.Sequence"].nunique(),
+        "unique_peptide_num": df.loc[df["Proteotypic"] == 1].groupby(by, observed=True)["Modified.Sequence"].nunique(),
+        "modified_peptide_num": df.loc[modified].groupby(by, observed=True)["Modified.Sequence"].nunique(),
+    }).fillna(0).astype(int)
+    return {str(k): v for k, v in out.to_dict(orient="index").items()}
+
+
+def _run_identification_counts(report_data: pd.DataFrame) -> dict:
+    return _identification_counts(report_data, "Run")
+
+
+def _sample_identification_counts(report_data: pd.DataFrame, file_df: pd.DataFrame) -> dict:
+    """Counts per sample, de-duplicated across the sample's runs (what the per-run sets used to feed)."""
+    if file_df is None or file_df.empty or not {"Sample", "Run"} <= set(file_df.columns):
+        return dict()
+    run_to_sample = file_df[["Run", "Sample"]].drop_duplicates().set_index("Run")["Sample"].astype(int)
+    sample = report_data["Run"].astype(str).map(run_to_sample)
+    keep = sample.notna()
+    if not keep.any():
+        return dict()
+    df = report_data.loc[keep, ["Modified.Sequence", "Protein.Group", "Proteotypic"]].copy()
+    df["Sample"] = sample[keep].astype(int).to_numpy()
+    counts = _identification_counts(df, "Sample")
+    return {k: counts[k] for k in sorted(counts, key=int)}
 
 
 def _calculate_run_statistics(group):
@@ -356,7 +410,7 @@ def _get_peptide_length(df):
     df_sub["length"] = df_sub["Stripped.Sequence"].str.len()
 
     plot_data = {}
-    for run, group in df_sub.groupby("Run"):
+    for run, group in df_sub.groupby("Run", observed=True):
         stats_dict = group["length"].value_counts().sort_index().to_dict()
         plot_data[run] = stats_dict
 
@@ -686,7 +740,7 @@ def heatmap_cont_pep_intensity(report_df):
     )
 
     heatmap_dict = {}
-    for run, group in df.groupby("Run"):
+    for run, group in df.groupby("Run", observed=True):
 
         # 1. "Contaminants"
         cont_intensity_sum = group[group["is_contaminant"]]["Precursor.Quantity"].sum()
@@ -752,7 +806,7 @@ def cal_feature_avg_rt(report_data, col):
 
     plot_dict = {
         str(run): group.set_index("RT_bin_mid")[col].to_dict()
-        for run, group in result.groupby("Run")
+        for run, group in result.groupby("Run", observed=True)
     }
 
     return plot_dict
@@ -780,7 +834,7 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
     bins = np.linspace(x_min, x_max, data_bins)
 
     plot_dict = dict()
-    for run, group in df.groupby("Run"):
+    for run, group in df.groupby("Run", observed=True):
 
         group_sorted = group.sort_values("iRT")
         x = group_sorted["iRT"].values
@@ -909,7 +963,7 @@ def create_peptides_table(report_df, sample_df, file_df):
         report_data["BestSearchScore"] = 1 - report_data["Q.Value"]
 
     table_dict = {}
-    for sequence_protein, group in report_data.groupby(["Stripped.Sequence", "Protein.Names"]):
+    for sequence_protein, group in report_data.groupby(["Stripped.Sequence", "Protein.Names"], observed=True):
         entry = {
             "ProteinName": sequence_protein[1],
             "PeptideSequence": sequence_protein[0],
@@ -940,10 +994,10 @@ def create_peptides_table(report_df, sample_df, file_df):
         cond_intensity_col = cond_report_data.attrs.get("intensity_col", intensity_col)
         for sequence_protein, group in cond_report_data.groupby(
                 ["Stripped.Sequence", "Protein.Names"]
-        ):
+        , observed=True):
             condition_data = {
                 str(cond): np.log10(sub_group[cond_intensity_col].mean())
-                for cond, sub_group in group.groupby("Condition")
+                for cond, sub_group in group.groupby("Condition", observed=True)
             }
             if sequence_protein in table_dict:
                 table_dict[sequence_protein].update(condition_data)
@@ -970,7 +1024,7 @@ def create_protein_table(report_df, sample_df, file_df):
     intensity_col = report_data.attrs.get("intensity_col", "Precursor.Normalised")
 
     table_dict = {}
-    for protein_name, group in report_data.groupby("Protein.Names"):
+    for protein_name, group in report_data.groupby("Protein.Names", observed=True):
         table_dict[protein_name] = {
             "ProteinName": protein_name,
             "Peptides_Number": group["Stripped.Sequence"].nunique(),
@@ -997,10 +1051,10 @@ def create_protein_table(report_df, sample_df, file_df):
     cond_report_data, unique_conditions = _merge_condition_data(report_data, sample_df, file_df)
     if cond_report_data is not None and not cond_report_data.empty:
         cond_intensity_col = cond_report_data.attrs.get("intensity_col", intensity_col)
-        for protein_name, group in cond_report_data.groupby("Protein.Names"):
+        for protein_name, group in cond_report_data.groupby("Protein.Names", observed=True):
             condition_data = {
                 str(cond): np.log10(sub_group[cond_intensity_col].mean())
-                for cond, sub_group in group.groupby("Condition")
+                for cond, sub_group in group.groupby("Condition", observed=True)
             }
             if protein_name in table_dict:
                 table_dict[protein_name].update(condition_data)
@@ -1026,7 +1080,7 @@ def dia_sample_level_modifications(df, sdrf_file_df):
     report_data["Sample"] = report_data["Sample"].astype(int)
 
     mod_plot = dict()
-    for sample, group in report_data.groupby("Sample", sort=True):
+    for sample, group in report_data.groupby("Sample", sort=True, observed=True):
 
         mod_plot_dict, _ = summarize_modifications(
             group.drop_duplicates()

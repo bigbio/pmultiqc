@@ -93,7 +93,7 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
                     if data_type == "Sample"
                     else str(run)
                 ): group["log_intensity"].dropna().tolist()
-                for run, group in df_sub.groupby(data_type, sort=True)
+                for run, group in df_sub.groupby(data_type, sort=True, observed=True)
             }
             for data_type in ["Run", "Sample"]
         ]
@@ -104,7 +104,7 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
         box_data = [
             {
                 str(run): group["log_intensity"].dropna().tolist()
-                for run, group in df.groupby("Run")
+                for run, group in df.groupby("Run", observed=True)
             }
         ]
         plot_label = ["by Run"]
@@ -151,7 +151,7 @@ def draw_dia_ms1_area(sub_section, df):
 
     box_data = {
         str(run): group["log_ms1_area"].dropna().tolist()
-        for run, group in df.groupby("Run")
+        for run, group in df.groupby("Run", observed=True)
     }
 
     draw_config = {
@@ -605,14 +605,14 @@ def calculate_dia_intensity_std(df, sdrf_file_df):
         )
 
         grouped_std = (
-            df_sub.groupby(["Sample", "Modified.Sequence"])["log_intensity"]
+            df_sub.groupby(["Sample", "Modified.Sequence"], observed=True)["log_intensity"]
             .std()
             .reset_index(name="log_intensity_std")
         )
 
         plot_data = {
             f"Sample {str(sample)}": group["log_intensity_std"].dropna().tolist()
-            for sample, group in grouped_std.groupby("Sample")
+            for sample, group in grouped_std.groupby("Sample", observed=True)
         }
 
         return plot_data
@@ -626,14 +626,14 @@ def calculate_dia_intensity_std(df, sdrf_file_df):
         )
 
         grouped_std = (
-            df_sub.groupby(["run_condition", "Modified.Sequence"])["log_intensity"]
+            df_sub.groupby(["run_condition", "Modified.Sequence"], observed=True)["log_intensity"]
             .std()
             .reset_index(name="log_intensity_std")
         )
 
         plot_data = {
             condition: group["log_intensity_std"].dropna().tolist()
-            for condition, group in grouped_std.groupby("run_condition")
+            for condition, group in grouped_std.groupby("run_condition", observed=True)
         }
 
         return plot_data
