@@ -12,6 +12,7 @@ from pmultiqc.modules.common.plots.general import (
     plot_data_check
 )
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
+from pmultiqc.modules.common.dia_utils import run_to_sample_codes
 from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.common_utils import group_charge
@@ -90,7 +91,7 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
             # were built twice (by run, by sample), both alive at once: the
             # spike that OOM-killed the summary at 72 GB (bigbio/pmultiqc#717).
             # Map Run->Sample on the key and aggregate.
-            sample = df["Run"].astype(object).map(run_to_sample)
+            sample = run_to_sample_codes(df["Run"], sdrf_file_df)
             keep = sample.notna()
             by_sample = df.loc[keep, ["log_intensity"]].assign(Sample=sample[keep].astype(int).to_numpy())
             box_data = [
