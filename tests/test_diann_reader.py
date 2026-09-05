@@ -156,3 +156,23 @@ def test_diann_report_columns_are_declared():
                 used.add(node.value)
     undeclared = sorted(used - declared)
     assert not undeclared, f"DIA-NN columns used but not declared in DIANN_REPORT_COLUMNS: {undeclared}"
+
+
+def test_statistics_work_on_categorical_columns():
+    """The reader yields Categoricals; the statistics must not hash lists (#717 follow-up)."""
+    import numpy as np
+    from pmultiqc.modules.common import dia_utils
+
+    rng = np.random.default_rng(1)
+    n = 500
+    df = pd.DataFrame({
+        "Run": pd.Categorical(rng.choice(["r1", "r2", "r3"], n)),
+        "Modified.Sequence": pd.Categorical(rng.choice([f"PEP{i}K" for i in range(40)], n)),
+        "Protein.Group": pd.Categorical(rng.choice([f"P{i}" for i in range(8)], n)),
+        "Precursor.Quantity": rng.random(n),
+        "Precursor.Normalised": rng.random(n),
+        "Q.Value": rng.random(n) * 0.01,
+    })
+    total_protein, total_peptide, pep_plot = dia_utils._process_diann_statistics(df)
+    assert total_peptide == df["Modified.Sequence"].nunique()
+    assert pep_plot is not None
