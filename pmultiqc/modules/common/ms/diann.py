@@ -135,4 +135,10 @@ def _read_report_parquet(path, log) -> pd.DataFrame:
     log.info("Reading %d of %d columns from %s%s", len(columns), len(present), path,
              " (decoys filtered while reading)" if filters else "")
     table = pq.read_table(path, columns=columns, filters=filters, read_dictionary=dictionary)
-    return table.to_pandas()
+    # self_destruct releases each Arrow buffer as its column is converted, and
+    # split_blocks avoids consolidating into one big block first. Without them
+    # ~33 GB of Arrow memory stayed resident next to the 16.8 GB pandas frame
+    # on PXD030304 even after the table was deleted (measured: 49.9 -> 25.2 GiB
+    # after conversion), and that baseline is what pushed the first plot stage
+    # over the pipeline's 72 GB (bigbio/pmultiqc#717).
+    return table.to_pandas(self_destruct=True, split_blocks=True)
