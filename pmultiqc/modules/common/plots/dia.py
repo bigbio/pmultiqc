@@ -164,6 +164,9 @@ def draw_dia_ms1_area(sub_section, df):
         "save_data_file": False,
     }
 
+    # 5,798 runs x raw MS1 areas is >4 GiB of serialised points and panics polars
+    # (bigbio/pmultiqc#717). Above the flat threshold hand MultiQC the box statistics.
+    box_data = summarise_box_data(box_data)
     box_html = box.plot(list_of_data_by_sample=box_data, pconfig=draw_config)
 
     # box_html.flat
@@ -312,6 +315,8 @@ def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
         "save_data_file": False,
     }
 
+    # Same failure mode as draw_dia_ms1_area: 42.7 M points on the big DIA run.
+    box_data = summarise_box_data(box_data)
     box_html = box.plot(
         list_of_data_by_sample=box_data,
         pconfig=draw_box_config,
