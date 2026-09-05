@@ -789,13 +789,13 @@ class QuantMSModule(BasePMultiqcModule):
             )
             
             mzqc_metrics = exporter._parse_quantms(quantms_payload)
-            self.log.info(f"mzQC: Successfully extracted {len(mzqc_metrics)} metrics.")
+            log.info(f"mzQC: Successfully extracted {len(mzqc_metrics)} metrics.")
             
             saved_file_path = exporter.export_to_file(mzqc_metrics, filename="quantms_qc.mzQC")
-            self.log.info(f"mzQC: Generated output saved directly to: {saved_file_path}")
+            log.info(f"mzQC: Generated output saved directly to: {saved_file_path}")
             
         except Exception as e:
-            self.log.warning(f"mzQC: Metric extraction or export failed: {e}")
+            log.warning(f"mzQC: Metric extraction or export failed: {e}")
 
     def calculate_heatmap(self):
 
