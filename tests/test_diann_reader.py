@@ -265,3 +265,24 @@ def test_dia_utils_imports_cleanly_first():
     code = "import pmultiqc.modules.common.dia_utils as d; import pmultiqc.modules.common.plots.dia; print(callable(d.run_to_sample_codes))"
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert out.returncode == 0 and out.stdout.strip() == "True", out.stderr[-800:]
+
+
+def test_peptide_length_matches_string_implementation():
+    import numpy as np
+    from pmultiqc.modules.common import dia_utils
+
+    rng = np.random.default_rng(11)
+    n = 5000
+    seqs = [("PEPTIDE" * rng.integers(1, 4))[: rng.integers(5, 20)] for _ in range(60)]
+    df = pd.DataFrame({
+        "Run": pd.Categorical(rng.choice([f"r{i}" for i in range(7)], n)),
+        "Stripped.Sequence": pd.Categorical(rng.choice(seqs, n)),
+    })
+    # reference: the previous implementation
+    ref_sub = df[["Run", "Stripped.Sequence"]].copy()
+    ref_sub["length"] = ref_sub["Stripped.Sequence"].astype(str).str.len()
+    expected = {run: g["length"].value_counts().sort_index().to_dict() for run, g in ref_sub.groupby("Run", observed=True)}
+    got = dia_utils._get_peptide_length(df)
+    assert set(got) == set(expected)
+    for run in expected:
+        assert {int(k): int(v) for k, v in got[run].items()} == {int(k): int(v) for k, v in expected[run].items()}, run
