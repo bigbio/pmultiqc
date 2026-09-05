@@ -5,6 +5,9 @@ from multiqc.plots import heatmap, box, bargraph, linegraph
 
 from pmultiqc.modules.common.plots.general import (
     summarise_box_data,
+    box_stats_by_group,
+    run_to_sample_codes,
+    FLAT_THRESHOLD,
     plot_html_check,
     plot_data_check
 )
@@ -75,38 +78,50 @@ def draw_heatmap(sub_section, hm_colors, heatmap_data):
 # Intensity Distribution
 def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
 
-    df_sub = df[["Run", "Modified.Sequence", "Protein.Group", "log_intensity"]].copy()
+    large = len(df) >= FLAT_THRESHOLD
 
     if not sdrf_file_df.empty:
-
-        df_sub = df_sub.merge(
-            sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-            on="Run"
+        run_to_sample = (
+            sdrf_file_df[["Sample", "Run"]].drop_duplicates().set_index("Run")["Sample"].astype(int)
         )
-
-        df_sub["Sample"] = df_sub["Sample"].astype(int)
-
-        box_data = [
-            {
-                (
-                    f"Sample {str(run)}"
-                    if data_type == "Sample"
-                    else str(run)
-                ): group["log_intensity"].dropna().tolist()
-                for run, group in df_sub.groupby(data_type, sort=True, observed=True)
-            }
-            for data_type in ["Run", "Sample"]
-        ]
+        if large:
+            # No merge and no per-group lists. On PXD030304 the merge upcast the
+            # categorical Run key to object for 231 M rows and the float lists
+            # were built twice (by run, by sample), both alive at once: the
+            # spike that OOM-killed the summary at 72 GB (bigbio/pmultiqc#717).
+            # Map Run->Sample on the key and aggregate.
+            sample = df["Run"].astype(object).map(run_to_sample)
+            keep = sample.notna()
+            by_sample = df.loc[keep, ["log_intensity"]].assign(Sample=sample[keep].astype(int).to_numpy())
+            box_data = [
+                box_stats_by_group(df, "log_intensity", "Run"),
+                box_stats_by_group(by_sample, "log_intensity", "Sample", label=lambda k: f"Sample {int(k)}"),
+            ]
+        else:
+            df_sub = df[["Run", "log_intensity"]].copy()
+            df_sub["Sample"] = df_sub["Run"].astype(object).map(run_to_sample)
+            df_sub = df_sub[df_sub["Sample"].notna()]
+            df_sub["Sample"] = df_sub["Sample"].astype(int)
+            box_data = [
+                {
+                    (f"Sample {str(run)}" if data_type == "Sample" else str(run)): group["log_intensity"].dropna().tolist()
+                    for run, group in df_sub.groupby(data_type, sort=True, observed=True)
+                }
+                for data_type in ["Run", "Sample"]
+            ]
 
         plot_label = ["by Run", "by Sample"]
 
     else:
-        box_data = [
-            {
-                str(run): group["log_intensity"].dropna().tolist()
-                for run, group in df.groupby("Run", observed=True)
-            }
-        ]
+        if large:
+            box_data = [box_stats_by_group(df, "log_intensity", "Run")]
+        else:
+            box_data = [
+                {
+                    str(run): group["log_intensity"].dropna().tolist()
+                    for run, group in df.groupby("Run", observed=True)
+                }
+            ]
         plot_label = ["by Run"]
 
     draw_config = {
@@ -149,10 +164,14 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
 # Ms1.Area non-normalised MS1 peak area
 def draw_dia_ms1_area(sub_section, df):
 
-    box_data = {
-        str(run): group["log_ms1_area"].dropna().tolist()
-        for run, group in df.groupby("Run", observed=True)
-    }
+    if len(df) >= FLAT_THRESHOLD:
+        # No per-run Python lists on large reports (bigbio/pmultiqc#717).
+        box_data = box_stats_by_group(df, "log_ms1_area", "Run")
+    else:
+        box_data = {
+            str(run): group["log_ms1_area"].dropna().tolist()
+            for run, group in df.groupby("Run", observed=True)
+        }
 
     draw_config = {
         "id": "ms1_area_distribution_box",

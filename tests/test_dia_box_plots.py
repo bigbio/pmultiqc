@@ -55,3 +55,36 @@ def test_intensity_std_uses_summary_stats_above_threshold(capture_box, monkeypat
     ds = data[0] if isinstance(data, list) else data
     assert isinstance(ds["Sample 1"], dict)
     assert {"min", "q1", "median", "q3", "max", "mean"} <= set(ds["Sample 1"])
+
+
+def test_box_stats_by_group_matches_summarise_box_data():
+    """Vectorised per-group statistics must equal the list-based summary (#717)."""
+    rng = np.random.default_rng(7)
+    n = general.FLAT_THRESHOLD + 500
+    keys = rng.choice([f"r{i}" for i in range(12)], n)
+    vals = np.concatenate([rng.normal(20, 2, n - 40), np.full(20, 20.0), rng.normal(20, 40, 20)])  # ties + outliers
+    vals[:5] = np.nan
+    df = pd.DataFrame({"Run": pd.Categorical(keys), "x": vals})
+    lists = {str(k): g["x"].dropna().tolist() for k, g in df.groupby("Run", observed=True)}
+    expected = general.summarise_box_data(lists)
+    got = general.box_stats_by_group(df, "x", "Run")
+    assert got.keys() == expected.keys()
+    for k in expected:
+        for stat in ("min", "q1", "median", "q3", "max", "mean"):
+            assert np.isclose(got[k][stat], expected[k][stat]), (k, stat, got[k][stat], expected[k][stat])
+
+
+def test_intensity_dis_by_sample_without_merge(capture_box):
+    n = general.FLAT_THRESHOLD + 10
+    df = pd.DataFrame({
+        "Run": pd.Categorical(np.repeat(["a", "b"], n // 2)),
+        "Modified.Sequence": pd.Categorical(["P"] * n),
+        "Protein.Group": pd.Categorical(["G"] * n),
+        "log_intensity": np.linspace(10, 30, n),
+    })
+    sdrf = pd.DataFrame({"Run": ["a", "b"], "Sample": [1, 1]})
+    dia_plots.draw_dia_intensity_dis(None, df, sdrf)
+    (data,) = capture_box
+    assert isinstance(data, list) and len(data) == 2
+    assert set(data[0]) == {"a", "b"} and set(data[1]) == {"Sample 1"}
+    assert all(isinstance(v, dict) for ds in data for v in ds.values())
