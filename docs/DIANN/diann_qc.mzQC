@@ -1,0 +1,619 @@
+{
+  "mzQC": {
+    "version": "1.0.0",
+    "creationDate": "2026-09-06T06:06:36.415026",
+    "controlledVocabularies": [
+      {
+        "name": "PSI-MS Quality Control Ontology",
+        "uri": "https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo",
+        "version": "4.1.130"
+      }
+    ],
+    "runQuality": [
+      {
+        "metadata": {
+          "inputFiles": [
+            {
+              "name": "MaxQuant Output Directory",
+              "fileFormat": {
+                "accession": "MS:1000584",
+                "name": "mzML file"
+              },
+              "location": "local://run_data"
+            }
+          ],
+          "analysisSoftware": [
+            {
+              "accession": "MS:1002298",
+              "name": "MaxQuant",
+              "version": "1.6.x (or later)",
+              "uri": "https://www.maxquant.org"
+            }
+          ]
+        },
+        "qualityMetrics": [
+          {
+            "accession": "MS:1000000",
+            "name": "peptide id count",
+            "value": 3725
+          },
+          {
+            "accession": "MS:1003327",
+            "name": "number of identified protein groups",
+            "value": 767
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "psm count",
+            "value": [
+              "20221028_FL_Lu_SV_Set12_A1",
+              "20221028_FL_Lu_SV_Set12_A2",
+              "20221028_FL_Lu_SV_Set12_A3",
+              "20221028_FL_Lu_SV_Set12_A4",
+              "20221028_FL_Lu_SV_Set12_A5",
+              "20221028_FL_Lu_SV_Set12_A6",
+              "20221028_FL_Lu_SV_Set12_B1",
+              "20221028_FL_Lu_SV_Set12_B2",
+              "20221028_FL_Lu_SV_Set12_B3",
+              "20221028_FL_Lu_SV_Set12_B4",
+              "20221028_FL_Lu_SV_Set12_B5",
+              "20221028_FL_Lu_SV_Set12_B6"
+            ]
+          },
+          {
+            "accession": "MS:4000222",
+            "name": "peptide amino acid length distribution",
+            "value": {
+              "20221028_FL_Lu_SV_Set12_A1": {
+                "7": 176,
+                "8": 309,
+                "9": 349,
+                "10": 343,
+                "11": 329,
+                "12": 341,
+                "13": 255,
+                "14": 227,
+                "15": 206,
+                "16": 158,
+                "17": 108,
+                "18": 98,
+                "19": 76,
+                "20": 62,
+                "21": 35,
+                "22": 36,
+                "23": 41,
+                "24": 31,
+                "25": 26,
+                "26": 29,
+                "27": 25,
+                "28": 13,
+                "29": 13,
+                "30": 6
+              },
+              "20221028_FL_Lu_SV_Set12_A2": {
+                "7": 181,
+                "8": 301,
+                "9": 369,
+                "10": 342,
+                "11": 317,
+                "12": 344,
+                "13": 254,
+                "14": 223,
+                "15": 206,
+                "16": 151,
+                "17": 111,
+                "18": 100,
+                "19": 75,
+                "20": 68,
+                "21": 32,
+                "22": 39,
+                "23": 43,
+                "24": 33,
+                "25": 25,
+                "26": 30,
+                "27": 25,
+                "28": 13,
+                "29": 13,
+                "30": 8
+              },
+              "20221028_FL_Lu_SV_Set12_A3": {
+                "7": 145,
+                "8": 261,
+                "9": 304,
+                "10": 280,
+                "11": 289,
+                "12": 299,
+                "13": 234,
+                "14": 184,
+                "15": 192,
+                "16": 135,
+                "17": 96,
+                "18": 90,
+                "19": 76,
+                "20": 65,
+                "21": 32,
+                "22": 38,
+                "23": 38,
+                "24": 32,
+                "25": 24,
+                "26": 30,
+                "27": 28,
+                "28": 14,
+                "29": 12,
+                "30": 6
+              },
+              "20221028_FL_Lu_SV_Set12_A4": {
+                "7": 187,
+                "8": 340,
+                "9": 390,
+                "10": 359,
+                "11": 352,
+                "12": 350,
+                "13": 269,
+                "14": 221,
+                "15": 212,
+                "16": 157,
+                "17": 104,
+                "18": 98,
+                "19": 76,
+                "20": 67,
+                "21": 31,
+                "22": 37,
+                "23": 41,
+                "24": 32,
+                "25": 27,
+                "26": 28,
+                "27": 29,
+                "28": 14,
+                "29": 13,
+                "30": 6
+              },
+              "20221028_FL_Lu_SV_Set12_A5": {
+                "7": 183,
+                "8": 321,
+                "9": 395,
+                "10": 363,
+                "11": 338,
+                "12": 350,
+                "13": 262,
+                "14": 223,
+                "15": 206,
+                "16": 152,
+                "17": 105,
+                "18": 97,
+                "19": 75,
+                "20": 63,
+                "21": 29,
+                "22": 35,
+                "23": 40,
+                "24": 30,
+                "25": 24,
+                "26": 29,
+                "27": 25,
+                "28": 13,
+                "29": 12,
+                "30": 6
+              },
+              "20221028_FL_Lu_SV_Set12_A6": {
+                "7": 179,
+                "8": 330,
+                "9": 381,
+                "10": 358,
+                "11": 351,
+                "12": 354,
+                "13": 275,
+                "14": 226,
+                "15": 214,
+                "16": 163,
+                "17": 111,
+                "18": 103,
+                "19": 75,
+                "20": 73,
+                "21": 33,
+                "22": 37,
+                "23": 39,
+                "24": 33,
+                "25": 26,
+                "26": 27,
+                "27": 30,
+                "28": 15,
+                "29": 12,
+                "30": 6
+              },
+              "20221028_FL_Lu_SV_Set12_B1": {
+                "7": 157,
+                "8": 260,
+                "9": 338,
+                "10": 288,
+                "11": 288,
+                "12": 303,
+                "13": 248,
+                "14": 212,
+                "15": 205,
+                "16": 145,
+                "17": 111,
+                "18": 89,
+                "19": 71,
+                "20": 67,
+                "21": 31,
+                "22": 39,
+                "23": 39,
+                "24": 32,
+                "25": 25,
+                "26": 26,
+                "27": 27,
+                "28": 14,
+                "29": 14,
+                "30": 9
+              },
+              "20221028_FL_Lu_SV_Set12_B2": {
+                "7": 172,
+                "8": 296,
+                "9": 373,
+                "10": 321,
+                "11": 332,
+                "12": 324,
+                "13": 245,
+                "14": 209,
+                "15": 200,
+                "16": 139,
+                "17": 102,
+                "18": 89,
+                "19": 73,
+                "20": 63,
+                "21": 28,
+                "22": 37,
+                "23": 43,
+                "24": 32,
+                "25": 26,
+                "26": 24,
+                "27": 27,
+                "28": 13,
+                "29": 13,
+                "30": 7
+              },
+              "20221028_FL_Lu_SV_Set12_B3": {
+                "7": 181,
+                "8": 315,
+                "9": 384,
+                "10": 337,
+                "11": 349,
+                "12": 359,
+                "13": 277,
+                "14": 242,
+                "15": 224,
+                "16": 155,
+                "17": 121,
+                "18": 95,
+                "19": 79,
+                "20": 76,
+                "21": 35,
+                "22": 40,
+                "23": 48,
+                "24": 34,
+                "25": 27,
+                "26": 27,
+                "27": 29,
+                "28": 15,
+                "29": 15,
+                "30": 10
+              },
+              "20221028_FL_Lu_SV_Set12_B4": {
+                "7": 168,
+                "8": 308,
+                "9": 359,
+                "10": 328,
+                "11": 326,
+                "12": 335,
+                "13": 264,
+                "14": 234,
+                "15": 219,
+                "16": 155,
+                "17": 110,
+                "18": 96,
+                "19": 78,
+                "20": 71,
+                "21": 29,
+                "22": 39,
+                "23": 44,
+                "24": 33,
+                "25": 28,
+                "26": 27,
+                "27": 28,
+                "28": 14,
+                "29": 13,
+                "30": 9
+              },
+              "20221028_FL_Lu_SV_Set12_B5": {
+                "7": 135,
+                "8": 220,
+                "9": 283,
+                "10": 252,
+                "11": 259,
+                "12": 266,
+                "13": 222,
+                "14": 194,
+                "15": 185,
+                "16": 130,
+                "17": 93,
+                "18": 87,
+                "19": 69,
+                "20": 67,
+                "21": 26,
+                "22": 38,
+                "23": 41,
+                "24": 33,
+                "25": 25,
+                "26": 26,
+                "27": 26,
+                "28": 15,
+                "29": 12,
+                "30": 7
+              },
+              "20221028_FL_Lu_SV_Set12_B6": {
+                "7": 161,
+                "8": 270,
+                "9": 339,
+                "10": 297,
+                "11": 282,
+                "12": 302,
+                "13": 229,
+                "14": 201,
+                "15": 188,
+                "16": 129,
+                "17": 92,
+                "18": 84,
+                "19": 69,
+                "20": 54,
+                "21": 25,
+                "22": 32,
+                "23": 37,
+                "24": 24,
+                "25": 22,
+                "26": 19,
+                "27": 23,
+                "28": 12,
+                "29": 11,
+                "30": 6
+              }
+            }
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "number of peptides per proteins",
+            "value": {
+              "1": 371,
+              "2": 119,
+              "3": 59,
+              "4": 36,
+              "5": 26,
+              "6": 23,
+              "7": 24,
+              "8": 14,
+              "9": 10,
+              "10": 13,
+              "11": 4,
+              "12": 7,
+              "13": 9,
+              "14": 6,
+              "15": 3,
+              "16": 5,
+              "17": 2,
+              "18": 3,
+              "19": 2,
+              "20": 4,
+              "22": 3,
+              "23": 1,
+              "24": 3,
+              "25": 1,
+              "26": 1,
+              "27": 3,
+              "28": 1,
+              "29": 1,
+              "31": 2,
+              "34": 1,
+              "43": 1,
+              "49": 1,
+              "54": 1,
+              "55": 1,
+              "63": 1,
+              "67": 1,
+              "84": 1,
+              "93": 1,
+              "197": 1,
+              "216": 1
+            }
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "modifications",
+            "value": {
+              "plot_data": [
+                {
+                  "20221028_FL_Lu_SV_Set12_A1": {
+                    "Modified (Total)": 14.002089864158833,
+                    "Carbamidomethyl": 14.00208986415883
+                  },
+                  "20221028_FL_Lu_SV_Set12_A2": {
+                    "Modified (Total)": 13.660062565172055,
+                    "Carbamidomethyl": 13.660062565172055
+                  },
+                  "20221028_FL_Lu_SV_Set12_A3": {
+                    "Modified (Total)": 13.370473537604454,
+                    "Carbamidomethyl": 13.370473537604457
+                  },
+                  "20221028_FL_Lu_SV_Set12_A4": {
+                    "Modified (Total)": 13.695434855048319,
+                    "Carbamidomethyl": 13.695434855048315
+                  },
+                  "20221028_FL_Lu_SV_Set12_A5": {
+                    "Modified (Total)": 14.042842570554242,
+                    "Carbamidomethyl": 14.042842570554233
+                  },
+                  "20221028_FL_Lu_SV_Set12_A6": {
+                    "Modified (Total)": 13.874172185430467,
+                    "Carbamidomethyl": 13.874172185430464
+                  },
+                  "20221028_FL_Lu_SV_Set12_B1": {
+                    "Modified (Total)": 13.252555850056808,
+                    "Carbamidomethyl": 13.252555850056796
+                  },
+                  "20221028_FL_Lu_SV_Set12_B2": {
+                    "Modified (Total)": 13.05133767172812,
+                    "Carbamidomethyl": 13.051337671728128
+                  },
+                  "20221028_FL_Lu_SV_Set12_B3": {
+                    "Modified (Total)": 13.40782122905027,
+                    "Carbamidomethyl": 13.40782122905028
+                  },
+                  "20221028_FL_Lu_SV_Set12_B4": {
+                    "Modified (Total)": 13.404918600623489,
+                    "Carbamidomethyl": 13.404918600623484
+                  },
+                  "20221028_FL_Lu_SV_Set12_B5": {
+                    "Modified (Total)": 13.398972602739718,
+                    "Carbamidomethyl": 13.398972602739725
+                  },
+                  "20221028_FL_Lu_SV_Set12_B6": {
+                    "Modified (Total)": 13.508144616607069,
+                    "Carbamidomethyl": 13.50814461660707
+                  }
+                },
+                {
+                  "Sample 1": {
+                    "Modified (Total)": 13.783893630610237,
+                    "Carbamidomethyl": 13.78389363061023
+                  },
+                  "Sample 2": {
+                    "Modified (Total)": 13.33539221741816,
+                    "Carbamidomethyl": 13.33539221741816
+                  }
+                }
+              ],
+              "cats": [
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)"
+              ]
+            }
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "identification summary table",
+            "value": {
+              "sdrf_samples": {
+                "1": {
+                  "protein_num": 711,
+                  "peptide_num": 3501,
+                  "unique_peptide_num": 3157,
+                  "modified_peptide_num": 477
+                },
+                "2": {
+                  "protein_num": 717,
+                  "peptide_num": 3433,
+                  "unique_peptide_num": 3073,
+                  "modified_peptide_num": 447
+                }
+              },
+              "ms_runs": {
+                "20221028_FL_Lu_SV_Set12_A1": {
+                  "protein_num": 557,
+                  "peptide_num": 2871,
+                  "unique_peptide_num": 2579,
+                  "modified_peptide_num": 402
+                },
+                "20221028_FL_Lu_SV_Set12_A2": {
+                  "protein_num": 548,
+                  "peptide_num": 2877,
+                  "unique_peptide_num": 2587,
+                  "modified_peptide_num": 393
+                },
+                "20221028_FL_Lu_SV_Set12_A3": {
+                  "protein_num": 481,
+                  "peptide_num": 2513,
+                  "unique_peptide_num": 2250,
+                  "modified_peptide_num": 336
+                },
+                "20221028_FL_Lu_SV_Set12_A4": {
+                  "protein_num": 590,
+                  "peptide_num": 3001,
+                  "unique_peptide_num": 2697,
+                  "modified_peptide_num": 411
+                },
+                "20221028_FL_Lu_SV_Set12_A5": {
+                  "protein_num": 578,
+                  "peptide_num": 2941,
+                  "unique_peptide_num": 2647,
+                  "modified_peptide_num": 413
+                },
+                "20221028_FL_Lu_SV_Set12_A6": {
+                  "protein_num": 593,
+                  "peptide_num": 3020,
+                  "unique_peptide_num": 2723,
+                  "modified_peptide_num": 419
+                },
+                "20221028_FL_Lu_SV_Set12_B1": {
+                  "protein_num": 522,
+                  "peptide_num": 2641,
+                  "unique_peptide_num": 2335,
+                  "modified_peptide_num": 350
+                },
+                "20221028_FL_Lu_SV_Set12_B2": {
+                  "protein_num": 563,
+                  "peptide_num": 2766,
+                  "unique_peptide_num": 2452,
+                  "modified_peptide_num": 361
+                },
+                "20221028_FL_Lu_SV_Set12_B3": {
+                  "protein_num": 615,
+                  "peptide_num": 3043,
+                  "unique_peptide_num": 2706,
+                  "modified_peptide_num": 408
+                },
+                "20221028_FL_Lu_SV_Set12_B4": {
+                  "protein_num": 580,
+                  "peptide_num": 2887,
+                  "unique_peptide_num": 2571,
+                  "modified_peptide_num": 387
+                },
+                "20221028_FL_Lu_SV_Set12_B5": {
+                  "protein_num": 456,
+                  "peptide_num": 2336,
+                  "unique_peptide_num": 2045,
+                  "modified_peptide_num": 313
+                },
+                "20221028_FL_Lu_SV_Set12_B6": {
+                  "protein_num": 509,
+                  "peptide_num": 2517,
+                  "unique_peptide_num": 2223,
+                  "modified_peptide_num": 340
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
