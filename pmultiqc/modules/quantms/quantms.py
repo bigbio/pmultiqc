@@ -664,8 +664,15 @@ class QuantMSModule(BasePMultiqcModule):
             name="draw_quantms_time_section"
         )
 
-        if self.qpx_source is None and self.msstats_input_valid:
+        # parse_msstats_input only builds the peptide/protein quantification
+        # tables. Do not read the MSstats input when tables are disabled: on
+        # PXD030304 it is a 20.6 GiB, 231 M-row CSV that pd.read_csv turned
+        # into 93 GB of Python strings for output that was then discarded
+        # (bigbio/pmultiqc#717).
+        if self.qpx_source is None and self.msstats_input_valid and not config.kwargs.get("disable_table", False):
             self.parse_msstats_input()
+        elif self.msstats_input_valid and config.kwargs.get("disable_table", False):
+            log.info("Tables disabled; skipping the MSstats input parse.")
         quant_method = config.kwargs.get("quantification_method", None)
 
         if (

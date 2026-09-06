@@ -1,5 +1,6 @@
 import itertools
 import numpy as np
+from pmultiqc.modules.common.plots.general import run_to_sample_codes
 import pandas as pd
 import re
 from collections import OrderedDict
@@ -346,8 +347,7 @@ def _sample_identification_counts(report_data: pd.DataFrame, file_df: pd.DataFra
     """Counts per sample, de-duplicated across the sample's runs (what the per-run sets used to feed)."""
     if file_df is None or file_df.empty or not {"Sample", "Run"} <= set(file_df.columns):
         return dict()
-    run_to_sample = file_df[["Run", "Sample"]].drop_duplicates().set_index("Run")["Sample"].astype(int)
-    sample = report_data["Run"].astype(str).map(run_to_sample)
+    sample = run_to_sample_codes(report_data["Run"], file_df)
     keep = sample.notna()
     if not keep.any():
         return dict()
@@ -402,23 +402,36 @@ def _handle_files_without_psm(ms_paths, ms_with_psm, cal_num_table_data):
 
 
 def _get_peptide_length(df):
+    """{run: {length: count}} without materialising the sequences.
 
+    ``.str.len()`` on the categorical column converts every row back to a
+    Python string (231 M on PXD030304) and the per-run value_counts loop runs
+    5,798 times - a transient that OOM-killed the summary after mod_plot_dict
+    with no log line of its own (bigbio/pmultiqc#717). Length is computed once
+    per distinct sequence and broadcast through the codes; the histogram is a
+    single grouped size.
+    """
     if "Stripped.Sequence" not in df.columns:
         return None
-
-    df_sub = df[["Run", "Stripped.Sequence"]].copy()
-    df_sub["length"] = df_sub["Stripped.Sequence"].str.len()
-
+    seqs = df["Stripped.Sequence"]
+    if isinstance(seqs.dtype, pd.CategoricalDtype):
+        per_category = seqs.cat.categories.astype(str).str.len().to_numpy()
+        codes = seqs.cat.codes.to_numpy()
+        lengths = np.where(codes >= 0, per_category[np.clip(codes, 0, None)], -1)
+    else:
+        lengths = seqs.astype(str).str.len().to_numpy()
+    hist = (
+        pd.DataFrame({"Run": df["Run"].to_numpy() if not hasattr(df["Run"], "cat") else df["Run"].cat.codes.to_numpy(), "length": lengths})
+        .query("length >= 0")
+        .groupby(["Run", "length"], sort=True)
+        .size()
+    )
+    run_labels = df["Run"].cat.categories if hasattr(df["Run"], "cat") else None
     plot_data = {}
-    for run, group in df_sub.groupby("Run", observed=True):
-        stats_dict = group["length"].value_counts().sort_index().to_dict()
-        plot_data[run] = stats_dict
-
+    for (run, length), count in hist.items():
+        key = run_labels[run] if run_labels is not None else run
+        plot_data.setdefault(key, {})[int(length)] = int(count)
     return plot_data
-
-
-## Removed draw_dia_heatmap wrapper; call cal_dia_heatmap and dia_plots.draw_heatmap directly.
-
 
 def draw_dia_intensitys(sub_section, report_df, sdrf_file_df):
     """Draw the precursor intensity distribution and standard-deviation plots."""
@@ -1070,14 +1083,14 @@ def dia_sample_level_modifications(df, sdrf_file_df):
     if sdrf_file_df is None or sdrf_file_df.empty:
         return {}
 
-    report_data = df.copy()
-
-    report_data = report_data.merge(
-        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-        on="Run"
-    )
-
-    report_data["Sample"] = report_data["Sample"].astype(int)
+    # No merge: it upcast the categorical Run key to object for every row and
+    # was the transient that OOM-killed the summary in this stage (#717).
+    sample = run_to_sample_codes(df["Run"], sdrf_file_df)
+    keep = sample.notna()
+    # Keep Run: drop_duplicates below counts a peptidoform once per run within a
+    # sample, as the merge-based version did.
+    report_data = df.loc[keep, ["Run", "Modified.Sequence", "Modifications", "Protein.Group"]].copy()
+    report_data["Sample"] = sample[keep].astype(int).to_numpy()
 
     mod_plot = dict()
     for sample, group in report_data.groupby("Sample", sort=True, observed=True):
