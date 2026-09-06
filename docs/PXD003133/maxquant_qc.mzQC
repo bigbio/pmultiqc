@@ -1,7 +1,7 @@
 {
   "mzQC": {
     "version": "1.0.0",
-    "creationDate": "2026-09-06T06:06:49.969623",
+    "creationDate": "2026-09-06T07:04:10.820897",
     "controlledVocabularies": [
       {
         "name": "PSI-MS Quality Control Ontology",
@@ -11557,7 +11557,7 @@
                   27.189522063873078,
                   21.541228987439382,
                   20.80860602002287,
-                  22.194152062498915,
+                  22.19415206249892,
                   20.457637380991763,
                   27.927561785943166,
                   26.504685535233484,
@@ -14254,7 +14254,7 @@
                   24.691203801137608,
                   26.505003691567463,
                   23.391917974631784,
-                  24.226042284477302,
+                  24.226042284477305,
                   25.621818029822556,
                   22.511448650650372,
                   26.513537379541585,
@@ -23436,20 +23436,20 @@
             "name": "identified MS1 feature area principal component analysis result",
             "value": {
               "intensity e323_1": {
-                "x": 87.03153827431417,
-                "y": -19.425383521530804
+                "x": 87.03153827431413,
+                "y": -19.425383521530822
               },
               "intensity e521_1": {
-                "x": -45.78870335639073,
-                "y": -20.06735751848496
+                "x": -45.7887033563907,
+                "y": -20.06735751848499
               },
               "intensity e521_2": {
-                "x": -41.75765639930412,
-                "y": -17.775892379947955
+                "x": -41.757656399304096,
+                "y": -17.775892379947962
               },
               "intensity e522_1": {
-                "x": 0.5148214813808091,
-                "y": 57.26863341996373
+                "x": 0.5148214813808161,
+                "y": 57.2686334199639
               }
             }
           },
@@ -23458,20 +23458,20 @@
             "name": "principal component analysis of MaxQuant's protein group lfq intensities",
             "value": {
               "lfq intensity e323_1": {
-                "x": -87.79706449565685,
-                "y": 5.009103643742345
+                "x": -87.79706449565725,
+                "y": 5.009103643742664
               },
               "lfq intensity e521_1": {
-                "x": 26.25762036338905,
-                "y": -26.20297870623946
+                "x": 26.257620363388945,
+                "y": -26.20297870623945
               },
               "lfq intensity e521_2": {
-                "x": 25.14729916716773,
-                "y": -31.70536045522565
+                "x": 25.147299167167564,
+                "y": -31.70536045522563
               },
               "lfq intensity e522_1": {
-                "x": 36.39214496510002,
-                "y": 52.89923551772257
+                "x": 36.392144965100506,
+                "y": 52.89923551772244
               }
             }
           },
@@ -112126,7 +112126,7 @@
                   24.721819308159404,
                   24.457386891358198,
                   19.751073265366106,
-                  29.30258283374882,
+                  29.302582833748822,
                   26.196855426889346,
                   19.628274648575864,
                   19.387260075508944,
@@ -128021,7 +128021,7 @@
                   20.92034413166192,
                   21.056161394729997,
                   21.79914879152668,
-                  24.194152062498915,
+                  24.19415206249892,
                   22.166989291961613,
                   22.77818223022048,
                   21.704003239103514,
@@ -128031,7 +128031,7 @@
                   26.46454001708066,
                   21.616746253210252,
                   23.478771594081106,
-                  24.194152062498915,
+                  24.19415206249892,
                   22.65068628188318,
                   23.407690989204326,
                   20.50047624345157,
@@ -164000,7 +164000,7 @@
                   22.843720206487028,
                   22.963122566245236,
                   21.42321646776695,
-                  26.226042284477302,
+                  26.226042284477305,
                   23.511352128326692,
                   19.828499121077048,
                   23.411575120710165,
@@ -177568,7 +177568,7 @@
                 "ProteinName": "Q8NI27",
                 "PeptideSequence": "AAAAVVVPAEWIK",
                 "BestSearchScore": 59.227,
-                "Average Intensity": 6.583644556842204
+                "Average Intensity": 6.583644556842205
               },
               "24": {
                 "ProteinName": "P30153",
@@ -178000,7 +178000,7 @@
                 "ProteinName": "UniRef100_E0TL77;UniRef100_K7X3A6",
                 "PeptideSequence": "AAELVLIAK",
                 "BestSearchScore": 101.46,
-                "Average Intensity": 6.50662678014624
+                "Average Intensity": 6.506626780146239
               },
               "96": {
                 "ProteinName": "P35606",
@@ -178372,7 +178372,7 @@
                 "ProteinName": "P50479;P50479-2",
                 "PeptideSequence": "AALAALCPGDLIQAINGESTELMTHLEAQNR",
                 "BestSearchScore": 51.264,
-                "Average Intensity": 6.561351865910293
+                "Average Intensity": 6.561351865910294
               },
               "158": {
                 "ProteinName": "Q96SY0-4;Q96SY0-3;Q96SY0",
@@ -178678,7 +178678,7 @@
                 "ProteinName": "Q9Y490",
                 "PeptideSequence": "AAMEPIVISAK",
                 "BestSearchScore": 76.332,
-                "Average Intensity": 6.593821219310449
+                "Average Intensity": 6.59382121931045
               },
               "209": {
                 "ProteinName": "Q9Y4Y9",
@@ -178852,7 +178852,7 @@
                 "ProteinName": "P11586",
                 "PeptideSequence": "AAQAPSSFQLLYDLK",
                 "BestSearchScore": 111.78,
-                "Average Intensity": 6.910461647347363
+                "Average Intensity": 6.910461647347364
               },
               "238": {
                 "ProteinName": "P11586",
@@ -179626,7 +179626,7 @@
                 "ProteinName": "P52272-2;P52272",
                 "PeptideSequence": "ACQIFVR",
                 "BestSearchScore": 119.57,
-                "Average Intensity": 7.755749120649414
+                "Average Intensity": 7.755749120649415
               },
               "367": {
                 "ProteinName": "P61247",
@@ -179698,7 +179698,7 @@
                 "ProteinName": "Q9Y6C9",
                 "PeptideSequence": "ADAASQVLLGSGLTILSQPLMYVK",
                 "BestSearchScore": 125.11,
-                "Average Intensity": 6.292668565947173
+                "Average Intensity": 6.2926685659471735
               },
               "379": {
                 "ProteinName": "Q9H8Y8;Q9H8Y8-2",
@@ -179812,7 +179812,7 @@
                 "ProteinName": "O43290",
                 "PeptideSequence": "ADDLLPLGDQTQDGDFGSR",
                 "BestSearchScore": 104.81,
-                "Average Intensity": 6.143077284173619
+                "Average Intensity": 6.14307728417362
               },
               "398": {
                 "ProteinName": "P62495",
@@ -180664,7 +180664,7 @@
                 "ProteinName": "UniRef100_G8XJX2;UniRef100_F4HHM6;UniRef100_E0TKX2",
                 "PeptideSequence": "AEAPAIIFIDELDAIGR",
                 "BestSearchScore": 151.59,
-                "Average Intensity": 6.261602692348097
+                "Average Intensity": 6.261602692348098
               },
               "540": {
                 "ProteinName": "Q09666",
@@ -180694,7 +180694,7 @@
                 "ProteinName": "Q8IV20",
                 "PeptideSequence": "AEAVLIDLFGLK",
                 "BestSearchScore": 77.185,
-                "Average Intensity": 5.0897285330747355
+                "Average Intensity": 5.089728533074736
               },
               "545": {
                 "ProteinName": "P48163",
@@ -180796,7 +180796,7 @@
                 "ProteinName": "P21980;P21980-2;P21980-3",
                 "PeptideSequence": "AEELVLER",
                 "BestSearchScore": 113.66,
-                "Average Intensity": 7.2969173587824
+                "Average Intensity": 7.296917358782401
               },
               "562": {
                 "ProteinName": "O00299",
@@ -181048,7 +181048,7 @@
                 "ProteinName": "P21333-2;P21333",
                 "PeptideSequence": "AEISFEDRK",
                 "BestSearchScore": 111.06,
-                "Average Intensity": 7.352048026849467
+                "Average Intensity": 7.352048026849466
               },
               "604": {
                 "ProteinName": "O75369-8;O75369-2;O75369-9;O75369;O75369-6;O75369-3;O75369-7",
@@ -181558,7 +181558,7 @@
                 "ProteinName": "Q00059",
                 "PeptideSequence": "AEWQVYK",
                 "BestSearchScore": 83.753,
-                "Average Intensity": 6.169543655882858
+                "Average Intensity": 6.169543655882859
               },
               "689": {
                 "ProteinName": "P22234;P22234-2",
@@ -182032,13 +182032,13 @@
                 "ProteinName": "P09211;CONTAMINANT_sp|GSTP1_HUMAN|",
                 "PeptideSequence": "AFLASPEYVNLPINGNGK",
                 "BestSearchScore": 168.05,
-                "Average Intensity": 6.923108388397209
+                "Average Intensity": 6.9231083883972095
               },
               "768": {
                 "ProteinName": "P09211;CONTAMINANT_sp|GSTP1_HUMAN|",
                 "PeptideSequence": "AFLASPEYVNLPINGNGKQ",
                 "BestSearchScore": 180.93,
-                "Average Intensity": 7.199488459394583
+                "Average Intensity": 7.1994884593945825
               },
               "769": {
                 "ProteinName": "Q12931",
@@ -182086,7 +182086,7 @@
                 "ProteinName": "P53041",
                 "PeptideSequence": "AFLEENNLDYIIR",
                 "BestSearchScore": 89.46,
-                "Average Intensity": 6.6186232866463826
+                "Average Intensity": 6.618623286646383
               },
               "777": {
                 "ProteinName": "P78527;P78527-2",
@@ -182236,7 +182236,7 @@
                 "ProteinName": "P50453",
                 "PeptideSequence": "AFQSLLTEVNK",
                 "BestSearchScore": 145.81,
-                "Average Intensity": 7.050242446453042
+                "Average Intensity": 7.0502424464530415
               },
               "802": {
                 "ProteinName": "P30048",
@@ -182704,7 +182704,7 @@
                 "ProteinName": "Q9H9Q2;Q9H9Q2-3",
                 "PeptideSequence": "AGEQKPSSNLLEQFILLAK",
                 "BestSearchScore": 80.585,
-                "Average Intensity": 5.974437999192519
+                "Average Intensity": 5.97443799919252
               },
               "880": {
                 "ProteinName": "Q5VYK3",
@@ -183250,7 +183250,7 @@
                 "ProteinName": "Q15149;Q15149-7;Q15149-8;Q15149-9;Q15149-5;Q15149-6;Q15149-2;Q15149-3;Q15149-4",
                 "PeptideSequence": "AGLVGPEFHEK",
                 "BestSearchScore": 104.22,
-                "Average Intensity": 7.503763453709425
+                "Average Intensity": 7.503763453709424
               },
               "971": {
                 "ProteinName": "Q92945;Q96AE4;Q96AE4-2",
@@ -183688,7 +183688,7 @@
                 "ProteinName": "Q96DG6",
                 "PeptideSequence": "AGVSVYGIVK",
                 "BestSearchScore": 94.409,
-                "Average Intensity": 6.523421274372632
+                "Average Intensity": 6.523421274372631
               },
               "1044": {
                 "ProteinName": "Q15149;Q15149-7;Q15149-8;Q15149-9;Q15149-5;Q15149-6;Q15149-2;Q15149-3;Q15149-4",
@@ -186322,7 +186322,7 @@
                 "ProteinName": "P54727;P54727-2",
                 "PeptideSequence": "ALGFPEGLVIQAYFACEK",
                 "BestSearchScore": 119.92,
-                "Average Intensity": 6.094008986376728
+                "Average Intensity": 6.094008986376729
               },
               "1483": {
                 "ProteinName": "O43615",
@@ -186706,7 +186706,7 @@
                 "ProteinName": "Q16775-2;Q16775",
                 "PeptideSequence": "ALLEVLGR",
                 "BestSearchScore": 119.29,
-                "Average Intensity": 5.9829549345919055
+                "Average Intensity": 5.982954934591905
               },
               "1547": {
                 "ProteinName": "O14818;O14818-2;Q8TAA3-2;Q8TAA3-5;Q8TAA3",
@@ -187066,7 +187066,7 @@
                 "ProteinName": "Q7L576;Q7L576-2;Q7L576-3",
                 "PeptideSequence": "ALNLAYSSIYGSYR",
                 "BestSearchScore": 64.04,
-                "Average Intensity": 5.936473528165062
+                "Average Intensity": 5.936473528165063
               },
               "1607": {
                 "ProteinName": "P43246;P43246-2",
@@ -187402,7 +187402,7 @@
                 "ProteinName": "Q8NE71-2;Q8NE71",
                 "PeptideSequence": "ALSIPPNIDVLLCEQEVVADETPAVQAVLR",
                 "BestSearchScore": 59.083,
-                "Average Intensity": 6.3752245260658
+                "Average Intensity": 6.375224526065799
               },
               "1663": {
                 "ProteinName": "Q68CZ2;Q68CZ2-2",
@@ -187414,7 +187414,7 @@
                 "ProteinName": "Q9Y696",
                 "PeptideSequence": "ALSMPLNGLKEEDKEPLIELFVK",
                 "BestSearchScore": 86.539,
-                "Average Intensity": 6.922978333653317
+                "Average Intensity": 6.922978333653316
               },
               "1665": {
                 "ProteinName": "Q96QU8",
@@ -188140,7 +188140,7 @@
                 "ProteinName": "Q9BZQ8",
                 "PeptideSequence": "AMVAQPAEK",
                 "BestSearchScore": 86.136,
-                "Average Intensity": 7.0757841163042166
+                "Average Intensity": 7.075784116304216
               },
               "1786": {
                 "ProteinName": "P09874",
@@ -188314,7 +188314,7 @@
                 "ProteinName": "P00491",
                 "PeptideSequence": "ANHEEVLAAGK",
                 "BestSearchScore": 99.539,
-                "Average Intensity": 6.238464297173533
+                "Average Intensity": 6.238464297173534
               },
               "1815": {
                 "ProteinName": "Q9H9B4",
@@ -188350,7 +188350,7 @@
                 "ProteinName": "UniRef100_F4HHV4;UniRef100_E0TKH4;UniRef100_K7XZ26",
                 "PeptideSequence": "ANIIMATGFHK",
                 "BestSearchScore": 72.152,
-                "Average Intensity": 7.175908817057779
+                "Average Intensity": 7.17590881705778
               },
               "1821": {
                 "ProteinName": "UniRef100_F4HHK6;UniRef100_G8XI44;UniRef100_E0TKY9",
@@ -188818,7 +188818,7 @@
                 "ProteinName": "P49721",
                 "PeptideSequence": "APFAAHGYGAFLTLSILDR",
                 "BestSearchScore": 173.37,
-                "Average Intensity": 6.919172266510262
+                "Average Intensity": 6.919172266510263
               },
               "1899": {
                 "ProteinName": "UniRef100_G8XJL0",
@@ -188956,7 +188956,7 @@
                 "ProteinName": "P15927;P15927-2;P15927-3",
                 "PeptideSequence": "APISNPGMSEAGNFGGNSFMPANGLTVAQNQVLNLIK",
                 "BestSearchScore": 41.859,
-                "Average Intensity": 6.891046578119591
+                "Average Intensity": 6.8910465781195915
               },
               "1922": {
                 "ProteinName": "P35637-2;P35637",
@@ -189142,7 +189142,7 @@
                 "ProteinName": "Q9Y676",
                 "PeptideSequence": "APSEEDSLSSVPISPYKDEPWK",
                 "BestSearchScore": 59.975,
-                "Average Intensity": 6.461573553902822
+                "Average Intensity": 6.461573553902823
               },
               "1953": {
                 "ProteinName": "Q14315;Q14315-2",
@@ -189646,7 +189646,7 @@
                 "ProteinName": "Q3ZCQ8;Q3ZCQ8-2",
                 "PeptideSequence": "AQGPQQQPGSEGPSYAK",
                 "BestSearchScore": 168.55,
-                "Average Intensity": 6.226720167936268
+                "Average Intensity": 6.226720167936267
               },
               "2037": {
                 "ProteinName": "Q99829",
@@ -189724,7 +189724,7 @@
                 "ProteinName": "Q9NPD8",
                 "PeptideSequence": "AQILGGANTPYEK",
                 "BestSearchScore": 96.135,
-                "Average Intensity": 5.990196731091036
+                "Average Intensity": 5.990196731091037
               },
               "2050": {
                 "ProteinName": "Q00610-2;Q00610",
@@ -191158,7 +191158,7 @@
                 "ProteinName": "P42356",
                 "PeptideSequence": "ASSSAGNLGVLIPVIAVLTR",
                 "BestSearchScore": 52.464,
-                "Average Intensity": 5.4097810091332015
+                "Average Intensity": 5.409781009133202
               },
               "2289": {
                 "ProteinName": "Q6UVK1",
@@ -191518,7 +191518,7 @@
                 "ProteinName": "P61106",
                 "PeptideSequence": "ATAPYNYSYIFK",
                 "BestSearchScore": 72.705,
-                "Average Intensity": 6.827162416902306
+                "Average Intensity": 6.827162416902307
               },
               "2349": {
                 "ProteinName": "Q12979-4;Q12979-2;Q12979",
@@ -191590,7 +191590,7 @@
                 "ProteinName": "Q5SSJ5;Q5SSJ5-5",
                 "PeptideSequence": "ATDTSQGELVHPK",
                 "BestSearchScore": 131.35,
-                "Average Intensity": 6.921435448353485
+                "Average Intensity": 6.921435448353486
               },
               "2361": {
                 "ProteinName": "Q86YP4-2;Q86YP4",
@@ -192244,7 +192244,7 @@
                 "ProteinName": "P46821",
                 "PeptideSequence": "ATVVVEATEPEPSGSIANPAASTSPSLSHR",
                 "BestSearchScore": 87.196,
-                "Average Intensity": 6.601174213628305
+                "Average Intensity": 6.601174213628306
               },
               "2470": {
                 "ProteinName": "O94979-6;O94979-3;O94979-4;O94979-9;O94979-2;O94979;O94979-8;O94979-5",
@@ -192424,7 +192424,7 @@
                 "ProteinName": "Q9NVA2",
                 "PeptideSequence": "AVAVGRPSNEELR",
                 "BestSearchScore": 65.295,
-                "Average Intensity": 7.49392485829927
+                "Average Intensity": 7.493924858299271
               },
               "2500": {
                 "ProteinName": "Q13409-3;Q13409-2;Q13409;Q13409-6;Q13409-5",
@@ -192490,7 +192490,7 @@
                 "ProteinName": "P50990",
                 "PeptideSequence": "AVDDGVNTFK",
                 "BestSearchScore": 82.494,
-                "Average Intensity": 7.513380762892895
+                "Average Intensity": 7.513380762892896
               },
               "2511": {
                 "ProteinName": "Q14204",
@@ -193132,7 +193132,7 @@
                 "ProteinName": "P50454",
                 "PeptideSequence": "AVLSAEQLRDEEVHAGLGELLR",
                 "BestSearchScore": 106.39,
-                "Average Intensity": 7.353002078347069
+                "Average Intensity": 7.35300207834707
               },
               "2618": {
                 "ProteinName": "Q9BPX3",
@@ -193606,7 +193606,7 @@
                 "ProteinName": "Q9Y490",
                 "PeptideSequence": "AVTQALNR",
                 "BestSearchScore": 93.143,
-                "Average Intensity": 7.061878270954777
+                "Average Intensity": 7.061878270954776
               },
               "2697": {
                 "ProteinName": "UniRef100_E0TLP3",
@@ -193666,7 +193666,7 @@
                 "ProteinName": "Q15233;Q15233-2;P23246;P23246-2",
                 "PeptideSequence": "AVVIVDDR",
                 "BestSearchScore": 85.676,
-                "Average Intensity": 7.51418901276222
+                "Average Intensity": 7.514189012762221
               },
               "2707": {
                 "ProteinName": "Q13423",
@@ -194110,7 +194110,7 @@
                 "ProteinName": "O95070",
                 "PeptideSequence": "AYHSGYGAHGSK",
                 "BestSearchScore": 74.78,
-                "Average Intensity": 6.144854307252929
+                "Average Intensity": 6.14485430725293
               },
               "2781": {
                 "ProteinName": "P50991;P50991-2",
@@ -194140,7 +194140,7 @@
                 "ProteinName": "UniRef100_K7XYN3;UniRef100_E0TLK6",
                 "PeptideSequence": "AYLAFDSPEEIQLQK",
                 "BestSearchScore": 100.4,
-                "Average Intensity": 6.261952432844131
+                "Average Intensity": 6.261952432844132
               },
               "2786": {
                 "ProteinName": "Q9C005",
@@ -194710,7 +194710,7 @@
                 "ProteinName": "Q9BTW9;Q9BTW9-4",
                 "PeptideSequence": "CGFSLALGALPGFLLK",
                 "BestSearchScore": 91.845,
-                "Average Intensity": 5.915705791570202
+                "Average Intensity": 5.915705791570201
               },
               "2881": {
                 "ProteinName": "P62714;P67775;P67775-2",
@@ -194764,7 +194764,7 @@
                 "ProteinName": "P49792",
                 "PeptideSequence": "CIACQNPGK",
                 "BestSearchScore": 56.434,
-                "Average Intensity": 5.236386088609555
+                "Average Intensity": 5.236386088609554
               },
               "2890": {
                 "ProteinName": "Q9UK41;Q9UK41-2",
@@ -195202,7 +195202,7 @@
                 "ProteinName": "P46459",
                 "PeptideSequence": "CPTDELSLTNCAVVNEK",
                 "BestSearchScore": 85.496,
-                "Average Intensity": 6.240274607478889
+                "Average Intensity": 6.24027460747889
               },
               "2963": {
                 "ProteinName": "P48643",
@@ -196012,13 +196012,13 @@
                 "ProteinName": "Q9BZG1-4;Q9BZG1;Q9BZG1-2",
                 "PeptideSequence": "DALQVAQEMK",
                 "BestSearchScore": 69.721,
-                "Average Intensity": 6.710015763875676
+                "Average Intensity": 6.710015763875675
               },
               "3098": {
                 "ProteinName": "Q14008-2;Q14008;Q14008-3",
                 "PeptideSequence": "DALRPPLQNINSVQLK",
                 "BestSearchScore": 74.783,
-                "Average Intensity": 6.577870780409523
+                "Average Intensity": 6.577870780409522
               },
               "3099": {
                 "ProteinName": "P50991;P50991-2",
@@ -196300,7 +196300,7 @@
                 "ProteinName": "Q92616",
                 "PeptideSequence": "DAVLYFSESLVPTAR",
                 "BestSearchScore": 55.097,
-                "Average Intensity": 6.010215125214227
+                "Average Intensity": 6.010215125214226
               },
               "3146": {
                 "ProteinName": "Q8TDP1-2;Q8TDP1",
@@ -196870,7 +196870,7 @@
                 "ProteinName": "O95833",
                 "PeptideSequence": "DFAPGSQLPILLYDSDAK",
                 "BestSearchScore": 74.505,
-                "Average Intensity": 6.28896426089614
+                "Average Intensity": 6.288964260896139
               },
               "3241": {
                 "ProteinName": "UniRef100_K7X8V6;UniRef100_F4HI26;UniRef100_E0TK36",
@@ -197848,7 +197848,7 @@
                 "ProteinName": "Q03001",
                 "PeptideSequence": "DGHNLISLLEVLSGDTLPR",
                 "BestSearchScore": 83.404,
-                "Average Intensity": 5.999582877046304
+                "Average Intensity": 5.999582877046305
               },
               "3404": {
                 "ProteinName": "Q9UPN3-3;Q9UPN3-2;Q9UPN3-4",
@@ -198256,7 +198256,7 @@
                 "ProteinName": "Q9BY44",
                 "PeptideSequence": "DGTAGIPNLQLYDVK",
                 "BestSearchScore": 75.02,
-                "Average Intensity": 6.218364799717037
+                "Average Intensity": 6.218364799717036
               },
               "3472": {
                 "ProteinName": "Q14315;Q14315-2",
@@ -198358,7 +198358,7 @@
                 "ProteinName": "P27816;P27816-6",
                 "PeptideSequence": "DGVLTLANNVTPAK",
                 "BestSearchScore": 166.86,
-                "Average Intensity": 7.038704588854859
+                "Average Intensity": 7.03870458885486
               },
               "3489": {
                 "ProteinName": "Q9NZZ3",
@@ -198370,7 +198370,7 @@
                 "ProteinName": "Q96G03",
                 "PeptideSequence": "DGVSAAVISAELASFLATK",
                 "BestSearchScore": 86.179,
-                "Average Intensity": 5.967018825577295
+                "Average Intensity": 5.967018825577294
               },
               "3491": {
                 "ProteinName": "A6NHR9;A6NHR9-2",
@@ -198670,7 +198670,7 @@
                 "ProteinName": "P52907",
                 "PeptideSequence": "DHYSNGFCTVYAK",
                 "BestSearchScore": 141.34,
-                "Average Intensity": 6.825912722280247
+                "Average Intensity": 6.825912722280246
               },
               "3541": {
                 "ProteinName": "P63167",
@@ -198910,7 +198910,7 @@
                 "ProteinName": "Q8TAQ2-2;Q8TAQ2-3;Q8TAQ2",
                 "PeptideSequence": "DIGEGNLSTAAAAALAAAAVK",
                 "BestSearchScore": 115.56,
-                "Average Intensity": 6.235187442396656
+                "Average Intensity": 6.235187442396655
               },
               "3581": {
                 "ProteinName": "P62273",
@@ -198922,7 +198922,7 @@
                 "ProteinName": "Q5VV42-2;Q5VV42",
                 "PeptideSequence": "DIGTNLPTLLWK",
                 "BestSearchScore": 96.756,
-                "Average Intensity": 6.558584182939182
+                "Average Intensity": 6.558584182939183
               },
               "3583": {
                 "ProteinName": "O75955",
@@ -199714,7 +199714,7 @@
                 "ProteinName": "Q9H334-2;Q9H334-3;Q9H334-6;Q9H334-4;Q9H334",
                 "PeptideSequence": "DKERLQAMMTHLHVK",
                 "BestSearchScore": 47.774,
-                "Average Intensity": 6.213916009644024
+                "Average Intensity": 6.213916009644023
               },
               "3715": {
                 "ProteinName": "Q8N766-4;Q8N766-2;Q8N766;Q8N766-3",
@@ -199900,7 +199900,7 @@
                 "ProteinName": "Q9H4L5-2;Q9H4L5;Q9H4L5-4;Q9H4L5-3;Q9H4L5-6;Q9H4L5-5;Q9H4L5-8;Q9H4L5-7",
                 "PeptideSequence": "DLAHCHAYLVEMSQLLQSMDVLHR",
                 "BestSearchScore": 85.166,
-                "Average Intensity": 6.4677486551578625
+                "Average Intensity": 6.467748655157862
               },
               "3746": {
                 "ProteinName": "O95372",
@@ -200206,7 +200206,7 @@
                 "ProteinName": "Q8IX12-2;Q8IX12",
                 "PeptideSequence": "DLEEILYTLGLHLSR",
                 "BestSearchScore": 82.925,
-                "Average Intensity": 5.8899120875428945
+                "Average Intensity": 5.889912087542895
               },
               "3797": {
                 "ProteinName": "P25786;P25786-2",
@@ -200674,7 +200674,7 @@
                 "ProteinName": "P13693",
                 "PeptideSequence": "DLISHDEMFSDIYK",
                 "BestSearchScore": 114.7,
-                "Average Intensity": 6.701965580382385
+                "Average Intensity": 6.701965580382384
               },
               "3875": {
                 "ProteinName": "P04233-2;P04233;P04233-3",
@@ -201076,7 +201076,7 @@
                 "ProteinName": "UniRef100_E0TKH0",
                 "PeptideSequence": "DLNNANNFNIQK",
                 "BestSearchScore": 168.83,
-                "Average Intensity": 7.20810327605081
+                "Average Intensity": 7.208103276050809
               },
               "3942": {
                 "ProteinName": "Q86U90",
@@ -202408,7 +202408,7 @@
                 "ProteinName": "P13674-2;P13674;P13674-3",
                 "PeptideSequence": "DPEGFVGHPVNAFK",
                 "BestSearchScore": 136.93,
-                "Average Intensity": 6.4770778230998545
+                "Average Intensity": 6.477077823099855
               },
               "4164": {
                 "ProteinName": "Q00610-2;Q00610",
@@ -202654,7 +202654,7 @@
                 "ProteinName": "P50454",
                 "PeptideSequence": "DQAVENILVSPVVVASSLGLVSLGGK",
                 "BestSearchScore": 89.345,
-                "Average Intensity": 7.08335030339137
+                "Average Intensity": 7.083350303391369
               },
               "4205": {
                 "ProteinName": "O43615",
@@ -202876,7 +202876,7 @@
                 "ProteinName": "P20700",
                 "PeptideSequence": "DQMQQQLNDYEQLLDVK",
                 "BestSearchScore": 192.72,
-                "Average Intensity": 6.240274607478889
+                "Average Intensity": 6.24027460747889
               },
               "4242": {
                 "ProteinName": "P27708",
@@ -203314,7 +203314,7 @@
                 "ProteinName": "O60506;O60506-2;O60506-3;O60506-4",
                 "PeptideSequence": "DSDLSHVQNK",
                 "BestSearchScore": 132.32,
-                "Average Intensity": 6.250938162611254
+                "Average Intensity": 6.250938162611253
               },
               "4315": {
                 "ProteinName": "Q99460;Q99460-2",
@@ -205858,7 +205858,7 @@
                 "ProteinName": "O60684;P52294",
                 "PeptideSequence": "EACWTISNITAGNR",
                 "BestSearchScore": 75.764,
-                "Average Intensity": 6.794989670218163
+                "Average Intensity": 6.794989670218162
               },
               "4739": {
                 "ProteinName": "P07237",
@@ -206176,7 +206176,7 @@
                 "ProteinName": "Q9HCE1-3;Q9HCE1-2;Q9HCE1",
                 "PeptideSequence": "EAGQCFESFLVVR",
                 "BestSearchScore": 63.185,
-                "Average Intensity": 5.670765211019903
+                "Average Intensity": 5.670765211019904
               },
               "4792": {
                 "ProteinName": "P20248",
@@ -206830,7 +206830,7 @@
                 "ProteinName": "P21333-2;P21333",
                 "PeptideSequence": "EATTEFSVDAR",
                 "BestSearchScore": 58.04,
-                "Average Intensity": 6.964627280937702
+                "Average Intensity": 6.964627280937703
               },
               "4901": {
                 "ProteinName": "Q8WUM4;Q8WUM4-2",
@@ -207202,7 +207202,7 @@
                 "ProteinName": "P50990",
                 "PeptideSequence": "EDGAISTIVLR",
                 "BestSearchScore": 98.156,
-                "Average Intensity": 6.782709056792003
+                "Average Intensity": 6.782709056792004
               },
               "4963": {
                 "ProteinName": "P49327",
@@ -207262,7 +207262,7 @@
                 "ProteinName": "Q13151",
                 "PeptideSequence": "EDIYSGGGGGGSR",
                 "BestSearchScore": 105.19,
-                "Average Intensity": 7.155438271917358
+                "Average Intensity": 7.155438271917357
               },
               "4973": {
                 "ProteinName": "Q00610-2;Q00610;P53675-2;P53675",
@@ -208990,7 +208990,7 @@
                 "ProteinName": "Q9Y224",
                 "PeptideSequence": "EGLPVALDK",
                 "BestSearchScore": 60.102,
-                "Average Intensity": 7.168585865536411
+                "Average Intensity": 7.16858586553641
               },
               "5261": {
                 "ProteinName": "P31948",
@@ -209062,7 +209062,7 @@
                 "ProteinName": "P05976-2;P05976;P08590",
                 "PeptideSequence": "EGNGTVMGAELR",
                 "BestSearchScore": 83.243,
-                "Average Intensity": 7.185513824218539
+                "Average Intensity": 7.185513824218538
               },
               "5273": {
                 "ProteinName": "P05204",
@@ -209206,7 +209206,7 @@
                 "ProteinName": "Q12907",
                 "PeptideSequence": "EGSIWNHQPCFLK",
                 "BestSearchScore": 59.975,
-                "Average Intensity": 6.240274607478889
+                "Average Intensity": 6.24027460747889
               },
               "5297": {
                 "ProteinName": "P46977",
@@ -209380,7 +209380,7 @@
                 "ProteinName": "P55060-3;P55060",
                 "PeptideSequence": "EHDPVGQMVNNPK",
                 "BestSearchScore": 134.18,
-                "Average Intensity": 6.303800623765175
+                "Average Intensity": 6.3038006237651745
               },
               "5326": {
                 "ProteinName": "Q13435",
@@ -210034,7 +210034,7 @@
                 "ProteinName": "UniRef100_F4HHV4;UniRef100_E0TKH4;UniRef100_K7XZ26",
                 "PeptideSequence": "EILTFDEK",
                 "BestSearchScore": 78.516,
-                "Average Intensity": 7.448381636854661
+                "Average Intensity": 7.44838163685466
               },
               "5435": {
                 "ProteinName": "Q15631;Q15631-2",
@@ -210154,7 +210154,7 @@
                 "ProteinName": "Q86UP2;Q86UP2-2;Q86UP2-3",
                 "PeptideSequence": "EISGLWNELDSLK",
                 "BestSearchScore": 157.33,
-                "Average Intensity": 6.849013801023057
+                "Average Intensity": 6.849013801023056
               },
               "5455": {
                 "ProteinName": "Q15118",
@@ -210466,7 +210466,7 @@
                 "ProteinName": "P31947",
                 "PeptideSequence": "EKVETELQGVCDTVLGLLDSHLIK",
                 "BestSearchScore": 50.271,
-                "Average Intensity": 5.9663764230889225
+                "Average Intensity": 5.966376423088923
               },
               "5507": {
                 "ProteinName": "P14868",
@@ -210940,7 +210940,7 @@
                 "ProteinName": "P22676",
                 "PeptideSequence": "ELENFFQELEK",
                 "BestSearchScore": 196.16,
-                "Average Intensity": 6.6044528640996845
+                "Average Intensity": 6.604452864099684
               },
               "5586": {
                 "ProteinName": "Q96EK5",
@@ -211264,7 +211264,7 @@
                 "ProteinName": "Q13177",
                 "PeptideSequence": "ELIINEILVMK",
                 "BestSearchScore": 120.86,
-                "Average Intensity": 6.288636682500869
+                "Average Intensity": 6.2886366825008695
               },
               "5640": {
                 "ProteinName": "P11388;P11388-2;P11388-3;P11388-4;Q02880-2;Q02880",
@@ -211402,7 +211402,7 @@
                 "ProteinName": "Q9Y490",
                 "PeptideSequence": "ELLENPVQPINDMSYFGCLDSVMENSK",
                 "BestSearchScore": 61.976,
-                "Average Intensity": 6.244796478747622
+                "Average Intensity": 6.244796478747623
               },
               "5663": {
                 "ProteinName": "Q9NX58",
@@ -211492,7 +211492,7 @@
                 "ProteinName": "P59998;P59998-3;P59998-2",
                 "PeptideSequence": "ELLLQPVTISR",
                 "BestSearchScore": 137.01,
-                "Average Intensity": 7.213079256862587
+                "Average Intensity": 7.213079256862588
               },
               "5678": {
                 "ProteinName": "Q8N1G4",
@@ -211600,7 +211600,7 @@
                 "ProteinName": "P26368-2;P26368",
                 "PeptideSequence": "ELLTSFGPLK",
                 "BestSearchScore": 96.665,
-                "Average Intensity": 7.196820743914426
+                "Average Intensity": 7.196820743914425
               },
               "5696": {
                 "ProteinName": "O14950;P19105",
@@ -211654,7 +211654,7 @@
                 "ProteinName": "Q9NR31",
                 "PeptideSequence": "ELNARPMEVFMCSVLK",
                 "BestSearchScore": 95.822,
-                "Average Intensity": 6.539841088332224
+                "Average Intensity": 6.539841088332225
               },
               "5705": {
                 "ProteinName": "O95747",
@@ -211720,7 +211720,7 @@
                 "ProteinName": "Q01105-2",
                 "PeptideSequence": "ELNSNHDGADETSEK",
                 "BestSearchScore": 212.03,
-                "Average Intensity": 7.084492627978673
+                "Average Intensity": 7.0844926279786735
               },
               "5716": {
                 "ProteinName": "O00268",
@@ -212770,7 +212770,7 @@
                 "ProteinName": "UniRef100_K7X3K2;UniRef100_E0TLQ6;UniRef100_G8XIH2",
                 "PeptideSequence": "ENLLQITNSVNELANSFATPGGYQEFR",
                 "BestSearchScore": 63.372,
-                "Average Intensity": 6.304576688766113
+                "Average Intensity": 6.3045766887661125
               },
               "5891": {
                 "ProteinName": "Q9BTT6;Q9BTT6-2",
@@ -212860,7 +212860,7 @@
                 "ProteinName": "Q92900-2;Q92900",
                 "PeptideSequence": "ENPSATLEDLEKPGVDEEPQHVLLR",
                 "BestSearchScore": 53.355,
-                "Average Intensity": 6.288316310166291
+                "Average Intensity": 6.288316310166292
               },
               "5906": {
                 "ProteinName": "P46777",
@@ -213106,7 +213106,7 @@
                 "ProteinName": "Q9H4M9",
                 "PeptideSequence": "EPELFQTVAEGLR",
                 "BestSearchScore": 77.894,
-                "Average Intensity": 6.752077271717898
+                "Average Intensity": 6.752077271717897
               },
               "5947": {
                 "ProteinName": "Q8WUM0",
@@ -213400,7 +213400,7 @@
                 "ProteinName": "UniRef100_Q49536;UniRef100_G8XJ41;UniRef100_U6BVJ4;UniRef100_E0TLL8;UniRef100_F4HG08",
                 "PeptideSequence": "EQGSSDSTSTSK",
                 "BestSearchScore": 65.295,
-                "Average Intensity": 5.412031921698219
+                "Average Intensity": 5.412031921698218
               },
               "5996": {
                 "ProteinName": "UniRef100_Q49536;UniRef100_G8XJ41;UniRef100_U6BVJ4",
@@ -213820,7 +213820,7 @@
                 "ProteinName": "P62995-3;P62995",
                 "PeptideSequence": "ERANGMELDGR",
                 "BestSearchScore": 81.676,
-                "Average Intensity": 5.952501847863024
+                "Average Intensity": 5.952501847863023
               },
               "6066": {
                 "ProteinName": "Q07065",
@@ -213952,7 +213952,7 @@
                 "ProteinName": "P39023",
                 "PeptideSequence": "ERLEQQVPVNQVFGQDEMIDVIGVTK",
                 "BestSearchScore": 86.997,
-                "Average Intensity": 6.861916565187741
+                "Average Intensity": 6.861916565187742
               },
               "6088": {
                 "ProteinName": "Q14152",
@@ -214252,7 +214252,7 @@
                 "ProteinName": "P55072",
                 "PeptideSequence": "ESIESEIR",
                 "BestSearchScore": 100.02,
-                "Average Intensity": 7.0765348605103
+                "Average Intensity": 7.076534860510299
               },
               "6138": {
                 "ProteinName": "P55072",
@@ -214504,7 +214504,7 @@
                 "ProteinName": "Q15370;Q15370-2",
                 "PeptideSequence": "ESSTVFELK",
                 "BestSearchScore": 67.334,
-                "Average Intensity": 6.921251963709585
+                "Average Intensity": 6.921251963709584
               },
               "6180": {
                 "ProteinName": "Q13616",
@@ -214558,7 +214558,7 @@
                 "ProteinName": "Q99623;Q99623-2",
                 "PeptideSequence": "ESVFTVEGGHR",
                 "BestSearchScore": 100.69,
-                "Average Intensity": 6.993992520548652
+                "Average Intensity": 6.993992520548653
               },
               "6189": {
                 "ProteinName": "O43681",
@@ -215368,7 +215368,7 @@
                 "ProteinName": "O60271-9;O60271-4;O60271;O60271-2;O60271-5;O60271-3",
                 "PeptideSequence": "EVENLILENTQLLETK",
                 "BestSearchScore": 167.92,
-                "Average Intensity": 5.962305394480061
+                "Average Intensity": 5.962305394480062
               },
               "6324": {
                 "ProteinName": "P31150",
@@ -216100,7 +216100,7 @@
                 "ProteinName": "Q14019",
                 "PeptideSequence": "EVVQNFAK",
                 "BestSearchScore": 98.458,
-                "Average Intensity": 7.7001323566901405
+                "Average Intensity": 7.700132356690141
               },
               "6446": {
                 "ProteinName": "Q9P2J5",
@@ -217072,7 +217072,7 @@
                 "ProteinName": "Q06124-2;Q06124;Q06124-3",
                 "PeptideSequence": "FATLAELVQYYMEHHGQLK",
                 "BestSearchScore": 63.462,
-                "Average Intensity": 6.609709103309418
+                "Average Intensity": 6.609709103309419
               },
               "6608": {
                 "ProteinName": "UniRef100_F4HGX3;UniRef100_K7X807;UniRef100_E0TK89",
@@ -217216,7 +217216,7 @@
                 "ProteinName": "P36578",
                 "PeptideSequence": "FCIWTESAFRK",
                 "BestSearchScore": 57.149,
-                "Average Intensity": 6.362055007143358
+                "Average Intensity": 6.362055007143357
               },
               "6632": {
                 "ProteinName": "P00558",
@@ -217366,7 +217366,7 @@
                 "ProteinName": "P14618;P14618-3;P14618-2",
                 "PeptideSequence": "FDEILEASDGIMVAR",
                 "BestSearchScore": 72.797,
-                "Average Intensity": 6.088065177690204
+                "Average Intensity": 6.088065177690205
               },
               "6657": {
                 "ProteinName": "Q08945",
@@ -218302,7 +218302,7 @@
                 "ProteinName": "UniRef100_K7X833;UniRef100_F4HGT4;UniRef100_E0TKC3",
                 "PeptideSequence": "FFNFMSIR",
                 "BestSearchScore": 99.442,
-                "Average Intensity": 6.247568226754598
+                "Average Intensity": 6.247568226754599
               },
               "6813": {
                 "ProteinName": "UniRef100_K7X309;UniRef100_F4HHX9;UniRef100_E0TKF6",
@@ -219088,7 +219088,7 @@
                 "ProteinName": "Q14204",
                 "PeptideSequence": "FGNPLLVQDVESYDPVLNPVLNR",
                 "BestSearchScore": 136.46,
-                "Average Intensity": 7.1899560811990675
+                "Average Intensity": 7.189956081199067
               },
               "6944": {
                 "ProteinName": "Q9H488;Q9H488-2",
@@ -219586,7 +219586,7 @@
                 "ProteinName": "P39023;Q92901",
                 "PeptideSequence": "FIDTTSK",
                 "BestSearchScore": 66.429,
-                "Average Intensity": 7.433481808392985
+                "Average Intensity": 7.433481808392984
               },
               "7027": {
                 "ProteinName": "UniRef100_F4HHH1;UniRef100_E0TL85",
@@ -219688,7 +219688,7 @@
                 "ProteinName": "O60343-2;O60343-3;O60343",
                 "PeptideSequence": "FIHNSHDLTYFAYLIK",
                 "BestSearchScore": 29.363,
-                "Average Intensity": 5.607648000103826
+                "Average Intensity": 5.6076480001038265
               },
               "7044": {
                 "ProteinName": "P49023-2;P49023;P49023-3",
@@ -220012,7 +220012,7 @@
                 "ProteinName": "P09429;B2RPK0",
                 "PeptideSequence": "FKDPNAPK",
                 "BestSearchScore": 80.455,
-                "Average Intensity": 6.295310478896191
+                "Average Intensity": 6.295310478896192
               },
               "7098": {
                 "ProteinName": "Q96EP5-2;Q96EP5",
@@ -220282,7 +220282,7 @@
                 "ProteinName": "O95833",
                 "PeptideSequence": "FLDGDRLTLADCSLLPK",
                 "BestSearchScore": 66.289,
-                "Average Intensity": 6.431444181617213
+                "Average Intensity": 6.431444181617212
               },
               "7143": {
                 "ProteinName": "Q9H9H4",
@@ -220336,7 +220336,7 @@
                 "ProteinName": "P30566;P30566-2",
                 "PeptideSequence": "FLEEEVYPLLKPYESVMK",
                 "BestSearchScore": 57.788,
-                "Average Intensity": 6.478479916635806
+                "Average Intensity": 6.4784799166358065
               },
               "7152": {
                 "ProteinName": "P11388;P11388-2;P11388-3;P11388-4",
@@ -220846,7 +220846,7 @@
                 "ProteinName": "Q9BVT8",
                 "PeptideSequence": "FLNDSEQVAR",
                 "BestSearchScore": 68.536,
-                "Average Intensity": 6.2320044829718295
+                "Average Intensity": 6.23200448297183
               },
               "7237": {
                 "ProteinName": "O43795-2;O43795",
@@ -221302,7 +221302,7 @@
                 "ProteinName": "P31150",
                 "PeptideSequence": "FLVFVANFDENDPK",
                 "BestSearchScore": 72.815,
-                "Average Intensity": 6.314499227973151
+                "Average Intensity": 6.314499227973152
               },
               "7313": {
                 "ProteinName": "P43307-2;P43307",
@@ -221578,7 +221578,7 @@
                 "ProteinName": "Q14161-2;Q14161-11;Q14161-7;Q14161-6;Q14161-10;Q14161-8;Q14161-4;Q14161-5;Q14161-3;Q14161",
                 "PeptideSequence": "FNAHEFATLVIDILSDAK",
                 "BestSearchScore": 83.404,
-                "Average Intensity": 5.671395026117901
+                "Average Intensity": 5.671395026117902
               },
               "7359": {
                 "ProteinName": "P09382",
@@ -223600,7 +223600,7 @@
                 "ProteinName": "P52565",
                 "PeptideSequence": "FTDDDKTDHLSWEWNLTIK",
                 "BestSearchScore": 51.225,
-                "Average Intensity": 6.191236702198109
+                "Average Intensity": 6.19123670219811
               },
               "7696": {
                 "ProteinName": "Q9NP72;Q9NP72-2;Q9NP72-3",
@@ -224926,7 +224926,7 @@
                 "ProteinName": "Q9Y2R9",
                 "PeptideSequence": "FYQVPVPLPDRR",
                 "BestSearchScore": 39.58,
-                "Average Intensity": 6.579577829439835
+                "Average Intensity": 6.579577829439834
               },
               "7917": {
                 "ProteinName": "O60216;Q9H4I0",
@@ -226012,7 +226012,7 @@
                 "ProteinName": "Q07020",
                 "PeptideSequence": "GCGTVLLSGPR",
                 "BestSearchScore": 163.9,
-                "Average Intensity": 7.8050027311131736
+                "Average Intensity": 7.805002731113173
               },
               "8098": {
                 "ProteinName": "Q07020",
@@ -226726,7 +226726,7 @@
                 "ProteinName": "Q09666",
                 "PeptideSequence": "GEETGIDVTLPTGEVTVPGVSGDVSLPEIATGGLEGK",
                 "BestSearchScore": 42.48,
-                "Average Intensity": 6.9002778933694575
+                "Average Intensity": 6.900277893369457
               },
               "8217": {
                 "ProteinName": "UniRef100_E0TK65",
@@ -227254,7 +227254,7 @@
                 "ProteinName": "Q15056-2;Q15056",
                 "PeptideSequence": "GFCYVEFDEVDSLK",
                 "BestSearchScore": 90.707,
-                "Average Intensity": 6.838605649767226
+                "Average Intensity": 6.838605649767225
               },
               "8305": {
                 "ProteinName": "Q9H0A0",
@@ -227638,7 +227638,7 @@
                 "ProteinName": "O43615",
                 "PeptideSequence": "GFLSGLLDNVK",
                 "BestSearchScore": 160.91,
-                "Average Intensity": 6.7250986104641175
+                "Average Intensity": 6.725098610464117
               },
               "8369": {
                 "ProteinName": "O43615",
@@ -227734,7 +227734,7 @@
                 "ProteinName": "P62633-2;P62633-5;P62633;P62633-4;P62633-6",
                 "PeptideSequence": "GFQFVSSSLPDICYR",
                 "BestSearchScore": 145.94,
-                "Average Intensity": 7.201581455495241
+                "Average Intensity": 7.20158145549524
               },
               "8385": {
                 "ProteinName": "P06576",
@@ -227848,7 +227848,7 @@
                 "ProteinName": "UniRef100_F4HGX1;UniRef100_E0TK91",
                 "PeptideSequence": "GFTALAATIVK",
                 "BestSearchScore": 78.903,
-                "Average Intensity": 6.284881714655453
+                "Average Intensity": 6.2848817146554525
               },
               "8404": {
                 "ProteinName": "Q13185",
@@ -228142,7 +228142,7 @@
                 "ProteinName": "Q96QR8",
                 "PeptideSequence": "GGGEQETQELASK",
                 "BestSearchScore": 67.095,
-                "Average Intensity": 6.866169147633771
+                "Average Intensity": 6.86616914763377
               },
               "8453": {
                 "ProteinName": "P09651-2;P09651",
@@ -228442,7 +228442,7 @@
                 "ProteinName": "Q09666",
                 "PeptideSequence": "GGQIGLQAPGLSVSGPQGHLESGSGK",
                 "BestSearchScore": 95.624,
-                "Average Intensity": 7.090779880517127
+                "Average Intensity": 7.090779880517128
               },
               "8503": {
                 "ProteinName": "Q6P2E9;Q6P2E9-2",
@@ -229036,7 +229036,7 @@
                 "ProteinName": "P23381;P23381-2",
                 "PeptideSequence": "GIFGFTDSDCIGK",
                 "BestSearchScore": 107.53,
-                "Average Intensity": 6.788206093236379
+                "Average Intensity": 6.78820609323638
               },
               "8602": {
                 "ProteinName": "Q00325-2;Q00325",
@@ -229618,7 +229618,7 @@
                 "ProteinName": "P12236",
                 "PeptideSequence": "GIVDCIVR",
                 "BestSearchScore": 87.181,
-                "Average Intensity": 6.748467126615015
+                "Average Intensity": 6.748467126615016
               },
               "8699": {
                 "ProteinName": "P63104",
@@ -229708,7 +229708,7 @@
                 "ProteinName": "UniRef100_F4HHY0;UniRef100_E0TKF5;UniRef100_K7X9S4",
                 "PeptideSequence": "GIYAVGDVVQK",
                 "BestSearchScore": 94.767,
-                "Average Intensity": 6.918664530902083
+                "Average Intensity": 6.918664530902084
               },
               "8714": {
                 "ProteinName": "Q14240;Q14240-2;P38919;P60842;P60842-2",
@@ -230620,7 +230620,7 @@
                 "ProteinName": "O00233;O00233-3",
                 "PeptideSequence": "GLLGCNIIPLQR",
                 "BestSearchScore": 126.03,
-                "Average Intensity": 6.714094942501392
+                "Average Intensity": 6.714094942501393
               },
               "8866": {
                 "ProteinName": "Q12972;Q12972-2",
@@ -230728,7 +230728,7 @@
                 "ProteinName": "O94826",
                 "PeptideSequence": "GLLQLQWK",
                 "BestSearchScore": 123.69,
-                "Average Intensity": 6.589449707615355
+                "Average Intensity": 6.589449707615356
               },
               "8884": {
                 "ProteinName": "P09661",
@@ -231118,7 +231118,7 @@
                 "ProteinName": "UniRef100_F4HGY1",
                 "PeptideSequence": "GLTVAEIETLRNELK",
                 "BestSearchScore": 65.043,
-                "Average Intensity": 6.768760160055338
+                "Average Intensity": 6.768760160055339
               },
               "8949": {
                 "ProteinName": "Q8NCW5-2;Q8NCW5",
@@ -231220,7 +231220,7 @@
                 "ProteinName": "Q9Y2T2",
                 "PeptideSequence": "GLVNLQSGAPKPEENPSLNIQFK",
                 "BestSearchScore": 97.384,
-                "Average Intensity": 6.4770778230998545
+                "Average Intensity": 6.477077823099855
               },
               "8966": {
                 "ProteinName": "P14550",
@@ -231430,7 +231430,7 @@
                 "ProteinName": "Q8N2K0-3;Q8N2K0;Q8N2K0-2",
                 "PeptideSequence": "GMTYDALHVFDWIK",
                 "BestSearchScore": 38.674,
-                "Average Intensity": 5.904969665694647
+                "Average Intensity": 5.904969665694646
               },
               "9001": {
                 "ProteinName": "Q9Y5B9",
@@ -232210,7 +232210,7 @@
                 "ProteinName": "P08559;P08559-4;P08559-3;P08559-2;P29803",
                 "PeptideSequence": "GPILMELQTYR",
                 "BestSearchScore": 72.29,
-                "Average Intensity": 6.823154585599109
+                "Average Intensity": 6.8231545855991085
               },
               "9131": {
                 "ProteinName": "P40937-2;P40937",
@@ -232252,7 +232252,7 @@
                 "ProteinName": "P16278-2;P16278-3;P16278",
                 "PeptideSequence": "GPLINSEFYTGWLDHWGQPHSTIK",
                 "BestSearchScore": 34.793,
-                "Average Intensity": 6.555300054669642
+                "Average Intensity": 6.555300054669641
               },
               "9138": {
                 "ProteinName": "Q8NCA5-2;Q8NCA5",
@@ -232534,7 +232534,7 @@
                 "ProteinName": "Q7Z434;Q7Z434-4",
                 "PeptideSequence": "GPVSPSVSFQPLAR",
                 "BestSearchScore": 95.981,
-                "Average Intensity": 6.901627211124065
+                "Average Intensity": 6.901627211124066
               },
               "9185": {
                 "ProteinName": "O75083;O75083-3",
@@ -232612,7 +232612,7 @@
                 "ProteinName": "Q14558;Q14558-2",
                 "PeptideSequence": "GQDIFIIQTIPR",
                 "BestSearchScore": 62.68,
-                "Average Intensity": 6.208280078545309
+                "Average Intensity": 6.20828007854531
               },
               "9198": {
                 "ProteinName": "P26641",
@@ -233074,7 +233074,7 @@
                 "ProteinName": "Q92499",
                 "PeptideSequence": "GSAFAIGSDGLCCQSR",
                 "BestSearchScore": 176.25,
-                "Average Intensity": 6.617427606725448
+                "Average Intensity": 6.617427606725447
               },
               "9275": {
                 "ProteinName": "P62829",
@@ -233764,7 +233764,7 @@
                 "ProteinName": "P10412;P16402;P22492;Q02539;P16401;P16403",
                 "PeptideSequence": "GTGASGSFK",
                 "BestSearchScore": 101.46,
-                "Average Intensity": 6.543409899985372
+                "Average Intensity": 6.543409899985373
               },
               "9390": {
                 "ProteinName": "P09467",
@@ -234400,7 +234400,7 @@
                 "ProteinName": "O60313;O60313-2",
                 "PeptideSequence": "GVEVDPSLIK",
                 "BestSearchScore": 66.19,
-                "Average Intensity": 6.542987168420799
+                "Average Intensity": 6.542987168420798
               },
               "9496": {
                 "ProteinName": "Q8N1G2",
@@ -234424,7 +234424,7 @@
                 "ProteinName": "Q53GQ0",
                 "PeptideSequence": "GVFVQSVLPYFVATK",
                 "BestSearchScore": 99.238,
-                "Average Intensity": 6.901595708184798
+                "Average Intensity": 6.901595708184797
               },
               "9500": {
                 "ProteinName": "P42765",
@@ -234844,7 +234844,7 @@
                 "ProteinName": "P43490",
                 "PeptideSequence": "GVSSQETAGIGASAHLVNFK",
                 "BestSearchScore": 118.02,
-                "Average Intensity": 7.165422188864296
+                "Average Intensity": 7.165422188864297
               },
               "9570": {
                 "ProteinName": "P43246;P43246-2",
@@ -235732,7 +235732,7 @@
                 "ProteinName": "O94915",
                 "PeptideSequence": "HALAGLFVEILIPVAAAVK",
                 "BestSearchScore": 47.548,
-                "Average Intensity": 5.3347150534643575
+                "Average Intensity": 5.334715053464358
               },
               "9718": {
                 "ProteinName": "Q86VI3",
@@ -236080,7 +236080,7 @@
                 "ProteinName": "Q9HC38-2;Q9HC38-3",
                 "PeptideSequence": "HEEFEEGCK",
                 "BestSearchScore": 125.71,
-                "Average Intensity": 6.216640858325448
+                "Average Intensity": 6.216640858325449
               },
               "9776": {
                 "ProteinName": "Q07157-2;Q07157",
@@ -236956,7 +236956,7 @@
                 "ProteinName": "P13693;Q56UQ5",
                 "PeptideSequence": "HILANFK",
                 "BestSearchScore": 79.939,
-                "Average Intensity": 7.978890060995324
+                "Average Intensity": 7.978890060995325
               },
               "9922": {
                 "ProteinName": "Q9Y224",
@@ -237094,7 +237094,7 @@
                 "ProteinName": "Q9UJ70;Q9UJ70-2",
                 "PeptideSequence": "HIVAVLPEIDPVLFQGK",
                 "BestSearchScore": 81.526,
-                "Average Intensity": 6.301236236564549
+                "Average Intensity": 6.301236236564548
               },
               "9945": {
                 "ProteinName": "O00410;O00410-3;O00410-2",
@@ -237424,7 +237424,7 @@
                 "ProteinName": "P30566;P30566-2",
                 "PeptideSequence": "HLMTLVMDPLQTASVQWFER",
                 "BestSearchScore": 56.708,
-                "Average Intensity": 6.013216539624441
+                "Average Intensity": 6.01321653962444
               },
               "10000": {
                 "ProteinName": "Q03135;Q03135-2",
@@ -237442,7 +237442,7 @@
                 "ProteinName": "Q15185",
                 "PeptideSequence": "HLNEIDLFHCIDPNDSK",
                 "BestSearchScore": 126.07,
-                "Average Intensity": 7.153997251492884
+                "Average Intensity": 7.153997251492885
               },
               "10003": {
                 "ProteinName": "P42785;P42785-2",
@@ -237754,7 +237754,7 @@
                 "ProteinName": "Q13155",
                 "PeptideSequence": "HNAVNATLIDSWVDIAIFQLK",
                 "BestSearchScore": 113.05,
-                "Average Intensity": 5.952280542252646
+                "Average Intensity": 5.952280542252647
               },
               "10055": {
                 "ProteinName": "P07900;P07900-2;Q14568;P08238",
@@ -238312,7 +238312,7 @@
                 "ProteinName": "P52597",
                 "PeptideSequence": "HSGPNSADSANDGFVR",
                 "BestSearchScore": 123.63,
-                "Average Intensity": 7.428032690414051
+                "Average Intensity": 7.42803269041405
               },
               "10148": {
                 "ProteinName": "O00330",
@@ -239008,7 +239008,7 @@
                 "ProteinName": "Q14204",
                 "PeptideSequence": "HYLDFINHYANLFHEK",
                 "BestSearchScore": 87.863,
-                "Average Intensity": 6.878487326317339
+                "Average Intensity": 6.87848732631734
               },
               "10264": {
                 "ProteinName": "P28482",
@@ -239074,7 +239074,7 @@
                 "ProteinName": "P36871",
                 "PeptideSequence": "IAAANGIGR",
                 "BestSearchScore": 87.181,
-                "Average Intensity": 6.8174066941901295
+                "Average Intensity": 6.81740669419013
               },
               "10275": {
                 "ProteinName": "UniRef100_F4HI10;UniRef100_E0TK52",
@@ -239812,7 +239812,7 @@
                 "ProteinName": "P29692;P29692-2;P29692-3",
                 "PeptideSequence": "IASLEVENQSLR",
                 "BestSearchScore": 210.93,
-                "Average Intensity": 7.941187081396182
+                "Average Intensity": 7.9411870813961825
               },
               "10398": {
                 "ProteinName": "Q9NQG5",
@@ -239902,7 +239902,7 @@
                 "ProteinName": "O60664-3;O60664;O60664-2",
                 "PeptideSequence": "IATSLDGFDVASVQQQR",
                 "BestSearchScore": 142.94,
-                "Average Intensity": 6.8947629470851
+                "Average Intensity": 6.894762947085099
               },
               "10413": {
                 "ProteinName": "Q14980-2;Q14980",
@@ -240220,7 +240220,7 @@
                 "ProteinName": "P52789",
                 "PeptideSequence": "ICQIVSTR",
                 "BestSearchScore": 93.598,
-                "Average Intensity": 7.081596913375561
+                "Average Intensity": 7.081596913375562
               },
               "10466": {
                 "ProteinName": "P30876",
@@ -240460,7 +240460,7 @@
                 "ProteinName": "P54727",
                 "PeptideSequence": "IDIDPEETVK",
                 "BestSearchScore": 66.056,
-                "Average Intensity": 6.841075688760352
+                "Average Intensity": 6.841075688760351
               },
               "10506": {
                 "ProteinName": "P08238;Q58FF7",
@@ -240952,7 +240952,7 @@
                 "ProteinName": "Q9P253",
                 "PeptideSequence": "IEDVLPFFPDFVTIDHFK",
                 "BestSearchScore": 55.755,
-                "Average Intensity": 6.093631776828948
+                "Average Intensity": 6.093631776828947
               },
               "10588": {
                 "ProteinName": "P54920",
@@ -241828,7 +241828,7 @@
                 "ProteinName": "Q9ULT8",
                 "PeptideSequence": "IFLDESAPDNVLEVTAR",
                 "BestSearchScore": 56.121,
-                "Average Intensity": 6.314793850397914
+                "Average Intensity": 6.314793850397915
               },
               "10734": {
                 "ProteinName": "Q02809",
@@ -242548,7 +242548,7 @@
                 "ProteinName": "P45974-2;P45974",
                 "PeptideSequence": "IGEWELIQESGVPLKPLFGPGYTGIR",
                 "BestSearchScore": 111.24,
-                "Average Intensity": 7.131294586722628
+                "Average Intensity": 7.131294586722627
               },
               "10854": {
                 "ProteinName": "Q8NE71-2;Q8NE71",
@@ -242620,7 +242620,7 @@
                 "ProteinName": "P46940",
                 "PeptideSequence": "IGGILANELSVDEAALHAAVIAINEAIDRR",
                 "BestSearchScore": 36.923,
-                "Average Intensity": 6.777930427891537
+                "Average Intensity": 6.777930427891536
               },
               "10866": {
                 "ProteinName": "Q86VI3",
@@ -242770,7 +242770,7 @@
                 "ProteinName": "Q9Y230",
                 "PeptideSequence": "IGLETSLR",
                 "BestSearchScore": 82.426,
-                "Average Intensity": 6.805480468267465
+                "Average Intensity": 6.805480468267464
               },
               "10891": {
                 "ProteinName": "Q16881-4;Q16881-3;Q16881;Q16881-5;Q16881-2;Q16881-6",
@@ -243064,7 +243064,7 @@
                 "ProteinName": "P14324",
                 "PeptideSequence": "IGTDIQDNK",
                 "BestSearchScore": 96.665,
-                "Average Intensity": 6.892024998638419
+                "Average Intensity": 6.89202499863842
               },
               "10940": {
                 "ProteinName": "Q14232",
@@ -243808,7 +243808,7 @@
                 "ProteinName": "P35579;P35579-2",
                 "PeptideSequence": "IIGLDQVAGMSETALPGAFK",
                 "BestSearchScore": 144.17,
-                "Average Intensity": 7.473474804782647
+                "Average Intensity": 7.473474804782648
               },
               "11064": {
                 "ProteinName": "P54709",
@@ -244576,7 +244576,7 @@
                 "ProteinName": "P27797",
                 "PeptideSequence": "IKDPDASKPEDWDER",
                 "BestSearchScore": 112.57,
-                "Average Intensity": 7.770451497940542
+                "Average Intensity": 7.770451497940543
               },
               "11192": {
                 "ProteinName": "Q70E73;Q70E73-5;Q70E73-2;Q70E73-8;Q70E73-7;Q70E73-4;Q70E73-3;Q70E73-9;Q70E73-6",
@@ -244690,7 +244690,7 @@
                 "ProteinName": "Q9UJZ1",
                 "PeptideSequence": "ILAAALTQHNGDAAASLTVAEQYVSAFSK",
                 "BestSearchScore": 79.016,
-                "Average Intensity": 7.043683949459201
+                "Average Intensity": 7.043683949459202
               },
               "11211": {
                 "ProteinName": "Q9GZS1-2;Q9GZS1",
@@ -244762,7 +244762,7 @@
                 "ProteinName": "Q14692",
                 "PeptideSequence": "ILALLDALSTVHSQK",
                 "BestSearchScore": 35.118,
-                "Average Intensity": 6.234340087615184
+                "Average Intensity": 6.234340087615185
               },
               "11223": {
                 "ProteinName": "Q9Y490",
@@ -245398,7 +245398,7 @@
                 "ProteinName": "P54886-2;P54886",
                 "PeptideSequence": "ILHLLTQEALSIHGVK",
                 "BestSearchScore": 120.7,
-                "Average Intensity": 6.550640606011136
+                "Average Intensity": 6.550640606011137
               },
               "11329": {
                 "ProteinName": "P53634",
@@ -245752,7 +245752,7 @@
                 "ProteinName": "P26640",
                 "PeptideSequence": "ILPEAHQR",
                 "BestSearchScore": 75.738,
-                "Average Intensity": 6.2743079783190545
+                "Average Intensity": 6.274307978319055
               },
               "11388": {
                 "ProteinName": "Q92616",
@@ -246904,7 +246904,7 @@
                 "ProteinName": "Q12905",
                 "PeptideSequence": "INNVIDNLIVAPGTFEVQIEEVR",
                 "BestSearchScore": 105.51,
-                "Average Intensity": 7.04011443130591
+                "Average Intensity": 7.040114431305911
               },
               "11580": {
                 "ProteinName": "Q9NUQ9",
@@ -247378,7 +247378,7 @@
                 "ProteinName": "Q13162",
                 "PeptideSequence": "IPLLSDLTHQISK",
                 "BestSearchScore": 98.592,
-                "Average Intensity": 6.849861468838133
+                "Average Intensity": 6.849861468838134
               },
               "11659": {
                 "ProteinName": "P11234",
@@ -247672,7 +247672,7 @@
                 "ProteinName": "P52306-2;P52306-3;P52306-4;P52306",
                 "PeptideSequence": "IQASGILQLFASLLTPQSSCK",
                 "BestSearchScore": 131.86,
-                "Average Intensity": 6.007461851577618
+                "Average Intensity": 6.007461851577619
               },
               "11708": {
                 "ProteinName": "Q86X29-4;Q86X29-2;Q86X29-3;Q86X29",
@@ -247744,7 +247744,7 @@
                 "ProteinName": "P13674-2;P13674",
                 "PeptideSequence": "IQDLTGLDVSTAEELQVANYGVGGQYEPHFDFAR",
                 "BestSearchScore": 70.028,
-                "Average Intensity": 6.6140795092751805
+                "Average Intensity": 6.614079509275181
               },
               "11720": {
                 "ProteinName": "Q9Y224",
@@ -248230,7 +248230,7 @@
                 "ProteinName": "P12956",
                 "PeptideSequence": "IQVTPPGFQLVFLPFADDK",
                 "BestSearchScore": 149.19,
-                "Average Intensity": 7.288211485933392
+                "Average Intensity": 7.288211485933393
               },
               "11801": {
                 "ProteinName": "P15311",
@@ -248362,7 +248362,7 @@
                 "ProteinName": "P06493;P06493-2",
                 "PeptideSequence": "IRLESEEEGVPSTAIR",
                 "BestSearchScore": 99.371,
-                "Average Intensity": 6.616278277356622
+                "Average Intensity": 6.616278277356623
               },
               "11823": {
                 "ProteinName": "P17655;P17655-2",
@@ -249868,7 +249868,7 @@
                 "ProteinName": "Q96EK6",
                 "PeptideSequence": "ITLECLPQNVGFYK",
                 "BestSearchScore": 110.44,
-                "Average Intensity": 6.227359577926066
+                "Average Intensity": 6.227359577926067
               },
               "12074": {
                 "ProteinName": "Q8WU90",
@@ -249922,7 +249922,7 @@
                 "ProteinName": "Q9NPJ3-2;Q9NPJ3",
                 "PeptideSequence": "ITLVSAAPGK",
                 "BestSearchScore": 72.2,
-                "Average Intensity": 6.812043897930227
+                "Average Intensity": 6.812043897930226
               },
               "12083": {
                 "ProteinName": "P49792",
@@ -250342,7 +250342,7 @@
                 "ProteinName": "P28066;P28066-2",
                 "PeptideSequence": "IVEIDAHIGCAMSGLIADAK",
                 "BestSearchScore": 73.346,
-                "Average Intensity": 5.5421280050673145
+                "Average Intensity": 5.542128005067315
               },
               "12153": {
                 "ProteinName": "O95865",
@@ -252190,7 +252190,7 @@
                 "ProteinName": "P50990",
                 "PeptideSequence": "KFAEAFEAIPR",
                 "BestSearchScore": 71.176,
-                "Average Intensity": 6.542887642342411
+                "Average Intensity": 6.542887642342412
               },
               "12461": {
                 "ProteinName": "P13667",
@@ -252526,7 +252526,7 @@
                 "ProteinName": "P63104",
                 "PeptideSequence": "KGIVDQSQQAYQEAFEISK",
                 "BestSearchScore": 74.744,
-                "Average Intensity": 6.4383841070347145
+                "Average Intensity": 6.438384107034714
               },
               "12517": {
                 "ProteinName": "P63104",
@@ -253258,7 +253258,7 @@
                 "ProteinName": "P47756-2;P47756",
                 "PeptideSequence": "KLEVEANNAFDQYR",
                 "BestSearchScore": 140.77,
-                "Average Intensity": 7.1494305615579865
+                "Average Intensity": 7.149430561557986
               },
               "12639": {
                 "ProteinName": "Q6NZI2",
@@ -253312,7 +253312,7 @@
                 "ProteinName": "P78371;P78371-2",
                 "PeptideSequence": "KLGGSLADSYLDEGFLLDKK",
                 "BestSearchScore": 48.288,
-                "Average Intensity": 6.00560944536028
+                "Average Intensity": 6.005609445360281
               },
               "12648": {
                 "ProteinName": "P50991;P50991-2",
@@ -254326,7 +254326,7 @@
                 "ProteinName": "Q96A49",
                 "PeptideSequence": "KSEAAVPPWVDTNDEETIQQQILALSADK",
                 "BestSearchScore": 37.045,
-                "Average Intensity": 6.495502709882288
+                "Average Intensity": 6.495502709882289
               },
               "12817": {
                 "ProteinName": "Q9Y262;Q9Y262-2",
@@ -255022,7 +255022,7 @@
                 "ProteinName": "Q15029-2;Q15029",
                 "PeptideSequence": "KYYPTAEEVYGPEVETIVQEEDTQPLTEPIIKPVK",
                 "BestSearchScore": 35.717,
-                "Average Intensity": 6.366310866766735
+                "Average Intensity": 6.366310866766736
               },
               "12933": {
                 "ProteinName": "P55084",
@@ -255064,7 +255064,7 @@
                 "ProteinName": "P12236;P05141;P12235",
                 "PeptideSequence": "LAADVGK",
                 "BestSearchScore": 71.296,
-                "Average Intensity": 6.532091606278936
+                "Average Intensity": 6.532091606278935
               },
               "12940": {
                 "ProteinName": "Q96SB4;Q96SB4-3",
@@ -255472,7 +255472,7 @@
                 "ProteinName": "P62258",
                 "PeptideSequence": "LAEQAERYDEMVESMKK",
                 "BestSearchScore": 73.252,
-                "Average Intensity": 6.408002395550655
+                "Average Intensity": 6.408002395550654
               },
               "13008": {
                 "ProteinName": "O95994",
@@ -256540,7 +256540,7 @@
                 "ProteinName": "Q92945",
                 "PeptideSequence": "LASQGDSISSQLGPIHPPPR",
                 "BestSearchScore": 70.167,
-                "Average Intensity": 6.645445195300322
+                "Average Intensity": 6.645445195300323
               },
               "13186": {
                 "ProteinName": "UniRef100_F4HHY7;UniRef100_Q49549;UniRef100_G8XJM8;UniRef100_E0TKE9;UniRef100_K7X908",
@@ -256612,7 +256612,7 @@
                 "ProteinName": "O75083",
                 "PeptideSequence": "LATGSDDNCAAFFEGPPFK",
                 "BestSearchScore": 187.04,
-                "Average Intensity": 7.05538980026798
+                "Average Intensity": 7.055389800267979
               },
               "13198": {
                 "ProteinName": "UniRef100_E0TKU2",
@@ -257062,7 +257062,7 @@
                 "ProteinName": "Q86YV9",
                 "PeptideSequence": "LCPPELAPAELLLLLR",
                 "BestSearchScore": 79.614,
-                "Average Intensity": 5.402682572793649
+                "Average Intensity": 5.4026825727936485
               },
               "13273": {
                 "ProteinName": "O14929;O14929-2",
@@ -257572,7 +257572,7 @@
                 "ProteinName": "O43181",
                 "PeptideSequence": "LDITTLTGVPEEHIK",
                 "BestSearchScore": 55.196,
-                "Average Intensity": 5.987822618535766
+                "Average Intensity": 5.987822618535767
               },
               "13358": {
                 "ProteinName": "Q15008",
@@ -258574,7 +258574,7 @@
                 "ProteinName": "Q14204",
                 "PeptideSequence": "LEGVEGVAHIIDPK",
                 "BestSearchScore": 36.631,
-                "Average Intensity": 6.584223768429645
+                "Average Intensity": 6.584223768429644
               },
               "13525": {
                 "ProteinName": "P46940",
@@ -258634,7 +258634,7 @@
                 "ProteinName": "P55072",
                 "PeptideSequence": "LEILQIHTK",
                 "BestSearchScore": 161.51,
-                "Average Intensity": 7.150304518086944
+                "Average Intensity": 7.150304518086943
               },
               "13535": {
                 "ProteinName": "Q14980-2;Q14980;Q14980-4;Q14980-3",
@@ -259186,7 +259186,7 @@
                 "ProteinName": "UniRef100_F4HHA0",
                 "PeptideSequence": "LFAYGAERPIK",
                 "BestSearchScore": 98.156,
-                "Average Intensity": 6.814690323720296
+                "Average Intensity": 6.814690323720295
               },
               "13627": {
                 "ProteinName": "A0AVT1;A0AVT1-3;A0AVT1-4",
@@ -259234,7 +259234,7 @@
                 "ProteinName": "Q08945",
                 "PeptideSequence": "LFDFVNAK",
                 "BestSearchScore": 82.75,
-                "Average Intensity": 6.880722152237944
+                "Average Intensity": 6.880722152237943
               },
               "13635": {
                 "ProteinName": "P49327",
@@ -259468,7 +259468,7 @@
                 "ProteinName": "Q7KZI7-10;Q7KZI7-13;Q7KZI7-7;Q7KZI7-2;Q7KZI7-15;Q7KZI7-5;Q7KZI7-16;Q7KZI7-4;Q7KZI7-9;Q7KZI7-12;Q7KZI7-14;Q7KZI7-3;Q7KZI7-6;Q7KZI7-11;Q7KZI7-8;Q7KZI7",
                 "PeptideSequence": "LFEVIETEK",
                 "BestSearchScore": 51.445,
-                "Average Intensity": 5.98856341573131
+                "Average Intensity": 5.988563415731311
               },
               "13674": {
                 "ProteinName": "P62140",
@@ -260404,7 +260404,7 @@
                 "ProteinName": "P30084",
                 "PeptideSequence": "LFYSTFATDDRK",
                 "BestSearchScore": 85.554,
-                "Average Intensity": 6.98965890503852
+                "Average Intensity": 6.989658905038521
               },
               "13830": {
                 "ProteinName": "P28288-2;P28288",
@@ -260926,13 +260926,13 @@
                 "ProteinName": "UniRef100_F4HHK7",
                 "PeptideSequence": "LGFWNILNYDDVNSNK",
                 "BestSearchScore": 93.427,
-                "Average Intensity": 6.054565179951547
+                "Average Intensity": 6.054565179951548
               },
               "13917": {
                 "ProteinName": "Q02218;Q02218-3",
                 "PeptideSequence": "LGFYGLDESDLDK",
                 "BestSearchScore": 82.069,
-                "Average Intensity": 6.611877248202626
+                "Average Intensity": 6.611877248202625
               },
               "13918": {
                 "ProteinName": "P52272-2;P52272",
@@ -261304,7 +261304,7 @@
                 "ProteinName": "P43246;P43246-2",
                 "PeptideSequence": "LGLCEFPDNDQFSNLEALLIQIGPK",
                 "BestSearchScore": 104.52,
-                "Average Intensity": 6.239862320351488
+                "Average Intensity": 6.239862320351489
               },
               "13980": {
                 "ProteinName": "P09488;P09488-2;Q03013-2;Q03013",
@@ -261370,7 +261370,7 @@
                 "ProteinName": "P78527",
                 "PeptideSequence": "LGLIEWLENTVTLK",
                 "BestSearchScore": 120.9,
-                "Average Intensity": 5.925177965605874
+                "Average Intensity": 5.925177965605875
               },
               "13991": {
                 "ProteinName": "O15160;O15160-2",
@@ -261652,7 +261652,7 @@
                 "ProteinName": "Q13724",
                 "PeptideSequence": "LGPLLDILADSR",
                 "BestSearchScore": 69.352,
-                "Average Intensity": 5.747652584223644
+                "Average Intensity": 5.747652584223643
               },
               "14038": {
                 "ProteinName": "P38117;P38117-2",
@@ -262552,7 +262552,7 @@
                 "ProteinName": "O96019;O96019-2",
                 "PeptideSequence": "LIANNTTVER",
                 "BestSearchScore": 120.63,
-                "Average Intensity": 7.196985413353572
+                "Average Intensity": 7.1969854133535724
               },
               "14188": {
                 "ProteinName": "P07195",
@@ -263014,7 +263014,7 @@
                 "ProteinName": "Q9BQ69",
                 "PeptideSequence": "LIICVFLEK",
                 "BestSearchScore": 71.614,
-                "Average Intensity": 5.403172015492251
+                "Average Intensity": 5.403172015492252
               },
               "14265": {
                 "ProteinName": "Q9UPN3-3;Q9UPN3-2;Q9UPN3-4",
@@ -263680,7 +263680,7 @@
                 "ProteinName": "P07195",
                 "PeptideSequence": "LKDDEVAQLK",
                 "BestSearchScore": 98.182,
-                "Average Intensity": 7.7008882386760344
+                "Average Intensity": 7.700888238676035
               },
               "14376": {
                 "ProteinName": "P07195",
@@ -264394,7 +264394,7 @@
                 "ProteinName": "Q9NVP1",
                 "PeptideSequence": "LLDHMQNTPGFMYK",
                 "BestSearchScore": 46.069,
-                "Average Intensity": 6.578982842702791
+                "Average Intensity": 6.57898284270279
               },
               "14495": {
                 "ProteinName": "CONTAMINANT_sp|CATD_HUMAN|;P07339",
@@ -264502,7 +264502,7 @@
                 "ProteinName": "Q15149;Q15149-7;Q15149-8;Q15149-9;Q15149-5;Q15149-6;Q15149-2;Q15149-3;Q15149-4",
                 "PeptideSequence": "LLDPEDVDVPQPDEK",
                 "BestSearchScore": 112.57,
-                "Average Intensity": 6.994242343732589
+                "Average Intensity": 6.99424234373259
               },
               "14513": {
                 "ProteinName": "P54577",
@@ -264940,7 +264940,7 @@
                 "ProteinName": "Q02818",
                 "PeptideSequence": "LLERLPEVEVPQHL",
                 "BestSearchScore": 72.321,
-                "Average Intensity": 6.4973581986304705
+                "Average Intensity": 6.49735819863047
               },
               "14586": {
                 "ProteinName": "Q96HE7",
@@ -265306,7 +265306,7 @@
                 "ProteinName": "P40763-2;P40763",
                 "PeptideSequence": "LLGPGVNYSGCQITWAK",
                 "BestSearchScore": 68.41,
-                "Average Intensity": 6.852199319446276
+                "Average Intensity": 6.852199319446277
               },
               "14647": {
                 "ProteinName": "P42224-2;P42224",
@@ -265786,7 +265786,7 @@
                 "ProteinName": "Q9Y678",
                 "PeptideSequence": "LLLLDTVTMQVTAR",
                 "BestSearchScore": 126.71,
-                "Average Intensity": 5.971959695059153
+                "Average Intensity": 5.971959695059154
               },
               "14727": {
                 "ProteinName": "Q8IZL8;Q8IZL8-2",
@@ -266038,7 +266038,7 @@
                 "ProteinName": "Q9H871",
                 "PeptideSequence": "LLNEVMVEHFFR",
                 "BestSearchScore": 67.08,
-                "Average Intensity": 5.673039348116644
+                "Average Intensity": 5.673039348116645
               },
               "14769": {
                 "ProteinName": "O43681",
@@ -266134,7 +266134,7 @@
                 "ProteinName": "P62875",
                 "PeptideSequence": "LLNYAPLEK",
                 "BestSearchScore": 58.699,
-                "Average Intensity": 6.317791816053072
+                "Average Intensity": 6.317791816053071
               },
               "14785": {
                 "ProteinName": "Q96IJ6;Q96IJ6-2",
@@ -266596,7 +266596,7 @@
                 "ProteinName": "P06748;P06748-2;P06748-3",
                 "PeptideSequence": "LLSISGK",
                 "BestSearchScore": 79.451,
-                "Average Intensity": 8.414906528295035
+                "Average Intensity": 8.414906528295033
               },
               "14862": {
                 "ProteinName": "Q14161-2;Q14161-11;Q14161-7;Q14161-6;Q14161-10;Q14161-8;Q14161-4;Q14161-5;Q14161-3;Q14161;Q14161-9;Q9Y2X7;Q9Y2X7-3",
@@ -266650,7 +266650,7 @@
                 "ProteinName": "Q8N1F7;Q8N1F7-2",
                 "PeptideSequence": "LLSPVVPQISAPQSNK",
                 "BestSearchScore": 99.747,
-                "Average Intensity": 6.5310009301711585
+                "Average Intensity": 6.531000930171159
               },
               "14871": {
                 "ProteinName": "O00410;O00410-3;O00410-2",
@@ -266818,7 +266818,7 @@
                 "ProteinName": "O75534-2;O75534;O75534-3",
                 "PeptideSequence": "LLTSYGFIQCSER",
                 "BestSearchScore": 104.7,
-                "Average Intensity": 6.4982898726075735
+                "Average Intensity": 6.498289872607573
               },
               "14899": {
                 "ProteinName": "Q04637-5;Q04637-4;Q04637-3;Q04637;Q04637-6;O43432;O43432-3",
@@ -268102,7 +268102,7 @@
                 "ProteinName": "O94776",
                 "PeptideSequence": "LNPADAPNPVVFVATK",
                 "BestSearchScore": 73.953,
-                "Average Intensity": 6.7792392417563025
+                "Average Intensity": 6.779239241756303
               },
               "15113": {
                 "ProteinName": "P53396-2;P53396",
@@ -268156,7 +268156,7 @@
                 "ProteinName": "Q12906;Q12906-5;Q12906-4;Q12906-2;Q12906-6;Q12906-3",
                 "PeptideSequence": "LNQLKPGLQYK",
                 "BestSearchScore": 73.887,
-                "Average Intensity": 7.757778019647835
+                "Average Intensity": 7.757778019647836
               },
               "15122": {
                 "ProteinName": "Q7Z3J2-2;Q7Z3J2",
@@ -269248,19 +269248,19 @@
                 "ProteinName": "Q9H8V3-2;Q9H8V3-4;Q9H8V3;Q9H8V3-3",
                 "PeptideSequence": "LPSVALLLNDLK",
                 "BestSearchScore": 64.104,
-                "Average Intensity": 6.5788190783452904
+                "Average Intensity": 6.578819078345291
               },
               "15304": {
                 "ProteinName": "Q14258",
                 "PeptideSequence": "LPTFGAPEQLVDLK",
                 "BestSearchScore": 76.574,
-                "Average Intensity": 6.82716888264863
+                "Average Intensity": 6.827168882648629
               },
               "15305": {
                 "ProteinName": "Q09666",
                 "PeptideSequence": "LPTGQISGPEIK",
                 "BestSearchScore": 90.689,
-                "Average Intensity": 7.492376196689994
+                "Average Intensity": 7.492376196689993
               },
               "15306": {
                 "ProteinName": "Q12907",
@@ -269326,7 +269326,7 @@
                 "ProteinName": "Q9NZN4",
                 "PeptideSequence": "LPVIFAK",
                 "BestSearchScore": 97.596,
-                "Average Intensity": 6.4663089531422795
+                "Average Intensity": 6.466308953142279
               },
               "15317": {
                 "ProteinName": "P78527;P78527-2",
@@ -269776,7 +269776,7 @@
                 "ProteinName": "UniRef100_F4HHY7;UniRef100_Q49549;UniRef100_G8XJM8;UniRef100_E0TKE9;UniRef100_K7X908",
                 "PeptideSequence": "LQEGGCPTCGFGNLFSVSNEQLAAEVQR",
                 "BestSearchScore": 106.38,
-                "Average Intensity": 6.85162520315331
+                "Average Intensity": 6.851625203153309
               },
               "15392": {
                 "ProteinName": "UniRef100_F4HHY7;UniRef100_Q49549;UniRef100_G8XJM8;UniRef100_E0TKE9;UniRef100_K7X908",
@@ -270034,7 +270034,7 @@
                 "ProteinName": "O60443;O60443-3;O60443-2",
                 "PeptideSequence": "LQIIPTLCHLLR",
                 "BestSearchScore": 86.463,
-                "Average Intensity": 6.227106715839497
+                "Average Intensity": 6.227106715839498
               },
               "15435": {
                 "ProteinName": "Q15404;Q15404-2",
@@ -270208,7 +270208,7 @@
                 "ProteinName": "Q9NRR5",
                 "PeptideSequence": "LQLPVFLQQMQNPESLSILTNPR",
                 "BestSearchScore": 52.522,
-                "Average Intensity": 5.959427790191873
+                "Average Intensity": 5.9594277901918735
               },
               "15464": {
                 "ProteinName": "O43143",
@@ -270652,7 +270652,7 @@
                 "ProteinName": "UniRef100_F4HHL9;UniRef100_U6BXQ6;UniRef100_G8XJX8",
                 "PeptideSequence": "LQTSEPNILVQTPVAELK",
                 "BestSearchScore": 98.804,
-                "Average Intensity": 6.144854307252929
+                "Average Intensity": 6.14485430725293
               },
               "15538": {
                 "ProteinName": "P22314",
@@ -271384,7 +271384,7 @@
                 "ProteinName": "P33316-2;P33316",
                 "PeptideSequence": "LSEHATAPTR",
                 "BestSearchScore": 75.566,
-                "Average Intensity": 6.486674125507728
+                "Average Intensity": 6.486674125507727
               },
               "15660": {
                 "ProteinName": "Q96C19",
@@ -271474,13 +271474,13 @@
                 "ProteinName": "Q93009",
                 "PeptideSequence": "LSESVLSPPCFVR",
                 "BestSearchScore": 77.279,
-                "Average Intensity": 5.981070741621867
+                "Average Intensity": 5.981070741621866
               },
               "15675": {
                 "ProteinName": "Q8IWB9;Q8IWB9-2",
                 "PeptideSequence": "LSEVIYEPFQLLSK",
                 "BestSearchScore": 72.898,
-                "Average Intensity": 5.591075742639681
+                "Average Intensity": 5.591075742639682
               },
               "15676": {
                 "ProteinName": "UniRef100_F4HGT3;UniRef100_E0TKC4",
@@ -271570,7 +271570,7 @@
                 "ProteinName": "Q15149;Q15149-7;Q15149-8;Q15149-9;Q15149-5;Q15149-6;Q15149-2;Q15149-3;Q15149-4",
                 "PeptideSequence": "LSFSGLR",
                 "BestSearchScore": 79.451,
-                "Average Intensity": 7.349939637343928
+                "Average Intensity": 7.349939637343927
               },
               "15691": {
                 "ProteinName": "P51659;P51659-3;P51659-2",
@@ -271720,7 +271720,7 @@
                 "ProteinName": "P30041",
                 "PeptideSequence": "LSILYPATTGR",
                 "BestSearchScore": 112.94,
-                "Average Intensity": 7.364031657718186
+                "Average Intensity": 7.3640316577181855
               },
               "15716": {
                 "ProteinName": "P49327",
@@ -271810,7 +271810,7 @@
                 "ProteinName": "Q8NF91-4;Q8NF91;Q8NF91-7;Q8NF91-5;Q8NF91-6",
                 "PeptideSequence": "LSLDQALVK",
                 "BestSearchScore": 76.478,
-                "Average Intensity": 6.562245267932573
+                "Average Intensity": 6.562245267932574
               },
               "15731": {
                 "ProteinName": "UniRef100_K7XLQ6;UniRef100_E0TKJ1",
@@ -271912,7 +271912,7 @@
                 "ProteinName": "Q9UIW2",
                 "PeptideSequence": "LSLPWLLNK",
                 "BestSearchScore": 88.177,
-                "Average Intensity": 5.919893590571551
+                "Average Intensity": 5.919893590571552
               },
               "15748": {
                 "ProteinName": "P13489",
@@ -272650,7 +272650,7 @@
                 "ProteinName": "P26358;P26358-2;P26358-3",
                 "PeptideSequence": "LTCFSVYCK",
                 "BestSearchScore": 54.539,
-                "Average Intensity": 6.257198426139345
+                "Average Intensity": 6.257198426139344
               },
               "15871": {
                 "ProteinName": "Q9NWT1",
@@ -272872,7 +272872,7 @@
                 "ProteinName": "P45880;P45880-2;P45880-1",
                 "PeptideSequence": "LTFDTTFSPNTGK",
                 "BestSearchScore": 129.17,
-                "Average Intensity": 6.968067134408004
+                "Average Intensity": 6.968067134408003
               },
               "15908": {
                 "ProteinName": "P45880;P45880-2;P45880-1",
@@ -273232,7 +273232,7 @@
                 "ProteinName": "P35659",
                 "PeptideSequence": "LTMQVSSLQREPFTIAQGK",
                 "BestSearchScore": 66.977,
-                "Average Intensity": 6.60222643897893
+                "Average Intensity": 6.6022264389789305
               },
               "15968": {
                 "ProteinName": "O76094;O76094-2",
@@ -274522,7 +274522,7 @@
                 "ProteinName": "Q92616",
                 "PeptideSequence": "LVLPSLLAALEEESWR",
                 "BestSearchScore": 130.47,
-                "Average Intensity": 6.244252373972474
+                "Average Intensity": 6.244252373972473
               },
               "16183": {
                 "ProteinName": "O14579;O14579-2;O14579-3",
@@ -274954,7 +274954,7 @@
                 "ProteinName": "O43707",
                 "PeptideSequence": "LVSIGAEEIVDGNAK",
                 "BestSearchScore": 129.29,
-                "Average Intensity": 7.172032691428726
+                "Average Intensity": 7.172032691428725
               },
               "16255": {
                 "ProteinName": "P49902",
@@ -276100,7 +276100,7 @@
                 "ProteinName": "P52948-2;P52948-5;P52948;P52948-6",
                 "PeptideSequence": "LYQTPLELK",
                 "BestSearchScore": 65.157,
-                "Average Intensity": 6.528801044336472
+                "Average Intensity": 6.528801044336473
               },
               "16446": {
                 "ProteinName": "P60900",
@@ -276244,7 +276244,7 @@
                 "ProteinName": "UniRef100_F4HHF1;UniRef100_E0TL98",
                 "PeptideSequence": "LYTLPLFVASEEQK",
                 "BestSearchScore": 161.21,
-                "Average Intensity": 6.915204543486897
+                "Average Intensity": 6.915204543486898
               },
               "16470": {
                 "ProteinName": "UniRef100_F4HHF1;UniRef100_E0TL98",
@@ -276610,7 +276610,7 @@
                 "ProteinName": "O60716-13;O60716-11;O60716-10;O60716-9;O60716-16;O60716-15;O60716-14;O60716-12",
                 "PeptideSequence": "MANGTLTR",
                 "BestSearchScore": 52.403,
-                "Average Intensity": 6.214061944159942
+                "Average Intensity": 6.214061944159943
               },
               "16531": {
                 "ProteinName": "Q9UQ35",
@@ -277336,7 +277336,7 @@
                 "ProteinName": "Q15428",
                 "PeptideSequence": "MEKPPAPPSLPAGPPGVK",
                 "BestSearchScore": 58.164,
-                "Average Intensity": 6.821984904516791
+                "Average Intensity": 6.82198490451679
               },
               "16652": {
                 "ProteinName": "Q8IUI8-2",
@@ -277966,7 +277966,7 @@
                 "ProteinName": "Q8N4G2",
                 "PeptideSequence": "MGSLGSKNPQTK",
                 "BestSearchScore": 53.034,
-                "Average Intensity": 6.490113055126615
+                "Average Intensity": 6.490113055126614
               },
               "16757": {
                 "ProteinName": "Q9NSA3",
@@ -278674,7 +278674,7 @@
                 "ProteinName": "Q04637-5;Q04637-4;Q04637-3;Q04637;Q04637-6;O43432;O43432-3",
                 "PeptideSequence": "MLTEAIMHDCVVK",
                 "BestSearchScore": 47.039,
-                "Average Intensity": 5.998058714318505
+                "Average Intensity": 5.998058714318506
               },
               "16875": {
                 "ProteinName": "P17987",
@@ -278836,7 +278836,7 @@
                 "ProteinName": "Q9UBB5;Q9UBB5-3",
                 "PeptideSequence": "MMPSKLQKNK",
                 "BestSearchScore": 61.56,
-                "Average Intensity": 5.670385027721014
+                "Average Intensity": 5.6703850277210135
               },
               "16902": {
                 "ProteinName": "Q99832",
@@ -280006,7 +280006,7 @@
                 "ProteinName": "Q5VIR6-4",
                 "PeptideSequence": "MVLLDLPSISSQVVR",
                 "BestSearchScore": 74.296,
-                "Average Intensity": 5.687921165116412
+                "Average Intensity": 5.687921165116413
               },
               "17097": {
                 "ProteinName": "Q7KZF4",
@@ -280348,7 +280348,7 @@
                 "ProteinName": "O43291-2;O43291",
                 "PeptideSequence": "NAADSSVPSAPR",
                 "BestSearchScore": 55.724,
-                "Average Intensity": 6.780252487230426
+                "Average Intensity": 6.780252487230425
               },
               "17154": {
                 "ProteinName": "Q5VW32",
@@ -280636,7 +280636,7 @@
                 "ProteinName": "Q9GZT3",
                 "PeptideSequence": "NALQQENHIIDGVK",
                 "BestSearchScore": 166.03,
-                "Average Intensity": 7.303270810136354
+                "Average Intensity": 7.303270810136355
               },
               "17202": {
                 "ProteinName": "Q9H4L5-2;Q9H4L5;Q9H4L5-6;Q9H4L5-5",
@@ -281098,7 +281098,7 @@
                 "ProteinName": "UniRef100_F4HG75;UniRef100_E0TLG1",
                 "PeptideSequence": "NDADFIPVELLTSDVTHK",
                 "BestSearchScore": 69.111,
-                "Average Intensity": 6.601486887506509
+                "Average Intensity": 6.601486887506508
               },
               "17279": {
                 "ProteinName": "Q99798",
@@ -281194,7 +281194,7 @@
                 "ProteinName": "UniRef100_K7X948;UniRef100_G8XJS6;UniRef100_E0TKJ8",
                 "PeptideSequence": "NDLANAFLELQK",
                 "BestSearchScore": 99.991,
-                "Average Intensity": 6.315865430736778
+                "Average Intensity": 6.315865430736779
               },
               "17295": {
                 "ProteinName": "P19338",
@@ -281386,7 +281386,7 @@
                 "ProteinName": "P51003;Q9NRJ5",
                 "PeptideSequence": "NEFITLAHVNPQSFPAPK",
                 "BestSearchScore": 57.148,
-                "Average Intensity": 6.3209144530455745
+                "Average Intensity": 6.320914453045575
               },
               "17327": {
                 "ProteinName": "P62491;Q15907",
@@ -281560,7 +281560,7 @@
                 "ProteinName": "UniRef100_F4HFY8;UniRef100_K7X2R0",
                 "PeptideSequence": "NEVDAIDQAITK",
                 "BestSearchScore": 60.937,
-                "Average Intensity": 6.448505354259451
+                "Average Intensity": 6.44850535425945
               },
               "17356": {
                 "ProteinName": "P47897",
@@ -281590,7 +281590,7 @@
                 "ProteinName": "P49903",
                 "PeptideSequence": "NEVSFVIHNLPVLAK",
                 "BestSearchScore": 61.423,
-                "Average Intensity": 6.301122273437219
+                "Average Intensity": 6.30112227343722
               },
               "17361": {
                 "ProteinName": "Q6PI48",
@@ -281680,13 +281680,13 @@
                 "ProteinName": "Q9Y5B9",
                 "PeptideSequence": "NFDMVIVYK",
                 "BestSearchScore": 85.355,
-                "Average Intensity": 6.517591730711908
+                "Average Intensity": 6.517591730711907
               },
               "17376": {
                 "ProteinName": "Q969G6",
                 "PeptideSequence": "NFDSLESLISAIQGDIEEAKK",
                 "BestSearchScore": 67.644,
-                "Average Intensity": 5.853777277803502
+                "Average Intensity": 5.853777277803501
               },
               "17377": {
                 "ProteinName": "Q14839;Q14839-2",
@@ -282808,7 +282808,7 @@
                 "ProteinName": "O43837-2;O43837;O43837-3",
                 "PeptideSequence": "NIANPTAMLLSASNMLR",
                 "BestSearchScore": 97.352,
-                "Average Intensity": 6.013031138166239
+                "Average Intensity": 6.013031138166238
               },
               "17564": {
                 "ProteinName": "P52756",
@@ -282850,7 +282850,7 @@
                 "ProteinName": "Q96N66-2;Q96N66;Q96N66-3",
                 "PeptideSequence": "NIDCYSTDFCVR",
                 "BestSearchScore": 47.037,
-                "Average Intensity": 6.302763708472982
+                "Average Intensity": 6.302763708472981
               },
               "17571": {
                 "ProteinName": "P61026",
@@ -282928,7 +282928,7 @@
                 "ProteinName": "UniRef100_F4HHM0;UniRef100_K7X384;UniRef100_E0TKX7",
                 "PeptideSequence": "NIFEELNSLNSIK",
                 "BestSearchScore": 148.85,
-                "Average Intensity": 6.581961030166877
+                "Average Intensity": 6.581961030166878
               },
               "17584": {
                 "ProteinName": "O43264",
@@ -283252,7 +283252,7 @@
                 "ProteinName": "P12956",
                 "PeptideSequence": "NIPPYFVALVPQEEELDDQK",
                 "BestSearchScore": 77.031,
-                "Average Intensity": 6.768505964306229
+                "Average Intensity": 6.768505964306228
               },
               "17638": {
                 "ProteinName": "UniRef100_K7XLJ2;UniRef100_F4HI12;UniRef100_E0TK50",
@@ -283288,7 +283288,7 @@
                 "ProteinName": "P68036",
                 "PeptideSequence": "NIQVDEANLLTWQGLIVPDNPPYDK",
                 "BestSearchScore": 98.766,
-                "Average Intensity": 6.212296830383831
+                "Average Intensity": 6.21229683038383
               },
               "17644": {
                 "ProteinName": "Q8WUM4;Q8WUM4-2",
@@ -283366,13 +283366,13 @@
                 "ProteinName": "Q9UBD5;Q9UBD5-2;Q9UBD5-3",
                 "PeptideSequence": "NIWDSEEYASVLQLLR",
                 "BestSearchScore": 129.88,
-                "Average Intensity": 5.5421280050673145
+                "Average Intensity": 5.542128005067315
               },
               "17657": {
                 "ProteinName": "O00116",
                 "PeptideSequence": "NIYGNIEDLVVHIK",
                 "BestSearchScore": 95.854,
-                "Average Intensity": 6.010215125214227
+                "Average Intensity": 6.010215125214226
               },
               "17658": {
                 "ProteinName": "P02545;P02545-3;P02545-2;P02545-4",
@@ -283396,7 +283396,7 @@
                 "ProteinName": "P06703",
                 "PeptideSequence": "NKDQEVNFQEYVTFLGALALIYNEALK",
                 "BestSearchScore": 45.099,
-                "Average Intensity": 6.391534937088025
+                "Average Intensity": 6.391534937088024
               },
               "17662": {
                 "ProteinName": "P06703",
@@ -283492,7 +283492,7 @@
                 "ProteinName": "O60841",
                 "PeptideSequence": "NKSEDSTKDDIDLDALAAEIEGAGAAK",
                 "BestSearchScore": 24.2,
-                "Average Intensity": 5.984446297490532
+                "Average Intensity": 5.984446297490533
               },
               "17678": {
                 "ProteinName": "Q9BV40",
@@ -283678,7 +283678,7 @@
                 "ProteinName": "Q9BSJ2;Q9BSJ2-4",
                 "PeptideSequence": "NLDPLVYLLSK",
                 "BestSearchScore": 71.085,
-                "Average Intensity": 6.297521966512749
+                "Average Intensity": 6.297521966512748
               },
               "17709": {
                 "ProteinName": "P13861",
@@ -283900,7 +283900,7 @@
                 "ProteinName": "Q14697;Q14697-2",
                 "PeptideSequence": "NLGLYVK",
                 "BestSearchScore": 73.975,
-                "Average Intensity": 7.108625901869781
+                "Average Intensity": 7.10862590186978
               },
               "17746": {
                 "ProteinName": "P35237",
@@ -284344,7 +284344,7 @@
                 "ProteinName": "P98175-4;P98175-3;P98175-2;P98175",
                 "PeptideSequence": "NLNPHSTMDSILGALAPYAVLSSSNVR",
                 "BestSearchScore": 72.271,
-                "Average Intensity": 6.297103650149257
+                "Average Intensity": 6.297103650149256
               },
               "17820": {
                 "ProteinName": "P52732",
@@ -284698,13 +284698,13 @@
                 "ProteinName": "Q9H5Q4",
                 "PeptideSequence": "NLTPMNYNIFFHLLK",
                 "BestSearchScore": 37.613,
-                "Average Intensity": 5.816228038889111
+                "Average Intensity": 5.816228038889112
               },
               "17879": {
                 "ProteinName": "Q14152",
                 "PeptideSequence": "NLTQDEMQR",
                 "BestSearchScore": 109.44,
-                "Average Intensity": 6.811425523868026
+                "Average Intensity": 6.811425523868025
               },
               "17880": {
                 "ProteinName": "Q99541",
@@ -285040,7 +285040,7 @@
                 "ProteinName": "Q13501;Q13501-2",
                 "PeptideSequence": "NMVHPNVICDGCNGPVVGTR",
                 "BestSearchScore": 144.25,
-                "Average Intensity": 6.542887642342411
+                "Average Intensity": 6.542887642342412
               },
               "17936": {
                 "ProteinName": "P05023;P05023-3;P05023-2;P13637;P50993;Q13733",
@@ -285094,7 +285094,7 @@
                 "ProteinName": "P41252",
                 "PeptideSequence": "NNDLCYWVPELVR",
                 "BestSearchScore": 107.69,
-                "Average Intensity": 6.673039348116644
+                "Average Intensity": 6.673039348116645
               },
               "17945": {
                 "ProteinName": "O00159-2;O00159-3;O00159",
@@ -285124,7 +285124,7 @@
                 "ProteinName": "P45880;P45880-2;P45880-1",
                 "PeptideSequence": "NNFAVGYR",
                 "BestSearchScore": 95.531,
-                "Average Intensity": 7.403977963669355
+                "Average Intensity": 7.403977963669354
               },
               "17950": {
                 "ProteinName": "Q14258",
@@ -285214,7 +285214,7 @@
                 "ProteinName": "P41250",
                 "PeptideSequence": "NNIIQTWR",
                 "BestSearchScore": 110.41,
-                "Average Intensity": 7.224706538570484
+                "Average Intensity": 7.2247065385704845
               },
               "17965": {
                 "ProteinName": "P51149",
@@ -285262,7 +285262,7 @@
                 "ProteinName": "UniRef100_G8XJX2;UniRef100_F4HHM6;UniRef100_E0TKX2",
                 "PeptideSequence": "NNLDLLELIK",
                 "BestSearchScore": 95.483,
-                "Average Intensity": 6.699887567184209
+                "Average Intensity": 6.69988756718421
               },
               "17973": {
                 "ProteinName": "UniRef100_G8XJX2;UniRef100_F4HHM6;UniRef100_E0TKX2",
@@ -285526,7 +285526,7 @@
                 "ProteinName": "P08238",
                 "PeptideSequence": "NPDDITQEEYGEFYK",
                 "BestSearchScore": 217.79,
-                "Average Intensity": 7.614402379633033
+                "Average Intensity": 7.614402379633032
               },
               "18017": {
                 "ProteinName": "CONTAMINANT_sp|UBE2I_HUMAN|;P63279",
@@ -286156,7 +286156,7 @@
                 "ProteinName": "P08240-2;P08240",
                 "PeptideSequence": "NQGFDVVLVDTAGR",
                 "BestSearchScore": 120.92,
-                "Average Intensity": 6.1944310825637015
+                "Average Intensity": 6.194431082563702
               },
               "18122": {
                 "ProteinName": "P07814",
@@ -286258,7 +286258,7 @@
                 "ProteinName": "Q13045;Q13045-2",
                 "PeptideSequence": "NQLTSLPSAICK",
                 "BestSearchScore": 110.64,
-                "Average Intensity": 6.247052174856615
+                "Average Intensity": 6.2470521748566155
               },
               "18139": {
                 "ProteinName": "P11021",
@@ -286414,7 +286414,7 @@
                 "ProteinName": "P61289;P61289-2",
                 "PeptideSequence": "NQYVTLHDMILK",
                 "BestSearchScore": 57.567,
-                "Average Intensity": 6.463345921044834
+                "Average Intensity": 6.463345921044833
               },
               "18165": {
                 "ProteinName": "A1L0T0",
@@ -287098,7 +287098,7 @@
                 "ProteinName": "P14618;P14618-2",
                 "PeptideSequence": "NTGIICTIGPASR",
                 "BestSearchScore": 188.92,
-                "Average Intensity": 8.041270188066562
+                "Average Intensity": 8.041270188066564
               },
               "18279": {
                 "ProteinName": "UniRef100_U6BVP7;UniRef100_K7X8Q7;UniRef100_G8XJ27;UniRef100_F4HFZ6;UniRef100_E0TK03",
@@ -287176,7 +287176,7 @@
                 "ProteinName": "UniRef100_F4HH80;UniRef100_E0TLM5",
                 "PeptideSequence": "NTLDWDGDELDVLVYSK",
                 "BestSearchScore": 116.61,
-                "Average Intensity": 6.316033282125661
+                "Average Intensity": 6.3160332821256615
               },
               "18292": {
                 "ProteinName": "P48444;P48444-2",
@@ -287680,7 +287680,7 @@
                 "ProteinName": "P49368;P49368-2",
                 "PeptideSequence": "NVLLDPQLVPGGGASEMAVAHALTEK",
                 "BestSearchScore": 61.437,
-                "Average Intensity": 7.371226397019909
+                "Average Intensity": 7.371226397019908
               },
               "18376": {
                 "ProteinName": "Q9Y6G9",
@@ -287776,7 +287776,7 @@
                 "ProteinName": "UniRef100_G8XJ57;UniRef100_E0TLK0",
                 "PeptideSequence": "NVQFLLAQGAPK",
                 "BestSearchScore": 181.4,
-                "Average Intensity": 7.396249052655751
+                "Average Intensity": 7.39624905265575
               },
               "18392": {
                 "ProteinName": "P08754;P04899;P04899-3;P04899-2;P63096;P63096-2",
@@ -287800,7 +287800,7 @@
                 "ProteinName": "Q9Y3D5",
                 "PeptideSequence": "NVQLLSQFVSPFTGCIYGR",
                 "BestSearchScore": 134.04,
-                "Average Intensity": 6.3209144530455745
+                "Average Intensity": 6.320914453045575
               },
               "18396": {
                 "ProteinName": "P36873;P36873-2",
@@ -287854,7 +287854,7 @@
                 "ProteinName": "Q9BQ52-4;Q9BQ52;Q9BQ52-3;Q9BQ52-2",
                 "PeptideSequence": "NVSATLVNISPDTSLLLDCGEGTFGQLCR",
                 "BestSearchScore": 37.424,
-                "Average Intensity": 6.453792135344473
+                "Average Intensity": 6.453792135344474
               },
               "18405": {
                 "ProteinName": "O75179-2;O75179;Q8IWZ3;Q8IWZ3-4;Q8IWZ3-6",
@@ -287986,7 +287986,7 @@
                 "ProteinName": "Q7Z2W4;Q7Z2W4-4",
                 "PeptideSequence": "NVVMFVAQVLVGK",
                 "BestSearchScore": 113.24,
-                "Average Intensity": 5.636618265427456
+                "Average Intensity": 5.636618265427457
               },
               "18427": {
                 "ProteinName": "P62714;P67775;P67775-2",
@@ -288880,7 +288880,7 @@
                 "ProteinName": "Q00839;Q00839-2",
                 "PeptideSequence": "PLFPHVLCHNCAVEFNFGQK",
                 "BestSearchScore": 81.606,
-                "Average Intensity": 7.142054542269465
+                "Average Intensity": 7.142054542269466
               },
               "18576": {
                 "ProteinName": "Q92616",
@@ -290314,7 +290314,7 @@
                 "ProteinName": "Q14008-2;Q14008;Q14008-3",
                 "PeptideSequence": "QELLGWLAEK",
                 "BestSearchScore": 102.4,
-                "Average Intensity": 6.284859176733763
+                "Average Intensity": 6.284859176733764
               },
               "18815": {
                 "ProteinName": "Q9HAU4",
@@ -290380,7 +290380,7 @@
                 "ProteinName": "P51149",
                 "PeptideSequence": "QETEVELYNEFPEPIKLDK",
                 "BestSearchScore": 73.597,
-                "Average Intensity": 6.168526946192689
+                "Average Intensity": 6.1685269461926895
               },
               "18826": {
                 "ProteinName": "Q13813-3;Q13813;Q13813-2",
@@ -290404,7 +290404,7 @@
                 "ProteinName": "O00571;O00571-2;O15523",
                 "PeptideSequence": "QEVPSWLENMAYEHHYK",
                 "BestSearchScore": 63.754,
-                "Average Intensity": 6.437274797410124
+                "Average Intensity": 6.437274797410123
               },
               "18830": {
                 "ProteinName": "Q9UNX4",
@@ -290482,7 +290482,7 @@
                 "ProteinName": "P07814",
                 "PeptideSequence": "QFAYQNSWGLTTR",
                 "BestSearchScore": 82.483,
-                "Average Intensity": 6.60010125569139
+                "Average Intensity": 6.600101255691391
               },
               "18843": {
                 "ProteinName": "Q9Y3A3-2;Q9Y3A3-3;Q9Y3A3",
@@ -290548,7 +290548,7 @@
                 "ProteinName": "Q9Y6H1;Q5T1J5",
                 "PeptideSequence": "QFLECAQNQGDIK",
                 "BestSearchScore": 215.51,
-                "Average Intensity": 7.10009471501499
+                "Average Intensity": 7.100094715014989
               },
               "18854": {
                 "ProteinName": "O60749",
@@ -291256,7 +291256,7 @@
                 "ProteinName": "P54727;P54727-2",
                 "PeptideSequence": "QIIQQNPSLLPALLQQIGR",
                 "BestSearchScore": 94.639,
-                "Average Intensity": 7.052655473039527
+                "Average Intensity": 7.052655473039526
               },
               "18972": {
                 "ProteinName": "Q92878;Q92878-2",
@@ -292144,7 +292144,7 @@
                 "ProteinName": "P16144-4;P16144-2;P16144-3;P16144",
                 "PeptideSequence": "QLLVEAIDVPAGTATLGR",
                 "BestSearchScore": 101.54,
-                "Average Intensity": 6.446700229878859
+                "Average Intensity": 6.44670022987886
               },
               "19120": {
                 "ProteinName": "Q02750-2;Q02750",
@@ -292600,7 +292600,7 @@
                 "ProteinName": "P29323-2;P29323-3;P29323;P54762",
                 "PeptideSequence": "QNDGQFTVIQLVGMLR",
                 "BestSearchScore": 71.545,
-                "Average Intensity": 5.495502709882288
+                "Average Intensity": 5.495502709882289
               },
               "19196": {
                 "ProteinName": "Q86UP2;Q86UP2-2;Q86UP2-3",
@@ -294034,7 +294034,7 @@
                 "ProteinName": "P63010;P63010-2",
                 "PeptideSequence": "QVFLATWK",
                 "BestSearchScore": 78.264,
-                "Average Intensity": 6.2775633760559195
+                "Average Intensity": 6.277563376055919
               },
               "19435": {
                 "ProteinName": "UniRef100_F4HHV4",
@@ -294484,7 +294484,7 @@
                 "ProteinName": "P37802",
                 "PeptideSequence": "QYDADLEQILIQWITTQCRK",
                 "BestSearchScore": 115.2,
-                "Average Intensity": 6.461438495753564
+                "Average Intensity": 6.461438495753563
               },
               "19510": {
                 "ProteinName": "Q96C19",
@@ -294610,7 +294610,7 @@
                 "ProteinName": "P35606",
                 "PeptideSequence": "QYPLVTPNEER",
                 "BestSearchScore": 59.265,
-                "Average Intensity": 6.794989670218163
+                "Average Intensity": 6.794989670218162
               },
               "19531": {
                 "ProteinName": "Q9NVA2;Q9NVA2-2;Q9P0V9-3;Q9P0V9;Q9P0V9-2",
@@ -295216,7 +295216,7 @@
                 "ProteinName": "P11388;P11388-2;P11388-3;P11388-4",
                 "PeptideSequence": "RDPALNSGVSQKPDPAK",
                 "BestSearchScore": 87.419,
-                "Average Intensity": 6.830892205208274
+                "Average Intensity": 6.830892205208273
               },
               "19632": {
                 "ProteinName": "Q00610-2;Q00610;P53675-2;P53675",
@@ -295258,7 +295258,7 @@
                 "ProteinName": "Q14315;Q14315-2",
                 "PeptideSequence": "RDTVEVALEDKGDSTFR",
                 "BestSearchScore": 63.691,
-                "Average Intensity": 6.0032450548131475
+                "Average Intensity": 6.003245054813147
               },
               "19639": {
                 "ProteinName": "Q13838;Q13838-2;O00148",
@@ -295324,7 +295324,7 @@
                 "ProteinName": "Q15369;Q15369-2",
                 "PeptideSequence": "REHALTSGTIK",
                 "BestSearchScore": 87.719,
-                "Average Intensity": 6.67392052874342
+                "Average Intensity": 6.6739205287434205
               },
               "19650": {
                 "ProteinName": "P21796",
@@ -296062,7 +296062,7 @@
                 "ProteinName": "P60174-1;P60174;P60174-4",
                 "PeptideSequence": "RHVFGESDELIGQK",
                 "BestSearchScore": 128.76,
-                "Average Intensity": 7.293096149939956
+                "Average Intensity": 7.293096149939955
               },
               "19773": {
                 "ProteinName": "Q8IY81",
@@ -296194,7 +296194,7 @@
                 "ProteinName": "Q9NR30;Q9NR30-2",
                 "PeptideSequence": "RIGVPSATEIIK",
                 "BestSearchScore": 55.105,
-                "Average Intensity": 6.44547965653288
+                "Average Intensity": 6.445479656532881
               },
               "19795": {
                 "ProteinName": "O43747;O43747-2",
@@ -296314,7 +296314,7 @@
                 "ProteinName": "P31930",
                 "PeptideSequence": "RIPLAEWESR",
                 "BestSearchScore": 46.955,
-                "Average Intensity": 6.055493006677846
+                "Average Intensity": 6.055493006677845
               },
               "19815": {
                 "ProteinName": "P21281",
@@ -296650,7 +296650,7 @@
                 "ProteinName": "P49755",
                 "PeptideSequence": "RLEDLSESIVNDFAYMK",
                 "BestSearchScore": 93.371,
-                "Average Intensity": 6.580329550055801
+                "Average Intensity": 6.5803295500558
               },
               "19871": {
                 "ProteinName": "Q9UH99;Q9UH99-2",
@@ -296794,7 +296794,7 @@
                 "ProteinName": "Q08211",
                 "PeptideSequence": "RLGYIHR",
                 "BestSearchScore": 80.462,
-                "Average Intensity": 7.336019211951665
+                "Average Intensity": 7.336019211951666
               },
               "19895": {
                 "ProteinName": "P33991",
@@ -296956,7 +296956,7 @@
                 "ProteinName": "P29144",
                 "PeptideSequence": "RLNEIVDAANAVISHIDQTALAVYIAMK",
                 "BestSearchScore": 43.658,
-                "Average Intensity": 5.391534937088025
+                "Average Intensity": 5.391534937088024
               },
               "19922": {
                 "ProteinName": "O43242",
@@ -297124,7 +297124,7 @@
                 "ProteinName": "Q08J23;Q08J23-2",
                 "PeptideSequence": "RLQQQQRPEDAEDGAEGGGK",
                 "BestSearchScore": 48.677,
-                "Average Intensity": 5.216403445233793
+                "Average Intensity": 5.2164034452337935
               },
               "19950": {
                 "ProteinName": "P04075;CONTAMINANT_sp|ALDOA_RABIT|",
@@ -297190,13 +297190,13 @@
                 "ProteinName": "Q9NUQ6-2;Q9NUQ6",
                 "PeptideSequence": "RLTDLASQMAEMQLAELR",
                 "BestSearchScore": 56.424,
-                "Average Intensity": 6.558912473106538
+                "Average Intensity": 6.558912473106539
               },
               "19961": {
                 "ProteinName": "Q14315;Q14315-2",
                 "PeptideSequence": "RLTDLQR",
                 "BestSearchScore": 110.12,
-                "Average Intensity": 7.430913151004603
+                "Average Intensity": 7.430913151004602
               },
               "19962": {
                 "ProteinName": "P23258;Q9NRH3",
@@ -298048,7 +298048,7 @@
                 "ProteinName": "P35579;P35579-2",
                 "PeptideSequence": "RQLEEAEEEAQR",
                 "BestSearchScore": 166.48,
-                "Average Intensity": 7.478351253161504
+                "Average Intensity": 7.478351253161505
               },
               "20104": {
                 "ProteinName": "P35579;P35579-2",
@@ -299176,7 +299176,7 @@
                 "ProteinName": "Q9P2N2-2;Q9P2N2",
                 "PeptideSequence": "RYHTYTQTMR",
                 "BestSearchScore": 72.607,
-                "Average Intensity": 6.603220178008266
+                "Average Intensity": 6.603220178008267
               },
               "20292": {
                 "ProteinName": "P06396-2;CONTAMINANT_sp|GELS_HUMAN|;P06396-3;P06396;CON__Q3SX14",
@@ -299266,7 +299266,7 @@
                 "ProteinName": "UniRef100_E0TKQ1;UniRef100_F4HGK9",
                 "PeptideSequence": "RYYGGCENIDVVETLAIER",
                 "BestSearchScore": 66.152,
-                "Average Intensity": 6.3038221998628465
+                "Average Intensity": 6.303822199862847
               },
               "20307": {
                 "ProteinName": "P50851-2;P50851",
@@ -299290,7 +299290,7 @@
                 "ProteinName": "P45974-2;P45974",
                 "PeptideSequence": "SAADSISESVPVGPK",
                 "BestSearchScore": 136.14,
-                "Average Intensity": 6.783928579057891
+                "Average Intensity": 6.78392857905789
               },
               "20311": {
                 "ProteinName": "Q9BRF8-2;Q9BRF8",
@@ -299362,7 +299362,7 @@
                 "ProteinName": "Q7Z6Z7-3;Q7Z6Z7;Q7Z6Z7-2",
                 "PeptideSequence": "SAATSGAGSTTSGVVSGSLGSR",
                 "BestSearchScore": 160.05,
-                "Average Intensity": 6.183561648476733
+                "Average Intensity": 6.183561648476734
               },
               "20323": {
                 "ProteinName": "Q14204",
@@ -299806,7 +299806,7 @@
                 "ProteinName": "Q8NB90-2;Q8NB90;Q8NB90-3",
                 "PeptideSequence": "SANICIGRPVLLTSLNGK",
                 "BestSearchScore": 48.131,
-                "Average Intensity": 6.1497731775596645
+                "Average Intensity": 6.149773177559665
               },
               "20397": {
                 "ProteinName": "UniRef100_F4HI23;UniRef100_E0TK39",
@@ -299896,7 +299896,7 @@
                 "ProteinName": "Q96QD5;Q96QD5-2",
                 "PeptideSequence": "SASLEDLWENLSLK",
                 "BestSearchScore": 60.157,
-                "Average Intensity": 7.1553056661596255
+                "Average Intensity": 7.155305666159626
               },
               "20412": {
                 "ProteinName": "Q0JRZ9-2;Q0JRZ9-3;Q0JRZ9",
@@ -302080,7 +302080,7 @@
                 "ProteinName": "P50416;P50416-2",
                 "PeptideSequence": "SFTFVVFK",
                 "BestSearchScore": 77.318,
-                "Average Intensity": 6.306839464804705
+                "Average Intensity": 6.306839464804704
               },
               "20776": {
                 "ProteinName": "Q6NZI2;Q6NZI2-2;Q6NZI2-3",
@@ -302260,7 +302260,7 @@
                 "ProteinName": "P68104;Q5VTE0",
                 "PeptideSequence": "SGDAAIVDMVPGKPMCVESFSDYPPLGR",
                 "BestSearchScore": 138.0,
-                "Average Intensity": 7.488969030359419
+                "Average Intensity": 7.488969030359418
               },
               "20806": {
                 "ProteinName": "Q9H9B4",
@@ -302902,7 +302902,7 @@
                 "ProteinName": "P18031",
                 "PeptideSequence": "SGTFCLADTCLLLMDK",
                 "BestSearchScore": 127.83,
-                "Average Intensity": 6.455126679004
+                "Average Intensity": 6.455126679003999
               },
               "20913": {
                 "ProteinName": "P04632",
@@ -303394,7 +303394,7 @@
                 "ProteinName": "O00560;O00560-3;O00560-2",
                 "PeptideSequence": "SIDNGIFVQLVQANSPASLVGLR",
                 "BestSearchScore": 154.66,
-                "Average Intensity": 6.608414771478687
+                "Average Intensity": 6.608414771478686
               },
               "20995": {
                 "ProteinName": "Q15021",
@@ -303916,7 +303916,7 @@
                 "ProteinName": "P19338",
                 "PeptideSequence": "SISLYYTGEK",
                 "BestSearchScore": 93.096,
-                "Average Intensity": 7.760452641715082
+                "Average Intensity": 7.760452641715083
               },
               "21082": {
                 "ProteinName": "Q8NFF5-3;Q8NFF5-2;Q8NFF5",
@@ -304390,7 +304390,7 @@
                 "ProteinName": "P39687;Q92688-2;Q92688",
                 "PeptideSequence": "SLDLFNCEVTNLNDYR",
                 "BestSearchScore": 172.82,
-                "Average Intensity": 7.262936532005245
+                "Average Intensity": 7.262936532005246
               },
               "21161": {
                 "ProteinName": "P39687",
@@ -304498,7 +304498,7 @@
                 "ProteinName": "O60499-2;O60499",
                 "PeptideSequence": "SLEDPFFVVR",
                 "BestSearchScore": 80.706,
-                "Average Intensity": 6.299563951585876
+                "Average Intensity": 6.299563951585877
               },
               "21179": {
                 "ProteinName": "UniRef100_E0TLC1",
@@ -304618,7 +304618,7 @@
                 "ProteinName": "UniRef100_K7XY20;UniRef100_F4HGU2;UniRef100_E0TKB6",
                 "PeptideSequence": "SLENEGVLSFFK",
                 "BestSearchScore": 60.345,
-                "Average Intensity": 6.102262149494273
+                "Average Intensity": 6.1022621494942735
               },
               "21199": {
                 "ProteinName": "P33993;P33993-3",
@@ -305584,7 +305584,7 @@
                 "ProteinName": "O75410-5;O75410-4;O75410-6;O75410-3;O75410-7;O75410;O75410-2;O75410-8",
                 "PeptideSequence": "SLSDLFR",
                 "BestSearchScore": 100.19,
-                "Average Intensity": 5.861474668857168
+                "Average Intensity": 5.861474668857169
               },
               "21360": {
                 "ProteinName": "Q13185",
@@ -305758,7 +305758,7 @@
                 "ProteinName": "Q9UNH7-2;Q9UNH7",
                 "PeptideSequence": "SLVDYENANK",
                 "BestSearchScore": 56.043,
-                "Average Intensity": 6.849697797207975
+                "Average Intensity": 6.849697797207976
               },
               "21389": {
                 "ProteinName": "Q9UQ80",
@@ -306148,7 +306148,7 @@
                 "ProteinName": "P12270",
                 "PeptideSequence": "SNASLTNNQNLIQSLK",
                 "BestSearchScore": 150.92,
-                "Average Intensity": 6.319881264851407
+                "Average Intensity": 6.319881264851406
               },
               "21454": {
                 "ProteinName": "UniRef100_G8XJV7;UniRef100_F4HHP3;UniRef100_K7X371;UniRef100_E0TKV7",
@@ -306406,7 +306406,7 @@
                 "ProteinName": "O43143",
                 "PeptideSequence": "SNLGSVVLQLK",
                 "BestSearchScore": 89.805,
-                "Average Intensity": 7.111819310684469
+                "Average Intensity": 7.111819310684468
               },
               "21497": {
                 "ProteinName": "Q9UHG3",
@@ -306478,7 +306478,7 @@
                 "ProteinName": "P31943",
                 "PeptideSequence": "SNNVEMDWVLK",
                 "BestSearchScore": 116.74,
-                "Average Intensity": 6.888241627855937
+                "Average Intensity": 6.888241627855936
               },
               "21509": {
                 "ProteinName": "P55036;P55036-2",
@@ -306916,7 +306916,7 @@
                 "ProteinName": "O75369-8;O75369-2;O75369-9;O75369;O75369-6;O75369-3;O75369-7;O75369-5;O75369-4",
                 "PeptideSequence": "SPFTVGVAAPLDLSK",
                 "BestSearchScore": 118.19,
-                "Average Intensity": 7.662207534195272
+                "Average Intensity": 7.6622075341952725
               },
               "21582": {
                 "ProteinName": "Q14315;Q14315-2",
@@ -307408,7 +307408,7 @@
                 "ProteinName": "P46781",
                 "PeptideSequence": "SPYGGGRPGR",
                 "BestSearchScore": 79.986,
-                "Average Intensity": 6.557392898843569
+                "Average Intensity": 6.557392898843568
               },
               "21664": {
                 "ProteinName": "Q14318;Q14318-2",
@@ -308350,7 +308350,7 @@
                 "ProteinName": "Q09666",
                 "PeptideSequence": "SSGCDVNLPGVNVK",
                 "BestSearchScore": 122.78,
-                "Average Intensity": 7.193688675503587
+                "Average Intensity": 7.193688675503586
               },
               "21821": {
                 "ProteinName": "Q02543",
@@ -308656,7 +308656,7 @@
                 "ProteinName": "UniRef100_U6BUI1;UniRef100_F4HGV6;UniRef100_K7X8S8",
                 "PeptideSequence": "SSLVLPVAGSLTSSVVDAIKK",
                 "BestSearchScore": 116.39,
-                "Average Intensity": 8.076606799409625
+                "Average Intensity": 8.076606799409626
               },
               "21872": {
                 "ProteinName": "P62820;P62820-2;P62820-3",
@@ -309940,7 +309940,7 @@
                 "ProteinName": "O95721",
                 "PeptideSequence": "SVFGGLVNYFK",
                 "BestSearchScore": 54.486,
-                "Average Intensity": 6.288316310166291
+                "Average Intensity": 6.288316310166292
               },
               "22086": {
                 "ProteinName": "P49792",
@@ -310246,7 +310246,7 @@
                 "ProteinName": "Q8NBJ7;Q8NBJ7-3;Q8NBJ7-2",
                 "PeptideSequence": "SVLWWLPVEK",
                 "BestSearchScore": 95.483,
-                "Average Intensity": 6.884968028208988
+                "Average Intensity": 6.884968028208989
               },
               "22137": {
                 "ProteinName": "O95757",
@@ -310636,7 +310636,7 @@
                 "ProteinName": "P17987",
                 "PeptideSequence": "SVVPGGGAVEAALSIYLENYATSMGSR",
                 "BestSearchScore": 73.865,
-                "Average Intensity": 6.5456212785872605
+                "Average Intensity": 6.545621278587261
               },
               "22202": {
                 "ProteinName": "P11388;P11388-2;P11388-3;P11388-4",
@@ -310888,7 +310888,7 @@
                 "ProteinName": "UniRef100_G8XJV7;UniRef100_F4HHP3;UniRef100_K7X371;UniRef100_E0TKV7",
                 "PeptideSequence": "SYDEQVR",
                 "BestSearchScore": 110.12,
-                "Average Intensity": 7.442500673229547
+                "Average Intensity": 7.442500673229546
               },
               "22244": {
                 "ProteinName": "Q8WVM8",
@@ -310906,7 +310906,7 @@
                 "ProteinName": "Q658Y4",
                 "PeptideSequence": "SYDSLPNFTAADCLR",
                 "BestSearchScore": 91.616,
-                "Average Intensity": 6.134092600061852
+                "Average Intensity": 6.1340926000618525
               },
               "22247": {
                 "ProteinName": "P18669;Q8N0Y7",
@@ -311182,7 +311182,7 @@
                 "ProteinName": "P43490",
                 "PeptideSequence": "SYSFDEIRK",
                 "BestSearchScore": 143.7,
-                "Average Intensity": 7.518592895333409
+                "Average Intensity": 7.51859289533341
               },
               "22293": {
                 "ProteinName": "Q9H5V8;Q9H5V8-2",
@@ -311854,7 +311854,7 @@
                 "ProteinName": "P16615-5;P16615-2;P16615-3;P16615;P16615-4;O14983-2;O14983",
                 "PeptideSequence": "TASEMVLADDNFSTIVAAVEEGR",
                 "BestSearchScore": 85.013,
-                "Average Intensity": 5.708811674297328
+                "Average Intensity": 5.708811674297329
               },
               "22405": {
                 "ProteinName": "Q92597;Q92597-3;Q92597-2",
@@ -312130,7 +312130,7 @@
                 "ProteinName": "P50990",
                 "PeptideSequence": "TAYGPNGMNK",
                 "BestSearchScore": 77.533,
-                "Average Intensity": 6.402765387481406
+                "Average Intensity": 6.402765387481407
               },
               "22451": {
                 "ProteinName": "O00231;O00231-2",
@@ -313042,7 +313042,7 @@
                 "ProteinName": "O43615",
                 "PeptideSequence": "TEMSEVLTEILRVDPAFDK",
                 "BestSearchScore": 73.833,
-                "Average Intensity": 5.981227220031384
+                "Average Intensity": 5.981227220031385
               },
               "22603": {
                 "ProteinName": "Q9Y5J9",
@@ -313330,7 +313330,7 @@
                 "ProteinName": "Q6P2Q9",
                 "PeptideSequence": "TFEGNLTTKPINGAIFIFNPR",
                 "BestSearchScore": 101.54,
-                "Average Intensity": 6.53319036494543
+                "Average Intensity": 6.533190364945429
               },
               "22651": {
                 "ProteinName": "P51665",
@@ -313798,7 +313798,7 @@
                 "ProteinName": "P09603-3;P09603-2;P09603",
                 "PeptideSequence": "TFYETPLQLLEK",
                 "BestSearchScore": 78.324,
-                "Average Intensity": 6.098297536494698
+                "Average Intensity": 6.098297536494697
               },
               "22729": {
                 "ProteinName": "P28838-2;P28838",
@@ -314032,7 +314032,7 @@
                 "ProteinName": "UniRef100_K7XKN4;UniRef100_F4HGU0;UniRef100_E0TKB8",
                 "PeptideSequence": "TGFTSVMYDGSHESFEVNLK",
                 "BestSearchScore": 67.153,
-                "Average Intensity": 6.461563551035699
+                "Average Intensity": 6.461563551035698
               },
               "22768": {
                 "ProteinName": "P09132",
@@ -314914,7 +314914,7 @@
                 "ProteinName": "Q8NFH3",
                 "PeptideSequence": "TIDNADSSTLHAVTFLR",
                 "BestSearchScore": 89.344,
-                "Average Intensity": 6.10615688696684
+                "Average Intensity": 6.106156886966839
               },
               "22915": {
                 "ProteinName": "O75947;O75947-2",
@@ -315244,7 +315244,7 @@
                 "ProteinName": "Q5SSJ5;Q5SSJ5-2",
                 "PeptideSequence": "TIPSWATLSASQLAR",
                 "BestSearchScore": 75.968,
-                "Average Intensity": 6.7666284535155
+                "Average Intensity": 6.766628453515499
               },
               "22970": {
                 "ProteinName": "O43707",
@@ -315568,7 +315568,7 @@
                 "ProteinName": "P20810-7;P20810-6;P20810-5;P20810-4;P20810-8;P20810;P20810-2",
                 "PeptideSequence": "TKPQDMISAGGESVAGITAISGKPGDK",
                 "BestSearchScore": 80.117,
-                "Average Intensity": 6.877345425664341
+                "Average Intensity": 6.877345425664342
               },
               "23024": {
                 "ProteinName": "Q14204",
@@ -315652,7 +315652,7 @@
                 "ProteinName": "Q9NVP1",
                 "PeptideSequence": "TLAFLIPAVELIVK",
                 "BestSearchScore": 115.34,
-                "Average Intensity": 6.170744892567621
+                "Average Intensity": 6.170744892567622
               },
               "23038": {
                 "ProteinName": "Q13206",
@@ -316516,7 +316516,7 @@
                 "ProteinName": "Q03001;Q03001-8;Q03001-9",
                 "PeptideSequence": "TLQESYNLLFSESLK",
                 "BestSearchScore": 65.175,
-                "Average Intensity": 5.893545392909246
+                "Average Intensity": 5.893545392909247
               },
               "23182": {
                 "ProteinName": "P40939",
@@ -316972,7 +316972,7 @@
                 "ProteinName": "P41250",
                 "PeptideSequence": "TLYVEEVVPNVIEPSFGLGR",
                 "BestSearchScore": 132.52,
-                "Average Intensity": 7.003131347452934
+                "Average Intensity": 7.003131347452935
               },
               "23258": {
                 "ProteinName": "Q01085;Q01085-2;P31483-2;P31483",
@@ -317122,7 +317122,7 @@
                 "ProteinName": "Q13620-1;Q13620;Q13620-3",
                 "PeptideSequence": "TMVQELLDFK",
                 "BestSearchScore": 73.435,
-                "Average Intensity": 6.255923458732902
+                "Average Intensity": 6.255923458732901
               },
               "23283": {
                 "ProteinName": "Q99613",
@@ -317368,7 +317368,7 @@
                 "ProteinName": "Q16222-2;Q16222-3;Q16222",
                 "PeptideSequence": "TNPTEPVGVVCR",
                 "BestSearchScore": 85.554,
-                "Average Intensity": 6.76875153076154
+                "Average Intensity": 6.7687515307615405
               },
               "23324": {
                 "ProteinName": "P07355;P07355-2;A6NMY6",
@@ -317524,7 +317524,7 @@
                 "ProteinName": "P04083",
                 "PeptideSequence": "TPAQFDADELR",
                 "BestSearchScore": 160.86,
-                "Average Intensity": 7.956953198311003
+                "Average Intensity": 7.956953198311004
               },
               "23350": {
                 "ProteinName": "P07355;P07355-2;A6NMY6",
@@ -317548,7 +317548,7 @@
                 "ProteinName": "O43399;O43399-5;O43399-2;O43399-4;O43399-3;O43399-6",
                 "PeptideSequence": "TPAVEGLTEAEEEELRAELTK",
                 "BestSearchScore": 69.361,
-                "Average Intensity": 6.880390520598494
+                "Average Intensity": 6.880390520598493
               },
               "23354": {
                 "ProteinName": "O43399;O43399-5;O43399-2;O43399-4;O43399-3;O43399-6",
@@ -317572,7 +317572,7 @@
                 "ProteinName": "O43684-2;O43684",
                 "PeptideSequence": "TPCNAGTFSQPEK",
                 "BestSearchScore": 140.31,
-                "Average Intensity": 7.183990459124418
+                "Average Intensity": 7.183990459124417
               },
               "23358": {
                 "ProteinName": "Q9NUQ6-2;Q9NUQ6",
@@ -317692,7 +317692,7 @@
                 "ProteinName": "Q3KQU3-2;Q3KQU3-4;Q3KQU3;Q3KQU3-3",
                 "PeptideSequence": "TPETLLPFAEAEAFLKK",
                 "BestSearchScore": 64.454,
-                "Average Intensity": 6.393961071337534
+                "Average Intensity": 6.393961071337533
               },
               "23378": {
                 "ProteinName": "P82094;P82094-2",
@@ -318010,7 +318010,7 @@
                 "ProteinName": "P35658-2;P35658-4;P35658;P35658-3;P35658-5",
                 "PeptideSequence": "TPSIQPSLLPHAAPFAK",
                 "BestSearchScore": 68.751,
-                "Average Intensity": 6.6179329672532745
+                "Average Intensity": 6.617932967253275
               },
               "23431": {
                 "ProteinName": "Q99459",
@@ -318262,7 +318262,7 @@
                 "ProteinName": "Q9ULC5;Q9ULC5-3;Q9ULC5-4",
                 "PeptideSequence": "TQEALDSDGWLHTGDIGR",
                 "BestSearchScore": 33.142,
-                "Average Intensity": 6.44046826982215
+                "Average Intensity": 6.440468269822149
               },
               "23473": {
                 "ProteinName": "P13667",
@@ -318460,7 +318460,7 @@
                 "ProteinName": "UniRef100_F4HGS7;UniRef100_K7X8U7;UniRef100_E0TKD0",
                 "PeptideSequence": "TQPDLTFWLDVPIQQAFER",
                 "BestSearchScore": 86.189,
-                "Average Intensity": 5.684540171536474
+                "Average Intensity": 5.684540171536475
               },
               "23506": {
                 "ProteinName": "Q29974;P04229;Q5Y7A7;P01912;Q95IE3;P01911;P13761;Q9TQE0;Q30134",
@@ -318640,7 +318640,7 @@
                 "ProteinName": "O14732-2;O14732",
                 "PeptideSequence": "TSAADLVTETDHLVEDLIISELR",
                 "BestSearchScore": 103.73,
-                "Average Intensity": 5.411181824182252
+                "Average Intensity": 5.411181824182253
               },
               "23536": {
                 "ProteinName": "O43399;O43399-5;O43399-2;O43399-4;O43399-3;O43399-6",
@@ -319330,7 +319330,7 @@
                 "ProteinName": "Q9Y6E0-2;Q9Y6E0",
                 "PeptideSequence": "TSYLTELIDRYK",
                 "BestSearchScore": 85.813,
-                "Average Intensity": 5.873738997302386
+                "Average Intensity": 5.873738997302387
               },
               "23651": {
                 "ProteinName": "Q9C0C2;Q9C0C2-2",
@@ -319510,7 +319510,7 @@
                 "ProteinName": "P08133;P08133-2",
                 "PeptideSequence": "TTGKPIEASIR",
                 "BestSearchScore": 62.166,
-                "Average Intensity": 7.391534937088025
+                "Average Intensity": 7.391534937088024
               },
               "23681": {
                 "ProteinName": "P06493;P06493-2",
@@ -319564,7 +319564,7 @@
                 "ProteinName": "Q15370;Q15370-2",
                 "PeptideSequence": "TTIFTDAK",
                 "BestSearchScore": 75.043,
-                "Average Intensity": 7.375539250789016
+                "Average Intensity": 7.375539250789015
               },
               "23690": {
                 "ProteinName": "UniRef100_K7X1Z1;UniRef100_G8XIN3;UniRef100_F4HGX0;UniRef100_E0TK92",
@@ -319582,7 +319582,7 @@
                 "ProteinName": "Q8NCA5-2;Q8NCA5",
                 "PeptideSequence": "TTISVAHLLAAR",
                 "BestSearchScore": 48.188,
-                "Average Intensity": 6.170371742287891
+                "Average Intensity": 6.170371742287892
               },
               "23693": {
                 "ProteinName": "Q6P2Q9",
@@ -319840,7 +319840,7 @@
                 "ProteinName": "Q96B26",
                 "PeptideSequence": "TTTVNIGSISTADGSALVK",
                 "BestSearchScore": 84.66,
-                "Average Intensity": 5.846788494246409
+                "Average Intensity": 5.84678849424641
               },
               "23736": {
                 "ProteinName": "P19367;P19367-4;P19367-2;P19367-3",
@@ -320248,7 +320248,7 @@
                 "ProteinName": "P78527;P78527-2",
                 "PeptideSequence": "TVGALQVLGTEAQSSLLK",
                 "BestSearchScore": 154.47,
-                "Average Intensity": 6.567510607100287
+                "Average Intensity": 6.567510607100286
               },
               "23804": {
                 "ProteinName": "P50990",
@@ -322828,7 +322828,7 @@
                 "ProteinName": "P52565",
                 "PeptideSequence": "VAVSADPNVPNVVVTGLTLVCSSAPGPLELDLTGDLESFKK",
                 "BestSearchScore": 78.206,
-                "Average Intensity": 7.3544288533081374
+                "Average Intensity": 7.354428853308137
               },
               "24234": {
                 "ProteinName": "O75369-8;O75369-2;O75369-9;O75369;O75369-6;O75369-3;O75369-7;O75369-5;O75369-4",
@@ -323278,7 +323278,7 @@
                 "ProteinName": "P11766",
                 "PeptideSequence": "VDEFVTHNLSFDEINK",
                 "BestSearchScore": 101.05,
-                "Average Intensity": 6.592997918988107
+                "Average Intensity": 6.5929979189881065
               },
               "24309": {
                 "ProteinName": "Q9NY12-2;Q9NY12",
@@ -323848,7 +323848,7 @@
                 "ProteinName": "P21333-2;P21333",
                 "PeptideSequence": "VDVGKDQEFTVK",
                 "BestSearchScore": 127.78,
-                "Average Intensity": 7.208091845275694
+                "Average Intensity": 7.208091845275695
               },
               "24404": {
                 "ProteinName": "A0FGR8-2;A0FGR8;A0FGR8-6;A0FGR8-4",
@@ -323914,7 +323914,7 @@
                 "ProteinName": "P49959-2;P49959",
                 "PeptideSequence": "VDYSGGFEPFSVLR",
                 "BestSearchScore": 55.335,
-                "Average Intensity": 5.940586205514168
+                "Average Intensity": 5.940586205514169
               },
               "24415": {
                 "ProteinName": "O75190;O75190-2;O75190-3",
@@ -323968,7 +323968,7 @@
                 "ProteinName": "Q09666",
                 "PeptideSequence": "VEAPSLDVHMDSPDINIEGPDVK",
                 "BestSearchScore": 80.016,
-                "Average Intensity": 6.483501713269355
+                "Average Intensity": 6.483501713269356
               },
               "24424": {
                 "ProteinName": "P35579",
@@ -324490,7 +324490,7 @@
                 "ProteinName": "Q09666",
                 "PeptideSequence": "VESDLKGPEVDIEGPEGK",
                 "BestSearchScore": 111.73,
-                "Average Intensity": 6.890175016616066
+                "Average Intensity": 6.890175016616065
               },
               "24511": {
                 "ProteinName": "Q09666",
@@ -324514,7 +324514,7 @@
                 "ProteinName": "P41223",
                 "PeptideSequence": "VESLWPIFR",
                 "BestSearchScore": 105.1,
-                "Average Intensity": 6.099490725214398
+                "Average Intensity": 6.099490725214397
               },
               "24515": {
                 "ProteinName": "O60443",
@@ -325168,7 +325168,7 @@
                 "ProteinName": "P16930",
                 "PeptideSequence": "VFLQNLLSVSQAR",
                 "BestSearchScore": 110.64,
-                "Average Intensity": 6.319675996105284
+                "Average Intensity": 6.319675996105285
               },
               "24624": {
                 "ProteinName": "Q14344",
@@ -325924,7 +325924,7 @@
                 "ProteinName": "UniRef100_K7XLQ6;UniRef100_E0TKJ1",
                 "PeptideSequence": "VGIMIEIPAAAMIADQLAK",
                 "BestSearchScore": 93.181,
-                "Average Intensity": 5.52844102875813
+                "Average Intensity": 5.528441028758131
               },
               "24750": {
                 "ProteinName": "P68366;Q71U36;Q13748;Q13748-2;Q6PEY2;Q9BQE3;P68363",
@@ -326128,7 +326128,7 @@
                 "ProteinName": "Q9NV31",
                 "PeptideSequence": "VGPDVVTDPAFLVTR",
                 "BestSearchScore": 62.104,
-                "Average Intensity": 6.572720617983395
+                "Average Intensity": 6.572720617983394
               },
               "24784": {
                 "ProteinName": "O15067",
@@ -326218,7 +326218,7 @@
                 "ProteinName": "Q96A72",
                 "PeptideSequence": "VGRQELEIVIGDEHISFTTSK",
                 "BestSearchScore": 54.764,
-                "Average Intensity": 6.38882915389884
+                "Average Intensity": 6.388829153898841
               },
               "24799": {
                 "ProteinName": "P21333-2;P21333",
@@ -326302,7 +326302,7 @@
                 "ProteinName": "P52209",
                 "PeptideSequence": "VGTGEPCCDWVGDEGAGHFVK",
                 "BestSearchScore": 93.115,
-                "Average Intensity": 7.153365098646098
+                "Average Intensity": 7.153365098646099
               },
               "24813": {
                 "ProteinName": "P21283",
@@ -326464,7 +326464,7 @@
                 "ProteinName": "P40227;P40227-2",
                 "PeptideSequence": "VHAELADVLTEAVVDSILAIK",
                 "BestSearchScore": 156.51,
-                "Average Intensity": 6.882203821441333
+                "Average Intensity": 6.882203821441332
               },
               "24840": {
                 "ProteinName": "P40227;P40227-2",
@@ -326950,7 +326950,7 @@
                 "ProteinName": "P28062-2;P28062",
                 "PeptideSequence": "VIEINPYLLGTMSGCAADCQYWER",
                 "BestSearchScore": 67.877,
-                "Average Intensity": 6.226045407077727
+                "Average Intensity": 6.226045407077728
               },
               "24921": {
                 "ProteinName": "P42704",
@@ -327232,7 +327232,7 @@
                 "ProteinName": "Q14258",
                 "PeptideSequence": "VILDYNTAHNK",
                 "BestSearchScore": 80.916,
-                "Average Intensity": 7.141119353980082
+                "Average Intensity": 7.141119353980083
               },
               "24968": {
                 "ProteinName": "Q9NY33-4;Q9NY33;Q9NY33-2",
@@ -328426,13 +328426,13 @@
                 "ProteinName": "P78527;P78527-2",
                 "PeptideSequence": "VLEQLIVAHFPMQSR",
                 "BestSearchScore": 35.3,
-                "Average Intensity": 6.1655410767223735
+                "Average Intensity": 6.165541076722373
               },
               "25167": {
                 "ProteinName": "P62913-2;P62913",
                 "PeptideSequence": "VLEQLTGQTPVFSK",
                 "BestSearchScore": 219.95,
-                "Average Intensity": 7.68343655720677
+                "Average Intensity": 7.683436557206771
               },
               "25168": {
                 "ProteinName": "Q9BZE1",
@@ -328654,7 +328654,7 @@
                 "ProteinName": "P42345",
                 "PeptideSequence": "VLGLLGALDPYK",
                 "BestSearchScore": 80.69,
-                "Average Intensity": 6.283617786365644
+                "Average Intensity": 6.283617786365643
               },
               "25205": {
                 "ProteinName": "P14678-2;P14678;P14678-3;P63162",
@@ -328792,7 +328792,7 @@
                 "ProteinName": "P49406",
                 "PeptideSequence": "VLHIPEFYVGSILR",
                 "BestSearchScore": 50.897,
-                "Average Intensity": 6.381142166839101
+                "Average Intensity": 6.3811421668391
               },
               "25228": {
                 "ProteinName": "P50395;P50395-2",
@@ -328846,7 +328846,7 @@
                 "ProteinName": "UniRef100_F4HHY6;UniRef100_E0TKF0",
                 "PeptideSequence": "VLIAGGMSYTFK",
                 "BestSearchScore": 62.298,
-                "Average Intensity": 6.54425413068401
+                "Average Intensity": 6.544254130684011
               },
               "25237": {
                 "ProteinName": "Q8NBJ5",
@@ -331000,7 +331000,7 @@
                 "ProteinName": "P06733;P06733-2",
                 "PeptideSequence": "VNQIGSVTESLQACK",
                 "BestSearchScore": 235.71,
-                "Average Intensity": 8.080025056163201
+                "Average Intensity": 8.080025056163203
               },
               "25596": {
                 "ProteinName": "O75369-8;O75369-2;O75369-9;O75369;O75369-6;O75369-3;O75369-7",
@@ -331024,7 +331024,7 @@
                 "ProteinName": "Q9UKG1",
                 "PeptideSequence": "VNQSALEAVTPSPSFQQR",
                 "BestSearchScore": 48.371,
-                "Average Intensity": 6.213916009644024
+                "Average Intensity": 6.213916009644023
               },
               "25600": {
                 "ProteinName": "P63172",
@@ -331168,7 +331168,7 @@
                 "ProteinName": "UniRef100_F4HH07;UniRef100_E0TK60",
                 "PeptideSequence": "VNVVAVLPLTDNR",
                 "BestSearchScore": 89.231,
-                "Average Intensity": 7.350334480860246
+                "Average Intensity": 7.350334480860245
               },
               "25624": {
                 "ProteinName": "UniRef100_F4HH07;UniRef100_E0TK60",
@@ -331180,7 +331180,7 @@
                 "ProteinName": "Q01085;Q01085-2;P31483-2;P31483",
                 "PeptideSequence": "VNWATTPSSQK",
                 "BestSearchScore": 68.132,
-                "Average Intensity": 6.617720071809201
+                "Average Intensity": 6.6177200718092
               },
               "25626": {
                 "ProteinName": "O95071",
@@ -331300,7 +331300,7 @@
                 "ProteinName": "P49589-2;P49589;P49589-3",
                 "PeptideSequence": "VPEILQLSDALR",
                 "BestSearchScore": 91.307,
-                "Average Intensity": 6.476806277027068
+                "Average Intensity": 6.476806277027067
               },
               "25646": {
                 "ProteinName": "P49589-2;P49589;P49589-3",
@@ -331390,7 +331390,7 @@
                 "ProteinName": "P25685",
                 "PeptideSequence": "VPGEGLPLPK",
                 "BestSearchScore": 67.334,
-                "Average Intensity": 6.550057048211167
+                "Average Intensity": 6.550057048211168
               },
               "25661": {
                 "ProteinName": "Q6P2Q9",
@@ -331474,7 +331474,7 @@
                 "ProteinName": "P31350;P31350-2",
                 "PeptideSequence": "VPLAPITDPQQLQLSPLK",
                 "BestSearchScore": 104.16,
-                "Average Intensity": 6.658057973435714
+                "Average Intensity": 6.658057973435715
               },
               "25675": {
                 "ProteinName": "P26640",
@@ -331654,7 +331654,7 @@
                 "ProteinName": "P50395",
                 "PeptideSequence": "VPSTEAEALASSLMGLFEK",
                 "BestSearchScore": 129.05,
-                "Average Intensity": 6.740000720626993
+                "Average Intensity": 6.740000720626994
               },
               "25705": {
                 "ProteinName": "P31150",
@@ -332104,7 +332104,7 @@
                 "ProteinName": "P50552",
                 "PeptideSequence": "VQIYHNPTANSFR",
                 "BestSearchScore": 48.044,
-                "Average Intensity": 6.8764699508110905
+                "Average Intensity": 6.876469950811091
               },
               "25780": {
                 "ProteinName": "Q9BSJ8;Q9BSJ8-2",
@@ -333010,7 +333010,7 @@
                 "ProteinName": "Q86WA6-2;Q86WA6",
                 "PeptideSequence": "VSLLGWSDGGITALIAAAK",
                 "BestSearchScore": 100.07,
-                "Average Intensity": 5.712043286147855
+                "Average Intensity": 5.712043286147854
               },
               "25931": {
                 "ProteinName": "Q9H583",
@@ -334504,7 +334504,7 @@
                 "ProteinName": "P40763-2;P40763",
                 "PeptideSequence": "VVENLQDDFDFNYK",
                 "BestSearchScore": 119.0,
-                "Average Intensity": 6.293991991120201
+                "Average Intensity": 6.2939919911202
               },
               "26180": {
                 "ProteinName": "Q9NY33-4;Q9NY33",
@@ -334546,7 +334546,7 @@
                 "ProteinName": "Q14764",
                 "PeptideSequence": "VVFGPELVSLGPEEQFTVLSLSAGRPK",
                 "BestSearchScore": 46.595,
-                "Average Intensity": 7.084142660663941
+                "Average Intensity": 7.084142660663942
               },
               "26187": {
                 "ProteinName": "Q9HC36",
@@ -334576,7 +334576,7 @@
                 "ProteinName": "P30041",
                 "PeptideSequence": "VVFVFGPDKK",
                 "BestSearchScore": 104.05,
-                "Average Intensity": 7.037435462642449
+                "Average Intensity": 7.03743546264245
               },
               "26192": {
                 "ProteinName": "Q00610-2;Q00610;P53675-2;P53675",
@@ -334774,7 +334774,7 @@
                 "ProteinName": "P60174-1;P60174;P60174-4",
                 "PeptideSequence": "VVLAYEPVWAIGTGK",
                 "BestSearchScore": 135.91,
-                "Average Intensity": 7.888845453727763
+                "Average Intensity": 7.888845453727764
               },
               "26225": {
                 "ProteinName": "P61604",
@@ -334786,7 +334786,7 @@
                 "ProteinName": "P61604",
                 "PeptideSequence": "VVLDDKDYFLFRDGDILGK",
                 "BestSearchScore": 52.862,
-                "Average Intensity": 6.601248550714665
+                "Average Intensity": 6.601248550714666
               },
               "26227": {
                 "ProteinName": "Q99873-3;Q99873-2;Q99873-4;Q99873",
@@ -335158,7 +335158,7 @@
                 "ProteinName": "Q13630",
                 "PeptideSequence": "VVSCLSTCIFPDK",
                 "BestSearchScore": 65.895,
-                "Average Intensity": 6.169542186241401
+                "Average Intensity": 6.169542186241402
               },
               "26289": {
                 "ProteinName": "P09874",
@@ -335416,7 +335416,7 @@
                 "ProteinName": "Q1KMD3",
                 "PeptideSequence": "VVVVVPNEEDWK",
                 "BestSearchScore": 44.614,
-                "Average Intensity": 6.553676748440079
+                "Average Intensity": 6.553676748440078
               },
               "26332": {
                 "ProteinName": "Q1KMD3",
@@ -335530,7 +335530,7 @@
                 "ProteinName": "Q9GZL7",
                 "PeptideSequence": "VWDVESGSLK",
                 "BestSearchScore": 66.19,
-                "Average Intensity": 6.824262546790763
+                "Average Intensity": 6.824262546790764
               },
               "26351": {
                 "ProteinName": "Q9NRG9;Q9NRG9-2",
@@ -335542,7 +335542,7 @@
                 "ProteinName": "P43034",
                 "PeptideSequence": "VWDYETGDFER",
                 "BestSearchScore": 83.226,
-                "Average Intensity": 6.813544295472065
+                "Average Intensity": 6.813544295472064
               },
               "26353": {
                 "ProteinName": "P50281",
@@ -335800,7 +335800,7 @@
                 "ProteinName": "Q9Y262;Q9Y262-2",
                 "PeptideSequence": "VYEIQDIYENSWTK",
                 "BestSearchScore": 191.63,
-                "Average Intensity": 6.860077351677561
+                "Average Intensity": 6.860077351677562
               },
               "26396": {
                 "ProteinName": "P78527;P78527-2",
@@ -336070,7 +336070,7 @@
                 "ProteinName": "P68400;Q8NEV1",
                 "PeptideSequence": "VYTDVNTHRPR",
                 "BestSearchScore": 52.579,
-                "Average Intensity": 6.8973108757840045
+                "Average Intensity": 6.897310875784005
               },
               "26441": {
                 "ProteinName": "Q14166",
@@ -336550,7 +336550,7 @@
                 "ProteinName": "P28340",
                 "PeptideSequence": "WGEPEPFLR",
                 "BestSearchScore": 55.084,
-                "Average Intensity": 6.1952352548060645
+                "Average Intensity": 6.195235254806065
               },
               "26521": {
                 "ProteinName": "Q9NVX2",
@@ -336940,7 +336940,7 @@
                 "ProteinName": "P17655;P17655-2",
                 "PeptideSequence": "WNDNCPSWNTIDPEER",
                 "BestSearchScore": 126.42,
-                "Average Intensity": 6.371843355366696
+                "Average Intensity": 6.371843355366697
               },
               "26586": {
                 "ProteinName": "P50453",
@@ -337246,7 +337246,7 @@
                 "ProteinName": "P21796",
                 "PeptideSequence": "WTEYGLTFTEK",
                 "BestSearchScore": 60.08,
-                "Average Intensity": 7.67372111476975
+                "Average Intensity": 7.673721114769751
               },
               "26637": {
                 "ProteinName": "Q13404;Q13404-7;Q13404-2;Q13404-1;Q13404-8;Q15819",
@@ -337390,7 +337390,7 @@
                 "ProteinName": "Q13144",
                 "PeptideSequence": "WVYPLTPEANFTDSTTQSCTHSR",
                 "BestSearchScore": 31.965,
-                "Average Intensity": 6.397366361265288
+                "Average Intensity": 6.397366361265289
               },
               "26661": {
                 "ProteinName": "O15145",
@@ -338002,7 +338002,7 @@
                 "ProteinName": "Q14573",
                 "PeptideSequence": "YCLVAVPHGNDIASLFELDPTTLQK",
                 "BestSearchScore": 36.504,
-                "Average Intensity": 6.7718152236770965
+                "Average Intensity": 6.771815223677096
               },
               "26763": {
                 "ProteinName": "Q8N7H5;Q8N7H5-2",
@@ -338482,7 +338482,7 @@
                 "ProteinName": "Q08J23;Q08J23-2",
                 "PeptideSequence": "YEPDSANPDALQCPIVLCGWR",
                 "BestSearchScore": 41.798,
-                "Average Intensity": 6.213916009644024
+                "Average Intensity": 6.213916009644023
               },
               "26843": {
                 "ProteinName": "P54578",
@@ -338914,7 +338914,7 @@
                 "ProteinName": "Q92597;Q92597-3;Q92597-2",
                 "PeptideSequence": "YFVQGMGYMPSASMTR",
                 "BestSearchScore": 103.67,
-                "Average Intensity": 6.473996146334441
+                "Average Intensity": 6.47399614633444
               },
               "26915": {
                 "ProteinName": "Q9P2J5",
@@ -339406,7 +339406,7 @@
                 "ProteinName": "O76094;O76094-2",
                 "PeptideSequence": "YGQNGDFTR",
                 "BestSearchScore": 66.92,
-                "Average Intensity": 6.7726443732671555
+                "Average Intensity": 6.772644373267156
               },
               "26997": {
                 "ProteinName": "P21589",
@@ -339424,7 +339424,7 @@
                 "ProteinName": "Q99519",
                 "PeptideSequence": "YGSGVSGIPYGQPK",
                 "BestSearchScore": 68.033,
-                "Average Intensity": 6.191395117112105
+                "Average Intensity": 6.191395117112106
               },
               "27000": {
                 "ProteinName": "P55212;P55212-2",
@@ -339724,13 +339724,13 @@
                 "ProteinName": "P50395;P50395-2",
                 "PeptideSequence": "YIAIVSTTVETK",
                 "BestSearchScore": 63.473,
-                "Average Intensity": 5.991892516332234
+                "Average Intensity": 5.991892516332233
               },
               "27050": {
                 "ProteinName": "P50395;P50395-2",
                 "PeptideSequence": "YIAIVSTTVETKEPEK",
                 "BestSearchScore": 45.825,
-                "Average Intensity": 6.902196956212329
+                "Average Intensity": 6.902196956212328
               },
               "27051": {
                 "ProteinName": "P06132",
@@ -340348,7 +340348,7 @@
                 "ProteinName": "UniRef100_E0TKP1",
                 "PeptideSequence": "YLDLSFEEHNLDAIISFSQQTR",
                 "BestSearchScore": 88.176,
-                "Average Intensity": 6.573596755953702
+                "Average Intensity": 6.573596755953701
               },
               "27154": {
                 "ProteinName": "O43681",
@@ -340444,7 +340444,7 @@
                 "ProteinName": "Q08209-2;Q08209;Q08209-3",
                 "PeptideSequence": "YLFLGDYVDR",
                 "BestSearchScore": 65.719,
-                "Average Intensity": 6.543658373535019
+                "Average Intensity": 6.54365837353502
               },
               "27170": {
                 "ProteinName": "Q9BQ52-4;Q9BQ52",
@@ -340492,7 +340492,7 @@
                 "ProteinName": "O43795-2;O43795",
                 "PeptideSequence": "YLGLLENVR",
                 "BestSearchScore": 63.816,
-                "Average Intensity": 6.591075742639681
+                "Average Intensity": 6.591075742639682
               },
               "27178": {
                 "ProteinName": "P21912",
@@ -341356,7 +341356,7 @@
                 "ProteinName": "P13797",
                 "PeptideSequence": "YPALTKPENQDIDWTLLEGETR",
                 "BestSearchScore": 98.543,
-                "Average Intensity": 6.297103650149257
+                "Average Intensity": 6.297103650149256
               },
               "27322": {
                 "ProteinName": "O00567",
@@ -342028,7 +342028,7 @@
                 "ProteinName": "P11388;P11388-2;P11388-3;P11388-4",
                 "PeptideSequence": "YSGPEDDAAISLAFSK",
                 "BestSearchScore": 92.427,
-                "Average Intensity": 6.315165350820688
+                "Average Intensity": 6.3151653508206875
               },
               "27434": {
                 "ProteinName": "Q96PK6",
@@ -342430,7 +342430,7 @@
                 "ProteinName": "Q99426",
                 "PeptideSequence": "YTISQEAYDQR",
                 "BestSearchScore": 150.09,
-                "Average Intensity": 6.890204376471855
+                "Average Intensity": 6.890204376471856
               },
               "27501": {
                 "ProteinName": "Q9BSJ2;Q9BSJ2-4;Q9BSJ2-3",
