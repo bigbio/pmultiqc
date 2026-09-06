@@ -229,3 +229,60 @@ def test_identification_counts_match_the_set_based_logic():
     old_sample = cal_num_table_at_sample(file_df, data_per_run)
     assert dia_utils._run_identification_counts(df) == old_run
     assert dia_utils._sample_identification_counts(df, file_df) == old_sample
+
+
+def test_sample_level_modifications_without_merge_matches_merge_reference():
+    import numpy as np
+    from pmultiqc.modules.common import dia_utils
+    from pmultiqc.modules.common.common_utils import summarize_modifications
+
+    rng = np.random.default_rng(5)
+    n = 4000
+    runs = [f"run{i}" for i in range(6)]
+    df = pd.DataFrame({
+        "Run": pd.Categorical(rng.choice(runs, n)),
+        "Modified.Sequence": pd.Categorical(rng.choice([f"PEP{i}K" for i in range(80)], n)),
+        "Modifications": pd.Categorical(rng.choice(["Unmodified", "Oxidation", "Carbamidomethyl,Oxidation"], n)),
+        "Protein.Group": pd.Categorical(rng.choice([f"P{i}" for i in range(10)], n)),
+    })
+    file_df = pd.DataFrame({"Run": runs[:5], "Sample": [1, 1, 2, 2, 3]})  # run5 unmapped
+    ref = df.merge(file_df[["Sample", "Run"]].drop_duplicates(), on="Run")
+    ref["Sample"] = ref["Sample"].astype(int)
+    expected = {f"Sample {s}": summarize_modifications(g.drop_duplicates())[0] for s, g in ref.groupby("Sample", sort=True)}
+    got = dia_utils.dia_sample_level_modifications(df, file_df)
+    assert got.keys() == expected.keys()
+    for k in expected:
+        assert got[k].keys() == expected[k].keys()
+        for m in expected[k]:
+            assert np.isclose(got[k][m], expected[k][m]), (k, m)
+    codes = dia_utils.run_to_sample_codes(df["Run"], file_df)
+    assert codes.isna().sum() == (df["Run"].astype(str) == "run5").sum()
+
+
+def test_dia_utils_imports_cleanly_first():
+    """multiqc imports dia_utils before plots.dia; a cycle there skips the whole module (#717)."""
+    import subprocess, sys
+    code = "import pmultiqc.modules.common.dia_utils as d; import pmultiqc.modules.common.plots.dia; print(callable(d.run_to_sample_codes))"
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert out.returncode == 0 and out.stdout.strip() == "True", out.stderr[-800:]
+
+
+def test_peptide_length_matches_string_implementation():
+    import numpy as np
+    from pmultiqc.modules.common import dia_utils
+
+    rng = np.random.default_rng(11)
+    n = 5000
+    seqs = [("PEPTIDE" * rng.integers(1, 4))[: rng.integers(5, 20)] for _ in range(60)]
+    df = pd.DataFrame({
+        "Run": pd.Categorical(rng.choice([f"r{i}" for i in range(7)], n)),
+        "Stripped.Sequence": pd.Categorical(rng.choice(seqs, n)),
+    })
+    # reference: the previous implementation
+    ref_sub = df[["Run", "Stripped.Sequence"]].copy()
+    ref_sub["length"] = ref_sub["Stripped.Sequence"].astype(str).str.len()
+    expected = {run: g["length"].value_counts().sort_index().to_dict() for run, g in ref_sub.groupby("Run", observed=True)}
+    got = dia_utils._get_peptide_length(df)
+    assert set(got) == set(expected)
+    for run in expected:
+        assert {int(k): int(v) for k, v in got[run].items()} == {int(k): int(v) for k, v in expected[run].items()}, run

@@ -505,3 +505,65 @@ def summarise_box_data(plot_data, whisker_iqr=1.5, max_points=None):
         summarised.append(out)
 
     return summarised if was_list else summarised[0]
+
+
+def run_to_sample_codes(runs: pd.Series, file_df: pd.DataFrame) -> pd.Series:
+    """Sample id per row from the Run column, without materialising strings.
+
+    Merging the report with the SDRF sample table on ``Run`` was measured to be
+    the largest transient in the summary: it upcasts the categorical key to
+    object for every row (231 M on PXD030304) and adds an object Sample column.
+    Mapping through the category codes touches one small array instead.
+    Rows whose run is not in ``file_df`` get NaN.
+    """
+    run_to_sample = file_df[["Run", "Sample"]].drop_duplicates().set_index("Run")["Sample"]
+    run_to_sample.index = run_to_sample.index.astype(str)
+    if isinstance(runs.dtype, pd.CategoricalDtype):
+        per_category = run_to_sample.reindex(runs.cat.categories.astype(str)).to_numpy(dtype="float64", na_value=np.nan)
+        codes = runs.cat.codes.to_numpy()
+        values = np.where(codes >= 0, per_category[np.clip(codes, 0, None)], np.nan)
+        return pd.Series(values, index=runs.index)
+    return runs.astype(str).map(run_to_sample).astype("float64")
+
+
+def box_stats_by_group(df, value_col, key, whisker_iqr=1.5, label=str):
+    """Box statistics per group without materialising per-group Python lists.
+
+    Same numbers as ``summarise_box_data`` applied to ``{group: values.tolist()}``
+    -- percentile q1/median/q3, Tukey whiskers (min/max within q1-1.5*IQR ..
+    q3+1.5*IQR, or the plain min/max when IQR is 0), and the mean -- computed
+    with vectorised groupbys. On PXD030304 the list form was 231 M Python
+    floats built twice (by run and by sample) on top of a merge that upcast the
+    categorical run key to object: the spike that OOM-killed the summary at
+    72 GB (bigbio/pmultiqc#717).
+
+    Returns ``{label(group): {min, q1, median, q3, max, mean}}`` for groups
+    with at least one finite value.
+    """
+    values = pd.to_numeric(df[value_col], errors="coerce")
+    finite = np.isfinite(values.to_numpy(dtype="float64", na_value=np.nan))
+    sub = pd.DataFrame({"k": df[key].to_numpy() if not hasattr(df[key], "cat") else df[key].astype(object).to_numpy(),
+                        "v": values.to_numpy(dtype="float64", na_value=np.nan)})[finite]
+    if sub.empty:
+        return {}
+    g = sub.groupby("k", sort=True)
+    q = g["v"].quantile([0.25, 0.5, 0.75]).unstack()
+    q.columns = ["q1", "median", "q3"]
+    stats = q.assign(mean=g["v"].mean(), lo=g["v"].min(), hi=g["v"].max())
+    iqr = stats["q3"] - stats["q1"]
+    low_bound = (stats["q1"] - whisker_iqr * iqr)
+    high_bound = (stats["q3"] + whisker_iqr * iqr)
+    lb = sub["k"].map(low_bound).to_numpy(); hb = sub["k"].map(high_bound).to_numpy()
+    v = sub["v"].to_numpy()
+    fenced_min = sub[v >= lb].groupby("k")["v"].min()
+    fenced_max = sub[v <= hb].groupby("k")["v"].max()
+    use_fence = iqr > 0
+    stats["min"] = np.where(use_fence, fenced_min.reindex(stats.index), stats["lo"])
+    stats["max"] = np.where(use_fence, fenced_max.reindex(stats.index), stats["hi"])
+    out = {}
+    for k, row in stats.iterrows():
+        out[label(k)] = {
+            "min": float(row["min"]), "q1": float(row["q1"]), "median": float(row["median"]),
+            "q3": float(row["q3"]), "max": float(row["max"]), "mean": float(row["mean"]),
+        }
+    return out
