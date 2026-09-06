@@ -32,6 +32,7 @@ from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from tuspyserver import create_tus_router
+from pmultiqc.export.mzqc_writer import write_mzqc
 
 # Configuration
 # Use environment variables with fallback to current working directory subdirectories
@@ -2232,6 +2233,16 @@ def run_pmultiqc_with_progress(
 
             if process.returncode == 0:
                 logger.info(f"MultiQC completed successfully for job {job_id}")
+                try:
+                    write_mzqc(
+                        output_dir=output_path,
+                        input_dir=input_path,
+                        job_id=job_id,
+                        workflow = input_type
+                    )
+                    logger.info(f"mzQC file generated for job {job_id}")
+                except Exception as e:
+                    logger.error(f"mzQC file export failed: {e}")
                 return {
                     "success": True,
                     "message": "Report generated successfully",
