@@ -1,83 +1,78 @@
-import pandas as pd
-import numpy as np
 import re
+from collections import OrderedDict
+
+import numpy as np
+import pandas as pd
+from multiqc import config
+from multiqc.plots import bargraph, box, table
 
 from pmultiqc.modules.base import BasePMultiqcModule
-from pmultiqc.modules.fragpipe.fragpipe_io import (
-    get_fragpipe_files,
-    psm_reader,
-    ion_reader,
-    get_ion_intensity_data,
-    workflow_reader,
-    fragger_params_reader,
-    get_workflow_parameters_table,
-    manifest_reader,
-    get_experiment_design_table,
-    combined_protein_reader,
-    get_protein_intensity_distribution,
-    combined_peptide_reader,
-    combined_ion_reader,
-    get_msms_counts_per_peak,
-    cal_peptide_id_gain
+from pmultiqc.modules.common.common_utils import (
+    cal_contaminant_percent,
+    evidence_rt_count,
+    group_charge,
+    mods_statistics,
+    top_n_contaminant_percent,
 )
-from pmultiqc.modules.common.stats import (
-    cal_delta_mass_dict,
-    nanmedian,
-    cal_hm_charge,
-    qual_uniform
+from pmultiqc.modules.common.histogram import Histogram
+from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.plots.general import (
+    draw_heatmap,
+    draw_search_engine_scores,
+    plot_data_check,
+    plot_html_check,
+    search_engine_score_bins,
+    stat_pep_intensity,
+    summarise_box_data,
 )
 from pmultiqc.modules.common.plots.id import (
-    draw_summary_protein_ident_table,
     draw_delta_mass_da_ppm,
     draw_identi_num,
     draw_identification,
     draw_ids_rt_count,
-    draw_num_pep_per_protein,
-    draw_peptide_intensity,
-    draw_msms_missed_cleavages,
-    rebuild_dict_structure,
-    draw_top_n_contaminants,
-    draw_potential_contaminants,
     draw_modifications,
+    draw_msms_missed_cleavages,
+    draw_num_pep_per_protein,
     draw_oversampling,
-    draw_peptide_length_distribution
+    draw_peptide_intensity,
+    draw_peptide_length_distribution,
+    draw_potential_contaminants,
+    draw_summary_protein_ident_table,
+    draw_top_n_contaminants,
+    rebuild_dict_structure,
 )
-from pmultiqc.modules.core.section_groups import (
-    add_group_modules,
-    add_sub_section
+from pmultiqc.modules.common.stats import (
+    cal_delta_mass_dict,
+    cal_hm_charge,
+    nanmedian,
+    qual_uniform,
 )
-from pmultiqc.modules.common.common_utils import (
-    group_charge,
-    evidence_rt_count,
-    top_n_contaminant_percent,
-    cal_contaminant_percent,
-    mods_statistics
-)
-from pmultiqc.modules.common.plots.general import (
-    plot_html_check,
-    plot_data_check,
-    summarise_box_data,
-    stat_pep_intensity,
-    search_engine_score_bins,
-    draw_search_engine_scores,
-    draw_heatmap
+from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
+from pmultiqc.modules.fragpipe.fragpipe_io import (
+    cal_peptide_id_gain,
+    combined_ion_reader,
+    combined_peptide_reader,
+    combined_protein_reader,
+    fragger_params_reader,
+    get_experiment_design_table,
+    get_fragpipe_files,
+    get_ion_intensity_data,
+    get_msms_counts_per_peak,
+    get_protein_intensity_distribution,
+    get_workflow_parameters_table,
+    ion_reader,
+    manifest_reader,
+    psm_reader,
+    workflow_reader,
 )
 from pmultiqc.modules.maxquant.maxquant_plots import draw_evidence_peptide_id_count
-
-from collections import OrderedDict
-from pmultiqc.modules.common.histogram import Histogram
-
-from multiqc import config
-from multiqc.plots import bargraph, box, table
-
-from pmultiqc.modules.common.logging import get_logger
-
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.fragpipe.fragpipe")
 
 
 NOT_CONT_TAG = "NOT_CONT"
+
 
 class FragPipeModule(BasePMultiqcModule):
     """pmultiqc module for FragPipe results."""
@@ -124,7 +119,6 @@ class FragPipeModule(BasePMultiqcModule):
         # MS/MS counts from combined_ion.tsv
         self.msms_counts = {}
 
-
     def get_data(self):
 
         log.info("Starting data recognition and processing...")
@@ -147,10 +141,8 @@ class FragPipeModule(BasePMultiqcModule):
                 self.contam_df,
                 self.mods,
                 self.hm_data,
-                self.peptide_length
-            ) = self.parse_psm(
-                fragpipe_files=self.fragpipe_files
-            )
+                self.peptide_length,
+            ) = self.parse_psm(fragpipe_files=self.fragpipe_files)
         else:
             log.warning("Required input not found: psm.tsv")
             return False
@@ -202,14 +194,15 @@ class FragPipeModule(BasePMultiqcModule):
         if self.fragpipe_files.get("combined_protein"):
             try:
                 protein_path = self.fragpipe_files["combined_protein"][0]
-                self.protein_df, self.protein_intensity_cols = combined_protein_reader(protein_path)
+                self.protein_df, self.protein_intensity_cols = combined_protein_reader(
+                    protein_path
+                )
                 if self.protein_df is not None and self.protein_intensity_cols:
                     contam_affix = config.kwargs["contaminant_affix"]
-                    (
-                        self.protein_intensity_distribution,
-                        self.protein_contam_distribution
-                    ) = get_protein_intensity_distribution(
-                        self.protein_df, self.protein_intensity_cols, contam_affix
+                    self.protein_intensity_distribution, self.protein_contam_distribution = (
+                        get_protein_intensity_distribution(
+                            self.protein_df, self.protein_intensity_cols, contam_affix
+                        )
                     )
                     log.info("Protein intensity distribution loaded successfully.")
             except Exception as e:
@@ -251,82 +244,72 @@ class FragPipeModule(BasePMultiqcModule):
         # Parameters table (from workflow file)
         if self.parameters_table:
             self.draw_parameters(
-                sub_section=self.sub_sections["experiment"],
-                parameter_table=self.parameters_table
+                sub_section=self.sub_sections["experiment"], parameter_table=self.parameters_table
             )
 
         # Experiment design table (from manifest file)
         if self.experiment_design:
             self.draw_experiment_design(
-                sub_section=self.sub_sections["experiment"],
-                exp_design=self.experiment_design
+                sub_section=self.sub_sections["experiment"], exp_design=self.experiment_design
             )
 
         # Delta Mass
         if self.delta_masses:
             self.draw_delta_mass(
-                sub_sections=self.sub_sections["mass_error"],
-                delta_masses=self.delta_masses
+                sub_sections=self.sub_sections["mass_error"], delta_masses=self.delta_masses
             )
 
         # Charge-state
         if self.charge_states:
             self.draw_charge_state(
-                sub_section=self.sub_sections["ms2"],
-                charge_states=self.charge_states
+                sub_section=self.sub_sections["ms2"], charge_states=self.charge_states
             )
 
         if self.peptide_id_gain:
-            
+
             self.peptide_id_count_no_gain = False
             draw_evidence_peptide_id_count(
-                self.sub_sections["identification"],
-                self.peptide_id_gain,
-                "fragpipe"
+                self.sub_sections["identification"], self.peptide_id_gain, "fragpipe"
             )
 
         if self.pipeline_stats:
-            
+
             # Statistics
-            (
-                summary_result,
-                statistics_result,
-                peptides_per_protein
-            ) = _calculate_statistics(self.pipeline_stats)
+            summary_result, statistics_result, peptides_per_protein = _calculate_statistics(
+                self.pipeline_stats
+            )
 
             # Summary Table
             draw_summary_protein_ident_table(
                 sub_sections=self.sub_sections["summary"],
                 use_two_columns=True,
                 total_peptide_count=summary_result["total_peptides"],
-                total_protein_quantified=summary_result["total_proteins"]
+                total_protein_quantified=summary_result["total_proteins"],
             )
 
             # Pipeline Result Statistics
             draw_identi_num(
-                sub_sections=self.sub_sections["summary"],
-                cal_num_table_data=statistics_result
+                sub_sections=self.sub_sections["summary"], cal_num_table_data=statistics_result
             )
 
             # Number of Peptides identified Per Protein
             draw_num_pep_per_protein(
                 sub_sections=self.sub_sections["identification"],
                 pep_plot=peptides_per_protein,
-                is_fragpipe_or_mzid=True
+                is_fragpipe_or_mzid=True,
             )
 
             # ProteinGroups Count & Peptide ID Count
             draw_identification(
                 self.sub_sections["identification"],
                 cal_num_table_data=statistics_result,
-                draw_peptide_id_count=self.peptide_id_count_no_gain
+                draw_peptide_id_count=self.peptide_id_count_no_gain,
             )
 
         # Peptide Intensity Distribution
         if self.intensities:
             self.draw_intensity(
-                sub_section=self.sub_sections["quantification"],
-                intensities=self.intensities
+                sub_section=self.sub_sections["quantification"], intensities=self.intensities
             )
 
         mc_plot_data = {}
@@ -335,29 +318,24 @@ class FragPipeModule(BasePMultiqcModule):
         if self.missed_cleavages:
             mc_plot_data = self.draw_missed_cleavages(
                 sub_section=self.sub_sections["identification"],
-                missed_cleavages=self.missed_cleavages
+                missed_cleavages=self.missed_cleavages,
             )
 
         # Summary of Hyperscore
         if self.hyperscores:
             self.draw_hyperscore(
-                sub_section=self.sub_sections["search_engine"],
-                hyperscores=self.hyperscores
+                sub_section=self.sub_sections["search_engine"], hyperscores=self.hyperscores
             )
 
         # Contaminants
         if self.contam_df:
             self.draw_contaminants(
-                sub_section=self.sub_sections["contaminants"],
-                contam_df=self.contam_df
+                sub_section=self.sub_sections["contaminants"], contam_df=self.contam_df
             )
 
         # Modifications
         if self.mods:
-            self.draw_mods(
-                sub_section=self.sub_sections["identification"],
-                mods=self.mods
-            )
+            self.draw_mods(sub_section=self.sub_sections["identification"], mods=self.mods)
 
         # self.hm_data
         if self.hm_data:
@@ -365,28 +343,26 @@ class FragPipeModule(BasePMultiqcModule):
                 sub_section=self.sub_sections["summary"],
                 hm=self.hm_data,
                 hm_color=self.heatmap_color_list,
-                missed_cleavages=mc_plot_data
+                missed_cleavages=mc_plot_data,
             )
 
         # Peptide Length Distribution
         if self.peptide_length:
             self.draw_peptide_length(
-                sub_section=self.sub_sections["identification"],
-                peptide_length=self.peptide_length
+                sub_section=self.sub_sections["identification"], peptide_length=self.peptide_length
             )
 
         # IDs over RT
         if self.retentions:
             self.draw_ids_over_rt(
-                sub_section=self.sub_sections["rt_qc"],
-                retentions=self.retentions
+                sub_section=self.sub_sections["rt_qc"], retentions=self.retentions
             )
 
         # Ion-level intensity plots from ion.tsv
         if self.ion_intensity_data:
             self.draw_ion_intensity_distribution(
                 sub_section=self.sub_sections["quantification"],
-                intensity_data=self.ion_intensity_data
+                intensity_data=self.ion_intensity_data,
             )
 
         # Protein intensity distribution from combined_protein.tsv
@@ -394,7 +370,7 @@ class FragPipeModule(BasePMultiqcModule):
             self.draw_protein_intensity_distribution(
                 sub_section=self.sub_sections["quantification"],
                 sample_distribution=self.protein_intensity_distribution,
-                contam_distribution=self.protein_contam_distribution
+                contam_distribution=self.protein_contam_distribution,
             )
 
         # MBR (Match-Between-Runs) visualization
@@ -431,7 +407,6 @@ class FragPipeModule(BasePMultiqcModule):
 
         log.info("Plotting data processing completed.")
 
-
     @staticmethod
     def parse_psm(fragpipe_files):
 
@@ -456,25 +431,19 @@ class FragPipeModule(BasePMultiqcModule):
                 continue
 
             psm_df, psm_cont_df = _mark_contaminants(
-                df=psm_df,
-                contam_affix=config.kwargs["contaminant_affix"]
+                df=psm_df, contam_affix=config.kwargs["contaminant_affix"]
             )
             log.info(f"Number of non-contaminant rows in {psm}: {len(psm_df)}")
 
             if "Delta Mass" in psm_df.columns:
                 delta_masses.append(psm_df["Delta Mass"].copy())
-            
+
             if "Charge" in psm_df.columns:
                 charge_states.append(psm_df[["Run", "Charge"]].copy())
 
             # Pipeline Result Statistics
-            stats_requires = [
-                "Run", "Is Unique", "Modified Peptide", "Protein", "Peptide"
-            ]
-            if all(
-                col in psm_df.columns
-                for col in stats_requires
-            ):
+            stats_requires = ["Run", "Is Unique", "Modified Peptide", "Protein", "Peptide"]
+            if all(col in psm_df.columns for col in stats_requires):
                 pipeline_stats.append(psm_df[stats_requires].copy())
 
             # Peptide Intensity Distribution
@@ -488,9 +457,7 @@ class FragPipeModule(BasePMultiqcModule):
 
             # Missed Cleavages
             if "Number of Missed Cleavages" in psm_df.columns:
-                missed_cleavages.append(
-                    psm_df[["Run", "Number of Missed Cleavages"]].copy()
-                )
+                missed_cleavages.append(psm_df[["Run", "Number of Missed Cleavages"]].copy())
 
             # Summary of Hyperscore
             if "Hyperscore" in psm_df.columns:
@@ -506,13 +473,15 @@ class FragPipeModule(BasePMultiqcModule):
 
             # HeatMap
             hm_requires = [
-                "Run", "Modified Peptide", "Protein", "Peptide",
-                "Intensity", "Retention", "Charge"
+                "Run",
+                "Modified Peptide",
+                "Protein",
+                "Peptide",
+                "Intensity",
+                "Retention",
+                "Charge",
             ]
-            if all(
-                col in psm_cont_df.columns
-                for col in hm_requires
-            ):
+            if all(col in psm_cont_df.columns for col in hm_requires):
                 hm_data.append(psm_cont_df[hm_requires].copy())
 
             # Peptide Length
@@ -547,7 +516,7 @@ class FragPipeModule(BasePMultiqcModule):
             contam_df,
             mods,
             hm_data,
-            peptide_length
+            peptide_length,
         )
 
     # Delta Mass
@@ -555,10 +524,7 @@ class FragPipeModule(BasePMultiqcModule):
     def draw_delta_mass(sub_sections, delta_masses: list):
 
         # Delta Mass: difference between calibrated observed peptide mass and calculated peptide mass (in Da)
-        df = (
-            pd.concat(delta_masses, ignore_index=True)
-            .to_frame(name="Delta Mass")
-        )
+        df = pd.concat(delta_masses, ignore_index=True).to_frame(name="Delta Mass")
 
         df["Delta Mass"] = pd.to_numeric(df["Delta Mass"], errors="coerce")
         df = df.dropna(subset=["Delta Mass"])
@@ -567,12 +533,9 @@ class FragPipeModule(BasePMultiqcModule):
 
         delta_mass_da = cal_delta_mass_dict(df, "Delta Mass")
 
-        draw_delta_mass_da_ppm(
-            sub_sections, delta_mass_da, "Mass Error [Da]"
-        )
+        draw_delta_mass_da_ppm(sub_sections, delta_mass_da, "Mass Error [Da]")
 
         log.info("Delta mass [Da] plot generated.")
-
 
     # Charge-state
     @staticmethod
@@ -617,7 +580,6 @@ class FragPipeModule(BasePMultiqcModule):
 
         log.info("Charge-state plot generated.")
 
-
     # Peptide Intensity Distribution
     @staticmethod
     def draw_intensity(sub_section, intensities: list):
@@ -631,11 +593,7 @@ class FragPipeModule(BasePMultiqcModule):
 
         plot_data = [intensity_by_run]
 
-        draw_peptide_intensity(
-            sub_section=sub_section,
-            plot_data=plot_data
-        )
-
+        draw_peptide_intensity(sub_section=sub_section, plot_data=plot_data)
 
     # Missed Cleavages
     @staticmethod
@@ -651,19 +609,13 @@ class FragPipeModule(BasePMultiqcModule):
 
         re_mc_by_run = rebuild_dict_structure(mc_by_run)
 
-        mc_plot = {
-            "plot_data": re_mc_by_run,
-            "cats": ["0", "1", ">=2"]
-        }
+        mc_plot = {"plot_data": re_mc_by_run, "cats": ["0", "1", ">=2"]}
 
         draw_msms_missed_cleavages(
-            sub_section=sub_section,
-            missed_cleavages_data=mc_plot,
-            is_maxquant=False
+            sub_section=sub_section, missed_cleavages_data=mc_plot, is_maxquant=False
         )
 
         return re_mc_by_run
-
 
     # Summary of Hyperscore
     @staticmethod
@@ -679,15 +631,12 @@ class FragPipeModule(BasePMultiqcModule):
             bins_step=3,
             df=df,
             groupby_col="Run",
-            score_col="Hyperscore"
+            score_col="Hyperscore",
         )
 
         draw_search_engine_scores(
-            sub_section=sub_section,
-            plot_data=plot_data,
-            plot_type="fragpipe"
+            sub_section=sub_section, plot_data=plot_data, plot_type="fragpipe"
         )
-
 
     # Contaminants
     @staticmethod
@@ -703,13 +652,11 @@ class FragPipeModule(BasePMultiqcModule):
             protein_col="Protein",
             intensity_col="Intensity",
             run_col="Run",
-            contam_affix=config.kwargs["contaminant_affix"]
+            contam_affix=config.kwargs["contaminant_affix"],
         )
 
         draw_potential_contaminants(
-            sub_section=sub_section,
-            contaminant_percent=contam_percent,
-            report_type="fragpipe"
+            sub_section=sub_section, contaminant_percent=contam_percent, report_type="fragpipe"
         )
 
         top_contams = top_n_contaminant_percent(
@@ -721,11 +668,7 @@ class FragPipeModule(BasePMultiqcModule):
             top_n=5,
         )
 
-        draw_top_n_contaminants(
-            sub_section=sub_section,
-            top_contaminants_data=top_contams
-        )
-
+        draw_top_n_contaminants(sub_section=sub_section, top_contaminants_data=top_contams)
 
     # Modifications
     @staticmethod
@@ -742,16 +685,9 @@ class FragPipeModule(BasePMultiqcModule):
 
         df["modifications"] = df["Assigned Modifications"].apply(_extract_modifications)
 
-        modified_data = mods_statistics(
-            df=df,
-            run_col="Run"
-        )
-        
-        draw_modifications(
-            sub_section=sub_section,
-            modified_data=modified_data
-        )
+        modified_data = mods_statistics(df=df, run_col="Run")
 
+        draw_modifications(sub_section=sub_section, modified_data=modified_data)
 
     # HeatMap
     @staticmethod
@@ -781,26 +717,17 @@ class FragPipeModule(BasePMultiqcModule):
 
         if not _has_valid_column(df, "Intensity"):
             heatmap_cols = [
-                x
-                for x in heatmap_cols
-                if x not in ["Contaminants", "Peptide Intensity"]
+                x for x in heatmap_cols if x not in ["Contaminants", "Peptide Intensity"]
             ]
 
         # Charge
         if "Charge" in heatmap_cols:
-            hm_charge_all = cal_hm_charge(
-                df=df,
-                run_col="Run",
-                charge_col="Charge"
-            )
+            hm_charge_all = cal_hm_charge(df=df, run_col="Run", charge_col="Charge")
 
         if missed_cleavages:
 
             # Missed Cleavages
-            mc = {
-                key: value.get("0", 0) / 100
-                for key, value in missed_cleavages.items()
-            }
+            mc = {key: value.get("0", 0) / 100 for key, value in missed_cleavages.items()}
 
             # Missed Cleavages Var
             mc_median = np.median(list(mc.values()))
@@ -812,9 +739,7 @@ class FragPipeModule(BasePMultiqcModule):
             )
         else:
             heatmap_cols = [
-                x
-                for x in heatmap_cols
-                if x not in ["Missed Cleavages", "Missed Cleavages Var"]
+                x for x in heatmap_cols if x not in ["Missed Cleavages", "Missed Cleavages Var"]
             ]
 
         # 8. Pep Missing Values
@@ -839,14 +764,14 @@ class FragPipeModule(BasePMultiqcModule):
                     hm_contam = 1
                 else:
                     hm_contam = 1 - cont_intensity / all_intensity
-                
+
                 heatmap_plot[run]["Contaminants"] = hm_contam
 
             # 2. Peptide Intensity
             if "Peptide Intensity" in heatmap_cols:
                 median_int = nanmedian(group["Intensity"], 0)  # if everything is NaN, use 0
                 hm_intensity = np.minimum(
-                    1.0, median_int / (2 ** 23)
+                    1.0, median_int / (2**23)
                 )  # score = 1, if intensity >= 2**23
 
                 heatmap_plot[run]["Peptide Intensity"] = hm_intensity
@@ -858,7 +783,7 @@ class FragPipeModule(BasePMultiqcModule):
             # 4. Missed Cleavages
             if "Missed Cleavages" in heatmap_cols:
                 heatmap_plot[run]["Missed Cleavages"] = mc.get(run, 0)
-            
+
             # 5. Missed Cleavages Var
             if "Missed Cleavages Var" in heatmap_cols:
                 heatmap_plot[run]["Missed Cleavages Var"] = mc_var.get(run, 0)
@@ -874,7 +799,8 @@ class FragPipeModule(BasePMultiqcModule):
                 if global_peps_count > 0:
                     hm_pep_missing_values = np.minimum(
                         1.0,
-                        len(set(global_peps) & set(group["Modified Peptide"].unique())) / global_peps_count,
+                        len(set(global_peps) & set(group["Modified Peptide"].unique()))
+                        / global_peps_count,
                     )
                 else:
                     hm_pep_missing_values = 0
@@ -887,9 +813,8 @@ class FragPipeModule(BasePMultiqcModule):
             heatmap_data=heatmap_plot,
             heatmap_xnames="",
             heatmap_ynames="",
-            report_type="fragpipe"
+            report_type="fragpipe",
         )
-
 
     # Peptide Length Distribution
     @staticmethod
@@ -912,11 +837,7 @@ class FragPipeModule(BasePMultiqcModule):
             stats_dict = group["Peptide Length"].value_counts().sort_index().to_dict()
             plot_data[sample] = stats_dict
 
-        draw_peptide_length_distribution(
-            sub_section=sub_section,
-            plot_data=plot_data
-        )
-
+        draw_peptide_length_distribution(sub_section=sub_section, plot_data=plot_data)
 
     # IDs over RT
     @staticmethod
@@ -925,21 +846,14 @@ class FragPipeModule(BasePMultiqcModule):
         df = pd.concat(retentions, ignore_index=True)
         log.info(f"Number of retention rows in DataFrame: {len(df)}")
 
-        df.rename(
-            columns={"Run": "raw file", "Retention": "retention time"},
-            inplace=True
-        )
+        df.rename(columns={"Run": "raw file", "Retention": "retention time"}, inplace=True)
 
         df["retention time"] = pd.to_numeric(df["retention time"], errors="coerce") / 60.0
         df = df.dropna(subset=["retention time"])
 
         plot_data = evidence_rt_count(df)
 
-        draw_ids_rt_count(
-            sub_section=sub_section,
-            rt_count_data=plot_data,
-            report_type="fragpipe"
-        )
+        draw_ids_rt_count(sub_section=sub_section, rt_count_data=plot_data, report_type="fragpipe")
 
     @staticmethod
     def parse_ion(fragpipe_files):
@@ -965,7 +879,7 @@ class FragPipeModule(BasePMultiqcModule):
             return None, []
 
         all_intensity_data = {
-            'intensity_distribution': {},
+            "intensity_distribution": {},
         }
         all_sample_cols = []
 
@@ -983,11 +897,11 @@ class FragPipeModule(BasePMultiqcModule):
 
                 if intensity_data:
                     # Merge intensity distributions
-                    for sample, values in intensity_data.get('intensity_distribution', {}).items():
-                        if sample in all_intensity_data['intensity_distribution']:
-                            all_intensity_data['intensity_distribution'][sample].extend(values)
+                    for sample, values in intensity_data.get("intensity_distribution", {}).items():
+                        if sample in all_intensity_data["intensity_distribution"]:
+                            all_intensity_data["intensity_distribution"][sample].extend(values)
                         else:
-                            all_intensity_data['intensity_distribution'][sample] = values
+                            all_intensity_data["intensity_distribution"][sample] = values
 
                     all_sample_cols.extend([c for c in sample_cols if c not in all_sample_cols])
 
@@ -995,7 +909,7 @@ class FragPipeModule(BasePMultiqcModule):
                 log.warning(f"Error parsing ion.tsv file {ion_file}: {e}")
                 continue
 
-        if not all_intensity_data['intensity_distribution']:
+        if not all_intensity_data["intensity_distribution"]:
             log.info("No valid intensity data found in ion.tsv files.")
             return None, []
 
@@ -1015,7 +929,7 @@ class FragPipeModule(BasePMultiqcModule):
         intensity_data : dict
             Dictionary containing 'intensity_distribution' data.
         """
-        distribution = intensity_data.get('intensity_distribution', {})
+        distribution = intensity_data.get("intensity_distribution", {})
 
         if not distribution:
             log.info("No ion intensity distribution data available.")
@@ -1044,7 +958,7 @@ class FragPipeModule(BasePMultiqcModule):
             plot_data=distribution,
             plot_html=box_html,
             log_text="pmultiqc.modules.fragpipe.fragpipe",
-            function_name="draw_ion_intensity_distribution"
+            function_name="draw_ion_intensity_distribution",
         )
         box_html = plot_html_check(box_html)
 
@@ -1100,14 +1014,8 @@ class FragPipeModule(BasePMultiqcModule):
         }
 
         headers = {
-            "parameter": {
-                "title": "Parameter",
-                "scale": False
-            },
-            "value": {
-                "title": "Value",
-                "scale": False
-            }
+            "parameter": {"title": "Parameter", "scale": False},
+            "value": {"title": "Value", "scale": False},
         }
 
         table_html = table.plot(data=parameter_table, headers=headers, pconfig=draw_config)
@@ -1161,22 +1069,22 @@ class FragPipeModule(BasePMultiqcModule):
             "file_name": {
                 "title": "File Name",
                 "description": "Raw data file name",
-                "scale": False
+                "scale": False,
             },
             "experiment": {
                 "title": "Experiment",
                 "description": "Experiment/sample name",
-                "scale": False
+                "scale": False,
             },
             "bioreplicate": {
                 "title": "BioReplicate",
                 "description": "Biological replicate ID",
-                "scale": False
+                "scale": False,
             },
             "data_type": {
                 "title": "Data Type",
                 "description": "Data type (DDA/DIA)",
-                "scale": False
+                "scale": False,
             },
         }
 
@@ -1197,7 +1105,9 @@ class FragPipeModule(BasePMultiqcModule):
         log.info("Experiment design table generated.")
 
     @staticmethod
-    def draw_protein_intensity_distribution(sub_section, sample_distribution: dict, contam_distribution: dict = None):
+    def draw_protein_intensity_distribution(
+        sub_section, sample_distribution: dict, contam_distribution: dict = None
+    ):
         """
         Draw protein intensity distribution box plot from combined_protein.tsv.
 
@@ -1243,7 +1153,7 @@ class FragPipeModule(BasePMultiqcModule):
             plot_data=distribution_box,
             plot_html=box_html,
             log_text="pmultiqc.modules.fragpipe.fragpipe",
-            function_name="draw_protein_intensity_distribution"
+            function_name="draw_protein_intensity_distribution",
         )
         box_html = plot_html_check(box_html)
 
@@ -1290,8 +1200,8 @@ class FragPipeModule(BasePMultiqcModule):
         # Check if we have any meaningful MBR data
         has_data = False
         for sample, stats in mbr_stats.items():
-            proteins = stats.get('proteins', {})
-            if proteins.get('mbr_only', 0) > 0 or proteins.get('both', 0) > 0:
+            proteins = stats.get("proteins", {})
+            if proteins.get("mbr_only", 0) > 0 or proteins.get("both", 0) > 0:
                 has_data = True
                 break
 
@@ -1305,29 +1215,29 @@ class FragPipeModule(BasePMultiqcModule):
         # Categories: MS/MS only (identified by MS/MS), MBR only (transferred), Both (MS/MS + MBR)
         plot_data = {}
         for sample, stats in mbr_stats.items():
-            proteins = stats.get('proteins', {})
+            proteins = stats.get("proteins", {})
             plot_data[sample] = {
-                "MS/MS Only": proteins.get('msms_only', 0),
-                "MS/MS + MBR": proteins.get('both', 0),
-                "MBR Only": proteins.get('mbr_only', 0),
+                "MS/MS Only": proteins.get("msms_only", 0),
+                "MS/MS + MBR": proteins.get("both", 0),
+                "MBR Only": proteins.get("mbr_only", 0),
             }
 
         cats = [
             {
                 "name": "MS/MS Only",
                 "color": "#1f77b4",
-                "description": "Proteins identified only by MS/MS"
+                "description": "Proteins identified only by MS/MS",
             },
             {
                 "name": "MS/MS + MBR",
                 "color": "#2ca02c",
-                "description": "Proteins identified by both MS/MS and MBR"
+                "description": "Proteins identified by both MS/MS and MBR",
             },
             {
                 "name": "MBR Only",
                 "color": "#ff7f0e",
-                "description": "Proteins identified only by Match-Between-Runs"
-            }
+                "description": "Proteins identified only by Match-Between-Runs",
+            },
         ]
 
         draw_config = {
@@ -1375,7 +1285,7 @@ def _calculate_statistics(pipeline_stats: list):
 
     summary_data = {
         "total_proteins": len(set(df["Protein"])),
-        "total_peptides": len(set(df["Peptide"]))
+        "total_peptides": len(set(df["Peptide"])),
     }
 
     stats_by_run = dict()
@@ -1385,19 +1295,17 @@ def _calculate_statistics(pipeline_stats: list):
 
         modified_peptides = group.loc[
             group["Modified Peptide"].notna() & (group["Modified Peptide"] != ""),
-            "Modified Peptide"
+            "Modified Peptide",
         ]
 
         stats_by_run[run] = {
             "protein_num": len(set(group["Protein"])),
             "peptide_num": len(set(group["Peptide"])),
             "unique_peptide_num": len(set(unique_group["Peptide"])),
-            "modified_peptide_num": modified_peptides.nunique()
+            "modified_peptide_num": modified_peptides.nunique(),
         }
-    
-    statistics_data = {
-        "ms_runs": stats_by_run
-    }
+
+    statistics_data = {"ms_runs": stats_by_run}
 
     protein_pep_map = df.groupby("Protein")["Peptide"].agg(list).to_dict()
     pep_plot = Histogram("number of peptides per proteins", plot_category="frequency")
@@ -1429,12 +1337,12 @@ def _has_valid_column(df: pd.DataFrame, col: str):
 def _mark_contaminants(df, contam_affix="CONT"):
 
     is_contaminant = df["Protein"].str.contains(contam_affix, na=False, case=False)
-    
+
     psm_cont_df = df.copy()
     psm_cont_df["cont_protein"] = np.where(is_contaminant, psm_cont_df["Protein"], NOT_CONT_TAG)
-    
+
     psm_df = df[~is_contaminant].copy()
-    
+
     return psm_df, psm_cont_df
 
 
@@ -1446,7 +1354,7 @@ def _extract_modifications(x):
 
     if pd.isna(x):
         return "Unmodified"
-    
+
     pattern = re.compile(r"N-term|\d+([A-Z])\(")
 
     mod_types = []

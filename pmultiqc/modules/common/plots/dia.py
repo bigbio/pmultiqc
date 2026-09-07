@@ -1,20 +1,21 @@
 import re
+
 import pandas as pd
+from multiqc.plots import bargraph, box, heatmap, linegraph
 
-from multiqc.plots import heatmap, box, bargraph, linegraph
-
+from pmultiqc.modules.common.common_utils import group_charge
+from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.plots import dia as dia_plots
 from pmultiqc.modules.common.plots.general import (
-    summarise_box_data,
+    plot_data_check,
     plot_html_check,
-    plot_data_check
+    summarise_box_data,
 )
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.core.section_groups import add_sub_section
-from pmultiqc.modules.common.plots import dia as dia_plots
-from pmultiqc.modules.common.common_utils import group_charge
-from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.common.plots.dia")
+
 
 # DIA-NN: HeatMap
 def draw_heatmap(sub_section, hm_colors, heatmap_data):
@@ -79,20 +80,17 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
 
     if not sdrf_file_df.empty:
 
-        df_sub = df_sub.merge(
-            sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-            on="Run"
-        )
+        df_sub = df_sub.merge(sdrf_file_df[["Sample", "Run"]].drop_duplicates(), on="Run")
 
         df_sub["Sample"] = df_sub["Sample"].astype(int)
 
         box_data = [
             {
-                (
-                    f"Sample {str(run)}"
-                    if data_type == "Sample"
-                    else str(run)
-                ): group["log_intensity"].dropna().tolist()
+                (f"Sample {str(run)}" if data_type == "Sample" else str(run)): group[
+                    "log_intensity"
+                ]
+                .dropna()
+                .tolist()
                 for run, group in df_sub.groupby(data_type, sort=True)
             }
             for data_type in ["Run", "Sample"]
@@ -132,7 +130,7 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
         plot_data=box_data,
         plot_html=box_html,
         log_text="pmultiqc.modules.common.plots.dia",
-        function_name="draw_dia_intensity_dis"
+        function_name="draw_dia_intensity_dis",
     )
     box_html = plot_html_check(box_html)
 
@@ -146,12 +144,12 @@ def draw_dia_intensity_dis(sub_section, df, sdrf_file_df):
             """,
     )
 
+
 # Ms1.Area non-normalised MS1 peak area
 def draw_dia_ms1_area(sub_section, df):
 
     box_data = {
-        str(run): group["log_ms1_area"].dropna().tolist()
-        for run, group in df.groupby("Run")
+        str(run): group["log_ms1_area"].dropna().tolist() for run, group in df.groupby("Run")
     }
 
     draw_config = {
@@ -171,7 +169,7 @@ def draw_dia_ms1_area(sub_section, df):
         plot_data=box_data,
         plot_html=box_html,
         log_text="pmultiqc.modules.common.plots.dia",
-        function_name="draw_dia_ms1_area"
+        function_name="draw_dia_ms1_area",
     )
     box_html = plot_html_check(box_html)
 
@@ -184,6 +182,7 @@ def draw_dia_ms1_area(sub_section, df):
             [DIA-NN: report.tsv] log2(Ms1.Area) for each Run. Ms1.Area: non-normalised MS1 peak area.
             """,
     )
+
 
 # Distribution of Precursor Charges
 def draw_dia_whole_exp_charge(sub_section, df):
@@ -241,16 +240,13 @@ def draw_dia_ms2_charge(sub_section, df, sdrf_file_df):
         plot_label = ["by Run"]
 
     else:
-        df = df.merge(
-            right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-            on="Run"
-        )
+        df = df.merge(right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(), on="Run")
 
         stat_data_by_sample = group_charge(df, "Sample", "Precursor.Charge")
 
         bar_data = [
             stat_data_by_run.to_dict(orient="index"),
-            stat_data_by_sample.to_dict(orient="index")
+            stat_data_by_sample.to_dict(orient="index"),
         ]
         plot_label = ["by Run", "by Sample"]
 
@@ -322,7 +318,7 @@ def draw_dia_intensity_std(sub_section, df, sdrf_file_df):
         plot_data=box_data,
         plot_html=box_html,
         log_text="pmultiqc.modules.common.plots.dia",
-        function_name="draw_dia_intensity_std"
+        function_name="draw_dia_intensity_std",
     )
     box_html = plot_html_check(box_html)
 
@@ -579,6 +575,7 @@ def draw_loess_rt_irt(sub_section, plot_data):
         """,
     )
 
+
 def calculate_dia_intensity_std(df, sdrf_file_df):
     """
     Calculate standard deviation of intensity for DIA data.
@@ -599,10 +596,7 @@ def calculate_dia_intensity_std(df, sdrf_file_df):
 
     if not sdrf_file_df.empty:
 
-        df_sub = df_sub.merge(
-            sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-            on="Run"
-        )
+        df_sub = df_sub.merge(sdrf_file_df[["Sample", "Run"]].drop_duplicates(), on="Run")
 
         grouped_std = (
             df_sub.groupby(["Sample", "Modified.Sequence"])["log_intensity"]
@@ -638,8 +632,11 @@ def calculate_dia_intensity_std(df, sdrf_file_df):
 
         return plot_data
 
-    log.warning("No SDRF available; failed to parse experimental groups; SD Intensity not generated.")
+    log.warning(
+        "No SDRF available; failed to parse experimental groups; SD Intensity not generated."
+    )
     return None
+
 
 def extract_condition_and_replicate(run_name):
 
@@ -650,8 +647,11 @@ def extract_condition_and_replicate(run_name):
         replicate = int(match.group(3))
         return condition_base, replicate
     else:
-        log.warning("Failed to parse condition/replicate from Run='%s' in DIA report.tsv", run_name)
+        log.warning(
+            "Failed to parse condition/replicate from Run='%s' in DIA report.tsv", run_name
+        )
         # Fallback: keep full run name as condition, unknown replicate
         return run_name, None
+
 
 # re-export by moving file; contents will be identical after move.

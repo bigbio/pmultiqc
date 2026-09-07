@@ -5,7 +5,6 @@ from multiqc import BaseMultiqcModule, config
 
 from pmultiqc.modules.common.logging import get_logger
 
-
 # Initialize logger for this module
 logger = get_logger("pmultiqc.modules.core")
 
@@ -20,6 +19,7 @@ PLUGIN_MAP = {
     "mhcquant_plugin": ("mhcquant", "MhcquantModule"),
     "qpx_plugin": ("qpx", "QpxModule"),
 }
+
 
 class PMultiQC(BaseMultiqcModule):
 
@@ -71,7 +71,9 @@ class PMultiQC(BaseMultiqcModule):
         }
 
         if config.kwargs.get("disable_hoverinfo", False):
-            logger.info("disable_hoverinfo has been enabled by the user; hoverinfo will no longer be displayed.")
+            logger.info(
+                "disable_hoverinfo has been enabled by the user; hoverinfo will no longer be displayed."
+            )
 
         # Run
         self.load_and_run_plugin()
@@ -95,22 +97,23 @@ class PMultiQC(BaseMultiqcModule):
                         plugin = ModuleClass(None, self.sub_sections, None)
                     else:
                         plugin = ModuleClass(
-                            self.find_log_files,
-                            self.sub_sections,
-                            self.heatmap_color_list
+                            self.find_log_files, self.sub_sections, self.heatmap_color_list
                         )
 
                     if plugin.get_data():
                         plugin.draw_plots()
 
                 except Exception as e:
-                    logger.warning(f"pmultiqc plugin '{class_name}' encountered an error and was skipped: {e}")
+                    logger.warning(
+                        f"pmultiqc plugin '{class_name}' encountered an error and was skipped: {e}"
+                    )
                     logger.debug("Detailed error traceback:", exc_info=True)
 
                 return
 
         if not plugin_loaded:
             logger.warning("No pmultiqc plugin selected; skipping.")
+
 
 def get_module(module_name, class_name):
     module = import_module(f"..{module_name}", __package__)

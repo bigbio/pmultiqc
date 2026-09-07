@@ -18,7 +18,6 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.qpx.qpx_io import has_data
 from pmultiqc.modules.qpx.qpx_quant import protein_group_key
 
-
 log = get_logger("pmultiqc.modules.qpx.qpx_sections")
 
 TOP_N_CONTAMINANTS = 5
@@ -31,6 +30,7 @@ CLEAN_LABEL = "clean"
 
 
 # ---------------------------------------------------------------- peptides per protein
+
 
 def build_peptides_per_protein(feature_df, peptides_per_group):
     """Histogram of distinct peptides per protein group, as draw_num_pep_per_protein wants."""
@@ -53,6 +53,7 @@ def build_peptides_per_protein(feature_df, peptides_per_group):
 
 
 # ------------------------------------------------------------------------ oversampling
+
 
 def calculate_oversampling(id_df):
     """MS/MS counts per 3D-peak: how often each precursor was identified per run.
@@ -99,6 +100,7 @@ def calculate_oversampling(id_df):
 
 # ------------------------------------------------------------------------ contaminants
 
+
 def calculate_contaminants(pg_df, contaminant_affix):
     """Per-run contaminant intensity share, plus the top-N contaminant breakdown.
 
@@ -138,9 +140,7 @@ def calculate_contaminants(pg_df, contaminant_affix):
     # An all-zero series means the producer flagged no contaminants at all. That is a
     # real answer, but a bar chart of zeros shows nothing (and MultiQC rejects it), so
     # report it in the log and skip the section.
-    if per_run and not any(
-        v.get("Potential Contaminants", 0) > 0 for v in per_run.values()
-    ):
+    if per_run and not any(v.get("Potential Contaminants", 0) > 0 for v in per_run.values()):
         log.info(
             "[Contaminants] No contaminant signal in any run (0% throughout); "
             "skipping the contaminants section."
@@ -232,9 +232,7 @@ def _top_n_contaminants(df):
         return None
 
     totals = df.groupby("run")["intensity"].sum()
-    ranked = (
-        contaminated.groupby("_contaminant")["intensity"].sum().sort_values(ascending=False)
-    )
+    ranked = contaminated.groupby("_contaminant")["intensity"].sum().sort_values(ascending=False)
     top = list(ranked.index[:TOP_N_CONTAMINANTS])
 
     result = {}
@@ -247,8 +245,7 @@ def _top_n_contaminants(df):
             share = group.loc[group["_contaminant"] == name, "intensity"].sum()
             run_data[name.replace(CONTAMINANT_MARKER, "")] = float(share / total * 100)
         other = group.loc[
-            (group["_contaminant"] != CLEAN_LABEL)
-            & (~group["_contaminant"].isin(top)),
+            (group["_contaminant"] != CLEAN_LABEL) & (~group["_contaminant"].isin(top)),
             "intensity",
         ].sum()
         if other > 0:
@@ -270,6 +267,7 @@ def _top_n_contaminants(df):
 
 
 # ------------------------------------------------------------- search engine scores
+
 
 def calculate_search_engine_scores(id_df):
     """Per-run distribution of a search-engine score, binned adaptively.
@@ -318,8 +316,15 @@ def calculate_search_engine_scores(id_df):
 
 
 # Preferred in order: a real engine score, then generic confidence measures.
-_SCORE_PREFERENCE = ["andromeda_score", "hyperscore", "xcorr", "sage_hyperscore",
-                     "msgf_raw_score", "comet_xcorr", "diann_cscore"]
+_SCORE_PREFERENCE = [
+    "andromeda_score",
+    "hyperscore",
+    "xcorr",
+    "sage_hyperscore",
+    "msgf_raw_score",
+    "comet_xcorr",
+    "diann_cscore",
+]
 
 
 def _pick_score(id_df):
@@ -332,9 +337,10 @@ def _pick_score(id_df):
                     return _extract_score(id_df["additional_scores"], name), name
 
     if has_data(id_df, "posterior_error_probability"):
-        return pd.to_numeric(
-            id_df["posterior_error_probability"], errors="coerce"
-        ), "posterior_error_probability"
+        return (
+            pd.to_numeric(id_df["posterior_error_probability"], errors="coerce"),
+            "posterior_error_probability",
+        )
 
     if has_data(id_df, "additional_scores"):
         available = _score_names(id_df["additional_scores"])
@@ -369,6 +375,7 @@ def _score_names(series, sample_size=5000):
 
 def _extract_score(series, name):
     """Pull one named score out of every additional_scores cell, as a numeric series."""
+
     def pull(cell):
         if cell is None:
             return None

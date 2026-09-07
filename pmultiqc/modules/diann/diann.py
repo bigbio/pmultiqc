@@ -1,6 +1,7 @@
-""" MultiQC pmultiqc plugin module """
+"""MultiQC pmultiqc plugin module"""
 
 from __future__ import absolute_import
+
 import os
 
 import pandas as pd
@@ -8,33 +9,32 @@ import pandas as pd
 from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.common_utils import (
-    parse_sdrf,
+    aggregate_general_stats,
     get_ms_path,
     parse_mzml,
-    aggregate_general_stats
+    parse_sdrf,
 )
 from pmultiqc.modules.common.dia_utils import (
+    draw_diann_metadata_table,
     parse_diann_report,
     parse_diann_version,
-    draw_diann_metadata_table
 )
+from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.plots.general import draw_exp_design
 from pmultiqc.modules.common.plots.id import (
-    draw_summary_protein_ident_table,
     draw_identi_num,
-    draw_num_pep_per_protein,
     draw_identification,
     draw_long_trends,
-    draw_peptide_length_distribution
+    draw_num_pep_per_protein,
+    draw_peptide_length_distribution,
+    draw_summary_protein_ident_table,
 )
 from pmultiqc.modules.common.plots.ms import (
+    draw_ms_information,
     draw_peak_intensity_distribution,
     draw_peaks_per_ms2,
-    draw_ms_information
 )
 from pmultiqc.modules.core.section_groups import add_group_modules
-from pmultiqc.modules.common.logging import get_logger
-
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.diann.diann")
@@ -45,7 +45,6 @@ class DiannModule(BasePMultiqcModule):
     def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
 
         super().__init__(find_log_files_func, sub_sections, heatmap_colors)
-
 
     def get_data(self):
 
@@ -75,17 +74,10 @@ class DiannModule(BasePMultiqcModule):
                 self.file_df,
                 self.exp_design_runs,
                 self.is_bruker,
-                self.is_multi_conditions
-            ) = draw_exp_design(
-                self.sub_sections["experiment"],
-                self.exp_design
-            )
+                self.is_multi_conditions,
+            ) = draw_exp_design(self.sub_sections["experiment"], self.exp_design)
 
-        (
-            self.ms_info_path,
-            self.read_ms_info,
-            self.ms_paths
-        ) = get_ms_path(self.find_log_files)
+        self.ms_info_path, self.read_ms_info, self.ms_paths = get_ms_path(self.find_log_files)
 
         # DIA-NN report file path
         diann_report_path = None
@@ -130,14 +122,14 @@ class DiannModule(BasePMultiqcModule):
             self.ms1_peaks,
             self.ms1_general_stats,
             self.current_sum_by_run,
-            self.long_trends
+            self.long_trends,
         ) = parse_mzml(
             is_bruker=self.is_bruker,
             read_ms_info=self.read_ms_info,
             ms_info_path=self.ms_info_path,
             ms_with_psm=self.ms_with_psm,
             enable_dia=self.enable_dia,
-            ms_paths=self.ms_paths
+            ms_paths=self.ms_paths,
         )
 
         log.info("Data recognition and processing completed.")
@@ -158,7 +150,7 @@ class DiannModule(BasePMultiqcModule):
         general_stats_data = aggregate_general_stats(
             ms1_general_stats=self.ms1_general_stats,
             current_sum_by_run=self.current_sum_by_run,
-            sdrf_file_df=self.file_df
+            sdrf_file_df=self.file_df,
         )
 
         draw_ms_information(
@@ -166,7 +158,7 @@ class DiannModule(BasePMultiqcModule):
             self.ms1_tic,
             self.ms1_bpc,
             self.ms1_peaks,
-            general_stats_data
+            general_stats_data,
         )
 
         (
@@ -178,7 +170,7 @@ class DiannModule(BasePMultiqcModule):
             self.cal_num_table_data,
             self.modified,
             self.ms_without_psm,
-            self.peptide_length
+            self.peptide_length,
         ) = parse_diann_report(
             sub_sections=self.sub_sections,
             diann_report_path=self.diann_report_path,
@@ -187,14 +179,14 @@ class DiannModule(BasePMultiqcModule):
             file_df=self.file_df,
             ms_with_psm=self.ms_with_psm,
             modified=self.modified,
-            ms_paths=self.ms_paths
+            ms_paths=self.ms_paths,
         )
 
         draw_summary_protein_ident_table(
             sub_sections=self.sub_sections["summary"],
             use_two_columns=self.enable_dia,
             total_peptide_count=self.total_peptide_count,
-            total_protein_quantified=self.total_protein_quantified
+            total_protein_quantified=self.total_protein_quantified,
         )
 
         draw_identi_num(
@@ -203,44 +195,31 @@ class DiannModule(BasePMultiqcModule):
             is_multi_conditions=self.is_multi_conditions,
             sample_df=self.sample_df,
             file_df=self.file_df,
-            cal_num_table_data=self.cal_num_table_data
+            cal_num_table_data=self.cal_num_table_data,
         )
 
-        draw_num_pep_per_protein(
-            self.sub_sections["identification"],
-            self.pep_plot
-        )
+        draw_num_pep_per_protein(self.sub_sections["identification"], self.pep_plot)
 
         if len(self.ms_info_path) > 0 and not self.is_bruker:
 
-            draw_peaks_per_ms2(
-                self.sub_sections["ms2"],
-                self.mzml_peaks_ms2_plot,
-                self.ms_info
-            )
+            draw_peaks_per_ms2(self.sub_sections["ms2"], self.mzml_peaks_ms2_plot, self.ms_info)
 
             draw_peak_intensity_distribution(
-                self.sub_sections["ms2"],
-                self.mzml_peak_distribution_plot,
-                self.ms_info
+                self.sub_sections["ms2"], self.mzml_peak_distribution_plot, self.ms_info
             )
 
         draw_identification(
             self.sub_sections["identification"],
             cal_num_table_data=self.cal_num_table_data,
-            modified=self.modified
+            modified=self.modified,
         )
 
         if self.long_trends:
-            draw_long_trends(
-                sub_sections=self.sub_sections,
-                long_trends_data=self.long_trends
-            )
+            draw_long_trends(sub_sections=self.sub_sections, long_trends_data=self.long_trends)
 
         if self.peptide_length:
             draw_peptide_length_distribution(
-                sub_section=self.sub_sections["identification"],
-                plot_data=self.peptide_length
+                sub_section=self.sub_sections["identification"], plot_data=self.peptide_length
             )
 
         if self.enable_sdrf:

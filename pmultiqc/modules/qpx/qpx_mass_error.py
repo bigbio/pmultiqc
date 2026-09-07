@@ -20,7 +20,6 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.stats import cal_delta_mass_dict
 from pmultiqc.modules.qpx.qpx_io import has_data
 
-
 log = get_logger("pmultiqc.modules.qpx.qpx_mass_error")
 
 # Beyond this the value is not a calibration error but a mis-assignment; excluded so a

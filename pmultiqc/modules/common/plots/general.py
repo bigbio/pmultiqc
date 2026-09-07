@@ -1,20 +1,18 @@
-from multiqc.plots import heatmap, table, bargraph
-from pmultiqc.modules.core.section_groups import add_sub_section
-from multiqc.types import SampleGroup, SampleName
-from multiqc.plots.table_object import InputRow
-from multiqc import config
-from typing import Dict, List
 import re
-import pandas as pd
+from typing import Dict, List
+
 import numpy as np
+import pandas as pd
+from multiqc import config
+from multiqc.plots import bargraph, heatmap, table
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
 
-from pmultiqc.modules.common.common_utils import (
-    read_openms_design,
-    condition_split
-)
-
+from pmultiqc.modules.common.common_utils import condition_split, read_openms_design
+from pmultiqc.modules.core.section_groups import add_sub_section
 
 FLAT_THRESHOLD = 100000
+
 
 def plot_html_check(plot_html):
 
@@ -27,14 +25,10 @@ def plot_html_check(plot_html):
     return checked_html
 
 
-def plot_data_check(
-    plot_data,
-    plot_html,
-    log_text,
-    function_name
-):
+def plot_data_check(plot_data, plot_html, log_text, function_name):
 
     from collections.abc import Mapping
+
     from pmultiqc.modules.common.logging import get_logger
 
     log = get_logger(log_text)
@@ -93,12 +87,7 @@ def apply_hoverinfo_config(plot_html):
 
 
 def draw_heatmap(
-    sub_sections,
-    hm_colors,
-    heatmap_data,
-    heatmap_xnames,
-    heatmap_ynames,
-    report_type
+    sub_sections, hm_colors, heatmap_data, heatmap_xnames, heatmap_ynames, report_type
 ):
     pconfig = {
         "id": "heatmap",
@@ -158,8 +147,10 @@ def draw_exp_design_tables(sub_sections, sample_df, file_df):
         first_path = str(file_df["Filename"].iloc[0])
         is_bruker = first_path.endswith((".d", ".d.tar"))
 
-    pattern = r'^(\w+=[^=;]+)(;\w+=[^=;]+)*$'
-    is_multi_conditions = all(sample_df["Condition"].apply(lambda x: bool(re.match(pattern, str(x)))))
+    pattern = r"^(\w+=[^=;]+)(;\w+=[^=;]+)*$"
+    is_multi_conditions = all(
+        sample_df["Condition"].apply(lambda x: bool(re.match(pattern, str(x))))
+    )
 
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
@@ -204,11 +195,13 @@ def draw_exp_design_tables(sub_sections, sample_df, file_df):
                 )
             group_name: SampleGroup = SampleGroup(sample)
             rows_by_group[group_name] = row_data
-        headers = {"Sample": {
-            "title": "Sample [Spectra File]",
-            "description": "",
-            "scale": False,
-        }}
+        headers = {
+            "Sample": {
+                "title": "Sample [Spectra File]",
+                "description": "",
+                "scale": False,
+            }
+        }
         # Use first row of sample_df for condition keys (safer than relying on loop variable)
         first_condition = sample_df["Condition"].iloc[0] if not sample_df.empty else ""
         for k, _ in condition_split(first_condition).items():
@@ -327,7 +320,7 @@ def draw_exp_design_tables(sub_sections, sample_df, file_df):
         helptext="""
             You can see details about it in
             https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/release/latest/html/classOpenMS_1_1ExperimentalDesign.html
-            """
+            """,
     )
 
     return sample_df, file_df, exp_design_runs, is_bruker, is_multi_conditions
@@ -346,13 +339,11 @@ def search_engine_score_bins(
     bins_step: int,
     df: pd.DataFrame,
     groupby_col: str,
-    score_col: str
+    score_col: str,
 ):
 
     bins = list(range(bins_start, bins_end + 1, bins_step)) + [float("inf")]
-    labels = [
-        f"{i} ~ {i + bins_step}" for i in range(bins_start, bins_end, bins_step)
-    ] + [
+    labels = [f"{i} ~ {i + bins_step}" for i in range(bins_start, bins_end, bins_step)] + [
         f"{bins_end} ~ inf"
     ]
 
@@ -365,7 +356,10 @@ def search_engine_score_bins(
         score_dist = group["score_bin"].value_counts().sort_index().reset_index()
 
         plot_data.append(
-            {k: {"count": v} for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)}
+            {
+                k: {"count": v}
+                for k, v in zip(score_dist["score_bin"], score_dist["count"], strict=True)
+            }
         )
         data_labels.append(name)
 
@@ -491,8 +485,16 @@ def summarise_box_data(plot_data, whisker_iqr=1.5, max_points=None):
 
             q1, median, q3 = (float(v) for v in np.percentile(array, [25, 50, 75]))
             iqr = q3 - q1
-            low_fence = float(array[array >= q1 - whisker_iqr * iqr].min()) if iqr > 0 else float(array.min())
-            high_fence = float(array[array <= q3 + whisker_iqr * iqr].max()) if iqr > 0 else float(array.max())
+            low_fence = (
+                float(array[array >= q1 - whisker_iqr * iqr].min())
+                if iqr > 0
+                else float(array.min())
+            )
+            high_fence = (
+                float(array[array <= q3 + whisker_iqr * iqr].max())
+                if iqr > 0
+                else float(array.max())
+            )
 
             out[sample] = {
                 "min": low_fence,

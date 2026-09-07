@@ -1,79 +1,75 @@
 from __future__ import absolute_import
 
+import os
 import re
 
-import os
 import pandas as pd
-
 from multiqc import config
-
 from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
 
 from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common.common_utils import (
-    parse_sdrf,
     cal_num_table_at_sample,
+    evidence_rt_count,
+    parse_sdrf,
     summarize_modifications,
-    evidence_rt_count
 )
+from pmultiqc.modules.common.dia_utils import draw_peptides_table, draw_protein_table
+from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.ms_io import del_openms_convert_tsv
 from pmultiqc.modules.common.plots.general import (
     draw_exp_design,
     draw_exp_design_tables,
-    draw_heatmap
+    draw_heatmap,
 )
-from pmultiqc.modules.common.dia_utils import draw_protein_table, draw_peptides_table
 from pmultiqc.modules.common.plots.id import (
     draw_delta_mass_da_ppm,
-    draw_num_pep_per_protein,
-    draw_oversampling,
-    draw_potential_contaminants,
-    draw_top_n_contaminants,
     draw_identi_num,
     draw_identification,
-    draw_peptide_length_distribution,
+    draw_ids_rt_count,
+    draw_num_pep_per_protein,
+    draw_oversampling,
     draw_peptide_intensity,
-    draw_ids_rt_count
+    draw_peptide_length_distribution,
+    draw_potential_contaminants,
+    draw_top_n_contaminants,
 )
-
 from pmultiqc.modules.core.section_groups import add_group_modules
-from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.qpx.qpx_design import build_design_from_parquet
 from pmultiqc.modules.qpx.qpx_heatmap import calculate_qpx_heatmap
-from pmultiqc.modules.qpx.qpx_mass_error import calculate_mass_error
 from pmultiqc.modules.qpx.qpx_io import has_data, parse_qpx_parquet, select_columns
-from pmultiqc.modules.qpx.qpx_sections import (
-    build_peptides_per_protein,
-    draw_qpx_pca,
-    draw_qpx_search_engine_scores,
-    calculate_contaminants,
-    calculate_oversampling,
-    calculate_search_engine_scores
+from pmultiqc.modules.qpx.qpx_mass_error import calculate_mass_error
+from pmultiqc.modules.qpx.qpx_plot import (
+    draw_qpx_ms2_charge,
+    draw_summary_table,
+    draw_whole_exp_charge,
 )
 from pmultiqc.modules.qpx.qpx_quant import (
+    _peptides_per_protein,
     calculate_intensity_std,
     create_qpx_peptide_table,
     create_qpx_protein_table,
     draw_intensity_std,
+    draw_protein_intensity,
+    get_protein_intensity,
     protein_group_key,
     protein_intensity_pca,
-    _peptides_per_protein,
-    draw_protein_intensity,
-    get_protein_intensity
 )
-from pmultiqc.modules.qpx.qpx_plot import (
-    draw_summary_table,
-    draw_whole_exp_charge,
-    draw_qpx_ms2_charge
+from pmultiqc.modules.qpx.qpx_sections import (
+    build_peptides_per_protein,
+    calculate_contaminants,
+    calculate_oversampling,
+    calculate_search_engine_scores,
+    draw_qpx_pca,
+    draw_qpx_search_engine_scores,
 )
 from pmultiqc.modules.qpx.qpx_utils import (
     calculate_run_stat,
+    get_missed_cleavages,
+    get_pep_intensity,
     get_unambiguous_peptides,
     get_unimod_mod_qpx,
-    get_pep_intensity,
-    get_missed_cleavages
 )
-from pmultiqc.modules.common.ms_io import del_openms_convert_tsv
-
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.qpx.qpx")
@@ -88,18 +84,9 @@ class QpxModule(BasePMultiqcModule):
     and usable rather than on the schema declaring it.
     """
 
-    def __init__(
-            self,
-            find_log_files_func,
-            sub_sections,
-            heatmap_colors
-        ):
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
         """Initialize the QpxModule."""
-        super().__init__(
-            find_log_files_func,
-            sub_sections,
-            heatmap_colors
-        )
+        super().__init__(find_log_files_func, sub_sections, heatmap_colors)
 
         self.enable_exp = False
         self.enable_sdrf = False
@@ -197,9 +184,10 @@ class QpxModule(BasePMultiqcModule):
             )
             return True
         else:
-            log.warning("[get_data] No valid PSM or PG or feature data found. Files may be missing or empty.")
+            log.warning(
+                "[get_data] No valid PSM or PG or feature data found. Files may be missing or empty."
+            )
             return False
-
 
     def draw_plots(self):
         """Render every section, each guarded so one failure cannot lose the report."""
@@ -218,11 +206,8 @@ class QpxModule(BasePMultiqcModule):
                 self.file_df,
                 self.exp_design_runs,
                 self.is_bruker,
-                self.is_multi_conditions
-            ) = draw_exp_design(
-                self.sub_sections["experiment"],
-                self.exp_design
-            )
+                self.is_multi_conditions,
+            ) = draw_exp_design(self.sub_sections["experiment"], self.exp_design)
         else:
             # No external design file: quantms.io describes the experiment itself, so
             # derive it from run.parquet + sample.parquet instead of dropping every
@@ -230,61 +215,33 @@ class QpxModule(BasePMultiqcModule):
             self._draw_exp_design_from_parquet()
 
         # Results Overview
-        self._safe_draw(
-            self.plot_results_overview,
-            name="plot_results_overview"
-        )
+        self._safe_draw(self.plot_results_overview, name="plot_results_overview")
 
         # Identification Summary
-        self._safe_draw(
-            self.plot_id_summary,
-            name="plot_id_summary"
-        )
+        self._safe_draw(self.plot_id_summary, name="plot_id_summary")
 
         # QC HeatMap. Drawn after the identification step because it reuses the
         # missed-cleavage counts computed there; add_sub_section places it by order,
         # so it still appears inside the Results Overview section.
-        self._safe_draw(
-            self.plot_heatmap,
-            name="plot_heatmap"
-        )
+        self._safe_draw(self.plot_heatmap, name="plot_heatmap")
 
         # Quantification Analysis
-        self._safe_draw(
-            self.plot_quant_analysis,
-            name="plot_quant_analysis"
-        )
+        self._safe_draw(self.plot_quant_analysis, name="plot_quant_analysis")
 
         # Search Engine Scores
-        self._safe_draw(
-            self.plot_search_engine_scores,
-            name="plot_search_engine_scores"
-        )
+        self._safe_draw(self.plot_search_engine_scores, name="plot_search_engine_scores")
 
         # Contaminants
-        self._safe_draw(
-            self.plot_contaminants,
-            name="plot_contaminants"
-        )
+        self._safe_draw(self.plot_contaminants, name="plot_contaminants")
 
         # MS2 and Spectral Stats
-        self._safe_draw(
-            self.plot_ms2_stats,
-            name="plot_ms2_stats"
-        )
+        self._safe_draw(self.plot_ms2_stats, name="plot_ms2_stats")
 
         # Mass Error Trends
-        self._safe_draw(
-            self.plot_mass_error,
-            name="plot_mass_error"
-        )
+        self._safe_draw(self.plot_mass_error, name="plot_mass_error")
 
         # RT Quality Control
-        self._safe_draw(
-            self.plot_rt,
-            name="plot_rt"
-        )
-
+        self._safe_draw(self.plot_rt, name="plot_rt")
 
         self.section_group_dict = {
             "experiment_sub_section": self.sub_sections["experiment"],
@@ -360,17 +317,13 @@ class QpxModule(BasePMultiqcModule):
             for run, psm_group in self.id_df.groupby("run"):
                 run_str = str(run)
                 prots = pg_prots_by_run.get(run_str, set())
-                (
-                    stat_at_run[run_str],
-                    data_per_run[run_str]
-                ) = calculate_run_stat(psm_group, prots, unambiguous)
+                stat_at_run[run_str], data_per_run[run_str] = calculate_run_stat(
+                    psm_group, prots, unambiguous
+                )
 
             num_table_at_sample = cal_num_table_at_sample(self.file_df, data_per_run)
 
-            self.cal_num_table_data = {
-                "sdrf_samples": num_table_at_sample,
-                "ms_runs": stat_at_run
-            }
+            self.cal_num_table_data = {"sdrf_samples": num_table_at_sample, "ms_runs": stat_at_run}
 
         if self.cal_num_table_data:
             draw_identi_num(
@@ -380,7 +333,7 @@ class QpxModule(BasePMultiqcModule):
                 is_multi_conditions=self.is_multi_conditions,
                 sample_df=self.sample_df,
                 file_df=self.file_df,
-                cal_num_table_data=self.cal_num_table_data
+                cal_num_table_data=self.cal_num_table_data,
             )
 
         draw_summary_table(
@@ -388,9 +341,8 @@ class QpxModule(BasePMultiqcModule):
             total_ms2_spectra_identified,
             total_peptide_count,
             total_protein_identified,
-            total_protein_quantified
+            total_protein_quantified,
         )
-
 
     # Identification Summary
     def plot_id_summary(self):
@@ -424,8 +376,7 @@ class QpxModule(BasePMultiqcModule):
             if has_mods:
                 unimod_data = UnimodDatabase()
                 psm["modifications"] = psm["modifications"].apply(
-                    get_unimod_mod_qpx,
-                    args=(unimod_data,)
+                    get_unimod_mod_qpx, args=(unimod_data,)
                 )
 
             mod_plot_by_run = {}
@@ -443,10 +394,7 @@ class QpxModule(BasePMultiqcModule):
                 peptide_length[m] = group["pep_length"].value_counts().sort_index().to_dict()
 
             if has_mods:
-                mod_plot_by_sample = _sample_level_mods(
-                    df=psm,
-                    sdrf_file_df=self.file_df
-                )
+                mod_plot_by_sample = _sample_level_mods(df=psm, sdrf_file_df=self.file_df)
 
                 # Modifications
                 psm_modified["plot_data"] = [mod_plot_by_run, mod_plot_by_sample]
@@ -494,12 +442,12 @@ class QpxModule(BasePMultiqcModule):
 
         # Peptide Length Distribution
         if peptide_length:
-           self._safe_draw(
+            self._safe_draw(
                 draw_peptide_length_distribution,
                 name="draw_peptide_length_distribution",
                 sub_section=self.sub_sections["identification"],
-                plot_data=peptide_length
-           )
+                plot_data=peptide_length,
+            )
 
     # QC HeatMap
     def plot_heatmap(self):
@@ -600,7 +548,7 @@ class QpxModule(BasePMultiqcModule):
                 draw_peptide_intensity,
                 name="draw_peptide_intensity",
                 sub_section=self.sub_sections["quantification"],
-                plot_data=qpx_pep_intensity
+                plot_data=qpx_pep_intensity,
             )
 
         if self.pg_df_valid:
@@ -655,9 +603,7 @@ class QpxModule(BasePMultiqcModule):
                 )
 
             # Standard Deviation of Intensity
-            std_data = calculate_intensity_std(
-                self.feature_df, self.sample_df, self.file_df
-            )
+            std_data = calculate_intensity_std(self.feature_df, self.sample_df, self.file_df)
             if std_data:
                 self._safe_draw(
                     draw_intensity_std,
@@ -682,7 +628,7 @@ class QpxModule(BasePMultiqcModule):
                     draw_whole_exp_charge,
                     name="draw_whole_exp_charge",
                     sub_section=self.sub_sections["ms2"],
-                    df=feature_tmp
+                    df=feature_tmp,
                 )
 
                 self._safe_draw(
@@ -690,7 +636,7 @@ class QpxModule(BasePMultiqcModule):
                     name="draw_qpx_ms2_charge",
                     sub_section=self.sub_sections["ms2"],
                     df=feature_tmp,
-                    sdrf_file_df=self.file_df
+                    sdrf_file_df=self.file_df,
                 )
 
     # Mass Error Trends
@@ -744,7 +690,7 @@ class QpxModule(BasePMultiqcModule):
                     name="draw_ids_rt_count",
                     sub_section=self.sub_sections["rt_qc"],
                     rt_count_data=qpx_ids_over_rt,
-                    report_type=""
+                    report_type="",
                 )
 
     def _derive_design_only(self):
@@ -790,12 +736,8 @@ class QpxModule(BasePMultiqcModule):
             self.file_df,
             self.exp_design_runs,
             self.is_bruker,
-            self.is_multi_conditions
-        ) = draw_exp_design_tables(
-            self.sub_sections["experiment"],
-            sample_df,
-            file_df
-        )
+            self.is_multi_conditions,
+        ) = draw_exp_design_tables(self.sub_sections["experiment"], sample_df, file_df)
 
         # Downstream sample-level plots gate on this flag; without it the design we
         # just derived would be computed and then ignored.
@@ -847,9 +789,7 @@ def _sample_level_mods(df, sdrf_file_df):
         return mod_plot
 
     df_merged = df.merge(
-        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-        left_on="run",
-        right_on="Run"
+        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(), left_on="run", right_on="Run"
     )
 
     df_merged["Sample"] = df_merged["Sample"].astype(int)

@@ -15,11 +15,10 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.stats import cal_hm_charge, nanmedian, qual_uniform
 from pmultiqc.modules.qpx.qpx_sections import resolve_contaminant_flags
 
-
 log = get_logger("pmultiqc.modules.qpx.qpx_heatmap")
 
 # quantms scales the median intensity against this reference before clamping to 1.
-INTENSITY_REFERENCE = 2 ** 23
+INTENSITY_REFERENCE = 2**23
 
 # Display order, matching the quantms DDA heatmap.
 METRIC_ORDER = [
@@ -64,11 +63,7 @@ def calculate_qpx_heatmap(psm_df, pg_df, feature_df, missed_cleavages_by_run, co
         for metric in METRIC_ORDER
         if scores.get(metric) and all(run in scores[metric] for run in runs)
     ]
-    dropped = [
-        metric
-        for metric in METRIC_ORDER
-        if metric not in xnames
-    ]
+    dropped = [metric for metric in METRIC_ORDER if metric not in xnames]
     if dropped:
         log.info(
             "[HeatMap] Metrics not available for this project and omitted: "
@@ -123,6 +118,7 @@ def _contaminant_scores(pg_df, contaminant_affix):
 
 def _accessions_match(accessions, affix):
     """Match an affix against a list<string> accession column."""
+
     def matches(cell):
         if cell is None:
             return False
@@ -190,10 +186,7 @@ def _variance_scores(base_scores):
     if not base_scores:
         return {}
     median = np.median(list(base_scores.values()))
-    return {
-        run: float(max(0.0, 1.0 - abs(value - median)))
-        for run, value in base_scores.items()
-    }
+    return {run: float(max(0.0, 1.0 - abs(value - median))) for run, value in base_scores.items()}
 
 
 def _id_rate_over_rt_scores(psm_df):
@@ -239,8 +232,10 @@ def _pep_missing_value_scores(psm_df):
 
     return {
         str(run): float(
-            min(1.0, len(set(group["peptidoform"]) & global_peptidoforms)
-                / len(global_peptidoforms))
+            min(
+                1.0,
+                len(set(group["peptidoform"]) & global_peptidoforms) / len(global_peptidoforms),
+            )
         )
         for run, group in df.groupby("run")
     }

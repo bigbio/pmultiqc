@@ -8,82 +8,78 @@ import re
 from collections import OrderedDict
 from datetime import datetime
 from functools import reduce
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 from multiqc import config
 from multiqc.plots import (
-    table,
     bargraph,
     linegraph,
+    table,
 )
+from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
 from pyopenms import AASequence
 from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
 
-from typing import Dict, List
-from multiqc.plots.table_object import InputRow
-from multiqc.types import SampleGroup, SampleName
-
 from pmultiqc.modules.base import BasePMultiqcModule
-from pmultiqc.modules.common.dia_utils import (
-    parse_diann_report,
-    parse_diann_version,
-    draw_diann_metadata_table
-)
+from pmultiqc.modules.common import ms_io
 from pmultiqc.modules.common.common_utils import (
-    parse_sdrf,
-    get_ms_path,
-    evidence_rt_count,
+    aggregate_general_stats,
+    aggregate_msms_identified_rate,
+    cal_contaminant_percent,
+    cal_miss_cleavages,
+    cal_num_table_at_sample,
     evidence_calibrated_mass_error,
+    evidence_rt_count,
+    get_ms_path,
+    group_charge,
     isotope_corrected_mz_delta,
     parse_mzml,
-    cal_num_table_at_sample,
-    aggregate_msms_identified_rate,
-    summarize_modifications,
-    group_charge,
-    aggregate_general_stats,
+    parse_sdrf,
     sum_matching_dict_values,
+    summarize_modifications,
     top_n_contaminant_percent,
-    cal_contaminant_percent,
-    cal_miss_cleavages
 )
-from pmultiqc.modules.common import ms_io
-from pmultiqc.modules.common.ms import idxml as ms_idxml
-from pmultiqc.modules.common.plots.ms import (
-    draw_ms_information,
-    draw_peak_intensity_distribution,
-    draw_precursor_charge_distribution,
-    draw_peaks_per_ms2,
-)
-from pmultiqc.modules.common.plots.id import (
-    draw_potential_contaminants,
-    draw_top_n_contaminants,
-    draw_ids_rt_count,
-    draw_delta_mass_da_ppm,
-    draw_identification,
-    draw_oversampling,
-    draw_num_pep_per_protein,
-    draw_charge_state,
-    draw_summary_protein_ident_table,
-    draw_identi_num,
-    draw_peptide_intensity,
-    draw_long_trends,
-    draw_peptide_length_distribution
-)
-from pmultiqc.modules.common.plots.general import (
-    draw_heatmap,
-    plot_html_check,
-    draw_exp_design,
-    stat_pep_intensity
+from pmultiqc.modules.common.dia_utils import (
+    draw_diann_metadata_table,
+    parse_diann_report,
+    parse_diann_version,
 )
 from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.stats import qual_uniform
-from pmultiqc.modules.core.section_groups import (
-    add_group_modules,
-    add_sub_section
-)
 from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.ms import idxml as ms_idxml
+from pmultiqc.modules.common.plots.general import (
+    draw_exp_design,
+    draw_heatmap,
+    plot_html_check,
+    stat_pep_intensity,
+)
+from pmultiqc.modules.common.plots.id import (
+    draw_charge_state,
+    draw_delta_mass_da_ppm,
+    draw_identi_num,
+    draw_identification,
+    draw_ids_rt_count,
+    draw_long_trends,
+    draw_num_pep_per_protein,
+    draw_oversampling,
+    draw_peptide_intensity,
+    draw_peptide_length_distribution,
+    draw_potential_contaminants,
+    draw_summary_protein_ident_table,
+    draw_top_n_contaminants,
+)
+from pmultiqc.modules.common.plots.ms import (
+    draw_ms_information,
+    draw_peak_intensity_distribution,
+    draw_peaks_per_ms2,
+    draw_precursor_charge_distribution,
+)
+from pmultiqc.modules.common.stats import qual_uniform
+from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
 
 log = get_logger("pmultiqc.modules.quantms")
 
@@ -224,17 +220,10 @@ class QuantMSModule(BasePMultiqcModule):
                 self.file_df,
                 self.exp_design_runs,
                 self.is_bruker,
-                self.is_multi_conditions
-            ) = draw_exp_design(
-                self.sub_sections["experiment"],
-                self.exp_design
-            )
+                self.is_multi_conditions,
+            ) = draw_exp_design(self.sub_sections["experiment"], self.exp_design)
 
-        (
-            self.ms_info_path,
-            self.read_ms_info,
-            self.ms_paths
-        ) = get_ms_path(self.find_log_files)
+        self.ms_info_path, self.read_ms_info, self.ms_paths = get_ms_path(self.find_log_files)
 
         # Please note that this section covers only the DIA part of quantms. For DIANN, refer to diann.py.
         # DIA-NN report file path
@@ -298,7 +287,7 @@ class QuantMSModule(BasePMultiqcModule):
                 self.ms1_peaks,
                 self.ms1_general_stats,
                 self.current_sum_by_run,
-                self.long_trends
+                self.long_trends,
             ) = parse_mzml(
                 is_bruker=self.is_bruker,
                 read_ms_info=self.read_ms_info,
@@ -306,7 +295,7 @@ class QuantMSModule(BasePMultiqcModule):
                 ms_with_psm=self.ms_with_psm,
                 identified_spectrum=self.identified_spectrum,
                 enable_dia=self.enable_dia,
-                ms_paths=self.ms_paths
+                ms_paths=self.ms_paths,
             )
         else:
             log.warning("No mzML or ms_info files found; skipping MS file parsing.")
@@ -322,7 +311,6 @@ class QuantMSModule(BasePMultiqcModule):
         log.info("Data recognition and processing completed.")
 
         return True
-
 
     def _init_qpx_source(self):
         """Load quantms.io parquet as the DDA identification/quantification source.
@@ -376,8 +364,11 @@ class QuantMSModule(BasePMultiqcModule):
         # when quantms has no design of its own -- an OpenMS design file is
         # authoritative over one derived from parquet.
         host_has_design = self.file_df is not None and not self.file_df.empty
-        if not host_has_design and getattr(qpx, "file_df", None) is not None \
-                and not qpx.file_df.empty:
+        if (
+            not host_has_design
+            and getattr(qpx, "file_df", None) is not None
+            and not qpx.file_df.empty
+        ):
             self.file_df = qpx.file_df
             self.sample_df = qpx.sample_df
             self.exp_design_runs = qpx.exp_design_runs
@@ -428,7 +419,7 @@ class QuantMSModule(BasePMultiqcModule):
             general_stats_data = aggregate_general_stats(
                 ms1_general_stats=self.ms1_general_stats,
                 current_sum_by_run=self.current_sum_by_run,
-                sdrf_file_df=self.file_df
+                sdrf_file_df=self.file_df,
             )
 
             draw_ms_information(
@@ -436,7 +427,7 @@ class QuantMSModule(BasePMultiqcModule):
                 self.ms1_tic,
                 self.ms1_bpc,
                 self.ms1_peaks,
-                general_stats_data
+                general_stats_data,
             )
 
         else:
@@ -458,7 +449,7 @@ class QuantMSModule(BasePMultiqcModule):
                 self.cal_num_table_data,
                 self.quantms_modified,
                 self.ms_without_psm,
-                self.peptide_length
+                self.peptide_length,
             ) = parse_diann_report(
                 sub_sections=self.sub_sections,
                 diann_report_path=self.diann_report_path,
@@ -468,14 +459,14 @@ class QuantMSModule(BasePMultiqcModule):
                 ms_with_psm=self.ms_with_psm,
                 modified=self.quantms_modified,
                 ms_paths=self.ms_paths,
-                msstats_input_valid=self.msstats_input_valid
+                msstats_input_valid=self.msstats_input_valid,
             )
 
             draw_summary_protein_ident_table(
                 sub_sections=self.sub_sections["summary"],
                 use_two_columns=self.enable_dia,
                 total_peptide_count=self.total_peptide_count,
-                total_protein_quantified=self.total_protein_quantified
+                total_protein_quantified=self.total_protein_quantified,
             )
 
             draw_identi_num(
@@ -485,26 +476,19 @@ class QuantMSModule(BasePMultiqcModule):
                 is_multi_conditions=self.is_multi_conditions,
                 sample_df=self.sample_df,
                 file_df=self.file_df,
-                cal_num_table_data=self.cal_num_table_data
+                cal_num_table_data=self.cal_num_table_data,
             )
 
             if self.pep_plot:
-                draw_num_pep_per_protein(
-                    self.sub_sections["identification"],
-                    self.pep_plot
-                )
+                draw_num_pep_per_protein(self.sub_sections["identification"], self.pep_plot)
 
             if len(self.ms_info_path) > 0 and not self.is_bruker:
                 draw_peaks_per_ms2(
-                    self.sub_sections["ms2"],
-                    self.mzml_peaks_ms2_plot,
-                    self.ms_info
+                    self.sub_sections["ms2"], self.mzml_peaks_ms2_plot, self.ms_info
                 )
 
                 draw_peak_intensity_distribution(
-                    self.sub_sections["ms2"],
-                    self.mzml_peak_distribution_plot,
-                    self.ms_info
+                    self.sub_sections["ms2"], self.mzml_peak_distribution_plot, self.ms_info
                 )
 
         # quantms: LFQ or TMT
@@ -544,7 +528,7 @@ class QuantMSModule(BasePMultiqcModule):
                     total_protein_quantified=self.total_protein_quantified,
                     total_ms2_spectra_identified=self.total_ms2_spectra_identified,
                     total_ms2_spectra=self.total_ms2_spectra,
-                    total_protein_identified=self.total_protein_identified
+                    total_protein_identified=self.total_protein_identified,
                 )
 
                 draw_identi_num(
@@ -554,14 +538,11 @@ class QuantMSModule(BasePMultiqcModule):
                     self.is_multi_conditions,
                     self.sample_df,
                     self.file_df,
-                    self.cal_num_table_data
+                    self.cal_num_table_data,
                 )
 
                 if self.pep_plot:
-                    draw_num_pep_per_protein(
-                        self.sub_sections["identification"],
-                        self.pep_plot
-                    )
+                    draw_num_pep_per_protein(self.sub_sections["identification"], self.pep_plot)
 
                 if self.delta_mass and any(self.delta_mass.values()):
                     self.draw_delta_mass()
@@ -569,34 +550,28 @@ class QuantMSModule(BasePMultiqcModule):
             spectrum_tracking_data, spectrum_tracking_headers = aggregate_spectrum_tracking(
                 mzml_table=self.mzml_table,
                 peptide_map_by_sample=self.peptide_map_by_sample,
-                sdrf_file_df=self.file_df
+                sdrf_file_df=self.file_df,
             )
 
             draw_mzml_ms(
                 sub_section=self.sub_sections["ms2"],
                 spectrum_tracking=spectrum_tracking_data,
-                header_cols=spectrum_tracking_headers
+                header_cols=spectrum_tracking_headers,
             )
 
             if not config.kwargs["ignored_idxml"] and self.idx_paths:
                 self.draw_search_engine()
 
             draw_precursor_charge_distribution(
-                self.sub_sections["ms2"],
-                charge_plot=self.mzml_charge_plot,
-                ms_info=self.ms_info
+                self.sub_sections["ms2"], charge_plot=self.mzml_charge_plot, ms_info=self.ms_info
             )
 
             if len(self.ms_info_path) > 0 and not self.is_bruker:
                 draw_peaks_per_ms2(
-                    self.sub_sections["ms2"],
-                    self.mzml_peaks_ms2_plot,
-                    self.ms_info
+                    self.sub_sections["ms2"], self.mzml_peaks_ms2_plot, self.ms_info
                 )
                 draw_peak_intensity_distribution(
-                    self.sub_sections["ms2"],
-                    self.mzml_peak_distribution_plot,
-                    self.ms_info
+                    self.sub_sections["ms2"], self.mzml_peak_distribution_plot, self.ms_info
                 )
 
             if self.oversampling_plot:
@@ -610,9 +585,7 @@ class QuantMSModule(BasePMultiqcModule):
         msms_identified_rate = None
         if self.mzml_table and self.identified_msms_spectra:
             msms_identified_rate = aggregate_msms_identified_rate(
-                self.mzml_table,
-                self.identified_msms_spectra,
-                self.file_df
+                self.mzml_table, self.identified_msms_spectra, self.file_df
             )
 
         self._safe_draw(
@@ -625,53 +598,41 @@ class QuantMSModule(BasePMultiqcModule):
             msms_identified_rate=msms_identified_rate,
         )
 
-        self._safe_draw(
-            self.draw_quantms_contaminants,
-            name="draw_quantms_contaminants"
-        )
+        self._safe_draw(self.draw_quantms_contaminants, name="draw_quantms_contaminants")
 
         if self.long_trends:
             self._safe_draw(
                 draw_long_trends,
                 name="draw_long_trends",
                 sub_sections=self.sub_sections,
-                long_trends_data=self.long_trends
+                long_trends_data=self.long_trends,
             )
 
         # Peptide Length Distribution
         if self.peptide_length:
-           self._safe_draw(
+            self._safe_draw(
                 draw_peptide_length_distribution,
                 name="draw_peptide_length_distribution",
                 sub_section=self.sub_sections["identification"],
-                plot_data=self.peptide_length
-           )
+                plot_data=self.peptide_length,
+            )
 
         if self.quantms_pep_intensity:
             self._safe_draw(
                 draw_peptide_intensity,
                 name="draw_peptide_intensity",
                 sub_section=self.sub_sections["quantification"],
-                plot_data=self.quantms_pep_intensity
+                plot_data=self.quantms_pep_intensity,
             )
 
-        self._safe_draw(
-            self.draw_quantms_msms_section,
-            name="draw_quantms_msms_section"
-        )
+        self._safe_draw(self.draw_quantms_msms_section, name="draw_quantms_msms_section")
 
-        self._safe_draw(
-            self.draw_quantms_time_section,
-            name="draw_quantms_time_section"
-        )
+        self._safe_draw(self.draw_quantms_time_section, name="draw_quantms_time_section")
 
         if self.qpx_source is None and self.msstats_input_valid:
             self.parse_msstats_input()
 
-        if (
-            config.kwargs["quantification_method"] == "spectral_counting"
-            and self.psm_table_html
-        ):
+        if config.kwargs["quantification_method"] == "spectral_counting" and self.psm_table_html:
             # Add a report section with psm table plot from mzTab for spectral counting
             add_sub_section(
                 sub_section=self.sub_sections["identification"],
@@ -726,7 +687,6 @@ class QuantMSModule(BasePMultiqcModule):
         }
 
         add_group_modules(self.section_group_dict, "")
-
 
     def calculate_heatmap(self):
 
@@ -1252,7 +1212,11 @@ class QuantMSModule(BasePMultiqcModule):
                 )
             )
 
-            pep_df_need_cols = ["accession", "opt_global_cv_MS:1002217_decoy_peptide", "spectra_ref"] + study_variables
+            pep_df_need_cols = [
+                "accession",
+                "opt_global_cv_MS:1002217_decoy_peptide",
+                "spectra_ref",
+            ] + study_variables
             pep_table = pep_table[pep_df_need_cols].copy()
 
             spectra_file_map = pep_table["spectra_ref"].str.split(":", n=1).str[0] + "-location"
@@ -1262,23 +1226,34 @@ class QuantMSModule(BasePMultiqcModule):
             pep_table["average_intensity"] = pep_table[study_variables].mean(axis=1, skipna=True)
 
             # Contaminants
-            if len(pep_table[pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])]) > 0:
+            if (
+                len(
+                    pep_table[
+                        pep_table["accession"].str.contains(config.kwargs["contaminant_affix"])
+                    ]
+                )
+                > 0
+            ):
 
                 self.quantms_contaminant_percent = cal_contaminant_percent(
                     df=pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(),
                     protein_col="accession",
                     intensity_col="average_intensity",
                     run_col="stand_spectra_ref",
-                    contam_affix=config.kwargs["contaminant_affix"]
+                    contam_affix=config.kwargs["contaminant_affix"],
                 )
 
                 self.quantms_top_contaminant_percent = self.cal_top_contam_percent(
-                    pep_df=pep_table[["average_intensity", "stand_spectra_ref", "accession"]].copy(),
+                    pep_df=pep_table[
+                        ["average_intensity", "stand_spectra_ref", "accession"]
+                    ].copy(),
                     top_n=5,
-                    contam_affix=config.kwargs["contaminant_affix"]
+                    contam_affix=config.kwargs["contaminant_affix"],
                 )
             else:
-                log.warning(f"No contaminants found matching affix '{config.kwargs['contaminant_affix']}'")
+                log.warning(
+                    f"No contaminants found matching affix '{config.kwargs['contaminant_affix']}'"
+                )
 
             pep_intensity_by_run = dict()
             for name, group in pep_table.groupby("stand_spectra_ref"):
@@ -1305,26 +1280,24 @@ class QuantMSModule(BasePMultiqcModule):
                     )
 
                     pep_intensity_by_run[name] = stat_pep_intensity(
-                        group[
-                            group["opt_global_cv_MS:1002217_decoy_peptide"] == 0
-                        ]["average_intensity"]
+                        group[group["opt_global_cv_MS:1002217_decoy_peptide"] == 0][
+                            "average_intensity"
+                        ]
                     )
 
                 else:
                     pep_median = np.nanmedian(group[study_variables].to_numpy())
 
-                    pep_intensity_by_run[name] = stat_pep_intensity(
-                        group["average_intensity"]
-                    )
+                    pep_intensity_by_run[name] = stat_pep_intensity(group["average_intensity"])
 
                 self.heatmap_pep_intensity[name] = np.minimum(
-                    1.0, pep_median / (2 ** 23)
+                    1.0, pep_median / (2**23)
                 )  # Threshold
 
             pep_table = pep_table.merge(
                 right=self.file_df[["Sample", "Run"]].drop_duplicates(),
                 left_on="stand_spectra_ref",
-                right_on="Run"
+                right_on="Run",
             )
 
             pep_intensity_by_sample = dict()
@@ -1333,9 +1306,9 @@ class QuantMSModule(BasePMultiqcModule):
 
                 if config.kwargs["remove_decoy"]:
                     pep_intensity_by_sample[f"Sample {str(name)}"] = stat_pep_intensity(
-                        group[
-                            group["opt_global_cv_MS:1002217_decoy_peptide"] == 0
-                        ]["average_intensity"]
+                        group[group["opt_global_cv_MS:1002217_decoy_peptide"] == 0][
+                            "average_intensity"
+                        ]
                     )
 
                 else:
@@ -1354,7 +1327,12 @@ class QuantMSModule(BasePMultiqcModule):
         ):
             psm = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] == 0].copy()
 
-        psm_need_cols = ["spectra_ref", "opt_global_cv_MS:1000889_peptidoform_sequence", "sequence", "retention_time"]
+        psm_need_cols = [
+            "spectra_ref",
+            "opt_global_cv_MS:1000889_peptidoform_sequence",
+            "sequence",
+            "retention_time",
+        ]
         psm = psm[psm_need_cols].copy()
 
         psm.loc[:, "stand_spectra_ref"] = psm.apply(
@@ -1387,19 +1365,19 @@ class QuantMSModule(BasePMultiqcModule):
 
             # For HeatMapPepMissingScore
             id_fraction = (
-                    len(
-                        set(group["opt_global_cv_MS:1000889_peptidoform_sequence"]).intersection(
-                            global_peps
-                        )
+                len(
+                    set(group["opt_global_cv_MS:1000889_peptidoform_sequence"]).intersection(
+                        global_peps
                     )
-                    / global_peps_count
+                )
+                / global_peps_count
             )
             self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
 
         psm = psm.merge(
             right=self.file_df[["Sample", "Run"]].drop_duplicates(),
             left_on="stand_spectra_ref",
-            right_on="Run"
+            right_on="Run",
         )
 
         psm["Sample"] = psm["Sample"].astype(int)
@@ -1449,7 +1427,9 @@ class QuantMSModule(BasePMultiqcModule):
 
         # mass spectrum files sorted based on experimental file when available;
         # otherwise preserve the mzml_table iteration order.
-        spectrum_names = self.exp_design_runs if self.exp_design_runs is not None else mzml_table.keys()
+        spectrum_names = (
+            self.exp_design_runs if self.exp_design_runs is not None else mzml_table.keys()
+        )
         for spectrum_name in spectrum_names:
             if spectrum_name in mzml_table:
                 self.mzml_table[spectrum_name] = mzml_table[spectrum_name]
@@ -1483,7 +1463,9 @@ class QuantMSModule(BasePMultiqcModule):
                 .value_counts()
             )
             if "search_engine_score[1]" in psm.columns:
-                psm_score = psm[["opt_global_cv_MS:1000889_peptidoform_sequence", "search_engine_score[1]"]]
+                psm_score = psm[
+                    ["opt_global_cv_MS:1000889_peptidoform_sequence", "search_engine_score[1]"]
+                ]
                 self.peptide_search_score = (
                     psm_score.groupby("opt_global_cv_MS:1000889_peptidoform_sequence")
                     .agg("min")["search_engine_score[1]"]
@@ -1589,9 +1571,7 @@ class QuantMSModule(BasePMultiqcModule):
 
             if "opt_global_q-value" in group.columns:
                 self.mzml_peptide_map[m] = list(
-                    set(
-                        group[group["opt_global_q-value"] <= 0.01]["sequence"].tolist()
-                    )
+                    set(group[group["opt_global_q-value"] <= 0.01]["sequence"].tolist())
                 )
             else:
                 self.mzml_peptide_map[m] = list(set(group["sequence"].tolist()))
@@ -1614,7 +1594,7 @@ class QuantMSModule(BasePMultiqcModule):
                     "proteins": proteins,
                     "peptides": peptides,
                     "unique_peptides": unique_peptides,
-                    "modified_peps": modified_pep
+                    "modified_peps": modified_pep,
                 }
 
             ml_spec_ident_final[m] = len(set(self.identified_spectrum[m]))
@@ -1628,20 +1608,16 @@ class QuantMSModule(BasePMultiqcModule):
 
         self.cal_num_table_data = {
             "sdrf_samples": num_table_at_sample,
-            "ms_runs": num_table_at_run
+            "ms_runs": num_table_at_run,
         }
 
         # Pipeline Spectrum Tracking (Peptides quantified by Sample)
         self.peptide_map_by_sample = get_peptide_map_by_sample(
-            peptide_map_by_run=self.mzml_peptide_map,
-            sdrf_file_df=self.file_df
+            peptide_map_by_run=self.mzml_peptide_map, sdrf_file_df=self.file_df
         )
 
         # Modifications
-        mod_plot_by_sample = sample_level_modifications(
-            df=psm,
-            sdrf_file_df=self.file_df
-        )
+        mod_plot_by_sample = sample_level_modifications(df=psm, sdrf_file_df=self.file_df)
 
         self.quantms_modified["plot_data"] = [mod_plot_by_run, mod_plot_by_sample]
         self.quantms_modified["cats"] = list(
@@ -1649,10 +1625,7 @@ class QuantMSModule(BasePMultiqcModule):
         )
 
         # Charge-state of Per File
-        self.mztab_charge_state = cal_charge_state(
-            psm=psm,
-            sdrf_file_df=self.file_df
-        )
+        self.mztab_charge_state = cal_charge_state(psm=psm, sdrf_file_df=self.file_df)
 
         # IDs over RT
         quantms_rt_file_df = psm[["filename", "retention_time"]].copy()
@@ -1668,9 +1641,7 @@ class QuantMSModule(BasePMultiqcModule):
 
         # Delta Mass [ppm]
         mass_error = psm[["filename", "calc_mass_to_charge"]].copy()
-        mass_error["mass error [ppm]"] = (
-            psm_mz_delta / psm["calc_mass_to_charge"]
-        ) * 1e6
+        mass_error["mass error [ppm]"] = (psm_mz_delta / psm["calc_mass_to_charge"]) * 1e6
         mass_error.rename(columns={"filename": "raw file"}, inplace=True)
         self.quantms_mass_error = evidence_calibrated_mass_error(mass_error)
 
@@ -1698,7 +1669,9 @@ class QuantMSModule(BasePMultiqcModule):
             self.delta_mass["decoy"] = decoy_bin_data
         except (KeyError, IndexError, ValueError) as e:
             timestamp = datetime.now().strftime("%H:%M:%S")
-            log.info(f"{timestamp}: No decoy peptides found -> only showing target peptides. Error: {e}")
+            log.info(
+                f"{timestamp}: No decoy peptides found -> only showing target peptides. Error: {e}"
+            )
 
         target_bin = psm[psm["opt_global_cv_MS:1002217_decoy_peptide"] != 1][
             "relative_diff"
@@ -1723,7 +1696,7 @@ class QuantMSModule(BasePMultiqcModule):
 
         # draw PSMs table for spectral counting
         if config.kwargs["quantification_method"] == "spectral_counting" and not config.kwargs.get(
-                "disable_table", True
+            "disable_table", True
         ):
             psm_cols = [
                 "opt_global_cv_MS:1000889_peptidoform_sequence",
@@ -1755,14 +1728,8 @@ class QuantMSModule(BasePMultiqcModule):
                 max_search_score = mztab_data_psm_full["Search_Engine_Score"].max()
             mztab_data_psm_full = mztab_data_psm_full.to_dict("index")
             headers = OrderedDict()
-            headers["Sequence"] = {
-                "title": "Sequence",
-                "description": "Peptide Sequence"
-            }
-            headers["Accession"] = {
-                "title": "Accession",
-                "description": "Protein Name"
-            }
+            headers["Sequence"] = {"title": "Sequence", "description": "Peptide Sequence"}
+            headers["Accession"] = {"title": "Accession", "description": "Protein Name"}
             if has_search_score:
                 headers["Search_Engine_Score"] = {
                     "title": "Search Engine Score",
@@ -1770,9 +1737,7 @@ class QuantMSModule(BasePMultiqcModule):
                     "max": max_search_score,
                     "scale": False,
                 }
-            headers["Spectra_Ref"] = {
-                "title": "Spectra_Ref"
-            }
+            headers["Spectra_Ref"] = {"title": "Spectra_Ref"}
             headers["Modification"] = {
                 "title": "Modification",
                 "description": "Modification in Peptide Sequence",
@@ -1793,15 +1758,14 @@ class QuantMSModule(BasePMultiqcModule):
             self.psm_table_html = table.plot(
                 data=dict(itertools.islice(mztab_data_psm_full.items(), TABLE_ROW_COUNT)),
                 headers=headers,
-                pconfig=draw_config
+                pconfig=draw_config,
             )
 
         # TODO implement the second option no msstats and feature intensity: draw protein quantification from mzTab
         # in the future with Protein and peptide tables from mzTab.
         # Draw protein table with spectral counting from mzTab file
-        if (
-            config.kwargs["quantification_method"] == "spectral_counting"
-            and not config.kwargs.get("disable_table", True)
+        if config.kwargs["quantification_method"] == "spectral_counting" and not config.kwargs.get(
+            "disable_table", True
         ):
             mztab_data_dict_prot_full = dict()
 
@@ -1843,9 +1807,9 @@ class QuantMSModule(BasePMultiqcModule):
                         meta_data[
                             meta_data[
                                 abundance_col.replace("protein_abundance_", "") + "-ms_run_ref"
-                                ].split(",")[0]
+                            ].split(",")[0]
                             + "-location"
-                            ]
+                        ]
                     )
                     sample_name = str(
                         self.file_df[self.file_df["Run"] == os.path.splitext(file_name)[0]][
@@ -1868,7 +1832,9 @@ class QuantMSModule(BasePMultiqcModule):
                         mztab_data_dict_prot_full[index][condition] = {}
                     if sample_name not in mztab_data_dict_prot_full[index][condition]:
                         mztab_data_dict_prot_full[index][condition][sample_name] = []
-                    mztab_data_dict_prot_full[index][condition][sample_name].append(abundance_value)
+                    mztab_data_dict_prot_full[index][condition][sample_name].append(
+                        abundance_value
+                    )
 
                 mztab_data_dict_prot_full[index] = get_spectrum_count_across_rep(
                     mztab_data_dict_prot_full[index]
@@ -1904,16 +1870,15 @@ class QuantMSModule(BasePMultiqcModule):
             sorted_prot_items = sorted(
                 mztab_data_dict_prot_full.items(),
                 key=lambda x: x[1].get("Peptides_Number", 0),
-                reverse=True
+                reverse=True,
             )
 
             # Set a data row threshold to prevent the report file from becoming too large.
             self.protein_quantification_table_html = table.plot(
                 data=dict(itertools.islice(sorted_prot_items, TABLE_ROW_COUNT)),
                 headers=headers,
-                pconfig=draw_config
+                pconfig=draw_config,
             )
-
 
     def parse_msstats_input(self):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -1923,9 +1888,9 @@ class QuantMSModule(BasePMultiqcModule):
         msstats_data = msstats_data[msstats_data["Intensity"] != 0]
 
         if self.peptide_search_score:
-            msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[:, "PeptideSequence"].map(
-                self.peptide_search_score
-            )
+            msstats_data.loc[:, "BestSearchScore"] = 1 - msstats_data.loc[
+                :, "PeptideSequence"
+            ].map(self.peptide_search_score)
         else:
             log.warning("No mzTab found. Setting BestSearchScore to NaN.")
             msstats_data.loc[:, "BestSearchScore"] = np.nan
@@ -2153,14 +2118,14 @@ class QuantMSModule(BasePMultiqcModule):
             draw_potential_contaminants(
                 sub_section=self.sub_sections["contaminants"],
                 contaminant_percent=self.quantms_contaminant_percent,
-                report_type="quantms"
+                report_type="quantms",
             )
 
         # 2.Top5 Contaminants per Raw file
         if self.quantms_top_contaminant_percent:
             draw_top_n_contaminants(
                 sub_section=self.sub_sections["contaminants"],
-                top_contaminants_data=self.quantms_top_contaminant_percent
+                top_contaminants_data=self.quantms_top_contaminant_percent,
             )
 
     def draw_quantms_msms_section(self):
@@ -2173,9 +2138,7 @@ class QuantMSModule(BasePMultiqcModule):
 
         # 1.IDs over RT
         if self.quantms_ids_over_rt:
-            draw_ids_rt_count(
-                self.sub_sections["rt_qc"], self.quantms_ids_over_rt, ""
-            )
+            draw_ids_rt_count(self.sub_sections["rt_qc"], self.quantms_ids_over_rt, "")
 
         # 2.Delta Mass [ppm]
         if self.quantms_mass_error:
@@ -2265,11 +2228,11 @@ def find_modification(peptide: str):
     current_aa_index = -1
 
     for char in peptide_str:
-        if char == '(':
+        if char == "(":
             depth += 1
             if depth > 1:
                 current_mod.append(char)
-        elif char == ')':
+        elif char == ")":
             if depth > 1:
                 current_mod.append(char)
                 depth -= 1
@@ -2296,9 +2259,7 @@ def cal_charge_state(psm, sdrf_file_df):
     charge_state_df = psm[["filename", "charge"]].copy()
 
     charge_state_df = charge_state_df.merge(
-        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-        left_on="filename",
-        right_on="Run"
+        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(), left_on="filename", right_on="Run"
     )
 
     charge_state_df["Sample"] = charge_state_df["Sample"].astype(int)
@@ -2312,23 +2273,17 @@ def cal_charge_state(psm, sdrf_file_df):
             charge_state_by_sample.to_dict(orient="index"),
         ],
         "cats": sorted(
-            set(charge_state_by_run.columns)
-            | set(charge_state_by_sample.columns),
-            key=int
-        )
+            set(charge_state_by_run.columns) | set(charge_state_by_sample.columns), key=int
+        ),
     }
 
 
 def sample_level_modifications(df, sdrf_file_df):
 
-    psm = df[
-        ["filename", "sequence", "charge", "Modifications"]
-    ].copy()
+    psm = df[["filename", "sequence", "charge", "Modifications"]].copy()
 
     psm = psm.merge(
-        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-        left_on="filename",
-        right_on="Run"
+        right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(), left_on="filename", right_on="Run"
     )
 
     psm["Sample"] = psm["Sample"].astype(int)
@@ -2369,29 +2324,26 @@ def get_peptide_map_by_sample(peptide_map_by_run, sdrf_file_df):
         return peptide_map_by_sample
 
 
-def aggregate_spectrum_tracking(
-    mzml_table,
-    peptide_map_by_sample,
-    sdrf_file_df
-):
+def aggregate_spectrum_tracking(mzml_table, peptide_map_by_sample, sdrf_file_df):
 
     header_cols = [
-        "MS1_Num", "MS2_Num", "MSGF", "Comet", "Sage", "num_quant_psms", "num_quant_peps"
+        "MS1_Num",
+        "MS2_Num",
+        "MSGF",
+        "Comet",
+        "Sage",
+        "num_quant_psms",
+        "num_quant_peps",
     ]
 
-    header_cols = [
-        i for i in header_cols
-        if any(i in v for v in mzml_table.values())
-    ]
+    header_cols = [i for i in header_cols if any(i in v for v in mzml_table.values())]
 
     if sdrf_file_df.empty:
 
         rows_by_group = dict()
         for sample, value in mzml_table.items():
             for h in header_cols:
-                rows_by_group[sample] = {
-                    h: value.get(h, "-")
-                }
+                rows_by_group[sample] = {h: value.get(h, "-")}
     else:
 
         rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
@@ -2412,9 +2364,7 @@ def aggregate_spectrum_tracking(
                     continue
 
                 sample_data_temp[h] = sum_matching_dict_values(
-                    sum_by_run=mzml_table,
-                    value_col=h,
-                    file_df_by_sample=file_df_sample
+                    sum_by_run=mzml_table, value_col=h, file_df_by_sample=file_df_sample
                 )
 
             row_data: List[InputRow] = []

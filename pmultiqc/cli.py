@@ -21,7 +21,11 @@ pmultiqc_version = click.option(
     "--pmultiqc-version", is_flag=True, callback=print_version, expose_value=False, is_eager=True
 )
 keep_raw = click.option(
-    "--keep-raw", "keep_raw", is_flag=True, help="Keep filenames in experimental design output as raw.", default=False
+    "--keep-raw",
+    "keep_raw",
+    is_flag=True,
+    help="Keep filenames in experimental design output as raw.",
+    default=False,
 )
 condition = click.option(
     "--condition", "condition", help="Create conditions from provided (e.g., factor) columns."
@@ -30,7 +34,7 @@ remove_decoy = click.option(
     "--remove-decoy/--no-remove-decoy",
     "remove_decoy",
     default=True,
-    help="Remove decoy peptides when counting (default: True). Use --no-remove-decoy to disable."
+    help="Remove decoy peptides when counting (default: True). Use --no-remove-decoy to disable.",
 )
 decoy_affix = click.option(
     "--decoy-affix",
@@ -84,4 +88,5 @@ mhcquant_plugin = click.option(
 )
 qpx_plugin = click.option("--qpx-plugin", "qpx_plugin", is_flag=True, help="Enable qpx plugin")
 disable_hoverinfo = click.option(
-    "--disable-hoverinfo", "disable_hoverinfo", is_flag=True, help="Disable hoverinfo")
+    "--disable-hoverinfo", "disable_hoverinfo", is_flag=True, help="Disable hoverinfo"
+)

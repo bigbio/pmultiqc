@@ -1,7 +1,7 @@
-from multiqc import report, config
-from multiqc.core.special_case_modules.custom_content import MultiqcModule, CcDict
+from multiqc import config, report
+from multiqc.core.special_case_modules.custom_content import CcDict, MultiqcModule
 from multiqc.plots.plot import Plot
-from multiqc.types import Anchor, SectionId, Section
+from multiqc.types import Anchor, Section, SectionId
 
 
 def create_ordered_group_modules(grouped_plot_data: list[dict]):
@@ -191,7 +191,7 @@ def add_group_modules(groups_dict, analysis_type):
             "intensity",
             "std_intensity",
             "cv",
-            "log_vs"
+            "log_vs",
         ]
 
     else:
@@ -218,7 +218,7 @@ def add_group_modules(groups_dict, analysis_type):
             "bigbio-quantms-methods-description",
             "nf-core-quantms-methods-description",
             "bigbio-quantmsdiann-methods-description",
-            "methods_description"
+            "methods_description",
         ]
 
     config.report_section_order = generate_section_order(report_sections)
@@ -226,10 +226,7 @@ def add_group_modules(groups_dict, analysis_type):
 
 def generate_section_order(section_list: list):
 
-    section_order = {
-        name: {"order": len(section_list) - i}
-        for i, name in enumerate(section_list)
-    }
+    section_order = {name: {"order": len(section_list) - i} for i, name in enumerate(section_list)}
 
     return section_order
 

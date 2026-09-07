@@ -1,26 +1,23 @@
 from __future__ import absolute_import
 
 import pandas as pd
+from multiqc.plots import bargraph, table
 
-from multiqc.plots import table, bargraph
-
-from pmultiqc.modules.common.plots.general import (
-    plot_html_check
-)
-from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import group_charge
 from pmultiqc.modules.common.logging import get_logger
-
+from pmultiqc.modules.common.plots.general import plot_html_check
+from pmultiqc.modules.core.section_groups import add_sub_section
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.qpx.qpx_plot")
+
 
 def draw_summary_table(
     sub_sections,
     total_ms2_spectra_identified: int = 0,
     total_peptide_count: int = 0,
     total_protein_identified: int = 0,
-    total_protein_quantified: int = 0
+    total_protein_quantified: int = 0,
 ):
     """Global summary table: identified spectra, peptides and proteins."""
     log.info("Summary table generation...")
@@ -30,7 +27,7 @@ def draw_summary_table(
             "#Identified MS2 Spectra": total_ms2_spectra_identified,
             "#Peptides Identified": total_peptide_count,
             "#Proteins Identified": total_protein_identified,
-            "#Proteins Quantified": total_protein_quantified
+            "#Proteins Quantified": total_protein_quantified,
         }
     }
 
@@ -74,8 +71,9 @@ def draw_summary_table(
         plot=table_html,
         order=1,
         description=description_str,
-        helptext=helptext_str
+        helptext=helptext_str,
     )
+
 
 # Distribution of Precursor Charges
 def draw_whole_exp_charge(sub_section, df):
@@ -83,9 +81,7 @@ def draw_whole_exp_charge(sub_section, df):
 
     df["charge"] = df["charge"].astype("str")
 
-    bar_data = {
-        "Whole Experiment": df["charge"].value_counts().sort_index().to_dict()
-    }
+    bar_data = {"Whole Experiment": df["charge"].value_counts().sort_index().to_dict()}
 
     bar_data = {str(k): v for k, v in bar_data.items()}
 
@@ -152,14 +148,12 @@ def draw_qpx_ms2_charge(sub_section, df=None, sdrf_file_df=None):
         bar_data = stat_data_by_run.to_dict(orient="index")
     else:
         df = df.merge(
-            right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
-            left_on="run",
-            right_on="Run"
+            right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(), left_on="run", right_on="Run"
         )
         stat_data_by_sample = group_charge(df, "Sample", "charge")
         bar_data = [
             stat_data_by_run.to_dict(orient="index"),
-            stat_data_by_sample.to_dict(orient="index")
+            stat_data_by_sample.to_dict(orient="index"),
         ]
         draw_config["data_labels"] = ["by Run", "by Sample"]
 

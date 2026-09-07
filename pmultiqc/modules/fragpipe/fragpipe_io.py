@@ -1,10 +1,10 @@
 import os
 import re
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 from pmultiqc.modules.common.logging import get_logger
-
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.fragpipe.fragpipe_io")
@@ -12,37 +12,54 @@ log = get_logger("pmultiqc.modules.fragpipe.fragpipe_io")
 
 REQUIRED_COLS = {
     "psm": [
-        "Spectrum", "Peptide", "Modified Peptide", "Charge", "Retention", "Intensity",
-        "Delta Mass", "Number of Missed Cleavages", "Is Unique", "Protein", "Hyperscore",
-        "Assigned Modifications", "Peptide Length"
+        "Spectrum",
+        "Peptide",
+        "Modified Peptide",
+        "Charge",
+        "Retention",
+        "Intensity",
+        "Delta Mass",
+        "Number of Missed Cleavages",
+        "Is Unique",
+        "Protein",
+        "Hyperscore",
+        "Assigned Modifications",
+        "Peptide Length",
     ],
-    "ion": [
-        "Peptide Sequence", "Modified Sequence", "Charge", "Protein", "Intensity"
-    ],
+    "ion": ["Peptide Sequence", "Modified Sequence", "Charge", "Protein", "Intensity"],
     "combined_protein": [
-        "Protein", "Protein ID", "Entry Name", "Gene", "Protein Length",
-        "Combined Total Peptides", "Combined Spectral Count", "Combined Unique Spectral Count",
-        "Combined Total Spectral Count"
+        "Protein",
+        "Protein ID",
+        "Entry Name",
+        "Gene",
+        "Protein Length",
+        "Combined Total Peptides",
+        "Combined Spectral Count",
+        "Combined Unique Spectral Count",
+        "Combined Total Spectral Count",
     ],
     "combined_peptide": [
-        "Peptide", "Peptide Length", "Charges", "Protein", "Protein Start", "Protein End",
-        "Combined Spectral Count"
+        "Peptide",
+        "Peptide Length",
+        "Charges",
+        "Protein",
+        "Protein Start",
+        "Protein End",
+        "Combined Spectral Count",
     ],
     "combined_ion": [
-        "Peptide Sequence", "Modified Sequence", "Charge", "Protein", "Gene", "Assigned Modifications"
-    ]
+        "Peptide Sequence",
+        "Modified Sequence",
+        "Charge",
+        "Protein",
+        "Gene",
+        "Assigned Modifications",
+    ],
 }
 
 REQUIRED_KEYWORDS = {
-    "combined_ion": {
-        "Spectral Count": False,
-        "Match Type": False,
-        "Intensity": False
-    },
-    "combined_peptide": {
-        "Match Type": False,
-        "Intensity": False
-    },
+    "combined_ion": {"Spectral Count": False, "Match Type": False, "Intensity": False},
+    "combined_peptide": {"Match Type": False, "Intensity": False},
 }
 
 
@@ -65,8 +82,14 @@ def get_fragpipe_files(find_log_files):
 
     # Define all file types to look for
     file_types = [
-        "psm", "ion", "combined_protein", "combined_peptide", "combined_ion",
-        "workflow", "manifest", "fragger_params"
+        "psm",
+        "ion",
+        "combined_protein",
+        "combined_peptide",
+        "combined_ion",
+        "workflow",
+        "manifest",
+        "fragger_params",
     ]
     fragpipe_files = {ft: [] for ft in file_types}
 
@@ -169,7 +192,7 @@ def ion_reader(file_path: str):
     except KeyError:
         return []
 
-    sample_intensity_cols = list(ion_df.columns[anchor_idx + 1:])
+    sample_intensity_cols = list(ion_df.columns[anchor_idx + 1 :])
 
     # Filter to only numeric columns that look like sample intensities
     # These typically have numeric values and may contain patterns like TMT, LFQ, etc.
@@ -181,7 +204,7 @@ def ion_reader(file_path: str):
         elif ion_df[col].dtype == object:
             # Try to convert to numeric
             try:
-                pd.to_numeric(ion_df[col], errors='raise')
+                pd.to_numeric(ion_df[col], errors="raise")
                 valid_sample_cols.append(col)
             except (ValueError, TypeError):
                 pass
@@ -221,7 +244,7 @@ def get_ion_intensity_data(ion_df, sample_cols):
         return None
 
     result = {
-        'intensity_distribution': {},
+        "intensity_distribution": {},
     }
 
     # Calculate intensity distribution (log2 transformed)
@@ -231,7 +254,7 @@ def get_ion_intensity_data(ion_df, sample_cols):
         valid_intensities = intensities[intensities > 0]
         if len(valid_intensities) > 0:
             log_intensities = np.log2(valid_intensities)
-            result['intensity_distribution'][sample] = log_intensities.tolist()
+            result["intensity_distribution"][sample] = log_intensities.tolist()
 
     return result
 
@@ -268,7 +291,7 @@ def extract_sample_groups(sample_cols):
                 sample_groups[col] = {
                     "experiment": experiment,
                     "channel": f"TMT_{channel}",
-                    "group": experiment
+                    "group": experiment,
                 }
             else:
                 # Try to extract replicate pattern: e.g., "Sample_Rep1", "Sample_Rep2"
@@ -280,13 +303,11 @@ def extract_sample_groups(sample_cols):
                     sample_groups[col] = {
                         "condition": condition,
                         "replicate": replicate,
-                        "group": condition
+                        "group": condition,
                     }
                 else:
                     # Default: use column name as is
-                    sample_groups[col] = {
-                        "group": col
-                    }
+                    sample_groups[col] = {"group": col}
 
     return sample_groups
 
@@ -311,13 +332,13 @@ def workflow_reader(file_path: str):
     parameters = {}
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
-                if '=' in line:
-                    key, value = line.split('=', 1)
+                if "=" in line:
+                    key, value = line.split("=", 1)
                     parameters[key.strip()] = value.strip()
     except Exception as e:
         log.warning(f"Error reading workflow file {file_path}: {e}")
@@ -347,15 +368,15 @@ def fragger_params_reader(file_path: str):
     parameters = {}
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 # Skip empty lines and comments
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
                 # fragger.params uses "key = value" format with spaces
-                if '=' in line:
-                    key, value = line.split('=', 1)
+                if "=" in line:
+                    key, value = line.split("=", 1)
                     parameters[key.strip()] = value.strip()
     except Exception as e:
         log.warning(f"Error reading fragger.params file {file_path}: {e}")
@@ -403,11 +424,27 @@ def get_workflow_parameters_table(parameters: dict, fragger_params: dict = None)
         # Search engine settings - workflow keys and fragger.params equivalents
         ("msfragger.search_enzyme_name_1", "search_enzyme_name_1", "Enzyme"),
         ("msfragger.search_enzyme_cut_1", "search_enzyme_cut_1", "Enzyme Cut Site"),
-        ("msfragger.allowed_missed_cleavage_1", "allowed_missed_cleavage_1", "Max Missed Cleavages"),
-        ("msfragger.precursor_mass_lower", "precursor_mass_lower", "Precursor Mass Tolerance (Lower)"),
-        ("msfragger.precursor_mass_upper", "precursor_mass_upper", "Precursor Mass Tolerance (Upper)"),
+        (
+            "msfragger.allowed_missed_cleavage_1",
+            "allowed_missed_cleavage_1",
+            "Max Missed Cleavages",
+        ),
+        (
+            "msfragger.precursor_mass_lower",
+            "precursor_mass_lower",
+            "Precursor Mass Tolerance (Lower)",
+        ),
+        (
+            "msfragger.precursor_mass_upper",
+            "precursor_mass_upper",
+            "Precursor Mass Tolerance (Upper)",
+        ),
         ("msfragger.precursor_mass_units", "precursor_mass_units", "Precursor Mass Units"),
-        ("msfragger.fragment_mass_tolerance", "fragment_mass_tolerance", "Fragment Mass Tolerance"),
+        (
+            "msfragger.fragment_mass_tolerance",
+            "fragment_mass_tolerance",
+            "Fragment Mass Tolerance",
+        ),
         ("msfragger.fragment_mass_units", "fragment_mass_units", "Fragment Mass Units"),
         # Modifications - from workflow or fragger.params
         ("msfragger.variable_mod_01", "variable_mod_01", "Variable Modification 1"),
@@ -461,10 +498,7 @@ def get_workflow_parameters_table(parameters: dict, fragger_params: dict = None)
             # Skip empty modification slots
             if "Modification" in display_name and (not value or value == "0.0000 X 0"):
                 continue
-            table_data[row_num] = {
-                "parameter": display_name,
-                "value": value
-            }
+            table_data[row_num] = {"parameter": display_name, "value": value}
             row_num += 1
 
     if not table_data:
@@ -493,22 +527,23 @@ def manifest_reader(file_path: str):
     try:
         # Manifest file is tab-separated with columns:
         # file_path, experiment, bioreplicate, data_type (optional)
-        manifest_df = pd.read_csv(file_path, sep='\t', header=None)
+        manifest_df = pd.read_csv(file_path, sep="\t", header=None)
 
         # Assign column names based on number of columns
         if len(manifest_df.columns) >= 4:
-            manifest_df.columns = ['file_path', 'experiment', 'bioreplicate', 'data_type'] + \
-                                  [f'col_{i}' for i in range(4, len(manifest_df.columns))]
+            manifest_df.columns = ["file_path", "experiment", "bioreplicate", "data_type"] + [
+                f"col_{i}" for i in range(4, len(manifest_df.columns))
+            ]
         elif len(manifest_df.columns) == 3:
-            manifest_df.columns = ['file_path', 'experiment', 'bioreplicate']
+            manifest_df.columns = ["file_path", "experiment", "bioreplicate"]
         elif len(manifest_df.columns) == 2:
-            manifest_df.columns = ['file_path', 'experiment']
+            manifest_df.columns = ["file_path", "experiment"]
         else:
-            manifest_df.columns = ['file_path']
+            manifest_df.columns = ["file_path"]
 
         # Extract filename from path for display
-        if 'file_path' in manifest_df.columns:
-            manifest_df['file_name'] = manifest_df['file_path'].apply(
+        if "file_path" in manifest_df.columns:
+            manifest_df["file_name"] = manifest_df["file_path"].apply(
                 lambda x: os.path.basename(str(x).replace("\\", "/"))
             )
 
@@ -540,20 +575,20 @@ def get_experiment_design_table(manifest_df: pd.DataFrame):
     table_data = {}
 
     for idx, row in manifest_df.iterrows():
-        file_name = row.get('file_name', row.get('file_path', f'File_{idx}'))
+        file_name = row.get("file_name", row.get("file_path", f"File_{idx}"))
         entry = {
             "file_name": file_name,
         }
-        if 'experiment' in row:
-            entry["experiment"] = row['experiment']
+        if "experiment" in row:
+            entry["experiment"] = row["experiment"]
 
-        if 'bioreplicate' in row and pd.notna(row['bioreplicate']) and row['bioreplicate'] != '':
-            entry["bioreplicate"] = row['bioreplicate']
+        if "bioreplicate" in row and pd.notna(row["bioreplicate"]) and row["bioreplicate"] != "":
+            entry["bioreplicate"] = row["bioreplicate"]
         else:
             entry["bioreplicate"] = "-"
 
-        if 'data_type' in row:
-            entry["data_type"] = row['data_type']
+        if "data_type" in row:
+            entry["data_type"] = row["data_type"]
 
         table_data[idx + 1] = entry
 
@@ -591,7 +626,9 @@ def combined_protein_reader(file_path: str):
         log.warning("combined_protein.tsv is empty")
         return None, [], {}
 
-    log.info(f"Loaded combined_protein.tsv with {len(protein_df)} proteins and {len(protein_df.columns)} columns")
+    log.info(
+        f"Loaded combined_protein.tsv with {len(protein_df)} proteins and {len(protein_df.columns)} columns"
+    )
 
     # Identify sample intensity columns
     # These typically follow patterns like "Sample MaxLFQ Intensity" or just sample names
@@ -600,11 +637,9 @@ def combined_protein_reader(file_path: str):
     # Look for MaxLFQ or Intensity columns per sample
     for col in protein_df.columns:
         col_lower = col.lower()
-        if 'maxlfq' in col_lower or (
-            'intensity' in col_lower and 'combined' not in col_lower
-        ):
+        if "maxlfq" in col_lower or ("intensity" in col_lower and "combined" not in col_lower):
             # Skip metadata columns
-            if not any(skip in col_lower for skip in ['total', 'spectral', 'razor']):
+            if not any(skip in col_lower for skip in ["total", "spectral", "razor"]):
                 sample_intensity_cols.append(col)
 
     # Look for MBR-related columns
@@ -654,7 +689,7 @@ def get_protein_intensity_distribution(protein_df, sample_cols, contam_affix="CO
 
     # Identify protein column
     protein_col = None
-    for col in ['Protein', 'Protein ID', 'Protein Group']:
+    for col in ["Protein", "Protein ID", "Protein Group"]:
         if col in protein_df.columns:
             protein_col = col
             break
@@ -672,7 +707,7 @@ def get_protein_intensity_distribution(protein_df, sample_cols, contam_affix="CO
         if col not in sample_df.columns:
             continue
 
-        if not pd.to_numeric(sample_df[col], errors='coerce').notna().all():
+        if not pd.to_numeric(sample_df[col], errors="coerce").notna().all():
             continue
 
         # Sample intensities
@@ -723,10 +758,7 @@ def combined_peptide_reader(file_path: str):
 
     log.info(f"Loaded combined_peptide.tsv with {len(peptide_df)} peptides")
 
-    if validate_columns_existence(
-        df_columns=peptide_df.columns,
-        data_name="combined_peptide"
-    ):
+    if validate_columns_existence(df_columns=peptide_df.columns, data_name="combined_peptide"):
         validate_columns = True
     else:
         validate_columns = False
@@ -768,8 +800,8 @@ def get_mbr_stats(protein_df, peptide_df, sample_cols):
 
     for sample in sample_cols:
         mbr_stats[sample] = {
-            'proteins': {'msms_only': 0, 'mbr_only': 0, 'both': 0},
-            'peptides': {'msms_only': 0, 'mbr_only': 0, 'both': 0}
+            "proteins": {"msms_only": 0, "mbr_only": 0, "both": 0},
+            "peptides": {"msms_only": 0, "mbr_only": 0, "both": 0},
         }
 
         # Protein-level MBR stats
@@ -779,8 +811,8 @@ def get_mbr_stats(protein_df, peptide_df, sample_cols):
 
             # Find corresponding spectral count column
             for col in protein_df.columns:
-                if sample.replace(' MaxLFQ Intensity', '').replace(' Intensity', '') in col:
-                    if 'spectral count' in col.lower():
+                if sample.replace(" MaxLFQ Intensity", "").replace(" Intensity", "") in col:
+                    if "spectral count" in col.lower():
                         spectral_col = col
                         break
 
@@ -792,10 +824,10 @@ def get_mbr_stats(protein_df, peptide_df, sample_cols):
                 mbr_only = ((~has_spectral) & (has_intensity)).sum()
                 both = ((has_spectral) & (has_intensity)).sum()
 
-                mbr_stats[sample]['proteins'] = {
-                    'msms_only': int(msms_only),
-                    'mbr_only': int(mbr_only),
-                    'both': int(both)
+                mbr_stats[sample]["proteins"] = {
+                    "msms_only": int(msms_only),
+                    "mbr_only": int(mbr_only),
+                    "both": int(both),
                 }
 
     return mbr_stats
@@ -832,10 +864,7 @@ def combined_ion_reader(file_path: str):
 
     log.info(f"Loaded combined_ion.tsv with {len(ion_df)} ions and {len(ion_df.columns)} columns")
 
-    if validate_columns_existence(
-        df_columns=ion_df.columns,
-        data_name="combined_ion"
-    ):
+    if validate_columns_existence(df_columns=ion_df.columns, data_name="combined_ion"):
         validate_columns = True
     else:
         validate_columns = False
@@ -861,7 +890,6 @@ def validate_columns_existence(df_columns, data_name: str):
     all_passed = all(required_keywords.values())
 
     print(f"Check whether the data {data_name} meets the extraction requirements.")
-
 
     for key, found in required_keywords.items():
         status = "exists" if found else "is missing"
@@ -890,7 +918,7 @@ def get_msms_counts_per_peak(ion_df):
 
     df = ion_df.copy()
 
-    samples = [col.replace(' Match Type', '') for col in df.columns if ' Match Type' in col]
+    samples = [col.replace(" Match Type", "") for col in df.columns if " Match Type" in col]
 
     plot_data = []
 
@@ -900,17 +928,15 @@ def get_msms_counts_per_peak(ion_df):
         int_col = f"{s} Intensity"
 
         sample_df = df[df[int_col] > 0].copy()
-        
-        msms_dist = sample_df[sample_df[match_col] == 'MS/MS'][spec_col].value_counts().to_dict()
+
+        msms_dist = sample_df[sample_df[match_col] == "MS/MS"][spec_col].value_counts().to_dict()
 
         for count, freq in msms_dist.items():
-            plot_data.append({'run': s, 'ms/ms_count': int(count), 'peptide_count': freq})
+            plot_data.append({"run": s, "ms/ms_count": int(count), "peptide_count": freq})
 
     res_df = pd.DataFrame(plot_data)
-    res_df["ms/ms_count"] = res_df["ms/ms_count"].apply(
-        lambda x: ">=3" if x >= 3 else x
-    )
-    res_df = res_df.groupby(['run', 'ms/ms_count'])['peptide_count'].sum().reset_index()
+    res_df["ms/ms_count"] = res_df["ms/ms_count"].apply(lambda x: ">=3" if x >= 3 else x)
+    res_df = res_df.groupby(["run", "ms/ms_count"])["peptide_count"].sum().reset_index()
 
     res_df["ms/ms_count"] = res_df["ms/ms_count"].astype(str)
 
@@ -919,10 +945,7 @@ def get_msms_counts_per_peak(ion_df):
         group["freq"] = group["peptide_count"] / group["peptide_count"].sum() * 100
         plot_dict[raw_file] = dict(zip(group["ms/ms_count"], group["freq"]))
 
-    oversampling = {
-        "plot_data": plot_dict,
-        "cats": list(res_df["ms/ms_count"].unique())
-    }
+    oversampling = {"plot_data": plot_dict, "cats": list(res_df["ms/ms_count"].unique())}
 
     return oversampling
 
@@ -930,7 +953,7 @@ def get_msms_counts_per_peak(ion_df):
 def cal_peptide_id_gain(df):
     df = df.copy()
 
-    samples = [col.replace(' Match Type', '') for col in df.columns if ' Match Type' in col]
+    samples = [col.replace(" Match Type", "") for col in df.columns if " Match Type" in col]
 
     peptide_counts = []
 
@@ -949,7 +972,7 @@ def cal_peptide_id_gain(df):
                 ms_count = count
             elif match_type == "MBR":
                 mbr_count = count
-        peptide_counts.append({'run': s, "ms/ms_count": int(ms_count), 'mbr': int(mbr_count)})
+        peptide_counts.append({"run": s, "ms/ms_count": int(ms_count), "mbr": int(mbr_count)})
 
     count_df = pd.DataFrame(peptide_counts)
 
@@ -957,17 +980,12 @@ def cal_peptide_id_gain(df):
     count_df["MBRgain"] = (count_df["mbr"] / denom) * 100
     count_df["MBRgain"] = count_df["MBRgain"].fillna(0)
 
-    temp_df = count_df[['run', 'ms/ms_count', 'mbr']].rename(
-        columns={'ms/ms_count': 'MS/MS', 'mbr': 'MBR'}
+    temp_df = count_df[["run", "ms/ms_count", "mbr"]].rename(
+        columns={"ms/ms_count": "MS/MS", "mbr": "MBR"}
     )
-    plot_data = temp_df.set_index('run').to_dict(orient='index')
+    plot_data = temp_df.set_index("run").to_dict(orient="index")
 
     mbr_gain = round(count_df["MBRgain"].mean(), 2)
     title_value = f"MBR gain: +{mbr_gain}%" if mbr_gain is not None else ""
 
-    return {
-        "plot_data": plot_data,
-        "cats": ["MS/MS", "MBR"],
-        "title_value": title_value
-    }
-
+    return {"plot_data": plot_data, "cats": ["MS/MS", "MBR"], "title_value": title_value}

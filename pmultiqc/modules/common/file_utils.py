@@ -6,7 +6,7 @@ import shutil
 import tarfile
 import zipfile
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 import pandas as pd
 
@@ -60,10 +60,17 @@ def extract_zip(file_path: str, extract_to: str) -> None:
         for member in zip_ref.namelist():
             # Check for explicit path traversal attempts (../ or ..\ patterns)
             # Allow filenames containing ".." as a substring (e.g., "file..name.txt")
-            if "../" in member or "..\\" in member or member.startswith("../") or member.startswith("..\\"):
+            if (
+                "../" in member
+                or "..\\" in member
+                or member.startswith("../")
+                or member.startswith("..\\")
+            ):
                 raise ValueError(f"Invalid path in zip file: {member}")
             # Check for absolute paths
-            if member.startswith("/") or (os.name == "nt" and len(member) > 1 and member[1] == ":"):
+            if member.startswith("/") or (
+                os.name == "nt" and len(member) > 1 and member[1] == ":"
+            ):
                 raise ValueError(f"Invalid path in zip file: {member}")
 
             # Normalize the member path (remove leading slashes and normalize)
@@ -73,14 +80,19 @@ def extract_zip(file_path: str, extract_to: str) -> None:
             member_path = os.path.normpath(os.path.join(extract_to_abs, member_normalized))
 
             # Check if the resolved path is within extract_to directory
-            if not member_path.startswith(extract_to_abs + os.sep) and member_path != extract_to_abs:
+            if (
+                not member_path.startswith(extract_to_abs + os.sep)
+                and member_path != extract_to_abs
+            ):
                 raise ValueError(f"Attempted path traversal in zip file: {member}")
 
         # Security: Check for zip bombs
         total_uncompressed_size = sum(info.file_size for info in zip_ref.infolist())
         compression_ratio = total_uncompressed_size / file_size if file_size > 0 else 0
         if compression_ratio > 100 or total_uncompressed_size > max_size:
-            raise ValueError(f"Suspicious zip file detected (compression ratio: {compression_ratio:.1f}:1)")
+            raise ValueError(
+                f"Suspicious zip file detected (compression ratio: {compression_ratio:.1f}:1)"
+            )
 
         zip_ref.extractall(extract_to)
         log.info(f"Extracted {file_path} to {extract_to}")
@@ -104,10 +116,17 @@ def extract_tar(file_path: str, extract_to: str) -> None:
         for member in tar_ref.getmembers():
             # Check for explicit path traversal attempts (../ or ..\ patterns)
             # Allow filenames containing ".." as a substring (e.g., "file..name.txt")
-            if "../" in member.name or "..\\" in member.name or member.name.startswith("../") or member.name.startswith("..\\"):
+            if (
+                "../" in member.name
+                or "..\\" in member.name
+                or member.name.startswith("../")
+                or member.name.startswith("..\\")
+            ):
                 raise ValueError(f"Invalid path in tar file: {member.name}")
             # Check for absolute paths
-            if member.name.startswith("/") or (os.name == "nt" and len(member.name) > 1 and member.name[1] == ":"):
+            if member.name.startswith("/") or (
+                os.name == "nt" and len(member.name) > 1 and member.name[1] == ":"
+            ):
                 raise ValueError(f"Invalid path in tar file: {member.name}")
 
             # Normalize the member path (remove leading slashes and normalize)
@@ -117,7 +136,10 @@ def extract_tar(file_path: str, extract_to: str) -> None:
             member_path = os.path.normpath(os.path.join(extract_to_abs, member_normalized))
 
             # Check if the resolved path is within extract_to directory
-            if not member_path.startswith(extract_to_abs + os.sep) and member_path != extract_to_abs:
+            if (
+                not member_path.startswith(extract_to_abs + os.sep)
+                and member_path != extract_to_abs
+            ):
                 raise ValueError(f"Attempted path traversal in tar file: {member.name}")
 
         tar_ref.extractall(extract_to)

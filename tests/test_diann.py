@@ -2,10 +2,12 @@
 
 import os
 from pathlib import Path
+import numpy as np
 
 import pytest
 
 from pmultiqc.modules.common.dia_utils import parse_diann_version
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 TEST_DATA_DIR = Path(os.path.dirname(__file__)) / "resources" / "diann"
 
@@ -42,3 +44,19 @@ class TestDiann:
 
         version = parse_diann_version(str(log_file))
         assert version == "2.0", f"Expected version '2.0', got '{version}'"
+
+    def test_lowess_delta_parameter(self):
+        #Generate sample data
+        x = np.linspace(0, 10, 10000)
+        y = np.sin(x) + np.random.normal(0, 0.1, 10000)
+
+        #Compute lowess with dynamic delta
+        delta_val = 0.01 * (x.max() - x.min())
+
+        res_delta = lowess(y, x, frac=0.3, delta=delta_val)
+        res_default = lowess(y, x, frac=0.3, delta=0.0)
+
+        #Assert shape is identical and output values are reasonably close
+        assert res_delta.shape == res_default.shape
+        np.testing.assert_allclose(res_delta[:, 1], res_default[:, 1], atol=0.1)
+
