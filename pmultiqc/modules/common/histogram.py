@@ -129,17 +129,19 @@ class Histogram:
         :type stack: str, optional
         """
         # Convert to numpy array and filter out NaN/None values
-        if hasattr(values, 'values'):  # pandas Series
+        if hasattr(values, "values"):  # pandas Series
             arr = values.values
         else:
             arr = np.asarray(values)
 
         # Filter out NaN values
-        if arr.dtype.kind == 'f':  # float array
+        if arr.dtype.kind == "f":  # float array
             mask = ~np.isnan(arr)
             arr = arr[mask]
-        elif arr.dtype.kind == 'O':  # object array
-            mask = np.array([x is not None and (not isinstance(x, float) or not np.isnan(x)) for x in arr])
+        elif arr.dtype.kind == "O":  # object array
+            mask = np.array(
+                [x is not None and (not isinstance(x, float) or not np.isnan(x)) for x in arr]
+            )
             arr = arr[mask]
 
         if len(arr) == 0:
@@ -154,7 +156,11 @@ class Histogram:
 
                 # Count values below threshold
                 for val in below_values:
-                    val_str = str(int(val) if isinstance(val, (int, np.integer, float)) and float(val).is_integer() else val)
+                    val_str = str(
+                        int(val)
+                        if isinstance(val, (int, np.integer, float)) and float(val).is_integer()
+                        else val
+                    )
                     if val_str in self.data:
                         self.data[val_str][stack] += 1
 
@@ -199,7 +205,7 @@ class Histogram:
                 # Use searchsorted for vectorized binary search
                 # searchsorted returns index where value would be inserted to maintain order
                 # We use side='right' and subtract 1 to get the correct bin
-                bin_indices = np.searchsorted(self.breaks, below_values, side='right') - 1
+                bin_indices = np.searchsorted(self.breaks, below_values, side="right") - 1
                 bin_indices = np.clip(bin_indices, 0, len(self.bins) - 2)  # Ensure valid indices
 
                 # Count occurrences in each bin

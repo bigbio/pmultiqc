@@ -3,11 +3,12 @@ import re
 
 import numpy as np
 import pandas as pd
-from multiqc.plots import bargraph, linegraph, box, scatter
+from multiqc.plots import bargraph, box, linegraph, scatter
+
+from pmultiqc.modules.common.logging import get_logger
 
 from ..common.plots.general import plot_html_check
 
-from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.proteobench.proteobench_utils")
 
 
@@ -39,9 +40,7 @@ def get_pb_data(file_path):
         runs_col = "_Condition_"
     else:
         runs_col = None
-        log.warning(
-            "'_Condition_' or 'abundance_' not found. Check result_performance.csv!"
-        )
+        log.warning("'_Condition_' or 'abundance_' not found. Check result_performance.csv!")
 
     # precursor ion charge
     charge_html = draw_precursor_ion_charge(pb_df)
@@ -112,7 +111,11 @@ def draw_logmean_std_cv(df, plot_type, runs_col=None):
 
     # Create plots
     bar_html = _create_bar_plot(processed_df, plot_config) if plot_config["enable_bar"] else None
-    linegraph_html = _create_line_plot(processed_df, plot_config, plot_type) if plot_config["enable_line"] else None
+    linegraph_html = (
+        _create_line_plot(processed_df, plot_config, plot_type)
+        if plot_config["enable_line"]
+        else None
+    )
     box_html = _create_box_plot(processed_df, plot_config) if plot_config["enable_box"] else None
 
     return {
@@ -247,9 +250,13 @@ def _create_line_plot(df, plot_config, plot_type):
         return None
 
     if plot_config["only_one_col"]:
-        linegraph_data = statistics_line_values(df, plot_config["cols"], "", plot_config["only_one_col"])
+        linegraph_data = statistics_line_values(
+            df, plot_config["cols"], "", plot_config["only_one_col"]
+        )
     else:
-        linegraph_data = statistics_line_values(df, plot_config["cols"], plot_type, plot_config["only_one_col"])
+        linegraph_data = statistics_line_values(
+            df, plot_config["cols"], plot_type, plot_config["only_one_col"]
+        )
 
     draw_line_config = {
         "id": plot_config["line_plot_id"],

@@ -2,14 +2,9 @@ from __future__ import absolute_import
 
 import pandas as pd
 
+from pmultiqc.modules.common.common_utils import cal_miss_cleavages
 from pmultiqc.modules.common.logging import get_logger
-from pmultiqc.modules.common.plots.general import (
-    stat_pep_intensity
-)
-from pmultiqc.modules.common.common_utils import (
-    cal_miss_cleavages
-)
-
+from pmultiqc.modules.common.plots.general import stat_pep_intensity
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.qpx.qpx_utils")
@@ -35,9 +30,7 @@ def calculate_run_stat(psm_df_sub, proteins, unambiguous_peptides=None):
     # 'modifications' is optional: writers may omit it, and the reader only loads
     # columns the file actually has.
     if "modifications" in psm_df_sub.columns:
-        modified_pep = set(
-            psm_df_sub[psm_df_sub["modifications"].notna()]["peptidoform"]
-        )
+        modified_pep = set(psm_df_sub[psm_df_sub["modifications"].notna()]["peptidoform"])
     else:
         modified_pep = set()
 
@@ -45,14 +38,14 @@ def calculate_run_stat(psm_df_sub, proteins, unambiguous_peptides=None):
         "protein_num": len(proteins),
         "peptide_num": len(peptides),
         "unique_peptide_num": len(unique_peptides) if unique_peptides is not None else "",
-        "modified_peptide_num": len(modified_pep)
+        "modified_peptide_num": len(modified_pep),
     }
 
     data_per_run = {
         "proteins": proteins,
         "peptides": peptides,
         "unique_peptides": unique_peptides if unique_peptides is not None else set(),
-        "modified_peps": modified_pep
+        "modified_peps": modified_pep,
     }
 
     return stat_run, data_per_run
@@ -67,7 +60,7 @@ def get_unimod_mod_qpx(modifis, unimod_data):
     mod_list = []
 
     for mod_dict in modifis:
-        acc = mod_dict.get('accession')
+        acc = mod_dict.get("accession")
         if not acc:
             continue
 
@@ -95,9 +88,22 @@ def get_pep_intensity(pep_table, sdrf_file_df):
     pep_table = pep_table[pep_table["intensity"] > 0].drop(columns=["intensities"])
 
     tmt_to_label = {
-        'TMT126': 1, 'TMT127N': 2, 'TMT127C': 3, 'TMT128N': 4, 'TMT128C': 5, 
-        'TMT129N': 6, 'TMT129C': 7, 'TMT130N': 8, 'TMT130C': 9, 'TMT131': 10,
-        'TMT131C': 11, 'TMT132N': 12, 'TMT132C': 13, 'TMT133N': 14, 'TMT133C': 15, 'TMT134N': 16
+        "TMT126": 1,
+        "TMT127N": 2,
+        "TMT127C": 3,
+        "TMT128N": 4,
+        "TMT128C": 5,
+        "TMT129N": 6,
+        "TMT129C": 7,
+        "TMT130N": 8,
+        "TMT130C": 9,
+        "TMT131": 10,
+        "TMT131C": 11,
+        "TMT132N": 12,
+        "TMT132C": 13,
+        "TMT133N": 14,
+        "TMT133C": 15,
+        "TMT134N": 16,
     }
 
     pep_table["Label"] = pep_table["channel"].map(tmt_to_label)
@@ -110,10 +116,7 @@ def get_pep_intensity(pep_table, sdrf_file_df):
         sdrf_subset["Label"] = sdrf_subset["Label"].astype(str)
 
         pep_table = pep_table.merge(
-            sdrf_subset,
-            left_on=["run", "Label"],
-            right_on=["Run", "Label"],
-            how="left"
+            sdrf_subset, left_on=["run", "Label"], right_on=["Run", "Label"], how="left"
         )
 
         for sample_id, group in pep_table.groupby("Sample", sort=True):
@@ -148,7 +151,7 @@ def get_missed_cleavages(psm_df, run_df, sdrf_file_df):
             right=sdrf_file_df[["Sample", "Run"]].drop_duplicates(),
             left_on="run",
             right_on="Run",
-            how="left"
+            how="left",
         )
 
         merged_df = merged_df.dropna(subset=["Sample"])

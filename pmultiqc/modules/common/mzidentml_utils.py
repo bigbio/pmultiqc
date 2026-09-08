@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 from multiqc.plots import table
 
-from pmultiqc.modules.common.file_utils import drop_empty_row
 from pmultiqc.modules.common.common_utils import evidence_rt_count
+from pmultiqc.modules.common.file_utils import drop_empty_row
+from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.core.section_groups import add_sub_section
 
-from pmultiqc.modules.common.logging import get_logger
 log = get_logger("pmultiqc.modules.common.mzidentml_utils")
 
 

@@ -73,10 +73,7 @@ def cal_delta_mass_dict(df, col, num_bins: int = 1000):
     count_bin = df[col].value_counts(sort=False, bins=num_bins)
 
     # Build count dictionary
-    count_bin_data = {
-        float(interval.mid): int(count)
-        for interval, count in count_bin.items()
-    }
+    count_bin_data = {float(interval.mid): int(count) for interval, count in count_bin.items()}
 
     # Derive frequency from counts (more efficient than calling value_counts twice)
     total_count = count_bin.sum()
@@ -106,7 +103,4 @@ def cal_hm_charge(df: pd.DataFrame, run_col: str, charge_col: str):
         charge[raw_file] = vc.get(2, 0)
     charge_median = np.median(list(charge.values())) if charge else 0
 
-    return {
-        k: float(max(0.0, 1.0 - abs(v - charge_median)))
-        for k, v in charge.items()
-    }
+    return {k: float(max(0.0, 1.0 - abs(v - charge_median))) for k, v in charge.items()}

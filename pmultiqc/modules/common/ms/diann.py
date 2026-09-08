@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
 import os
-import pandas as pd
 from datetime import datetime
+from pathlib import Path
 
-from pmultiqc.modules.common.ms.base import BaseParser
+import pandas as pd
+
 from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.ms.base import BaseParser
 
 
 class DiannReader(BaseParser):
@@ -28,9 +29,7 @@ class DiannReader(BaseParser):
 
         # parse DIA-NN report data
         if os.path.splitext(self.file_path)[1] == ".tsv":
-            report_data = pd.read_csv(
-                self.file_path, header=0, sep="\t", on_bad_lines="warn"
-            )
+            report_data = pd.read_csv(self.file_path, header=0, sep="\t", on_bad_lines="warn")
 
         else:
             report_data = _read_report_parquet(self.file_path, self.log)
@@ -45,6 +44,7 @@ class DiannReader(BaseParser):
         self.report_data = report_data
 
         return None
+
 
 def _sanitize_sequence(seq):
     seq = seq.replace("(SILAC)", "")

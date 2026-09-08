@@ -1,4 +1,5 @@
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
+
 
 class BasePMultiqcModule(ABC):
 
@@ -9,6 +10,7 @@ class BasePMultiqcModule(ABC):
 
         # Initialize logging for this module via centralized logger
         from pmultiqc.modules.common.logging import get_logger
+
         self.log = get_logger(self.__class__.__module__)
 
     @abstractmethod

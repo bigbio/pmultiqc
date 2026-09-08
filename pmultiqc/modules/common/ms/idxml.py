@@ -2,10 +2,11 @@
 Class-based parser for idXML search results, migrated from ms_io.parse_idxml.
 """
 
-import os
 import math
+import os
 from collections import OrderedDict
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 from pyopenms import IdXMLFile
@@ -14,7 +15,7 @@ from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.ms.base import BaseParser
-from pathlib import Path
+
 
 class IdXMLReader(BaseParser):
 
@@ -64,7 +65,9 @@ class IdXMLReader(BaseParser):
         _, _, _, labels = self._init_labels()
 
         for raw_id in idx_paths:
-            self._parse_search_file(raw_id, remove_decoy, labels, mzml_table, ml_spec_ident_final, mzml_peptide_map)
+            self._parse_search_file(
+                raw_id, remove_decoy, labels, mzml_table, ml_spec_ident_final, mzml_peptide_map
+            )
 
         self._parse_consensus_files(consensus_paths, labels)
 
@@ -78,7 +81,9 @@ class IdXMLReader(BaseParser):
         self.sage_label = labels["sage_label"]
         return None
 
-    def _separate_consensus_paths(self, idx_paths: list[str | Path]) -> tuple[list[str | Path], list[str | Path]]:
+    def _separate_consensus_paths(
+        self, idx_paths: list[str | Path]
+    ) -> tuple[list[str | Path], list[str | Path]]:
         consensus_paths: list[str | Path] = []
         for raw_id in list(idx_paths):
             if "consensus" in os.path.split(raw_id)[1]:
@@ -99,7 +104,9 @@ class IdXMLReader(BaseParser):
         }
         return False, False, False, labels
 
-    def _parse_search_file(self, raw_id, remove_decoy, labels, mzml_table, ml_spec_ident_final, mzml_peptide_map):
+    def _parse_search_file(
+        self, raw_id, remove_decoy, labels, mzml_table, ml_spec_ident_final, mzml_peptide_map
+    ):
         self.log.info(
             "{}: Parsing search result file {}...".format(
                 datetime.now().strftime("%H:%M:%S"), raw_id
@@ -174,9 +181,9 @@ class IdXMLReader(BaseParser):
                     consensus_support.add_value(support, stack=hit.getMetaValue("target_decoy"))
             consensus_support.to_dict()
             for i in consensus_support.dict["data"].keys():
-                self.search_engine["consensus_support"][f"{raw_id_name} ({i})"] = consensus_support.dict[
-                    "data"
-                ][i]
+                self.search_engine["consensus_support"][f"{raw_id_name} ({i})"] = (
+                    consensus_support.dict["data"][i]
+                )
 
     def _ensure_engine_slots(self, raw_id_name: str) -> None:
         self.search_engine["SpecE"].setdefault(raw_id_name, OrderedDict())
@@ -245,16 +252,25 @@ class IdXMLReader(BaseParser):
         bar_stacks = ["target", "decoy", "target+decoy"]
         return {
             "cross_corr": Histogram(
-                "Comet cross-correlation score", plot_category="range", stacks=bar_stacks, breaks=xcorr_breaks
+                "Comet cross-correlation score",
+                plot_category="range",
+                stacks=bar_stacks,
+                breaks=xcorr_breaks,
             ),
             "hyper": Histogram(
                 "Sage hyperscore", plot_category="range", stacks=bar_stacks, breaks=hyper_breaks
             ),
             "spectral_e": Histogram(
-                "MSGF spectral E-value", plot_category="range", stacks=bar_stacks, breaks=spec_e_breaks
+                "MSGF spectral E-value",
+                plot_category="range",
+                stacks=bar_stacks,
+                breaks=spec_e_breaks,
             ),
             "posterior_error": Histogram(
-                "Posterior error probability", plot_category="range", stacks=bar_stacks, breaks=pep_breaks
+                "Posterior error probability",
+                plot_category="range",
+                stacks=bar_stacks,
+                breaks=pep_breaks,
             ),
         }
 

@@ -129,8 +129,8 @@ def log_system_info(logger):
     Args:
         logger (logging.Logger): Logger to use
     """
-    import platform
     import multiprocessing
+    import platform
 
     logger.info("=" * 50)
     logger.info(f"pmultiqc execution started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

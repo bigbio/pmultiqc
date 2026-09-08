@@ -1,37 +1,34 @@
 from __future__ import annotations
 
-from pathlib import Path
 from datetime import datetime
-from pyopenms import MzMLFile, MSExperiment
-import pandas as pd
-import numpy as np
+from pathlib import Path
 
-from pmultiqc.modules.common.ms.base import BaseParser
-from pmultiqc.modules.common.logging import get_logger
+import numpy as np
+import pandas as pd
+from pyopenms import MSExperiment, MzMLFile
+
 from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.common.ms_io import (
-    get_ms_qc_info,
-    process_long_trends
-)
+from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.ms.base import BaseParser
+from pmultiqc.modules.common.ms_io import get_ms_qc_info, process_long_trends
 
 
 class MzMLReader(BaseParser):
     def __init__(
-            self,
-            file_paths: list[str | Path],
-            ms_with_psm,
-            identified_spectrum,
-            mzml_charge_plot,
-            mzml_peak_distribution_plot,
-            mzml_peaks_ms2_plot,
-            mzml_charge_plot_1,
-            mzml_peak_distribution_plot_1,
-            mzml_peaks_ms2_plot_1,
-            ms_without_psm,
-            enable_dia: bool = False,
-            enable_mzid: bool = False
+        self,
+        file_paths: list[str | Path],
+        ms_with_psm,
+        identified_spectrum,
+        mzml_charge_plot,
+        mzml_peak_distribution_plot,
+        mzml_peaks_ms2_plot,
+        mzml_charge_plot_1,
+        mzml_peak_distribution_plot_1,
+        mzml_peaks_ms2_plot_1,
+        ms_without_psm,
+        enable_dia: bool = False,
+        enable_mzid: bool = False,
     ) -> None:
-
         """
         Read mzML files and extract information
 
@@ -89,30 +86,31 @@ class MzMLReader(BaseParser):
         ms1_general_stats = {}
         current_sum_by_run = {}
 
-        trends_data = {
-            "time": {},
-            "rt": {},
-            "ms2_prec_intensity": {},
-            "ms1_summed_intensity": {}
-        }
+        trends_data = {"time": {}, "rt": {}, "ms2_prec_intensity": {}, "ms1_summed_intensity": {}}
 
         for file_name in self.file_paths:
             ms1_number = 0
             ms2_number = 0
 
             self.log.info(
-                "{}: Parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), file_name)
+                "{}: Parsing mzML file {}...".format(
+                    datetime.now().strftime("%H:%M:%S"), file_name
+                )
             )
 
             mzml_exp = MSExperiment()
             MzMLFile().load(file_name, mzml_exp)
             self.log.info(
-                "{}: Done parsing mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), file_name)
+                "{}: Done parsing mzML file {}...".format(
+                    datetime.now().strftime("%H:%M:%S"), file_name
+                )
             )
 
             m_name = file_prefix(file_name)
             self.log.info(
-                "{}: Aggregating mzML file {}...".format(datetime.now().strftime("%H:%M:%S"), m_name)
+                "{}: Aggregating mzML file {}...".format(
+                    datetime.now().strftime("%H:%M:%S"), m_name
+                )
             )
 
             spectrums_data = list()
@@ -138,7 +136,9 @@ class MzMLReader(BaseParser):
             peaks_per_ms2_dia = []
 
             file_has_psm = m_name in self.ms_with_psm
-            identified_spectrum_set = set(self.identified_spectrum.get(m_name, [])) if file_has_psm else set()
+            identified_spectrum_set = (
+                set(self.identified_spectrum.get(m_name, [])) if file_has_psm else set()
+            )
 
             for spectrum in mzml_exp:
 
@@ -192,7 +192,9 @@ class MzMLReader(BaseParser):
                     if spectrum.getMetaValue("base peak intensity"):
                         base_peak_intensity = spectrum.getMetaValue("base peak intensity")
                     else:
-                        base_peak_intensity = float(intensity_array.max()) if num_peaks > 0 else None
+                        base_peak_intensity = (
+                            float(intensity_array.max()) if num_peaks > 0 else None
+                        )
 
                     if charge_state == 2:
                         charge_2 += 1
@@ -229,13 +231,17 @@ class MzMLReader(BaseParser):
                 if charge_states_identified:
                     self.mzml_charge_plot.add_values_batch(charge_states_identified)
                 if base_peak_intensities_identified:
-                    self.mzml_peak_distribution_plot.add_values_batch(base_peak_intensities_identified)
+                    self.mzml_peak_distribution_plot.add_values_batch(
+                        base_peak_intensities_identified
+                    )
                 if peaks_per_ms2_identified:
                     self.mzml_peaks_ms2_plot.add_values_batch(peaks_per_ms2_identified)
                 if charge_states_unidentified:
                     self.mzml_charge_plot_1.add_values_batch(charge_states_unidentified)
                 if base_peak_intensities_unidentified:
-                    self.mzml_peak_distribution_plot_1.add_values_batch(base_peak_intensities_unidentified)
+                    self.mzml_peak_distribution_plot_1.add_values_batch(
+                        base_peak_intensities_unidentified
+                    )
                 if peaks_per_ms2_unidentified:
                     self.mzml_peaks_ms2_plot_1.add_values_batch(peaks_per_ms2_unidentified)
 
