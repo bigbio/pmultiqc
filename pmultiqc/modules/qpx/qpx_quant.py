@@ -11,17 +11,15 @@ from __future__ import absolute_import
 
 import numpy as np
 import pandas as pd
-
 from multiqc.plots import box
 
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.plots.general import (
-    summarise_box_data,
     plot_html_check,
     stat_pep_intensity,
+    summarise_box_data,
 )
 from pmultiqc.modules.core.section_groups import add_sub_section
-
 
 log = get_logger("pmultiqc.modules.qpx.qpx_quant")
 
@@ -350,18 +348,29 @@ def create_qpx_peptide_table(feature_df, sample_df, file_df):
             entry["Charge"] = int(group["charge"].dropna().iloc[0])
         table_dict[str(peptidoform)] = entry
 
-    headers = {"PeptideID": {"title": "Peptidoform", "description": "Peptide sequence with modifications"}}
+    headers = {
+        "PeptideID": {"title": "Peptidoform", "description": "Peptide sequence with modifications"}
+    }
     if any("ProteinName" in e for e in table_dict.values()):
-        headers["ProteinName"] = {"title": "Protein Name", "description": "Anchor protein of the group"}
+        headers["ProteinName"] = {
+            "title": "Protein Name",
+            "description": "Anchor protein of the group",
+        }
     if any("Charge" in e for e in table_dict.values()):
-        headers["Charge"] = {"title": "Charge", "description": "Precursor charge", "format": "{:,.0f}"}
+        headers["Charge"] = {
+            "title": "Charge",
+            "description": "Precursor charge",
+            "format": "{:,.0f}",
+        }
     headers["Average Intensity"] = {
         "title": "Average Intensity",
         "description": "log10 of the average peptide intensity across runs",
         "format": "{:,.4f}",
     }
 
-    ordered = sorted(table_dict.values(), key=lambda e: e.get("Average Intensity", 0), reverse=True)
+    ordered = sorted(
+        table_dict.values(), key=lambda e: e.get("Average Intensity", 0), reverse=True
+    )
     result = {i: entry for i, entry in enumerate(ordered, start=1)}
     log.info(f"[Quantification] Peptide quantification table: {len(table_dict)} peptidoform(s).")
     return result, headers
@@ -389,9 +398,7 @@ def protein_intensity_pca(pg_df):
     if df.empty:
         return None
 
-    matrix = df.pivot_table(
-        index="_group_key", columns="run", values="intensity", aggfunc="mean"
-    )
+    matrix = df.pivot_table(index="_group_key", columns="run", values="intensity", aggfunc="mean")
     # PCA needs at least two runs, and rows complete across them.
     matrix = matrix.dropna()
     if matrix.shape[1] < 2 or matrix.shape[0] < 2:
@@ -437,10 +444,13 @@ def calculate_intensity_std(feature_df, sample_df, file_df):
 
     df = df.merge(
         _merge_key(file_df[["Sample", "Run"]].drop_duplicates(), "Sample"),
-        left_on="run", right_on="Run", how="inner",
+        left_on="run",
+        right_on="Run",
+        how="inner",
     ).merge(
         _merge_key(sample_df[["Sample", "Condition"]].drop_duplicates(), "Sample"),
-        on="Sample", how="inner",
+        on="Sample",
+        how="inner",
     )
     if df.empty:
         return {}

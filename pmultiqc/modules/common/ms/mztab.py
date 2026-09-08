@@ -1,21 +1,20 @@
 from __future__ import annotations
-from pathlib import Path
-from datetime import datetime
-from pyteomics import mztab
-import pandas as pd
-import re
 
+import re
+from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
 from multiqc import config
-from pmultiqc.modules.common.ms.base import BaseParser
-from pmultiqc.modules.common.logging import get_logger
+from pyteomics import mztab
+
 from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.ms.base import BaseParser
 
 
 class MzTabReader(BaseParser):
-    def __init__(
-        self,
-        file_path: Path | str
-    ) -> None:
+    def __init__(self, file_path: Path | str) -> None:
         super().__init__([file_path])
 
         self.file_path = file_path
@@ -154,8 +153,8 @@ class MzTabReader(BaseParser):
         if decoy_affix not in protein_name:
             return "TARGET"
 
-        is_decoy = (
-            lambda x: x.startswith(decoy_affix) if affix_type == "prefix" else x.endswith(decoy_affix)
+        is_decoy = lambda x: (
+            x.startswith(decoy_affix) if affix_type == "prefix" else x.endswith(decoy_affix)
         )
 
         if any(is_decoy(p) for p in proteins):

@@ -1,4 +1,4 @@
-""" mzIdentML pmultiqc plugin module """
+"""mzIdentML pmultiqc plugin module"""
 
 from __future__ import absolute_import
 
@@ -11,44 +11,39 @@ import numpy as np
 import pandas as pd
 from multiqc import config
 from multiqc.plots import table
-from pyteomics import mzid, mgf
-
-from pmultiqc.modules.common.mzidentml_utils import (
-    get_mzidentml_mzml_df,
-    get_mzidentml_charge,
-    get_mzid_rt_id,
-    draw_mzid_quant_table,
-)
+from pyteomics import mgf, mzid
 
 from pmultiqc.modules.base import BasePMultiqcModule
-from pmultiqc.modules.common.plots.id import (
-    draw_charge_state,
-    draw_ids_rt_count,
-    draw_identification,
-    draw_summary_protein_ident_table,
-    draw_num_pep_per_protein,
-    draw_oversampling,
-    draw_long_trends
-)
-
-from pmultiqc.modules.common.plots.ms import (
-    draw_precursor_charge_distribution,
-    draw_peak_intensity_distribution,
-    draw_peaks_per_ms2,
-    draw_ms_information,
-)
-from pmultiqc.modules.common.plots.general import draw_heatmap
-from pmultiqc.modules.common.file_utils import file_prefix
-from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.stats import qual_uniform
-from pmultiqc.modules.core.section_groups import (
-    add_group_modules,
-    add_sub_section
-)
 from pmultiqc.modules.common.common_utils import (
     aggregate_msms_identified_rate,
-    cal_miss_cleavages
+    cal_miss_cleavages,
 )
+from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.histogram import Histogram
+from pmultiqc.modules.common.mzidentml_utils import (
+    draw_mzid_quant_table,
+    get_mzid_rt_id,
+    get_mzidentml_charge,
+    get_mzidentml_mzml_df,
+)
+from pmultiqc.modules.common.plots.general import draw_heatmap
+from pmultiqc.modules.common.plots.id import (
+    draw_charge_state,
+    draw_identification,
+    draw_ids_rt_count,
+    draw_long_trends,
+    draw_num_pep_per_protein,
+    draw_oversampling,
+    draw_summary_protein_ident_table,
+)
+from pmultiqc.modules.common.plots.ms import (
+    draw_ms_information,
+    draw_peak_intensity_distribution,
+    draw_peaks_per_ms2,
+    draw_precursor_charge_distribution,
+)
+from pmultiqc.modules.common.stats import qual_uniform
+from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
 
 
 class MzIdentMLModule(BasePMultiqcModule):
@@ -139,19 +134,15 @@ class MzIdentMLModule(BasePMultiqcModule):
                 draw_mzid_quant_table(self.sub_sections["quantification"], mzidentml_df)
 
                 mzid_mzml_charge_state = get_mzidentml_charge(mzidentml_df)
-                draw_charge_state(
-                    self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML"
-                )
+                draw_charge_state(self.sub_sections["ms2"], mzid_mzml_charge_state, "mzIdentML")
 
                 mzid_ids_over_rt = get_mzid_rt_id(mzidentml_df)
-                draw_ids_rt_count(
-                    self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML"
-                )
+                draw_ids_rt_count(self.sub_sections["rt_qc"], mzid_ids_over_rt, "mzIdentML")
 
                 msms_identified_rate = aggregate_msms_identified_rate(
                     mzml_table=mt,
                     identified_msms_spectra=self.identified_msms_spectra,
-                    sdrf_file_df=None
+                    sdrf_file_df=None,
                 )
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
@@ -160,7 +151,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                     self.sub_sections["identification"],
                     cal_num_table_data=self.cal_num_table_data,
                     missed_cleavages=self.missed_cleavages,
-                    msms_identified_rate=msms_identified_rate
+                    msms_identified_rate=msms_identified_rate,
                 )
 
         return True
@@ -183,7 +174,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             self.ms1_tic,
             self.ms1_bpc,
             self.ms1_peaks,
-            self.ms1_general_stats
+            self.ms1_general_stats,
         )
 
         draw_summary_protein_ident_table(
@@ -192,22 +183,16 @@ class MzIdentMLModule(BasePMultiqcModule):
             total_ms2_spectra_identified=self.total_ms2_spectra_identified,
             total_ms2_spectra=self.total_ms2_spectra,
             total_protein_identified=self.total_protein_identified,
-            enable_mzid=True
+            enable_mzid=True,
         )
 
         self.draw_mzid_identi_num()
 
-        draw_num_pep_per_protein(
-            self.sub_sections["identification"],
-            self.pep_plot,
-            True
-        )
+        draw_num_pep_per_protein(self.sub_sections["identification"], self.pep_plot, True)
 
         if self.mgf_paths:
             draw_precursor_charge_distribution(
-                self.sub_sections["ms2"],
-                charge_plot=self.mgf_charge_plot,
-                ms_info=self.ms_info
+                self.sub_sections["ms2"], charge_plot=self.mgf_charge_plot, ms_info=self.ms_info
             )
 
             if self.ms_info and self.ms_info.get("peaks_per_ms2"):
@@ -229,35 +214,21 @@ class MzIdentMLModule(BasePMultiqcModule):
                 self.log.warning("Skipping 'Peak Intensity Distribution' plot: no spectrum data.")
         else:
             draw_precursor_charge_distribution(
-                self.sub_sections["ms2"],
-                charge_plot=self.mzml_charge_plot,
-                ms_info=self.ms_info
+                self.sub_sections["ms2"], charge_plot=self.mzml_charge_plot, ms_info=self.ms_info
             )
 
-            draw_peaks_per_ms2(
-                self.sub_sections["ms2"],
-                self.mzml_peaks_ms2_plot,
-                self.ms_info
-            )
+            draw_peaks_per_ms2(self.sub_sections["ms2"], self.mzml_peaks_ms2_plot, self.ms_info)
 
             draw_peak_intensity_distribution(
-                self.sub_sections["ms2"],
-                self.mzml_peak_distribution_plot,
-                self.ms_info
+                self.sub_sections["ms2"], self.mzml_peak_distribution_plot, self.ms_info
             )
 
         draw_oversampling(
-            self.sub_sections["ms2"],
-            self.oversampling,
-            self.oversampling_plot.dict["cats"],
-            ""
+            self.sub_sections["ms2"], self.oversampling, self.oversampling_plot.dict["cats"], ""
         )
 
         if self.long_trends:
-            draw_long_trends(
-                sub_sections=self.sub_sections,
-                long_trends_data=self.long_trends
-            )
+            draw_long_trends(sub_sections=self.sub_sections, long_trends_data=self.long_trends)
 
         self.section_group_dict = {
             "experiment_sub_section": self.sub_sections["experiment"],
@@ -346,7 +317,9 @@ class MzIdentMLModule(BasePMultiqcModule):
         )
 
     def mzid_cal_heat_map_score(self, psm):
-        self.log.info("{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S")))
+        self.log.info(
+            "{}: Calculating Heatmap Scores...".format(datetime.now().strftime("%H:%M:%S"))
+        )
 
         # HeatMapMissedCleavages
         global_peps = psm[["PeptideSequence", "Modifications"]].drop_duplicates()
@@ -402,14 +375,14 @@ class MzIdentMLModule(BasePMultiqcModule):
 
             # For HeatMapPepMissingScore
             id_fraction = (
-                    len(
-                        pd.merge(
-                            global_peps,
-                            group[["PeptideSequence", "Modifications"]].drop_duplicates(),
-                            on=["PeptideSequence", "Modifications"],
-                        ).drop_duplicates()
-                    )
-                    / global_peps_count
+                len(
+                    pd.merge(
+                        global_peps,
+                        group[["PeptideSequence", "Modifications"]].drop_duplicates(),
+                        on=["PeptideSequence", "Modifications"],
+                    ).drop_duplicates()
+                )
+                / global_peps_count
             )
             self.heatmap_pep_missing_score[name] = np.minimum(1.0, id_fraction)
 
@@ -427,7 +400,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                         self.missed_clevages_heatmap_score.values(),
                     )
                 ),
-                strict=True
+                strict=True,
             )
         )
         self.log.info(
@@ -472,7 +445,7 @@ class MzIdentMLModule(BasePMultiqcModule):
             mzml_peaks_ms2_plot_1=self.mzml_peaks_ms2_plot_1,
             ms_without_psm=self.ms_without_psm,
             enable_dia=False,
-            enable_mzid=True
+            enable_mzid=True,
         )
 
         mzml_reader.parse()
@@ -559,7 +532,9 @@ class MzIdentMLModule(BasePMultiqcModule):
         mgf_rtinseconds = {"spectrumID": [], "title": [], "filename": [], "retention_time": []}
 
         for m in self.mgf_paths:
-            self.log.info("{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m))
+            self.log.info(
+                "{}: Parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
+            )
             mgf_data = mgf.MGF(m)
             self.log.info(
                 "{}: Done parsing MGF file {}...".format(datetime.now().strftime("%H:%M:%S"), m)
@@ -761,9 +736,7 @@ class MzIdentMLModule(BasePMultiqcModule):
                 "modified_peptide_num": 0,
             }
 
-        self.cal_num_table_data = {
-            "ms_runs": num_table_at_run
-        }
+        self.cal_num_table_data = {"ms_runs": num_table_at_run}
 
         self.total_ms2_spectra_identified = psm["spectrumID"].nunique()
         self.total_peptide_count = psm["PeptideSequence"].nunique()

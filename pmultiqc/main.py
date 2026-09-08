@@ -10,13 +10,13 @@ from importlib import metadata
 from pathlib import Path
 
 from multiqc import config
-from pmultiqc.modules.common.logging import configure_package_logging
 
 from pmultiqc.modules.common.file_utils import (
     extract_archive_file,
     get_clean_stem,
     is_archive_file,
 )
+from pmultiqc.modules.common.logging import configure_package_logging
 
 # Initialise the main MultiQC logger
 log = logging.getLogger("pmultiqc")
@@ -86,29 +86,19 @@ def pmultiqc_plugin_execution_start():
         )
 
     if "pmultiqc/sdrf" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0}})
 
     if "pmultiqc/mztab" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0}})
 
     if "pmultiqc/mzML" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/mzML": {"fn": "*.mzML", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"pmultiqc/mzML": {"fn": "*.mzML", "num_lines": 0}})
 
     if "pmultiqc/mgf" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/mgf": {"fn": "*.mgf", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"pmultiqc/mgf": {"fn": "*.mgf", "num_lines": 0}})
 
     if "pmultiqc/mzid" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0}})
 
     if "pmultiqc/ms_info" not in config.sp:
         config.update_dict(
@@ -116,9 +106,7 @@ def pmultiqc_plugin_execution_start():
         )
 
     if "pmultiqc/idXML" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0}}
-        )
+        config.update_dict(config.sp, {"pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0}})
 
     if "pmultiqc/msstats" not in config.sp:
         config.update_dict(
@@ -136,10 +124,14 @@ def pmultiqc_plugin_execution_start():
         )
 
     if "pmultiqc/diann_log_txt" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/diann_log_txt": {"fn": "report.log.txt", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/diann_log_txt": {"fn": "report.log.txt", "num_lines": 0}}
+        )
 
     if "pmultiqc/diann_log" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/diann_log": {"fn": "diannsummary.log", "num_lines": 0}})
+        config.update_dict(
+            config.sp, {"pmultiqc/diann_log": {"fn": "diannsummary.log", "num_lines": 0}}
+        )
 
     if "pmultiqc/maxquant_result" not in config.sp:
         config.update_dict(
@@ -180,22 +172,22 @@ def pmultiqc_plugin_execution_start():
         )
 
     # QPX file (https://github.com/bigbio/qpx)
-    if "pmultiqc/qpx_psm" not in  config.sp:
+    if "pmultiqc/qpx_psm" not in config.sp:
         config.update_dict(
             config.sp,
             {"pmultiqc/qpx_psm": {"fn": "*.psm.parquet", "num_lines": 0}},
         )
-    if "pmultiqc/qpx_pg" not in  config.sp:
+    if "pmultiqc/qpx_pg" not in config.sp:
         config.update_dict(
             config.sp,
             {"pmultiqc/qpx_pg": {"fn": "*.pg.parquet", "num_lines": 0}},
         )
-    if "pmultiqc/qpx_feature" not in  config.sp:
+    if "pmultiqc/qpx_feature" not in config.sp:
         config.update_dict(
             config.sp,
             {"pmultiqc/qpx_feature": {"fn": "*.feature.parquet", "num_lines": 0}},
         )
-    if "pmultiqc/qpx_run" not in  config.sp:
+    if "pmultiqc/qpx_run" not in config.sp:
         config.update_dict(
             config.sp,
             {"pmultiqc/qpx_run": {"fn": "*.run.parquet", "num_lines": 0}},

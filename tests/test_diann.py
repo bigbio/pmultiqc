@@ -2,12 +2,14 @@
 
 import os
 from pathlib import Path
+import numpy as np
 
 import pandas as pd
 import pytest
 
 from pmultiqc.modules.common import dia_utils
 from pmultiqc.modules.common.dia_utils import parse_diann_version
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 TEST_DATA_DIR = Path(os.path.dirname(__file__)) / "resources" / "diann"
 

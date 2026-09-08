@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
-import pandas as pd
 from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
 from pyteomics import mzid
 
-from pmultiqc.modules.common.ms.base import BaseParser
-from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.ms.base import BaseParser
 
 
 class MzidReader(BaseParser):
     def __init__(
-            self,
-            file_paths: list[str | Path],
+        self,
+        file_paths: list[str | Path],
     ) -> None:
 
         super().__init__(file_paths)
@@ -120,7 +121,8 @@ class MzidReader(BaseParser):
     def _should_process_spectrum_item(self, spectrum_item):
         """Check if spectrum item should be processed."""
         spectrum_item_part = {
-            k: v for k, v in spectrum_item.items()
+            k: v
+            for k, v in spectrum_item.items()
             if k not in ["PeptideEvidenceRef", "PeptideSequence"]
         }
 
@@ -133,7 +135,8 @@ class MzidReader(BaseParser):
     def _extract_spectrum_item_part(self, spectrum_item):
         """Extract relevant parts from spectrum item."""
         return {
-            k: v for k, v in spectrum_item.items()
+            k: v
+            for k, v in spectrum_item.items()
             if k not in ["PeptideEvidenceRef", "PeptideSequence"]
         }
 
@@ -222,9 +225,7 @@ class MzidReader(BaseParser):
         )
 
         if "search_engine_score" not in df.columns:
-            self.log.warning(
-                "Please check the 'search_engine_score' field in the mzIdentML file."
-            )
+            self.log.warning("Please check the 'search_engine_score' field in the mzIdentML file.")
 
     def _process_column_renames(self, df):
         """Process column renames and location parsing."""
@@ -243,9 +244,9 @@ class MzidReader(BaseParser):
 
     def _process_accession_groups(self, df):
         """Process accession groups."""
-        df["accession_group"] = df.groupby(
-            ["spectrumID", "PeptideSequence"]
-        )["accession"].transform(lambda x: ";".join(x.unique()))
+        df["accession_group"] = df.groupby(["spectrumID", "PeptideSequence"])[
+            "accession"
+        ].transform(lambda x: ";".join(x.unique()))
 
         if "isDecoy" not in df.columns:
             df["isDecoy"] = False

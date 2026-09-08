@@ -3,6 +3,7 @@ Functions for reading and processing mass spectrometry data files
 """
 
 from __future__ import absolute_import
+
 import os
 import re
 
@@ -12,11 +13,11 @@ import pandas as pd
 # Initialise the module logger via central logging
 from pmultiqc.modules.common.logging import get_logger
 
-
 log = get_logger("pmultiqc.modules.common.ms_io")
 
 # The time resolution in seconds. Larger values produce smaller outputs and slight smoothing.
 SECOND_RESOLUTION = 5
+
 
 def get_ms_qc_info(ms_info: pd.DataFrame):
     """
@@ -35,7 +36,9 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
 
         return None, None, None, None
 
-    ms1_info["rt_normalize"] = (ms1_info.sort_values(by="rt")["rt"] / SECOND_RESOLUTION).astype(int)
+    ms1_info["rt_normalize"] = (ms1_info.sort_values(by="rt")["rt"] / SECOND_RESOLUTION).astype(
+        int
+    )
 
     # Combine multiple groupby operations into a single aggregation for better performance
     grouped_agg = ms1_info.groupby("rt_normalize").agg(
@@ -56,27 +59,25 @@ def get_ms_qc_info(ms_info: pd.DataFrame):
         "log10(TotalCurrent)": float(np.log10(max(total_curr, 1e-12))),
         "log10(ScanCurrent)": float(np.log10(max(scan_curr, 1e-12))),
     }
-    current_sum = {
-        "total_curr": total_curr,
-        "scan_curr": scan_curr
-    }
+    current_sum = {"total_curr": total_curr, "scan_curr": scan_curr}
 
     return tic_data, bpc_data, ms1_peaks, general_stats, current_sum
 
+
 def add_ms_values(
-        info_df,
-        ms_name,
-        ms_with_psm,
-        identified_spectrum_scan_id,
-        mzml_charge_plot,
-        mzml_peak_distribution_plot,
-        mzml_peaks_ms2_plot,
-        mzml_charge_plot_1,
-        mzml_peak_distribution_plot_1,
-        mzml_peaks_ms2_plot_1,
-        ms_without_psm,
-        enable_dia: bool = False,
-    ):
+    info_df,
+    ms_name,
+    ms_with_psm,
+    identified_spectrum_scan_id,
+    mzml_charge_plot,
+    mzml_peak_distribution_plot,
+    mzml_peaks_ms2_plot,
+    mzml_charge_plot_1,
+    mzml_peak_distribution_plot_1,
+    mzml_peaks_ms2_plot_1,
+    ms_without_psm,
+    enable_dia: bool = False,
+):
     """
     Process MS values from a dataframe row and add them to the appropriate histograms
 
@@ -124,6 +125,7 @@ def add_ms_values(
     mzml_charge_plot_1.add_values_batch(unidentified_df["precursor_charge"].dropna())
     mzml_peak_distribution_plot_1.add_values_batch(unidentified_df["base_peak_intensity"].dropna())
     mzml_peaks_ms2_plot_1.add_values_batch(unidentified_df["num_peaks"].dropna())
+
 
 def spectra_ref_check(spectra_ref):
     match_scan = re.search(r"scan=(\d+)", spectra_ref)
@@ -183,8 +185,9 @@ def get_ms_long_trends(df: pd.DataFrame):
         "time": {"acquisition_datetime": ac_time},
         "rt": {ac_time: rt},
         "ms2_prec_intensity": {ac_time: prec_intensity},
-        "ms1_summed_intensity": {ac_time: ms1_intensity}
+        "ms1_summed_intensity": {ac_time: ms1_intensity},
     }
+
 
 def process_long_trends(df, m_name, trends_data):
 

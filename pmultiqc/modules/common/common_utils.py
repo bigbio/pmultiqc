@@ -1,19 +1,18 @@
-import pandas as pd
-from datetime import datetime
-import os
 import copy
+import os
 from collections import OrderedDict
-import numpy as np
-
+from datetime import datetime
 from typing import Dict, List
+
+import numpy as np
+import pandas as pd
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
-
 from sdrf_pipelines.converters.openms.openms import OpenMS
 
-from pmultiqc.modules.common.histogram import Histogram
-from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common import ms_io
+from pmultiqc.modules.common.file_utils import file_prefix
+from pmultiqc.modules.common.histogram import Histogram
 from pmultiqc.modules.common.logging import get_logger
 
 log = get_logger("pmultiqc.modules.common.common_utils")
@@ -78,25 +77,19 @@ def read_openms_design(desfile: str) -> tuple[pd.DataFrame, pd.DataFrame]:
             s_data_frame = pd.DataFrame(s_table, columns=s_header)
 
             s_data_frame = s_data_frame.rename(
-                columns={
-                    "MSstats_Condition": "Condition",
-                    "MSstats_BioReplicate": "BioReplicate"
-                    }
-                )
+                columns={"MSstats_Condition": "Condition", "MSstats_BioReplicate": "BioReplicate"}
+            )
 
             f_table = f_table.rename(
-                columns={
-                    "Spectra_Filepath": "Filename",
-                    "Fraction_Group": "FractionGroup"
-                }
+                columns={"Spectra_Filepath": "Filename", "Fraction_Group": "FractionGroup"}
             )
 
     return s_data_frame, f_table
 
 
 def condition_split(conditions: str) -> dict[str, str]:
-    items = conditions.split(';')
-    key_value_pairs = [item.split('=') for item in items if '=' in item]
+    items = conditions.split(";")
+    key_value_pairs = [item.split("=") for item in items if "=" in item]
 
     result_dict = {k.strip(): v.strip() for k, v in key_value_pairs}
     return result_dict
@@ -115,22 +108,20 @@ def get_ms_path(find_log_files) -> tuple[list[str], bool, list[str]]:
     read_ms_info = False
     if len(ms_info_path) > 0:
         read_ms_info = True
-        ms_paths = [
-            file_prefix(i).replace("_ms_info", ".mzML") for i in ms_info_path
-        ]
+        ms_paths = [file_prefix(i).replace("_ms_info", ".mzML") for i in ms_info_path]
 
     return ms_info_path, read_ms_info, ms_paths
 
 
 def parse_mzml(
-        is_bruker: bool = False,
-        read_ms_info: bool = False,
-        ms_info_path: list[str] | None = None,
-        ms_with_psm: list[str] | None = None,
-        identified_spectrum: list[str] | None = None,
-        enable_dia: bool = False,
-        ms_paths: list[str] | None = None,
-        enable_mzid: bool = False,
+    is_bruker: bool = False,
+    read_ms_info: bool = False,
+    ms_info_path: list[str] | None = None,
+    ms_with_psm: list[str] | None = None,
+    identified_spectrum: list[str] | None = None,
+    enable_dia: bool = False,
+    ms_paths: list[str] | None = None,
+    enable_mzid: bool = False,
 ):
 
     ms1_tic = {}
@@ -183,6 +174,7 @@ def parse_mzml(
     # Use the class-based MS info reader
     if read_ms_info:
         from pmultiqc.modules.common.ms.msinfo import MsInfoReader
+
         msinfo_reader = MsInfoReader(
             file_paths=ms_info_path,
             ms_with_psm=ms_with_psm,
@@ -221,7 +213,7 @@ def parse_mzml(
             mzml_peaks_ms2_plot_1=mzml_peaks_ms2_plot_1,
             ms_without_psm=ms_without_psm,
             enable_dia=enable_dia,
-            enable_mzid=enable_mzid
+            enable_mzid=enable_mzid,
         )
 
         mzml_reader.parse()
@@ -254,12 +246,8 @@ def parse_mzml(
     if enable_dia:
         mzml_charge_plot.to_dict()
 
-        ms_info["charge_distribution"] = {
-            "Whole Experiment": mzml_charge_plot.dict["data"]
-        }
-        ms_info["peaks_per_ms2"] = {
-            "Whole Experiment": mzml_peaks_ms2_plot.dict["data"]
-        }
+        ms_info["charge_distribution"] = {"Whole Experiment": mzml_charge_plot.dict["data"]}
+        ms_info["peaks_per_ms2"] = {"Whole Experiment": mzml_peaks_ms2_plot.dict["data"]}
         ms_info["peak_distribution"] = {
             "Whole Experiment": mzml_peak_distribution_plot.dict["data"]
         }
@@ -311,7 +299,7 @@ def parse_mzml(
         ms1_peaks,
         ms1_general_stats,
         current_sum_by_run,
-        long_trends
+        long_trends,
     )
 
 
@@ -328,7 +316,7 @@ def mod_group_percentage(df):
 
     # Modified (Total)
     percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"] = (
-            100 - percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"]
+        100 - percentage_df.loc[percentage_df["modifications"] == "Unmodified", "percentage"]
     )
     percentage_df.loc[percentage_df["modifications"] == "Unmodified", "modifications"] = (
         "Modified (Total)"
@@ -415,9 +403,7 @@ def isotope_corrected_mz_delta(psm: pd.DataFrame) -> pd.Series:
 
 
 def evidence_calibrated_mass_error(
-    evidence_data,
-    recompute=False,
-    filter_outliers_ppm: bool = False
+    evidence_data, recompute=False, filter_outliers_ppm: bool = False
 ):
     # filter_outliers_ppm (if True): Remove rows with mass error [ppm] greater than 1000 (Default: False)
 
@@ -468,9 +454,7 @@ def evidence_calibrated_mass_error(
     count_bin = bin_series.value_counts(sort=False)
     total_count = count_bin.sum()
 
-    count_bin_data = {
-        float(interval.mid): int(count) for interval, count in count_bin.items()
-    }
+    count_bin_data = {float(interval.mid): int(count) for interval, count in count_bin.items()}
 
     # Derive frequency from counts (more efficient than calling value_counts twice)
     if total_count > 0:
@@ -487,6 +471,7 @@ def evidence_calibrated_mass_error(
     }
 
     return result_dict
+
 
 # re-compute mass error
 def recompute_mass_error(evidence_df):
@@ -517,7 +502,7 @@ def recompute_mass_error(evidence_df):
         df["theoretical_mz"] = df["mass"] / df["charge"] + 1.00726
         df["mass_error_ppm"] = (df["theoretical_mz"] - df["m/z"]) / df["theoretical_mz"] * 1e6
         df["uncalibrated_mass_error_ppm"] = (
-                df["mass_error_ppm"] + df["uncalibrated - calibrated m/z [ppm]"]
+            df["mass_error_ppm"] + df["uncalibrated - calibrated m/z [ppm]"]
         )
 
         idx_overwrite = df["raw file"].isin(decal_df.loc[decal_df["decal"], "raw file"])
@@ -532,11 +517,7 @@ def recompute_mass_error(evidence_df):
     return df[["mass error [ppm]", "uncalibrated mass error [ppm]", "raw file"]]
 
 
-def parse_sdrf(
-        sdrf_path,
-        raw_config=None,
-        condition_config=None
-):
+def parse_sdrf(sdrf_path, raw_config=None, condition_config=None):
     OpenMS().openms_convert(
         sdrf_path,
         raw_config,  # config.kwargs["keep_raw"],
@@ -590,22 +571,15 @@ def cal_msms_identified_rate(ms2_num_data, identified_data):
         identified_ms2 = msms_info.get("Identified", 0)
         all_ms2 = ms2_num_data.get(m, {}).get("MS2_Num", 0)
         if all_ms2:
-            identified_rate[m] = {
-                "Identified Rate": identified_ms2 / all_ms2 * 100
-            }
+            identified_rate[m] = {"Identified Rate": identified_ms2 / all_ms2 * 100}
 
     return identified_rate
 
 
-def aggregate_msms_identified_rate(
-    mzml_table,
-    identified_msms_spectra,
-    sdrf_file_df=None
-):
+def aggregate_msms_identified_rate(mzml_table, identified_msms_spectra, sdrf_file_df=None):
     identified_rate_by_run = cal_msms_identified_rate(
-            ms2_num_data=mzml_table,
-            identified_data=identified_msms_spectra
-        )
+        ms2_num_data=mzml_table, identified_data=identified_msms_spectra
+    )
 
     if sdrf_file_df is None:
         return identified_rate_by_run
@@ -621,13 +595,9 @@ def aggregate_msms_identified_rate(
             runs = group["Run"]
 
             sample_identified_ms2 = sum(
-                identified_msms_spectra.get(run, {}).get("Identified", 0)
-                for run in runs
+                identified_msms_spectra.get(run, {}).get("Identified", 0) for run in runs
             )
-            sample_all_ms2 = sum(
-                mzml_table.get(run, {}).get("MS2_Num", 0)
-                for run in runs
-            )
+            sample_all_ms2 = sum(mzml_table.get(run, {}).get("MS2_Num", 0) for run in runs)
 
             sample_key = f"Sample {str(sample)}"
 
@@ -635,11 +605,11 @@ def aggregate_msms_identified_rate(
             ms2_num_by_sample[sample_key] = {"MS2_Num": sample_all_ms2}
 
         identified_rate_by_sample = cal_msms_identified_rate(
-            ms2_num_data=ms2_num_by_sample,
-            identified_data=identified_by_sample
+            ms2_num_data=ms2_num_by_sample, identified_data=identified_by_sample
         )
 
         return [identified_rate_by_run, identified_rate_by_sample]
+
 
 def summarize_modifications(df):
 
@@ -658,9 +628,7 @@ def group_charge(df, group_col, charge_col):
     table.columns = table.columns.astype(str)
 
     if group_col == "Sample":
-        table.index = [
-            f"Sample {str(i)}" for i in table.index
-        ]
+        table.index = [f"Sample {str(i)}" for i in table.index]
 
     return table
 
@@ -669,18 +637,12 @@ def sum_matching_dict_values(sum_by_run, value_col, file_df_by_sample):
 
     runs = set(file_df_by_sample["Run"].tolist())
 
-    result = sum(
-        sum_by_run[k][value_col] for k in runs if k in sum_by_run
-    )
+    result = sum(sum_by_run[k][value_col] for k in runs if k in sum_by_run)
 
     return result
 
 
-def aggregate_general_stats(
-    ms1_general_stats,
-    current_sum_by_run,
-    sdrf_file_df
-):
+def aggregate_general_stats(ms1_general_stats, current_sum_by_run, sdrf_file_df):
 
     if not ms1_general_stats:
         return None
@@ -710,14 +672,14 @@ def aggregate_general_stats(
             total_curr_sample = sum_matching_dict_values(
                 sum_by_run=current_sum_by_run,
                 value_col="total_curr",
-                file_df_by_sample=file_df_sample
+                file_df_by_sample=file_df_sample,
             )
             total_curr_sample = float(np.log10(max(total_curr_sample, 1e-12)))
 
             scan_curr_sample = sum_matching_dict_values(
                 sum_by_run=current_sum_by_run,
                 value_col="scan_curr",
-                file_df_by_sample=file_df_sample
+                file_df_by_sample=file_df_sample,
             )
             scan_curr_sample = float(np.log10(max(scan_curr_sample, 1e-12)))
 
@@ -753,11 +715,7 @@ def aggregate_general_stats(
 
 
 def cal_contaminant_percent(
-    df: pd.DataFrame,
-    protein_col: str,
-    intensity_col: str,
-    run_col: str,
-    contam_affix: str
+    df: pd.DataFrame, protein_col: str, intensity_col: str, run_col: str, contam_affix: str
 ):
     """
     Calculate the percentage of potential contaminant signal per run.
@@ -787,7 +745,7 @@ def cal_contaminant_percent(
     group_stats["contaminant_percent"] = np.where(
         group_stats["total_intensity"] > 0,
         group_stats["cont_intensity"] / group_stats["total_intensity"] * 100,
-        0
+        0,
     )
 
     result_dict = dict()
@@ -851,9 +809,7 @@ def top_n_contaminant_percent(
             cont_df[intensity_col] / group[intensity_col].sum()
         ) * 100
 
-        plot_dict[file_name] = dict(
-            zip(cont_df[cont_tag_col], cont_df["contaminant_percent"])
-        )
+        plot_dict[file_name] = dict(zip(cont_df[cont_tag_col], cont_df["contaminant_percent"]))
         plot_cats.extend(cont_df[cont_tag_col].tolist())
 
     plot_dict = {k: v for k, v in plot_dict.items() if v}
@@ -893,8 +849,10 @@ def mods_statistics(df: pd.DataFrame, run_col: str):
         )
         modified_cats.extend(group_processed["modifications"])
 
-    modified_dict = {"plot_data": plot_dict,
-                    "cats": list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x)))}
+    modified_dict = {
+        "plot_data": plot_dict,
+        "cats": list(sorted(modified_cats, key=lambda x: (x == "Modified (Total)", x))),
+    }
 
     return modified_dict
 
@@ -908,9 +866,7 @@ def cal_miss_cleavages(sequence, enzyme):
     elif enzyme == "Arg-C":
         miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace("R", ""))
     elif enzyme == "Asp-N":
-        miss_cleavages = len(sequence[:-1]) - len(
-            sequence[:-1].replace("B", "").replace("D", "")
-        )
+        miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace("B", "").replace("D", ""))
     elif enzyme == "Chymotrypsin":
         miss_cleavages = len(sequence[:-1]) - len(
             sequence[:-1].replace("F", "").replace("W", "").replace("Y", "").replace("L", "")
@@ -918,7 +874,5 @@ def cal_miss_cleavages(sequence, enzyme):
     elif enzyme == "Lys-C":
         miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace("K", ""))
     else:
-        miss_cleavages = len(sequence[:-1]) - len(
-            sequence[:-1].replace("K", "").replace("R", "")
-        )
+        miss_cleavages = len(sequence[:-1]) - len(sequence[:-1].replace("K", "").replace("R", ""))
     return miss_cleavages

@@ -22,17 +22,34 @@ import pandas as pd
 from pmultiqc.modules.common.common_utils import file_prefix
 from pmultiqc.modules.common.logging import get_logger
 
-
 log = get_logger("pmultiqc.modules.qpx.qpx_design")
 
 # Isobaric channel -> numeric label, matching the ordering used elsewhere in pmultiqc.
 CHANNEL_TO_LABEL = {
-    "TMT126": 1, "TMT127N": 2, "TMT127C": 3, "TMT128N": 4, "TMT128C": 5,
-    "TMT129N": 6, "TMT129C": 7, "TMT130N": 8, "TMT130C": 9, "TMT131": 10,
-    "TMT131C": 11, "TMT132N": 12, "TMT132C": 13, "TMT133N": 14, "TMT133C": 15,
+    "TMT126": 1,
+    "TMT127N": 2,
+    "TMT127C": 3,
+    "TMT128N": 4,
+    "TMT128C": 5,
+    "TMT129N": 6,
+    "TMT129C": 7,
+    "TMT130N": 8,
+    "TMT130C": 9,
+    "TMT131": 10,
+    "TMT131C": 11,
+    "TMT132N": 12,
+    "TMT132C": 13,
+    "TMT133N": 14,
+    "TMT133C": 15,
     "TMT134N": 16,
-    "ITRAQ113": 1, "ITRAQ114": 2, "ITRAQ115": 3, "ITRAQ116": 4,
-    "ITRAQ117": 5, "ITRAQ118": 6, "ITRAQ119": 7, "ITRAQ121": 8,
+    "ITRAQ113": 1,
+    "ITRAQ114": 2,
+    "ITRAQ115": 3,
+    "ITRAQ116": 4,
+    "ITRAQ117": 5,
+    "ITRAQ118": 6,
+    "ITRAQ119": 7,
+    "ITRAQ121": 8,
 }
 
 # Sample characteristics that never distinguish samples, so are never a Condition.
@@ -241,7 +258,8 @@ def _conditions(sample_df_raw, accessions):
             parts = [
                 f"{column}={row[column]}"
                 for column in varying
-                if pd.notna(row[column]) and "=" not in str(row[column])
+                if pd.notna(row[column])
+                and "=" not in str(row[column])
                 and ";" not in str(row[column])
             ]
             conditions[str(row["sample_accession"])] = (

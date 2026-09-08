@@ -1,8 +1,8 @@
 import os
 
-from .proteobench_utils import get_pb_data
 from ..base import BasePMultiqcModule
 from ..core.section_groups import add_group_modules, add_sub_section
+from .proteobench_utils import get_pb_data
 
 
 class ProteoBenchModule(BasePMultiqcModule):
@@ -20,9 +20,7 @@ class ProteoBenchModule(BasePMultiqcModule):
             pb_file_path.append(os.path.join(pb_result["root"], pb_result["fn"]))
 
         if len(pb_file_path) == 0:
-            raise FileNotFoundError(
-                "No ProteoBench result file found."
-            )
+            raise FileNotFoundError("No ProteoBench result file found.")
         if len(pb_file_path) > 1:
             raise ValueError(
                 f"Multiple ProteoBench result files found ({len(pb_file_path)}): {', '.join(pb_file_path)}. Please ensure only one result file is present."

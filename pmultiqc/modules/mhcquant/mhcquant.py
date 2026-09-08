@@ -2,12 +2,12 @@
 
 import os
 
-from multiqc.plots import linegraph, box, table, bargraph
+from multiqc.plots import bargraph, box, linegraph, table
 
 from pmultiqc.modules.base import BasePMultiqcModule
-from pmultiqc.modules.common.plots.general import plot_html_check
-from pmultiqc.modules.core.section_groups import add_sub_section, add_group_modules
 from pmultiqc.modules.common.logging import get_logger
+from pmultiqc.modules.common.plots.general import plot_html_check
+from pmultiqc.modules.core.section_groups import add_group_modules, add_sub_section
 
 log = get_logger("pmultiqc.modules.mhcquant.mhcquant")
 
@@ -185,9 +185,7 @@ def _parse_percolator_median_weights(filepath):
         return None, None
 
     # Sort features from most negative to most positive weight
-    sorted_data = dict(
-        sorted(data.items(), key=lambda item: sum(item[1].values()))
-    )
+    sorted_data = dict(sorted(data.items(), key=lambda item: sum(item[1].values())))
 
     return sorted_data, groups
 
@@ -224,9 +222,7 @@ class MhcquantModule(BasePMultiqcModule):
 
     def _validate_mhcquant_markers(self):
         """Check that at least one mhcquant-specific file exists alongside the anchor."""
-        return any(
-            os.path.isfile(os.path.join(self.data_root, m)) for m in self.MHCQUANT_MARKERS
-        )
+        return any(os.path.isfile(os.path.join(self.data_root, m)) for m in self.MHCQUANT_MARKERS)
 
     def _load_file(self, key, filepath):
         """Parse a single data file and store results in self.data."""
@@ -282,6 +278,7 @@ class MhcquantModule(BasePMultiqcModule):
         # This modifies global MultiQC state, which is fine since only one
         # pmultiqc pipeline module runs per invocation.
         from multiqc import config as mqc_config
+
         mqc_config.boxplot_boxpoints = False
 
         # General Statistics table -> summary section
@@ -461,9 +458,7 @@ class MhcquantModule(BasePMultiqcModule):
                 "boxpoints": False,
                 "save_data_file": False,
             }
-            box_html = box.plot(
-                list_of_data_by_sample=self.data["mass_error"], pconfig=pconfig
-            )
+            box_html = box.plot(list_of_data_by_sample=self.data["mass_error"], pconfig=pconfig)
             box_html = plot_html_check(box_html)
             add_sub_section(
                 sub_section=self.sub_sections["mass_error"],
@@ -490,9 +485,7 @@ class MhcquantModule(BasePMultiqcModule):
                 "boxpoints": False,
                 "save_data_file": False,
             }
-            box_html = box.plot(
-                list_of_data_by_sample=self.data["scores_xcorr"], pconfig=pconfig
-            )
+            box_html = box.plot(list_of_data_by_sample=self.data["scores_xcorr"], pconfig=pconfig)
             box_html = plot_html_check(box_html)
             add_sub_section(
                 sub_section=self.sub_sections["search_engine"],

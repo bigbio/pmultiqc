@@ -1,13 +1,11 @@
 from __future__ import absolute_import
 
-from pmultiqc.modules.common.logging import get_logger
-from multiqc import config
-
 import pandas as pd
 import pyarrow.parquet as pq
+from multiqc import config
 
 from pmultiqc.modules.common.file_utils import file_prefix
-
+from pmultiqc.modules.common.logging import get_logger
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.qpx.qpx_io")
@@ -15,36 +13,58 @@ log = get_logger("pmultiqc.modules.qpx.qpx_io")
 
 QPX_COLUMNS = {
     "psm": [
-        "sequence", "peptidoform",
-        "modifications", "charge",
-        "posterior_error_probability", "is_decoy",
-        "calculated_mz", "observed_mz",
-        "mass_error_ppm", "run_file_name",
-        "scan", "rt", "protein_accessions",
+        "sequence",
+        "peptidoform",
+        "modifications",
+        "charge",
+        "posterior_error_probability",
+        "is_decoy",
+        "calculated_mz",
+        "observed_mz",
+        "mass_error_ppm",
+        "run_file_name",
+        "scan",
+        "rt",
+        "protein_accessions",
         # Search-engine scores; free-form names, so read and inspected at runtime.
-        "additional_scores"
+        "additional_scores",
     ],
     "pg": [
-        "pg_accessions", "anchor_protein",
-        "grouped_runs", "global_qvalue",
-        "intensity", "is_decoy",
+        "pg_accessions",
+        "anchor_protein",
+        "grouped_runs",
+        "global_qvalue",
+        "intensity",
+        "is_decoy",
         # Optional (absent in older writers); skipped automatically when missing.
-        "contaminant"
+        "contaminant",
     ],
     "feature": [
-        "feature_id", "sequence", "peptidoform",
-        "charge", "is_decoy", "run_file_name",
-        "intensities", "anchor_protein",
+        "feature_id",
+        "sequence",
+        "peptidoform",
+        "charge",
+        "is_decoy",
+        "run_file_name",
+        "intensities",
+        "anchor_protein",
         # Needed so peptide counts key on the same protein-group identity as pg.parquet;
         # keying on anchor_protein alone silently loses every multi-accession group.
         # Optional (absent in older writers); skipped automatically when missing.
-        "pg_accessions", "modifications", "rt",
-        "calculated_mz", "observed_mz", "unique",
+        "pg_accessions",
+        "modifications",
+        "rt",
+        "calculated_mz",
+        "observed_mz",
+        "unique",
         # DIA-NN emits no psm.parquet, so feature.parquet stands in for it: these are
         # the columns the identification-level plots read.
-        "scan", "posterior_error_probability", "additional_scores",
-        "mass_error_ppm", "missed_cleavages"
-    ]
+        "scan",
+        "posterior_error_probability",
+        "additional_scores",
+        "mass_error_ppm",
+        "missed_cleavages",
+    ],
 }
 
 
@@ -119,10 +139,7 @@ def parse_qpx_parquet(file_path, qpx_type):
     )
 
     df = pd.read_parquet(
-        path=file_path,
-        columns=req_columns,
-        engine="pyarrow",
-        filters=parquet_filters
+        path=file_path, columns=req_columns, engine="pyarrow", filters=parquet_filters
     )
 
     df = df.drop(columns=["is_decoy"], errors="ignore")
@@ -131,20 +148,14 @@ def parse_qpx_parquet(file_path, qpx_type):
     if "run_file_name" in df.columns:
         df["run"] = df["run_file_name"].apply(file_prefix)
 
-        df = df.drop(
-            columns=["run_file_name"],
-            errors="ignore"
-        )
+        df = df.drop(columns=["run_file_name"], errors="ignore")
 
     # pg: grouped_runs --> run
     if "grouped_runs" in df.columns:
         df = df.explode("grouped_runs")
         df["run"] = df["grouped_runs"].apply(file_prefix)
 
-        df = df.drop(
-            columns=["grouped_runs"],
-            errors="ignore"
-        )
+        df = df.drop(columns=["grouped_runs"], errors="ignore")
 
     log.info(f"[Loaded data: {qpx_type}.parquet] {file_path}, Data shape: {df.shape}.")
 

@@ -9,12 +9,11 @@ from pmultiqc.modules.common.file_utils import file_prefix
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.ms.base import BaseParser
 from pmultiqc.modules.common.ms_io import (
+    add_ms_values,
     get_ms_qc_info,
     process_long_trends,
-    add_ms_values,
     spectra_ref_check,
 )
-
 
 log = get_logger("pmultiqc.modules.common.ms")
 
@@ -69,12 +68,7 @@ class MsInfoReader(BaseParser):
         ms1_general_stats = {}
         current_sum_by_run = {}
 
-        trends_data = {
-            "time": {},
-            "rt": {},
-            "ms2_prec_intensity": {},
-            "ms1_summed_intensity": {}
-        }
+        trends_data = {"time": {}, "rt": {}, "ms2_prec_intensity": {}, "ms1_summed_intensity": {}}
 
         for file in self.file_paths:
             self.log.info(
@@ -112,7 +106,9 @@ class MsInfoReader(BaseParser):
 
             # Calculate heatmap_charge only for current file (not all files in each iteration)
             if mzml_table[m_name]["MS2_Num"] > 0:
-                heatmap_charge[m_name] = mzml_table[m_name]["Charge_2"] / mzml_table[m_name]["MS2_Num"]
+                heatmap_charge[m_name] = (
+                    mzml_table[m_name]["Charge_2"] / mzml_table[m_name]["MS2_Num"]
+                )
             else:
                 heatmap_charge[m_name] = 0
 
@@ -161,18 +157,10 @@ class MsInfoReader(BaseParser):
         self.heatmap_charge = heatmap_charge
         self.total_ms2_spectra = total_ms2_spectra
 
-        self.ms1_tic = {
-            k: v for k, v in ms1_tic.items() if v is not None
-        }
-        self.ms1_bpc = {
-            k: v for k, v in ms1_bpc.items() if v is not None
-        }
-        self.ms1_peaks = {
-            k: v for k, v in ms1_peaks.items() if v is not None
-        }
-        self.ms1_general_stats = {
-            k: v for k, v in ms1_general_stats.items() if v is not None
-        }
+        self.ms1_tic = {k: v for k, v in ms1_tic.items() if v is not None}
+        self.ms1_bpc = {k: v for k, v in ms1_bpc.items() if v is not None}
+        self.ms1_peaks = {k: v for k, v in ms1_peaks.items() if v is not None}
+        self.ms1_general_stats = {k: v for k, v in ms1_general_stats.items() if v is not None}
 
         self.current_sum_by_run = current_sum_by_run
 

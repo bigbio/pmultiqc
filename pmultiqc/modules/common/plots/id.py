@@ -1,23 +1,22 @@
-from typing import Dict, List
 from collections import OrderedDict
+from typing import Dict, List
 
-from multiqc.plots import bargraph, linegraph, table, box
-from multiqc.types import SampleGroup, SampleName
+from multiqc.plots import bargraph, box, linegraph, table
 from multiqc.plots.table_object import InputRow
+from multiqc.types import SampleGroup, SampleName
 
-from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
-from pmultiqc.modules.common.plots.general import (
-    summarise_box_data,
-    plot_html_check,
-    plot_data_check
-)
-
 from pmultiqc.modules.common.logging import get_logger
-
+from pmultiqc.modules.common.plots.general import (
+    plot_data_check,
+    plot_html_check,
+    summarise_box_data,
+)
+from pmultiqc.modules.core.section_groups import add_sub_section
 
 # Initialise the module logger via centralized logger
 log = get_logger("pmultiqc.modules.common.plots.id")
+
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
 
@@ -138,9 +137,7 @@ def draw_charge_state(sub_section, charge_data, report_type):
     )
 
     if report_type == "MaxQuant":
-        description_text = (
-            "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
-        )
+        description_text = "The distribution of the charge-state of the precursor ion, excluding potential contaminants."
         help_text += "<p>This plot ignores charge states of contaminants.<p>"
     elif report_type == "mzIdentML":
         description_text = "The distribution of the charge-state of the precursor ion."
@@ -299,9 +296,7 @@ def draw_delta_mass_da_ppm(sub_section, delta_mass, delta_mass_type):
         range_abs = 1
     range_step = (max(x_values) - min(x_values)) * 0.05
 
-    delta_mass_range = {
-        k: v for k, v in delta_mass["count"].items() if abs(k) <= range_abs
-    }
+    delta_mass_range = {k: v for k, v in delta_mass["count"].items() if abs(k) <= range_abs}
 
     if max(abs(x) for x in x_values) > range_abs and delta_mass_range:
 
@@ -452,11 +447,9 @@ def draw_identification(
 
         return [
             {
-                (
-                    f"{sample_prefix}{str(sample)}"
-                    if "sdrf_samples" == source
-                    else str(sample)
-                ): {"Count": info[value_key]}
+                (f"{sample_prefix}{str(sample)}" if "sdrf_samples" == source else str(sample)): {
+                    "Count": info[value_key]
+                }
                 for sample, info in data[source].items()
             }
             for source in sources
@@ -464,19 +457,13 @@ def draw_identification(
 
     if cal_num_table_data:
 
-        sources = ["ms_runs", "sdrf_samples"] if cal_num_table_data.get("sdrf_samples") else ["ms_runs"]
-
-        protein_count = build_count(
-            cal_num_table_data,
-            value_key="protein_num",
-            sources=sources
+        sources = (
+            ["ms_runs", "sdrf_samples"] if cal_num_table_data.get("sdrf_samples") else ["ms_runs"]
         )
 
-        peptide_count = build_count(
-            cal_num_table_data,
-            value_key="peptide_num",
-            sources=sources
-        )
+        protein_count = build_count(cal_num_table_data, value_key="protein_num", sources=sources)
+
+        peptide_count = build_count(cal_num_table_data, value_key="peptide_num", sources=sources)
 
     else:
         return
@@ -537,10 +524,7 @@ def draw_identification(
             if missed_cleavages.get(k, {}):
                 mc_ratio.append(rebuild_dict_structure(missed_cleavages[k]))
 
-        mc_data = {
-            "plot_data": mc_ratio,
-            "cats": ["0", "1", ">=2"]
-        }
+        mc_data = {"plot_data": mc_ratio, "cats": ["0", "1", ">=2"]}
 
         draw_msms_missed_cleavages(sub_sections, mc_data, False)
 
@@ -570,9 +554,7 @@ def rebuild_dict_structure(sc_dict):
         if total == 0:
             mc_group_ratio[sample] = {"0": 0, "1": 0, ">=2": 0}
             continue
-        mc_group_ratio[sample] = {
-            group: count / total * 100 for group, count in counts.items()
-        }
+        mc_group_ratio[sample] = {group: count / total * 100 for group, count in counts.items()}
 
     return mc_group_ratio
 
@@ -585,21 +567,21 @@ def draw_summary_protein_ident_table(
     total_ms2_spectra: int = 0,
     total_ms2_spectra_identified: int = 0,
     total_protein_identified: int = 0,
-    enable_mzid: bool = False
+    enable_mzid: bool = False,
 ):
     headers = OrderedDict()
     if use_two_columns:
-        summary_table = {
-            total_peptide_count: {"#Proteins Quantified": total_protein_quantified}
-        }
+        summary_table = {total_peptide_count: {"#Proteins Quantified": total_protein_quantified}}
         col_header = "#Peptides Quantified"
     else:
         summary_table = {
-            total_ms2_spectra: {
-                "#Identified MS2 Spectra": total_ms2_spectra_identified
-            }
+            total_ms2_spectra: {"#Identified MS2 Spectra": total_ms2_spectra_identified}
         }
-        coverage = (total_ms2_spectra_identified / total_ms2_spectra * 100) if total_ms2_spectra > 0 else 0.0
+        coverage = (
+            (total_ms2_spectra_identified / total_ms2_spectra * 100)
+            if total_ms2_spectra > 0
+            else 0.0
+        )
         summary_table[total_ms2_spectra]["%Identified MS2 Spectra"] = coverage
         summary_table[total_ms2_spectra]["#Peptides Identified"] = total_peptide_count
         summary_table[total_ms2_spectra]["#Proteins Identified"] = total_protein_identified
@@ -646,18 +628,18 @@ def draw_summary_protein_ident_table(
         plot=table_html,
         order=1,
         description=description_str,
-        helptext=helptext_str
+        helptext=helptext_str,
     )
 
 
 def draw_identi_num(
-        sub_sections,
-        enable_exp=False,
-        enable_sdrf=False,
-        is_multi_conditions=False,
-        sample_df=None,
-        file_df=None,
-        cal_num_table_data=None
+    sub_sections,
+    enable_exp=False,
+    enable_sdrf=False,
+    is_multi_conditions=False,
+    sample_df=None,
+    file_df=None,
+    cal_num_table_data=None,
 ):
     if not cal_num_table_data:
         log.warning("cal_num_table_data not available, skipping draw_identi_num.")
@@ -699,7 +681,9 @@ def draw_identi_num(
                 sample_data_temp = sdrf_samples_data.get(str(sample), {})
                 sample_data["Peptide_Num"] = sample_data_temp.get("peptide_num", "")
                 sample_data["Unique_Peptide_Num"] = sample_data_temp.get("unique_peptide_num", "")
-                sample_data["Modified_Peptide_Num"] = sample_data_temp.get("modified_peptide_num", "")
+                sample_data["Modified_Peptide_Num"] = sample_data_temp.get(
+                    "modified_peptide_num", ""
+                )
                 sample_data["Protein_Num"] = sample_data_temp.get("protein_num", "")
 
                 row_data.append(
@@ -719,7 +703,9 @@ def draw_identi_num(
                     run_data_temp = ms_runs_data.get(row.Run, {})
                     sample_data["Peptide_Num"] = run_data_temp.get("peptide_num", "")
                     sample_data["Unique_Peptide_Num"] = run_data_temp.get("unique_peptide_num", "")
-                    sample_data["Modified_Peptide_Num"] = run_data_temp.get("modified_peptide_num", "")
+                    sample_data["Modified_Peptide_Num"] = run_data_temp.get(
+                        "modified_peptide_num", ""
+                    )
                     sample_data["Protein_Num"] = run_data_temp.get("protein_num", "")
 
                     row_data.append(
@@ -778,7 +764,9 @@ def draw_identi_num(
                             "Fraction": "",
                             "Peptide_Num": sapmle_data_temp.get("peptide_num", ""),
                             "Unique_Peptide_Num": sapmle_data_temp.get("unique_peptide_num", ""),
-                            "Modified_Peptide_Num": sapmle_data_temp.get("modified_peptide_num", ""),
+                            "Modified_Peptide_Num": sapmle_data_temp.get(
+                                "modified_peptide_num", ""
+                            ),
                             "Protein_Num": sapmle_data_temp.get("protein_num", ""),
                         },
                     )
@@ -795,7 +783,9 @@ def draw_identi_num(
                                 "Fraction": row.Fraction,
                                 "Peptide_Num": run_data_temp.get("peptide_num", ""),
                                 "Unique_Peptide_Num": run_data_temp.get("unique_peptide_num", ""),
-                                "Modified_Peptide_Num": run_data_temp.get("modified_peptide_num", ""),
+                                "Modified_Peptide_Num": run_data_temp.get(
+                                    "modified_peptide_num", ""
+                                ),
                                 "Protein_Num": run_data_temp.get("protein_num", ""),
                             },
                         )
@@ -878,7 +868,7 @@ def draw_identi_num(
             and identified the number of modified peptide in the pipeline, eg. All data in this table are obtained
             from the out_msstats file. You can also remove the decoy with the `remove_decoy` parameter.
             In the FragPipe results summary, the data were obtained from psm.tsv.
-            """
+            """,
     )
 
 
@@ -926,9 +916,7 @@ def draw_modifications(sub_section, modified_data):
         "save_data_file": False,
     }
 
-    bar_html = bargraph.plot(
-        data=plot_data, cats=modified_data["cats"], pconfig=draw_config
-    )
+    bar_html = bargraph.plot(data=plot_data, cats=modified_data["cats"], pconfig=draw_config)
     bar_html = plot_html_check(bar_html)
 
     add_sub_section(
@@ -994,7 +982,9 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, data_type: s
                 "save_data_file": False,
             }
 
-            bar_html = bargraph.plot(data=oversampling, cats=oversampling_plot, pconfig=draw_config)
+            bar_html = bargraph.plot(
+                data=oversampling, cats=oversampling_plot, pconfig=draw_config
+            )
 
         bar_html = plot_html_check(bar_html)
 
@@ -1029,11 +1019,7 @@ def draw_oversampling(sub_section, oversampling, oversampling_plot, data_type: s
         log.warning(f"draw_oversampling: {e}, skipping plot.")
 
 
-def draw_num_pep_per_protein(
-    sub_sections,
-    pep_plot,
-    is_fragpipe_or_mzid: bool = False
-):
+def draw_num_pep_per_protein(sub_sections, pep_plot, is_fragpipe_or_mzid: bool = False):
     if any([len(i) >= 100 for i in pep_plot.dict["data"].values()]):
         data_labels = ["Frequency", "Percentage"]
     else:
@@ -1075,7 +1061,9 @@ def draw_num_pep_per_protein(
                     Proteins supported by more peptide identifications can constitute more confident results.
                 """
     else:
-        description_str = "This plot shows the number of peptides per protein in quantms pipeline final result"
+        description_str = (
+            "This plot shows the number of peptides per protein in quantms pipeline final result"
+        )
         helptext_str = """
                     This statistic is extracted from the out_msstats file. Proteins supported by more peptide
                     identifications can constitute more confident results.
@@ -1085,7 +1073,7 @@ def draw_num_pep_per_protein(
         plot=bar_html,
         order=1,
         description=description_str,
-        helptext=helptext_str
+        helptext=helptext_str,
     )
 
 
@@ -1185,7 +1173,7 @@ def draw_peptide_intensity(sub_section, plot_data):
         plot_data=plot_data,
         plot_html=box_html,
         log_text="pmultiqc.modules.common.plots.id",
-        function_name="draw_peptide_intensity"
+        function_name="draw_peptide_intensity",
     )
     box_html = plot_html_check(box_html)
 
@@ -1242,30 +1230,23 @@ def draw_long_trends(sub_sections, long_trends_data):
     plot_ms1_summed_intensity = long_trends_data["ms1_summed_intensity"]
 
     if plot_ac_datetime:
-        draw_filename_datetime_table(
-            sub_sections=sub_sections,
-            ac_datetime=plot_ac_datetime
-        )
+        draw_filename_datetime_table(sub_sections=sub_sections, ac_datetime=plot_ac_datetime)
 
     if plot_rt:
-        draw_long_trends_linegraph(
-            sub_sections=sub_sections,
-            plot_data=plot_rt,
-            report_type="rt"
-        )
+        draw_long_trends_linegraph(sub_sections=sub_sections, plot_data=plot_rt, report_type="rt")
 
     if plot_ms1_summed_intensity:
         draw_long_trends_linegraph(
             sub_sections=sub_sections,
             plot_data=plot_ms1_summed_intensity,
-            report_type="ms1_summed_intensity"
+            report_type="ms1_summed_intensity",
         )
 
     if plot_ms2_prec_intensity:
         draw_long_trends_linegraph(
             sub_sections=sub_sections,
             plot_data=plot_ms2_prec_intensity,
-            report_type="ms2_prec_intensity"
+            report_type="ms2_prec_intensity",
         )
 
 
@@ -1291,7 +1272,7 @@ def draw_filename_datetime_table(sub_sections, ac_datetime: dict):
 
     headers = {
         "run": {"title": "Run File"},
-        "acquisition_datetime": {"title": "Acquisition Datetime"}
+        "acquisition_datetime": {"title": "Acquisition Datetime"},
     }
 
     table_html = table.plot(data=ac_datetime_data, headers=headers, pconfig=draw_config)
@@ -1311,9 +1292,7 @@ def draw_long_trends_linegraph(sub_sections, plot_data: dict, report_type: str):
 
     plot_data = dict(sorted(plot_data.items(), key=lambda item: item[0]))
 
-    plot_data_dict = {
-        "data": plot_data
-    }
+    plot_data_dict = {"data": plot_data}
 
     plot_configs = {
         "rt": {

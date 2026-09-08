@@ -1,14 +1,14 @@
 import itertools
 from typing import Dict, List
 
-from multiqc.plots import bargraph, linegraph, box, scatter, table
+from multiqc.plots import bargraph, box, linegraph, scatter, table
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
 from pmultiqc.modules.common.plots.general import (
-    plot_html_check,
     plot_data_check,
-    summarise_box_data
+    plot_html_check,
+    summarise_box_data,
 )
 from pmultiqc.modules.core.section_groups import add_sub_section
 
@@ -18,14 +18,16 @@ def draw_exp_design(sdrf_df, sub_sections):
     rows_by_group: Dict[SampleGroup, List[InputRow]] = {}
 
     for sample, group in sdrf_df.groupby("sample"):
-        row_data: List[InputRow] = [InputRow(
-            sample=SampleName(sample),
-            data={
-                "BioReplicate": int(group["biological_replicate"].iloc[0]),
-                "Fraction": "",
-                "TecReplicate": "",
-            },
-        )]
+        row_data: List[InputRow] = [
+            InputRow(
+                sample=SampleName(sample),
+                data={
+                    "BioReplicate": int(group["biological_replicate"].iloc[0]),
+                    "Fraction": "",
+                    "TecReplicate": "",
+                },
+            )
+        ]
 
         # subrows for each Raw file in the sample group
         for row in group.itertuples():
@@ -269,7 +271,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             plot_data=distribution_box,
             plot_html=box_html,
             log_text="pmultiqc.modules.maxquant.maxquant_plots",
-            function_name="draw_intensity_box"
+            function_name="draw_intensity_box",
         )
         box_html = plot_html_check(box_html)
 
@@ -310,7 +312,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             plot_data=distribution_box,
             plot_html=box_html,
             log_text="pmultiqc.modules.maxquant.maxquant_plots",
-            function_name="draw_intensity_box"
+            function_name="draw_intensity_box",
         )
         box_html = plot_html_check(box_html)
 
@@ -352,7 +354,7 @@ def draw_intensity_box(sub_section, distribution_box, fig_type):
             plot_data=distribution_box,
             plot_html=box_html,
             log_text="pmultiqc.modules.maxquant.maxquant_plots",
-            function_name="draw_intensity_box"
+            function_name="draw_intensity_box",
         )
         box_html = plot_html_check(box_html)
 
@@ -452,7 +454,7 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data, data_type
         description_text = """
             [Excludes Contaminants] Number of unique (i.e. not counted twice) peptide sequences including modifications (after FDR) per Raw file.
             """
-        help_text="""
+        help_text = """
             If MBR was enabled, three categories ('Genuine (Exclusive)', 'Genuine + Transferred', 'Transferred (Exclusive)'
             are shown, so the user can judge the gain that MBR provides.
 
@@ -634,14 +636,17 @@ def draw_maxquant_summary_table(
         if n_q:
             summary_table[msms_spectra]["#Proteins Quantified"] = n_q
 
-    headers = {"#Identified MS2 Spectra": {
-        "description": "Total number of MS/MS spectra identified",
-        "format": "{:,.0f}",
-    }, "%Identified MS2 Spectra": {
-        "description": "Percentage of Identified MS/MS Spectra",
-        "format": "{:,.2f}",
-        "suffix": "%",
-    }}
+    headers = {
+        "#Identified MS2 Spectra": {
+            "description": "Total number of MS/MS spectra identified",
+            "format": "{:,.0f}",
+        },
+        "%Identified MS2 Spectra": {
+            "description": "Percentage of Identified MS/MS Spectra",
+            "format": "{:,.2f}",
+            "suffix": "%",
+        },
+    }
 
     # Create table plot
     pconfig = {

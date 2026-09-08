@@ -1,15 +1,11 @@
 from multiqc.plots import bargraph, linegraph, table
 
-from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.plots.general import plot_html_check
+from pmultiqc.modules.core.section_groups import add_sub_section
 
 
 def draw_ms_information(
-        sub_sections,
-        ms1_tic=None,
-        ms1_bpc=None,
-        ms1_peaks=None,
-        general_stats_data=None
+    sub_sections, ms1_tic=None, ms1_bpc=None, ms1_peaks=None, general_stats_data=None
 ):
     if ms1_tic:
         ms1_tic_config = {
@@ -124,9 +120,9 @@ def draw_ms_information(
 
 
 def draw_peak_intensity_distribution(
-        sub_sections,
-        peak_distribution_plot,
-        ms_info,
+    sub_sections,
+    peak_distribution_plot,
+    ms_info,
 ):
     pconfig = {
         "id": "peak_intensity_distribution",
