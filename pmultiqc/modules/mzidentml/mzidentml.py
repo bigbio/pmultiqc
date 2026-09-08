@@ -210,17 +210,23 @@ class MzIdentMLModule(BasePMultiqcModule):
                 ms_info=self.ms_info
             )
 
-            draw_peaks_per_ms2(
-                self.sub_sections["ms2"],
-                self.mgf_peaks_ms2_plot,
-                self.ms_info
-            )
+            if self.ms_info and self.ms_info.get("peaks_per_ms2"):
+                draw_peaks_per_ms2(
+                    self.sub_sections["ms2"],
+                    self.mgf_peaks_ms2_plot,
+                    self.ms_info
+                )
+            else:
+                self.log.warning("Skipping 'Peaks per MS2' plot: no spectrum data.")
+            if self.ms_info and self.ms_info.get("peak_distribution"):
 
-            draw_peak_intensity_distribution(
-                self.sub_sections["ms2"],
-                self.mgf_peak_distribution_plot,
-                self.ms_info
-            )
+                draw_peak_intensity_distribution(
+                    self.sub_sections["ms2"],
+                    self.mgf_peak_distribution_plot,
+                    self.ms_info
+                )
+            else:
+                self.log.warning("Skipping 'Peak Intensity Distribution' plot: no spectrum data.")
         else:
             draw_precursor_charge_distribution(
                 self.sub_sections["ms2"],
@@ -361,9 +367,12 @@ class MzIdentMLModule(BasePMultiqcModule):
 
         enzyme_list = list(set(enzyme_list))
         enzyme = enzyme_list[0] if len(enzyme_list) == 1 else "Trypsin"
-        psm["missed_cleavages"] = psm.apply(
-            lambda x: cal_miss_cleavages(x["PeptideSequence"], enzyme), axis=1
-        )
+        if not psm.empty:
+            psm["missed_cleavages"] = psm.apply(
+                lambda x: cal_miss_cleavages(x["PeptideSequence"], enzyme), axis=1
+            )
+        else:
+            psm["missed_cleavages"] = pd.Series(dtype=int)
 
         # Calculate the ID RT Score
         if "retention_time" not in psm.columns and self.mgf_paths:

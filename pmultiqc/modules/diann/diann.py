@@ -141,7 +141,7 @@ class DiannModule(BasePMultiqcModule):
         )
 
         log.info("Data recognition and processing completed.")
-
+        
         return True
 
     def draw_plots(self):
@@ -260,3 +260,65 @@ class DiannModule(BasePMultiqcModule):
         }
 
         add_group_modules(self.section_group_dict, "")
+        try:
+            from pmultiqc.export.mzqc_exporter import MzQcExporter
+            from multiqc import config
+            
+            output_directory = getattr(config, "output_dir", "./")
+            
+            # Helper to safely extract raw data from MultiQC Plot objects (like Histogram)
+            def get_raw_plot_data(plot_obj):
+                if plot_obj is None:
+                    return None
+                # If it's a MultiQC Plot object, grab its underlying dataset
+                if hasattr(plot_obj, "data"):
+                    return plot_obj.data
+                if hasattr(plot_obj, "plot_data"):
+                    return plot_obj.plot_data
+                return plot_obj
+
+            def clean_modifications(mods_data):
+                if not mods_data:
+                    return None
+                
+                # If it's a MultiQC plot config dict, it often has 'datasets' or 'samples'
+                if isinstance(mods_data, dict):
+                    # Try to extract actual numeric data instead of UI config
+                    if "datasets" in mods_data:
+                        # Standard MultiQC plot structure
+                        cleaned = {}
+                        for series in mods_data["datasets"]:
+                            series_name = series.get("name", "Unknown")
+                            series_data = series.get("data", [])
+                            cleaned[series_name] = series_data
+                        return cleaned
+                    
+                    if "data" in mods_data:
+                        return mods_data["data"]
+                        
+                return mods_data
+
+            diann_payload = {
+                "peptide_id_count": self.total_peptide_count,
+                "protein_group_count": self.total_protein_quantified,
+                "psm_count": self.ms_with_psm,
+                "peptide_length_data": get_raw_plot_data(self.peptide_length),
+                "peptide_per_protein_data": get_raw_plot_data(self.pep_plot),
+                "modifications": clean_modifications(self.modified),  # 👈 Cleaned!
+                "identification_summary": self.cal_num_table_data
+            }
+            
+            exporter = MzQcExporter(
+                pipeline_name="DIA-NN",
+                raw_data=diann_payload, 
+                output_dir=output_directory
+            )
+            
+            mzqc_metrics = exporter._parse_diann(diann_payload)
+            log.info(f"mzQC: Successfully extracted {len(mzqc_metrics)} metrics.")
+            
+            saved_file_path = exporter.export_to_file(mzqc_metrics, filename="diann_qc.mzQC")
+            log.info(f"mzQC: Generated output saved directly to: {saved_file_path}")
+            
+        except Exception as e:
+            log.warning(f"mzQC: Metric extraction or export failed: {e}")
