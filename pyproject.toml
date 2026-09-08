@@ -105,7 +105,6 @@ local_scheme = "no-local-version"
 exclude = [
     "docs/",
     "tests/",
-    "pmultiqc_service/",
     "recipe/",
 ]
 

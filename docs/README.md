@@ -36,6 +36,9 @@ You can use pmultiqc through our public web services:
 | **FU Berlin University Service** | [https://pmultiqc.bsc.fu-berlin.de](https://pmultiqc.bsc.fu-berlin.de) | ![FU Berlin pmultiqc service](https://img.shields.io/endpoint?url=https%3A%2F%2Fpmultiqc.bsc.fu-berlin.de%2Fhealth-check) | pmultiqc service at Freie Universität Berlin |
 | **Tübingen University Service** | [https://abi-services.cs.uni-tuebingen.de/pmultiqc/](https://abi-services.cs.uni-tuebingen.de/pmultiqc/) | ![Tübingen pmultiqc service](https://img.shields.io/endpoint?url=https%3A%2F%2Fabi-services.cs.uni-tuebingen.de%2Fpmultiqc%2Fhealth-check) | pmultiqc service at Tübingen University |
 
+The source code for these web services lives in a separate repository:
+[PRIDE-Archive/pmultiqc-service](https://github.com/PRIDE-Archive/pmultiqc-service).
+
 ### 🎯 Service Features
 
 - **📁 File Upload**: Upload ZIP files with your proteomics data

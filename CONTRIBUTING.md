@@ -18,7 +18,7 @@ We have issue templates for different types of problems:
 - **Bug Reports**: Crashes, incorrect metrics, unexpected behavior
 - **Metric Requests**: New proteomics quality control metrics (we encourage these!)
 - **Feature Requests**: New visualizations, data format support, functionality
-- **Service Issues**: Problems with the PRIDE web service
+- **Service Issues**: Problems with the PRIDE web service — the service source code lives in [PRIDE-Archive/pmultiqc-service](https://github.com/PRIDE-Archive/pmultiqc-service)
 - **Suggestions**: General improvements and ideas
 
 ## Development
