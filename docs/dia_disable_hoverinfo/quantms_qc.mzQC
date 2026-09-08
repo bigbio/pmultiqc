@@ -1,0 +1,210 @@
+{
+  "mzQC": {
+    "version": "1.0.0",
+    "creationDate": "2026-09-06T06:03:55.197993",
+    "controlledVocabularies": [
+      {
+        "name": "PSI-MS Quality Control Ontology",
+        "uri": "https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo",
+        "version": "4.1.130"
+      }
+    ],
+    "runQuality": [
+      {
+        "metadata": {
+          "inputFiles": [
+            {
+              "name": "MaxQuant Output Directory",
+              "fileFormat": {
+                "accession": "MS:1000584",
+                "name": "mzML file"
+              },
+              "location": "local://run_data"
+            }
+          ],
+          "analysisSoftware": [
+            {
+              "accession": "MS:1002298",
+              "name": "MaxQuant",
+              "version": "1.6.x (or later)",
+              "uri": "https://www.maxquant.org"
+            }
+          ]
+        },
+        "qualityMetrics": [
+          {
+            "accession": "MS:4000215",
+            "name": "missed cleavages fractions",
+            "value": {}
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "modifications",
+            "value": {
+              "plot_data": [
+                {
+                  "RD139_Narrow_UPS1_0_1fmol_inj1": {
+                    "Modified (Total)": 15.763546798029566,
+                    "Carbamidomethyl": 13.982569154982949,
+                    "Oxidation": 2.046229632436529
+                  },
+                  "RD139_Narrow_UPS1_0_1fmol_inj2": {
+                    "Modified (Total)": 15.803013597941927,
+                    "Carbamidomethyl": 13.947078280044101,
+                    "Oxidation": 2.113193678794561
+                  },
+                  "RD139_Narrow_UPS1_0_25fmol_inj1": {
+                    "Modified (Total)": 15.814121037463977,
+                    "Carbamidomethyl": 13.95893371757925,
+                    "Oxidation": 2.1253602305475505
+                  },
+                  "RD139_Narrow_UPS1_0_25fmol_inj2": {
+                    "Modified (Total)": 15.755278830536,
+                    "Carbamidomethyl": 13.878361306623352,
+                    "Oxidation": 2.1476267821692834
+                  }
+                },
+                {
+                  "Sample 1": {
+                    "Modified (Total)": 15.78358208955224,
+                    "Carbamidomethyl": 13.964552238805968,
+                    "Oxidation": 2.080223880597015
+                  },
+                  "Sample 2": {
+                    "Modified (Total)": 15.784729108446768,
+                    "Carbamidomethyl": 13.918687460560713,
+                    "Oxidation": 2.136482466420265
+                  }
+                }
+              ],
+              "cats": [
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Carbamidomethyl",
+                "Oxidation",
+                "Oxidation",
+                "Oxidation",
+                "Oxidation",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)",
+                "Modified (Total)"
+              ]
+            }
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "identified msms spectra",
+            "value": {}
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "charge states",
+            "value": {}
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "ids over rt",
+            "value": {}
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "peptide intensity",
+            "value": {}
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "contaminant percent",
+            "value": {}
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "top contaminants",
+            "value": {}
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "mass error",
+            "value": {}
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "peptide lengths",
+            "value": {
+              "RD139_Narrow_UPS1_0_1fmol_inj1": {
+                "15": 1400,
+                "16": 1150,
+                "17": 873,
+                "18": 641,
+                "19": 430,
+                "20": 369,
+                "21": 315,
+                "22": 280,
+                "23": 252,
+                "24": 204,
+                "25": 134,
+                "26": 90,
+                "27": 34,
+                "28": 13,
+                "29": 4
+              },
+              "RD139_Narrow_UPS1_0_1fmol_inj2": {
+                "15": 1426,
+                "16": 1176,
+                "17": 926,
+                "18": 664,
+                "19": 457,
+                "20": 379,
+                "21": 316,
+                "22": 293,
+                "23": 269,
+                "24": 213,
+                "25": 143,
+                "26": 88,
+                "27": 37,
+                "28": 15,
+                "29": 5
+              },
+              "RD139_Narrow_UPS1_0_25fmol_inj1": {
+                "15": 1455,
+                "16": 1194,
+                "17": 927,
+                "18": 669,
+                "19": 470,
+                "20": 392,
+                "21": 327,
+                "22": 300,
+                "23": 272,
+                "24": 216,
+                "25": 146,
+                "26": 93,
+                "27": 35,
+                "28": 15,
+                "29": 4
+              },
+              "RD139_Narrow_UPS1_0_25fmol_inj2": {
+                "15": 1466,
+                "16": 1192,
+                "17": 937,
+                "18": 671,
+                "19": 474,
+                "20": 393,
+                "21": 326,
+                "22": 300,
+                "23": 266,
+                "24": 215,
+                "25": 142,
+                "26": 89,
+                "27": 36,
+                "28": 14,
+                "29": 4
+              }
+            }
+          },
+          {
+            "accession": "MS:1000000",
+            "name": "peaks per ms2",
+            "value": {
+              "Whole Experiment": {
+                "0 ~ 100": 
