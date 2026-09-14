@@ -35,17 +35,13 @@ class TestIsMzqcAvailable:
 
     def test_looks_up_the_mzqc_package(self, monkeypatch):
         looked_up = []
-        monkeypatch.setattr(
-            importlib.util, "find_spec", lambda name: looked_up.append(name)
-        )
+        monkeypatch.setattr(importlib.util, "find_spec", looked_up.append)
         mzqc_export.is_mzqc_available()
         assert looked_up == ["mzqc"]
 
     def test_result_is_computed_once(self, monkeypatch):
         calls = []
-        monkeypatch.setattr(
-            importlib.util, "find_spec", lambda name: calls.append(name)
-        )
+        monkeypatch.setattr(importlib.util, "find_spec", calls.append)
         for _ in range(3):
             mzqc_export.is_mzqc_available()
         assert len(calls) == 1
