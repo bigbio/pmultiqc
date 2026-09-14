@@ -12,6 +12,7 @@ from pmultiqc.modules.common.plots.general import (
     draw_search_engine_scores
 )
 from pmultiqc.modules.core.section_groups import add_group_modules
+from pmultiqc.export import is_mzqc_available
 from pmultiqc.modules.base import BasePMultiqcModule
 
 
@@ -50,28 +51,29 @@ class MaxQuantModule(BasePMultiqcModule):
             "maxquant_heatmap": maxquant_heatmap,
         }
         ### mzqc file 
-        try:
-            from pmultiqc.export.mzqc_exporter import MzQcExporter
-            from multiqc import config
+        if is_mzqc_available():
+            try:
+                from pmultiqc.export.mzqc_exporter import MzQcExporter
+                from multiqc import config
             
-            output_directory = getattr(config, "output_dir", "./")
+                output_directory = getattr(config, "output_dir", "./")
             
-            exporter = MzQcExporter(
-                pipeline_name="MaxQuant",
-                raw_data=self.mq_results,
-                output_dir=output_directory
-            )
+                exporter = MzQcExporter(
+                    pipeline_name="MaxQuant",
+                    raw_data=self.mq_results,
+                    output_dir=output_directory
+                )
             
-            # 1. Parse the metrics
-            mzqc_metrics = exporter._parse_maxquant()
-            self.log.info(f"mzQC: Successfully extracted {len(mzqc_metrics)} metrics.")
+                # 1. Parse the metrics
+                mzqc_metrics = exporter._parse_maxquant()
+                self.log.info(f"mzQC: Successfully extracted {len(mzqc_metrics)} metrics.")
             
-            # 2. Write them down to disk!
-            saved_file_path = exporter.export_to_file(mzqc_metrics, filename="maxquant_qc.mzQC")
-            self.log.info(f"mzQC: Generated output saved directly to: {saved_file_path}")
+                # 2. Write them down to disk!
+                saved_file_path = exporter.export_to_file(mzqc_metrics, filename="maxquant_qc.mzQC")
+                self.log.info(f"mzQC: Generated output saved directly to: {saved_file_path}")
             
-        except Exception as e:
-            self.log.warning(f"mzQC: Metric extraction or export failed: {e}")
+            except Exception as e:
+                self.log.warning(f"mzQC: Metric extraction or export failed: {e}")
         return bool(self.mq_results)
 
     def _process_sdrf_file(self):

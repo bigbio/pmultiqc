@@ -111,6 +111,19 @@ pmultiqc supports the following data sources:
 pip install pmultiqc
 ```
 
+### Optional: mzQC export
+
+pmultiqc can also write the QC metrics as an [mzQC](https://github.com/HUPO-PSI/mzQC) file next to
+the report (`maxquant_qc.mzQC`, `diann_qc.mzQC` or `quantms_qc.mzQC`). This needs the `pymzqc`
+package, which is not installed by default:
+
+```bash
+pip install "pmultiqc[mzqc]"
+```
+
+When `pymzqc` is installed the mzQC file is computed automatically for MaxQuant, DIA-NN and quantms
+results; without it that step is skipped and the MultiQC report is produced as usual.
+
 ### Install from Source (Without PyPI)
 
 ```bash
