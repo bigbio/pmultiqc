@@ -53,8 +53,11 @@ jobs:
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/LFQ_PXD007683.zip
           unzip -d ./lfq LFQ_PXD007683.zip
           multiqc --quantms-plugin ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
-      - name: Check mzQC was exported (pymzqc installed)
-        run: test -s ./results_lfq/quantms_qc.mzQC
+      - name: Check mzQC was exported as valid JSON (pymzqc installed)
+        run: |
+          test -s ./results_lfq/quantms_qc.mzQC
+          # strict parse: rejects truncated files and bare NaN/Infinity
+          python -c 'import json, sys; json.load(open(sys.argv[1]), parse_constant=lambda c: sys.exit("non-standard JSON constant " + c))' ./results_lfq/quantms_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -129,8 +132,11 @@ jobs:
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip
           unzip PXD063291.zip
           multiqc --diann-plugin ./PXD063291 -o ./results_diann
-      - name: Check mzQC was exported (pymzqc installed)
-        run: test -s ./results_diann/diann_qc.mzQC
+      - name: Check mzQC was exported as valid JSON (pymzqc installed)
+        run: |
+          test -s ./results_diann/diann_qc.mzQC
+          # strict parse: rejects truncated files and bare NaN/Infinity
+          python -c 'import json, sys; json.load(open(sys.argv[1]), parse_constant=lambda c: sys.exit("non-standard JSON constant " + c))' ./results_diann/diann_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -214,8 +220,11 @@ jobs:
           wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip
           unzip -d ./maxquant txt_20min.zip
           multiqc --maxquant-plugin ./maxquant -o ./results_maxquant
-      - name: Check mzQC was exported (pymzqc installed)
-        run: test -s ./results_maxquant/maxquant_qc.mzQC
+      - name: Check mzQC was exported as valid JSON (pymzqc installed)
+        run: |
+          test -s ./results_maxquant/maxquant_qc.mzQC
+          # strict parse: rejects truncated files and bare NaN/Infinity
+          python -c 'import json, sys; json.load(open(sys.argv[1]), parse_constant=lambda c: sys.exit("non-standard JSON constant " + c))' ./results_maxquant/maxquant_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
