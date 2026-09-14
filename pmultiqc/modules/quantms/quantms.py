@@ -24,6 +24,7 @@ from typing import Dict, List
 from multiqc.plots.table_object import InputRow
 from multiqc.types import SampleGroup, SampleName
 
+from pmultiqc.export import is_mzqc_available
 from pmultiqc.modules.base import BasePMultiqcModule
 from pmultiqc.modules.common.dia_utils import (
     parse_diann_report,
@@ -745,64 +746,65 @@ class QuantMSModule(BasePMultiqcModule):
 
         add_group_modules(self.section_group_dict, "")
 
-        try:
-            from pmultiqc.export.mzqc_exporter import MzQcExporter
+        if is_mzqc_available():
+            try:
+                from pmultiqc.export.mzqc_exporter import MzQcExporter
      
             
-            output_directory = getattr(config, "output_dir", "./")
+                output_directory = getattr(config, "output_dir", "./")
             
-            # Helper to strip MultiQC plot objects to raw data
-            def get_raw_plot_data(plot_obj):
-                if plot_obj is None:
-                    return None
-                if hasattr(plot_obj, "data"):
-                    return plot_obj.data
-                if hasattr(plot_obj, "plot_data"):
-                    return plot_obj.plot_data
-                return plot_obj
+                # Helper to strip MultiQC plot objects to raw data
+                def get_raw_plot_data(plot_obj):
+                    if plot_obj is None:
+                        return None
+                    if hasattr(plot_obj, "data"):
+                        return plot_obj.data
+                    if hasattr(plot_obj, "plot_data"):
+                        return plot_obj.plot_data
+                    return plot_obj
 
-            # Safely unpack nested ms_info dictionaries
-            ms_info_dict = self.ms_info if isinstance(self.ms_info, dict) else {}
+                # Safely unpack nested ms_info dictionaries
+                ms_info_dict = self.ms_info if isinstance(self.ms_info, dict) else {}
 
-            quantms_payload = {
-                # 1-5
-                "missed_cleavages": get_raw_plot_data(self.quantms_missed_cleavages),
-                "modifications": get_raw_plot_data(self.quantms_modified),
-                "identified_msms_spectra": get_raw_plot_data(self.identified_msms_spectra),
-                "charge_states": get_raw_plot_data(self.mztab_charge_state),
-                "ids_over_rt": get_raw_plot_data(self.quantms_ids_over_rt),
+                quantms_payload = {
+                    # 1-5
+                    "missed_cleavages": get_raw_plot_data(self.quantms_missed_cleavages),
+                    "modifications": get_raw_plot_data(self.quantms_modified),
+                    "identified_msms_spectra": get_raw_plot_data(self.identified_msms_spectra),
+                    "charge_states": get_raw_plot_data(self.mztab_charge_state),
+                    "ids_over_rt": get_raw_plot_data(self.quantms_ids_over_rt),
                 
-                # 6-10
-                "peptide_intensity": get_raw_plot_data(self.quantms_pep_intensity),
-                "contaminant_percent": get_raw_plot_data(self.quantms_contaminant_percent),
-                "top_contaminants": get_raw_plot_data(self.quantms_top_contaminant_percent),
-                "mass_error": get_raw_plot_data(self.quantms_mass_error),
-                "peptide_lengths": get_raw_plot_data(self.peptide_length),
+                    # 6-10
+                    "peptide_intensity": get_raw_plot_data(self.quantms_pep_intensity),
+                    "contaminant_percent": get_raw_plot_data(self.quantms_contaminant_percent),
+                    "top_contaminants": get_raw_plot_data(self.quantms_top_contaminant_percent),
+                    "mass_error": get_raw_plot_data(self.quantms_mass_error),
+                    "peptide_lengths": get_raw_plot_data(self.peptide_length),
                 
-                # 11-13 (Nested under self.ms_info)
-                "peaks_per_ms2": get_raw_plot_data(ms_info_dict.get("peaks_per_ms2")),
-                "peak_distribution": get_raw_plot_data(ms_info_dict.get("peak_distribution")),
-                "charge_distribution": get_raw_plot_data(ms_info_dict.get("charge_distribution")),
+                    # 11-13 (Nested under self.ms_info)
+                    "peaks_per_ms2": get_raw_plot_data(ms_info_dict.get("peaks_per_ms2")),
+                    "peak_distribution": get_raw_plot_data(ms_info_dict.get("peak_distribution")),
+                    "charge_distribution": get_raw_plot_data(ms_info_dict.get("charge_distribution")),
                 
-                # 14-15 (Chromatograms)
-                "ms1_tic": get_raw_plot_data(self.ms1_tic),
-                "ms1_bpc": get_raw_plot_data(self.ms1_bpc)
-            }
+                    # 14-15 (Chromatograms)
+                    "ms1_tic": get_raw_plot_data(self.ms1_tic),
+                    "ms1_bpc": get_raw_plot_data(self.ms1_bpc)
+                }
             
-            exporter = MzQcExporter(
-                pipeline_name="QuantMS",
-                raw_data=quantms_payload, 
-                output_dir=output_directory
-            )
+                exporter = MzQcExporter(
+                    pipeline_name="QuantMS",
+                    raw_data=quantms_payload, 
+                    output_dir=output_directory
+                )
             
-            mzqc_metrics = exporter._parse_quantms(quantms_payload)
-            log.info(f"mzQC: Successfully extracted {len(mzqc_metrics)} metrics.")
+                mzqc_metrics = exporter._parse_quantms(quantms_payload)
+                log.info(f"mzQC: Successfully extracted {len(mzqc_metrics)} metrics.")
             
-            saved_file_path = exporter.export_to_file(mzqc_metrics, filename="quantms_qc.mzQC")
-            log.info(f"mzQC: Generated output saved directly to: {saved_file_path}")
+                saved_file_path = exporter.export_to_file(mzqc_metrics, filename="quantms_qc.mzQC")
+                log.info(f"mzQC: Generated output saved directly to: {saved_file_path}")
             
-        except Exception as e:
-            log.warning(f"mzQC: Metric extraction or export failed: {e}")
+            except Exception as e:
+                log.warning(f"mzQC: Metric extraction or export failed: {e}")
 
     def calculate_heatmap(self):
 

@@ -47,12 +47,14 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install package
-        run: pip install .
+        run: pip install ".[mzqc]"
       - name: Test LFQ dataset
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/LFQ_PXD007683.zip
           unzip -d ./lfq LFQ_PXD007683.zip
           multiqc --quantms-plugin ./lfq --config ./lfq/multiqc_config.yml -o ./results_lfq
+      - name: Check mzQC was exported (pymzqc installed)
+        run: test -s ./results_lfq/quantms_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -76,6 +78,11 @@ jobs:
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip
           unzip -d ./tmt TMT_PXD007683.zip
           multiqc --quantms-plugin ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
+      - name: Check mzQC was skipped (pymzqc not installed)
+        run: |
+          if find ./results_tmt -iname '*.mzqc' | grep -q .; then
+            echo "mzQC written without pymzqc installed"; exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -116,12 +123,14 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install package
-        run: pip install .
+        run: pip install ".[mzqc]"
       - name: Test DIANN dataset
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip
           unzip PXD063291.zip
           multiqc --diann-plugin ./PXD063291 -o ./results_diann
+      - name: Check mzQC was exported (pymzqc installed)
+        run: test -s ./results_diann/diann_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -199,12 +208,14 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install package
-        run: pip install .
+        run: pip install ".[mzqc]"
       - name: Test MaxQuant file
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip
           unzip -d ./maxquant txt_20min.zip
           multiqc --maxquant-plugin ./maxquant -o ./results_maxquant
+      - name: Check mzQC was exported (pymzqc installed)
+        run: test -s ./results_maxquant/maxquant_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -229,6 +240,11 @@ jobs:
           mkdir -p ./maxdia
           unzip -d ./maxdia MaxDIA_txt.zip
           multiqc --maxquant-plugin ./maxdia -o ./results_maxquant_dia
+      - name: Check mzQC was skipped (pymzqc not installed)
+        run: |
+          if find ./results_maxquant_dia -iname '*.mzqc' | grep -q .; then
+            echo "mzQC written without pymzqc installed"; exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -346,6 +362,11 @@ jobs:
           wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD053464/03_SingleCell_Searches.zip
           unzip -d ./PXD053464 03_SingleCell_Searches.zip
           multiqc --diann-plugin ./PXD053464 -o ./results_single_cell_diann
+      - name: Check mzQC was skipped (pymzqc not installed)
+        run: |
+          if find ./results_single_cell_diann -iname '*.mzqc' | grep -q .; then
+            echo "mzQC written without pymzqc installed"; exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
