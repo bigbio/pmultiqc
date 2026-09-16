@@ -1,0 +1,27 @@
+{
+  "mzQC": {
+    "version": "1.0.0",
+    "creationDate": "2026-09-16T10:00:00Z",
+    "runQualities": [
+      {
+        "metadata": {"label": "embedded_run_1", "inputFiles": [{"name": "embedded1.raw"}]},
+        "qualityMetrics": [
+          {"accession": "MS:4000060", "name": "number of MS2 spectra", "value": 100}
+        ]
+      },
+      {
+        "metadata": {"label": "embedded_run_2", "inputFiles": [{"name": "embedded2.raw"}]},
+        "qualityMetrics": [
+          {"accession": "MS:4000060", "name": "number of MS2 spectra", "value": 200}
+        ]
+      },
+      {
+        "metadata": {"label": "embedded_run_3", "inputFiles": [{"name": "embedded3.raw"}]},
+        "qualityMetrics": [
+          {"accession": "MS:4000060", "name": "number of MS2 spectra", "value": 300}
+        ]
+      }
+    ],
+    "controlledVocabularies": []
+  }
+}

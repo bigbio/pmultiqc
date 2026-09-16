@@ -293,3 +293,19 @@ If you use **bigbio/pmultiqc** for your analysis, please cite it using the follo
 > Yue QX, Dai C, Kamatchinathan S, Bandla C, Webel H, Larrea A, Bittremieux W, Uszkoreit J, Müller TD, Xiao J, Cox J, Yu F, Ewels P, Demichev V, Kohlbacher O, Sachsenberg T, Bielow C, Bai M, Perez-Riverol Y.
 > 
 > *Mol Cell Proteomics*. 2026 Feb 17:101530. doi: [10.1016/j.mcpro.2026.101530](https://doi.org/10.1016/j.mcpro.2026.101530). Epub ahead of print. PMID: 41713790.
+
+## Direct mzQC input
+
+pmultiqc also exposes a direct mzQC input module. It reads `.mzQC` documents without converting them to `ms_info` or another intermediate format. Every `runQuality` object is treated as one MultiQC run, so a directory containing many `.mzQC` files produces one dataset-level report, and a single document containing multiple `runQuality` objects is handled without collapsing those runs.
+
+```bash
+multiqc /path/to/mzqc_directory -o ./multiqc_report
+```
+
+Use `--strict` while developing or validating the module:
+
+```bash
+multiqc --strict /path/to/mzqc_directory -o ./multiqc_report
+```
+
+The module reports only values represented by the input mzQC. Non-scalar metrics are retained in the `multiqc_mzqc` data file rather than being discarded or transformed into synthetic per-spectrum records.

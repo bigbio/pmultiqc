@@ -63,6 +63,7 @@ Repository = "https://github.com/bigbio/pmultiqc"
 Changelog = "https://github.com/bigbio/pmultiqc/releases"
 
 [project.entry-points."multiqc.modules.v1"]
+mzqc = "pmultiqc.modules.mzqc:MzQCModule"
 pmultiqc = "pmultiqc.modules.core:PMultiQC"
 
 [project.entry-points."multiqc.cli_options.v1"]
@@ -87,6 +88,7 @@ qpx_plugin = "pmultiqc.cli:qpx_plugin"
 disable_hoverinfo = "pmultiqc.cli:disable_hoverinfo"
 
 [project.entry-points."multiqc.hooks.v1"]
+before_config = "pmultiqc.main:pmultiqc_plugin_before_config"
 execution_start = "pmultiqc.main:pmultiqc_plugin_execution_start"
 
 [tool.isort]

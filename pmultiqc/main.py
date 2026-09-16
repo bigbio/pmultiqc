@@ -25,7 +25,25 @@ log = logging.getLogger("pmultiqc")
 config.pmultiqc_version = metadata.version("pmultiqc")
 
 
+def _register_mzqc_search_pattern() -> None:
+    """Register the mzQC search pattern before MultiQC indexes input files."""
+    if "mzqc" not in config.sp:
+        config.update_dict(
+            config.sp, {"mzqc": {"fn": "*.mzQC", "num_lines": 0}}
+        )
+
+
+# MultiQC 1.35 can build its file index before hook callbacks run. Register
+# the pattern on import as well as via the before_config hook.
+_register_mzqc_search_pattern()
+
+
 # Add default config options for the things that are used in MultiQC_NGI
+def pmultiqc_plugin_before_config():
+    """Register the mzQC search pattern before MultiQC builds its file index."""
+    _register_mzqc_search_pattern()
+
+
 def pmultiqc_plugin_execution_start():
     """Code to execute after the config files and
     command line flags have been parsed self.
@@ -108,6 +126,11 @@ def pmultiqc_plugin_execution_start():
     if "pmultiqc/mzid" not in config.sp:
         config.update_dict(
             config.sp, {"pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0}}
+        )
+
+    if "mzqc" not in config.sp:
+        config.update_dict(
+            config.sp, {"mzqc": {"fn": "*.mzQC", "num_lines": 0}}
         )
 
     if "pmultiqc/ms_info" not in config.sp:
