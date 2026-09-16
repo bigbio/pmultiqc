@@ -25,25 +25,62 @@ log = logging.getLogger("pmultiqc")
 config.pmultiqc_version = metadata.version("pmultiqc")
 
 
-def _register_mzqc_search_pattern() -> None:
-    """Register the mzQC search pattern before MultiQC indexes input files."""
-    if "mzqc" not in config.sp:
-        config.update_dict(
-            config.sp, {"mzqc": {"fn": "*.mzQC", "num_lines": 0}}
-        )
+PMULTIQC_SEARCH_PATTERNS = {
+    "mzqc": {"fn": "*.mzQC", "num_lines": 0},
+    "pmultiqc/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0},
+    "pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0},
+    "pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0},
+    "pmultiqc/mzML": {"fn": "*.mzML", "num_lines": 0},
+    "pmultiqc/mgf": {"fn": "*.mgf", "num_lines": 0},
+    "pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0},
+    "pmultiqc/ms_info": {"fn": "*_ms_info.parquet", "num_lines": 0},
+    "pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0},
+    "pmultiqc/msstats": {"fn": "*msstats_in.csv", "num_lines": 0},
+    "pmultiqc/diann_report_tsv": {"fn": "*report.tsv", "num_lines": 0},
+    "pmultiqc/diann_report_parquet": {"fn": "report.parquet", "num_lines": 0},
+    "pmultiqc/diann_log_txt": {"fn": "report.log.txt", "num_lines": 0},
+    "pmultiqc/diann_log": {"fn": "diannsummary.log", "num_lines": 0},
+    "pmultiqc/maxquant_result": {"fn": "*.txt", "num_lines": 0},
+    "pmultiqc/proteobench_result": {"fn": "result_performance.*", "num_lines": 0},
+    "pmultiqc/tsv": {"fn": "*.tsv", "num_lines": 0},
+    "pmultiqc/workflow": {"fn": "*.workflow", "num_lines": 0},
+    "pmultiqc/fp-manifest": {"fn": "*.fp-manifest", "num_lines": 0},
+    "pmultiqc/fragger_params": {"fn": "*.params", "num_lines": 0},
+    "pmultiqc/qpx_psm": {"fn": "*.psm.parquet", "num_lines": 0},
+    "pmultiqc/qpx_pg": {"fn": "*.pg.parquet", "num_lines": 0},
+    "pmultiqc/qpx_feature": {"fn": "*.feature.parquet", "num_lines": 0},
+    "pmultiqc/qpx_run": {"fn": "*.run.parquet", "num_lines": 0},
+    "pmultiqc/qpx_sample": {"fn": "*.sample.parquet", "num_lines": 0},
+}
 
 
-# MultiQC 1.35 can build its file index before hook callbacks run. Register
-# the pattern on import as well as via the before_config hook.
-_register_mzqc_search_pattern()
+PMULTIQC_LOG_FILESIZE_LIMIT = 200 * 1024**3
+
+
+def _register_plugin_defaults() -> None:
+    """Register discovery defaults before MultiQC indexes analysis files."""
+    for key, pattern in PMULTIQC_SEARCH_PATTERNS.items():
+        if key not in config.sp:
+            config.update_dict(config.sp, {key: pattern})
+    config.update(
+        {
+            "log_filesize_limit": PMULTIQC_LOG_FILESIZE_LIMIT,
+            "thousandsSep_format": "",
+        }
+    )
+
+
+# Keep import-time registration as a compatibility safeguard for plugin-loader
+# paths that import this hook module before invoking ``before_config``.
+_register_plugin_defaults()
+
+
+def pmultiqc_plugin_before_config():
+    """Load pmultiqc defaults before user configuration and file indexing."""
+    _register_plugin_defaults()
 
 
 # Add default config options for the things that are used in MultiQC_NGI
-def pmultiqc_plugin_before_config():
-    """Register the mzQC search pattern before MultiQC builds its file index."""
-    _register_mzqc_search_pattern()
-
-
 def pmultiqc_plugin_execution_start():
     """Code to execute after the config files and
     command line flags have been parsed self.
@@ -97,136 +134,3 @@ def pmultiqc_plugin_execution_start():
             analysis_dir_new.append(anal_dir)
     config.analysis_dir = analysis_dir_new
 
-    # Module filename search patterns
-    if "pmultiqc/exp_design" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0}}
-        )
-
-    if "pmultiqc/sdrf" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0}}
-        )
-
-    if "pmultiqc/mztab" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0}}
-        )
-
-    if "pmultiqc/mzML" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/mzML": {"fn": "*.mzML", "num_lines": 0}}
-        )
-
-    if "pmultiqc/mgf" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/mgf": {"fn": "*.mgf", "num_lines": 0}}
-        )
-
-    if "pmultiqc/mzid" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/mzid": {"fn": "*.mzid", "num_lines": 0}}
-        )
-
-    if "mzqc" not in config.sp:
-        config.update_dict(
-            config.sp, {"mzqc": {"fn": "*.mzQC", "num_lines": 0}}
-        )
-
-    if "pmultiqc/ms_info" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/ms_info": {"fn": "*_ms_info.parquet", "num_lines": 0}}
-        )
-
-    if "pmultiqc/idXML" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/idXML": {"fn": "*.idXML", "num_lines": 0}}
-        )
-
-    if "pmultiqc/msstats" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/msstats": {"fn": "*msstats_in.csv", "num_lines": 0}}
-        )
-
-    if "pmultiqc/diann_report_tsv" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/diann_report_tsv": {"fn": "*report.tsv", "num_lines": 0}}
-        )
-
-    if "pmultiqc/diann_report_parquet" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/diann_report_parquet": {"fn": "report.parquet", "num_lines": 0}}
-        )
-
-    if "pmultiqc/diann_log_txt" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/diann_log_txt": {"fn": "report.log.txt", "num_lines": 0}})
-
-    if "pmultiqc/diann_log" not in config.sp:
-        config.update_dict(config.sp, {"pmultiqc/diann_log": {"fn": "diannsummary.log", "num_lines": 0}})
-
-    if "pmultiqc/maxquant_result" not in config.sp:
-        config.update_dict(
-            config.sp, {"pmultiqc/maxquant_result": {"fn": "*.txt", "num_lines": 0}}
-        )
-
-    if "pmultiqc/proteobench_result" not in config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/proteobench_result": {"fn": "result_performance.*", "num_lines": 0}},
-        )
-
-    if "pmultiqc/tsv" not in config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/tsv": {"fn": "*.tsv", "num_lines": 0}},
-        )
-
-    # FragPipe workflow file (parameters)
-    if "pmultiqc/workflow" not in config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/workflow": {"fn": "*.workflow", "num_lines": 0}},
-        )
-
-    # FragPipe manifest file (experiment design)
-    if "pmultiqc/fp-manifest" not in config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/fp-manifest": {"fn": "*.fp-manifest", "num_lines": 0}},
-        )
-
-    # MSFragger params file (search engine parameters)
-    if "pmultiqc/fragger_params" not in config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/fragger_params": {"fn": "*.params", "num_lines": 0}},
-        )
-
-    # QPX file (https://github.com/bigbio/qpx)
-    if "pmultiqc/qpx_psm" not in  config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/qpx_psm": {"fn": "*.psm.parquet", "num_lines": 0}},
-        )
-    if "pmultiqc/qpx_pg" not in  config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/qpx_pg": {"fn": "*.pg.parquet", "num_lines": 0}},
-        )
-    if "pmultiqc/qpx_feature" not in  config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/qpx_feature": {"fn": "*.feature.parquet", "num_lines": 0}},
-        )
-    if "pmultiqc/qpx_run" not in  config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/qpx_run": {"fn": "*.run.parquet", "num_lines": 0}},
-        )
-    if "pmultiqc/qpx_sample" not in config.sp:
-        config.update_dict(
-            config.sp,
-            {"pmultiqc/qpx_sample": {"fn": "*.sample.parquet", "num_lines": 0}},
-        )
-
-    config.update({"log_filesize_limit": 200 * pow(1024, 3), "thousandsSep_format": ""})

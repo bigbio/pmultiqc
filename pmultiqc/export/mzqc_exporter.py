@@ -97,7 +97,7 @@ class MzQcExporter:
                         "version": "4.1.130"
                     }
                 ],
-                "runQuality": [
+                "runQualities": [
                     {
                         "metadata": {
                             "inputFiles": [

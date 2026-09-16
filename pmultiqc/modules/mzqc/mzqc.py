@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from multiqc import config
 from multiqc.base_module import BaseMultiqcModule, ModuleNoSamplesFound
 from multiqc.plots import table
 
@@ -44,11 +43,13 @@ class MzQCRun:
 
     @property
     def input_files(self) -> list[dict[str, Any]]:
+        """Return the run metadata's declared input-file objects."""
         value = self.metadata.get("inputFiles", [])
         return value if isinstance(value, list) else []
 
     @property
     def input_file_names(self) -> list[str]:
+        """Return display names for all declared input files."""
         names: list[str] = []
         for item in self.input_files:
             if not isinstance(item, dict):
@@ -63,6 +64,7 @@ class MzQCRun:
 
     @property
     def instrument(self) -> str | None:
+        """Extract instrument labels from input-file properties when present."""
         values: list[str] = []
         for item in self.input_files:
             if not isinstance(item, dict):
@@ -84,6 +86,7 @@ class MzQCRun:
 
     @property
     def analysis_software(self) -> str | None:
+        """Return a compact label for the software declared by the run."""
         software = self.metadata.get("analysisSoftware", [])
         if not isinstance(software, list):
             return None
@@ -99,6 +102,7 @@ class MzQCRun:
 
     @property
     def acquisition_method(self) -> str | None:
+        """Return acquisition-method evidence represented by run metrics."""
         values: list[str] = []
         for metric in self.metrics:
             name = metric.name.casefold()
@@ -112,6 +116,7 @@ class MzQCRun:
 
     @property
     def provenance(self) -> str | None:
+        """Summarize provenance or evidence metrics without inventing metadata."""
         values: list[str] = []
         tokens = ("provenance", "evidence", "inferred", "unavailable")
         for metric in self.metrics:
@@ -122,6 +127,7 @@ class MzQCRun:
         return " | ".join(dict.fromkeys(values)) or None
 
     def metrics_by_category(self) -> dict[str, list[MzQCMetric]]:
+        """Group the run's metrics by the reporting categories used below."""
         categories: dict[str, list[MzQCMetric]] = defaultdict(list)
         for metric in self.metrics:
             category = classify_metric(metric)
@@ -130,6 +136,7 @@ class MzQCRun:
 
 
 def _metric_from_json(item: Any) -> MzQCMetric:
+    """Validate and convert one JSON qualityMetric object."""
     if not isinstance(item, dict):
         raise ValueError("qualityMetrics entries must be JSON objects")
     accession = item.get("accession")
@@ -152,6 +159,7 @@ def _metric_from_json(item: Any) -> MzQCMetric:
 
 
 def _run_label(run_quality: dict[str, Any], source_path: Path, index: int) -> str:
+    """Derive a stable display label from run metadata and source identity."""
     metadata = run_quality.get("metadata", {})
     if isinstance(metadata, dict):
         label = metadata.get("label")
@@ -168,6 +176,7 @@ def _run_label(run_quality: dict[str, Any], source_path: Path, index: int) -> st
 
 
 def _unique_name(base: str, used: set[str]) -> str:
+    """Return a collision-free sample name while preserving the original base."""
     if base not in used:
         used.add(base)
         return base
@@ -196,8 +205,13 @@ def parse_mzqc_document(path: str | Path, used_names: set[str] | None = None) ->
         raise ValueError("missing mzQC root object")
 
     run_qualities = root.get("runQualities")
+    if run_qualities is None:
+        # Compatibility with pmultiqc's historical exporter and checked-in
+        # reports, which used a non-standard singular key. New mzQC files
+        # should use the specification-defined plural ``runQualities`` key.
+        run_qualities = root.get("runQuality")
     if not isinstance(run_qualities, list):
-        raise ValueError("mzQC document has no runQualities array")
+        raise ValueError("mzQC document has no runQualities/runQuality array")
 
     names = used_names if used_names is not None else set()
     parsed: list[MzQCRun] = []
@@ -224,10 +238,12 @@ def parse_mzqc_document(path: str | Path, used_names: set[str] | None = None) ->
 
 
 def _compact_value(value: Any) -> str:
+    """Serialize a metric value compactly for metadata-table display."""
     return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
 
 
 def _slug(value: str) -> str:
+    """Convert a metric identity into a stable MultiQC column key."""
     value = re.sub(r"[^A-Za-z0-9]+", "_", value.strip()).strip("_")
     return value or "metric"
 
@@ -256,6 +272,7 @@ def classify_metric(metric: MzQCMetric) -> str:
 
 
 def _is_two_number_tuple(value: Any) -> bool:
+    """Return whether a JSON value is a two-endpoint numeric range."""
     return isinstance(value, list) and len(value) == 2 and all(
         isinstance(item, (int, float)) and not isinstance(item, bool) for item in value
     )
@@ -277,6 +294,7 @@ def _metric_data(
     headers: dict[str, dict[str, Any]] = {}
 
     def matching(metric: MzQCMetric) -> bool:
+        """Return whether a metric belongs in the requested category set."""
         return categories is None or classify_metric(metric) in categories
 
     # Determine a stable occurrence number within each run. mzQC accessions are
@@ -294,6 +312,8 @@ def _metric_data(
             unit = metric.unit_name
             description = metric.description or ""
             if _is_two_number_tuple(metric.value):
+                if numeric_only:
+                    continue
                 min_key = f"{key}_min"
                 max_key = f"{key}_max"
                 row[min_key] = metric.value[0]
@@ -316,6 +336,7 @@ def _metric_data(
                     headers[key]["suffix"] = f" {unit}"
         data[run.sample_name] = row
     return data, headers
+
 
 def _all_metric_data(runs: list[MzQCRun]) -> dict[str, dict[str, Any]]:
     """Create the raw MultiQC data-file payload without discarding non-scalars."""
@@ -348,6 +369,7 @@ class MzQCModule(BaseMultiqcModule):
     """
 
     def __init__(self) -> None:
+        """Discover indexed mzQC files, parse their runs, and render the module."""
         super().__init__(
             name="mzQC",
             target="mzQC",
@@ -363,42 +385,13 @@ class MzQCModule(BaseMultiqcModule):
         runs: list[MzQCRun] = []
         errors: list[str] = []
 
-        matched_paths: set[Path] = set()
         for file_info in self.find_log_files("mzqc", filecontents=False):
             path = (Path(file_info["root"]) / file_info["fn"]).resolve()
-            matched_paths.add(path)
             try:
                 runs.extend(parse_mzqc_document(path, used_names))
                 self.add_data_source(file_info)
             except (OSError, ValueError) as exc:
                 errors.append(f"{path.name}: {exc}")
-
-        # pmultiqc 0.0.48 is a plugin for MultiQC 1.35. In this compatibility
-        # path, third-party search patterns can be registered after MultiQC has
-        # already built its file index. When that happens find_log_files() is
-        # empty even though the user explicitly supplied .mzQC inputs. Fall
-        # back to the analysis paths already selected by MultiQC so that the
-        # mzQC module remains usable without requiring a separate conversion or
-        # configuration file. Once the core index supplies matches, this path
-        # is not used and normal MultiQC filtering / data-source handling wins.
-        if not matched_paths:
-            analysis_dirs = getattr(config, "analysis_dir", []) or []
-            fallback_paths: set[Path] = set()
-            for analysis_dir in analysis_dirs:
-                candidate = Path(analysis_dir).expanduser()
-                if candidate.is_file() and candidate.suffix == ".mzQC":
-                    fallback_paths.add(candidate.resolve())
-                elif candidate.is_dir():
-                    fallback_paths.update(
-                        path.resolve()
-                        for path in candidate.rglob("*.mzQC")
-                        if path.is_file()
-                    )
-            for path in sorted(fallback_paths):
-                try:
-                    runs.extend(parse_mzqc_document(path, used_names))
-                except (OSError, ValueError) as exc:
-                    errors.append(f"{path.name}: {exc}")
 
         if errors:
             for message in errors:
@@ -408,6 +401,7 @@ class MzQCModule(BaseMultiqcModule):
         self._draw_report()
 
     def _draw_report(self) -> None:
+        """Render overview, category, general-statistics, and raw-data outputs."""
         self.add_software_version(None)
         if not self.runs:
             raise ModuleNoSamplesFound
@@ -417,6 +411,7 @@ class MzQCModule(BaseMultiqcModule):
             "source_file": {"title": "mzQC file"},
             "input_file": {"title": "Input file"},
             "instrument": {"title": "Instrument"},
+            "acquisition_method": {"title": "Acquisition method"},
             "software": {"title": "Analysis software"},
             "provenance": {"title": "Provenance / evidence"},
         }
@@ -458,6 +453,7 @@ class MzQCModule(BaseMultiqcModule):
         self.write_data_file(_all_metric_data(self.runs), "multiqc_mzqc")
 
     def _run_overview_data(self) -> dict[str, dict[str, Any]]:
+        """Build one metadata overview row per parsed mzQC run."""
         result: dict[str, dict[str, Any]] = {}
         for run in self.runs:
             result[run.sample_name] = {
@@ -471,6 +467,7 @@ class MzQCModule(BaseMultiqcModule):
         return result
 
     def _add_category_table(self, title: str, anchor: str, categories: set[str]) -> None:
+        """Add a metric table when at least one run has data for the category."""
         data, headers = _metric_data(self.runs, categories)
         if not any(row for row in data.values()):
             return
@@ -497,8 +494,9 @@ class MzQCModule(BaseMultiqcModule):
         )
 
     @staticmethod
-    def _preferred_general_stat_keys(headers: dict[str, dict[str, Any]]) -> set[str]:
-        preferred: set[str] = set()
+    def _preferred_general_stat_keys(headers: dict[str, dict[str, Any]]) -> list[str]:
+        """Choose up to eight preferred General Statistics columns deterministically."""
+        preferred: list[str] = []
         patterns = (
             "number of ms1 spectra",
             "number of ms2 spectra",
@@ -513,7 +511,11 @@ class MzQCModule(BaseMultiqcModule):
         for key, header in headers.items():
             title = str(header.get("title", "")).casefold()
             if any(pattern in title for pattern in patterns):
-                preferred.add(key)
+                preferred.append(key)
         if len(preferred) < 2:
-            preferred.update(list(headers)[:2])
-        return set(list(preferred)[:8])
+            for key in headers:
+                if key not in preferred:
+                    preferred.append(key)
+                if len(preferred) >= 2:
+                    break
+        return preferred[:8]

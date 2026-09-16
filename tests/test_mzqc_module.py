@@ -10,13 +10,15 @@ from pathlib import Path
 
 import pytest
 
-from pmultiqc.modules.mzqc import MzQCModule, MzQCRun, parse_mzqc_document
+from pmultiqc.modules.mzqc import MzQCMetric, MzQCModule, MzQCRun, parse_mzqc_document
+from pmultiqc.modules.mzqc.mzqc import _metric_data
 
 
 FIXTURE_DIR = Path("tests/resources/mzqc")
 
 
 def test_parse_single_file_returns_one_run():
+    """Parse one standards-shaped document and expose its run metadata."""
     runs = parse_mzqc_document(FIXTURE_DIR / "run1.mzQC")
     assert len(runs) == 1
     assert isinstance(runs[0], MzQCRun)
@@ -28,6 +30,7 @@ def test_parse_single_file_returns_one_run():
 
 
 def test_parse_single_document_with_multiple_run_qualities():
+    """Preserve every runQuality object in a multi-run mzQC document."""
     used = set()
     runs = parse_mzqc_document(FIXTURE_DIR / "multi_run.mzQC", used)
 
@@ -43,6 +46,7 @@ def test_parse_single_document_with_multiple_run_qualities():
 
 
 def test_parse_multiple_files_keeps_runs_independent():
+    """Keep source identity intact when aggregating separate mzQC files."""
     used = set()
     runs = []
     for path in sorted(FIXTURE_DIR.glob("run[12].mzQC")):
@@ -52,7 +56,50 @@ def test_parse_multiple_files_keeps_runs_independent():
     assert [run.source_path.name for run in runs] == ["run1.mzQC", "run2.mzQC"]
 
 
+def test_legacy_singular_run_quality_is_supported(tmp_path):
+    """Accept pmultiqc outputs that used the legacy singular runQuality key."""
+    source = json.loads((FIXTURE_DIR / "run1.mzQC").read_text())
+    source["mzQC"]["runQuality"] = source["mzQC"].pop("runQualities")
+    path = tmp_path / "legacy.mzQC"
+    path.write_text(json.dumps(source), encoding="utf-8")
+
+    runs = parse_mzqc_document(path)
+
+    assert [run.sample_name for run in runs] == ["synthetic_run_1"]
+
+
+def test_general_statistics_exclude_two_endpoint_ranges():
+    """Keep range endpoints out of the scalar-only General Statistics payload."""
+    run = MzQCRun(
+        sample_name="run",
+        source_path=Path("run.mzQC"),
+        metadata={},
+        metrics=(
+            MzQCMetric("MS:range", "mass error range", [1.0, 2.0]),
+            MzQCMetric("MS:scalar", "number of MS2 spectra", 123),
+        ),
+    )
+
+    data, headers = _metric_data([run], numeric_only=True)
+
+    assert data == {"run": {"MS_scalar": 123}}
+    assert set(headers) == {"MS_scalar"}
+
+
+def test_preferred_general_stat_selection_preserves_header_order():
+    """Select preferred General Statistics columns in deterministic encounter order."""
+    headers = {
+        f"metric_{index}": {"title": f"number of spectra {index}"}
+        for index in range(10)
+    }
+
+    assert MzQCModule._preferred_general_stat_keys(headers) == [
+        f"metric_{index}" for index in range(8)
+    ]
+
+
 def test_duplicate_run_labels_are_disambiguated(tmp_path):
+    """Disambiguate repeated run labels without collapsing separate runs."""
     source = json.loads((FIXTURE_DIR / "run2.mzQC").read_text())
     source["mzQC"]["runQualities"][0]["metadata"]["label"] = "same"
     first = tmp_path / "a.mzQC"
@@ -66,6 +113,7 @@ def test_duplicate_run_labels_are_disambiguated(tmp_path):
 
 
 def test_invalid_mzqc_is_rejected(tmp_path):
+    """Reject JSON documents without an mzQC root object."""
     path = tmp_path / "bad.mzQC"
     path.write_text('{"not_mzqc": {}}')
     with pytest.raises(ValueError, match="missing mzQC root"):
@@ -73,14 +121,15 @@ def test_invalid_mzqc_is_rejected(tmp_path):
 
 
 def test_module_imports_with_multiqc():
+    """Expose the module when MultiQC is installed."""
     pytest.importorskip("multiqc")
     assert MzQCModule is not None
-
 
 
 def _run_multiqc(
     tmp_path: Path, input_path: Path
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
+    """Run the mzQC module through the real MultiQC CLI for integration tests."""
     multiqc_exe = shutil.which("multiqc")
     if not multiqc_exe:
         pytest.skip("MultiQC executable not installed")
@@ -97,17 +146,23 @@ def _run_multiqc(
             str(output),
         ],
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
     )
     return result, output / "multiqc_report.html"
 
 
 def test_multiqc_cli_aggregates_multiple_mzqc_documents(tmp_path):
+    """Aggregate multiple mzQC files into one MultiQC report."""
     pytest.importorskip("multiqc")
     result, report = _run_multiqc(tmp_path, FIXTURE_DIR)
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
     assert report.exists()
     html = report.read_text(errors="replace")
+    assert "Acquisition method" in html
+    assert "Data-dependent acquisition" in html
+    assert "run1.mzQC" in html
     for sample in (
         "synthetic_run_1",
         "synthetic_run_2",
@@ -119,6 +174,7 @@ def test_multiqc_cli_aggregates_multiple_mzqc_documents(tmp_path):
 
 
 def test_multiqc_cli_aggregates_multiple_run_quality_objects(tmp_path):
+    """Render all runQuality objects from a single multi-run document."""
     pytest.importorskip("multiqc")
     result, report = _run_multiqc(tmp_path, FIXTURE_DIR / "multi_run.mzQC")
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
@@ -159,6 +215,8 @@ def test_real_prideqc_fixtures_can_be_run_when_provided(tmp_path):
             str(tmp_path / "report"),
         ],
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
     )
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
@@ -170,8 +228,7 @@ def test_real_prideqc_fixtures_can_be_run_when_provided(tmp_path):
 
 
 def test_scalar_metric_columns_are_consistent_across_runs():
-    from pmultiqc.modules.mzqc.mzqc import _metric_data
-
+    """Use stable metric keys across runs with overlapping scalar terms."""
     used = set()
     runs = parse_mzqc_document(FIXTURE_DIR / "run1.mzQC", used)
     runs.extend(parse_mzqc_document(FIXTURE_DIR / "run2.mzQC", used))
