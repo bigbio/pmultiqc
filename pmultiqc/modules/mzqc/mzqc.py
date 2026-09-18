@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
+from math import log10
 from pathlib import Path
+from statistics import median
 from typing import Any
 
 from multiqc.base_module import BaseMultiqcModule, ModuleNoSamplesFound
-from multiqc.plots import table
+from multiqc.plots import bargraph, heatmap, scatter, table
 
 
 @dataclass(frozen=True, slots=True)
@@ -353,6 +355,348 @@ def _all_metric_data(runs: list[MzQCRun]) -> dict[str, dict[str, Any]]:
     return result
 
 
+MASS_ERROR_METRIC_NAMES = {
+    "precursor_precision_ppm": "estimated precursor mass error precision",
+    "precursor_precision_da": "estimated precursor mass error precision in daltons",
+    "fragment_precision_ppm": "estimated fragment mass error precision",
+    "fragment_precision_da": "estimated fragment mass error precision in daltons",
+    "precursor_tolerance_ppm": "suggested precursor search tolerance",
+    "fragment_tolerance_ppm": "suggested fragment search tolerance",
+    "fragment_tolerance_da": "suggested fragment search tolerance in daltons",
+    "diagnostics": "mass error estimator diagnostics",
+}
+MASS_SHIFT_METRIC_NAME = "putative modification mass shifts"
+MASS_SHIFT_DIAGNOSTICS_NAME = "mass shift scout diagnostics"
+MASS_SHIFT_CLASS_ORDER = (
+    "putative-ptm",
+    "sample-prep-modification",
+    "putative-modification",
+    "mass-compatible-other",
+    "unknown",
+    "isotope-like",
+    "adduct-like",
+)
+
+
+def _metric_named(run: MzQCRun, name: str) -> MzQCMetric | None:
+    """Return the first metric with the exact report-contract name."""
+    wanted = name.casefold()
+    return next((metric for metric in run.metrics if metric.name.casefold() == wanted), None)
+
+
+def _structured_value(run: MzQCRun, name: str, expected: type) -> Any:
+    """Return one structured metric only when it has the expected JSON shape."""
+    metric = _metric_named(run, name)
+    return metric.value if metric is not None and isinstance(metric.value, expected) else None
+
+
+def _finite_number(value: Any) -> int | float | None:
+    """Return an ordinary JSON number without accepting booleans."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return value
+
+
+def _nested_number(value: dict[str, Any] | None, key: str) -> int | float | None:
+    if value is None:
+        return None
+    return _finite_number(value.get(key))
+
+
+def _mass_accuracy_report_data(
+    runs: list[MzQCRun],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Extract report-ready mass precision/tolerance values from prideQC mzQC annotations."""
+    data: dict[str, dict[str, Any]] = {}
+    ppm_plot: dict[str, dict[str, Any]] = {}
+    for run in runs:
+        precursor_precision = _structured_value(
+            run, MASS_ERROR_METRIC_NAMES["precursor_precision_ppm"], dict
+        )
+        fragment_precision = _structured_value(
+            run, MASS_ERROR_METRIC_NAMES["fragment_precision_ppm"], dict
+        )
+        precursor_tolerance = _structured_value(
+            run, MASS_ERROR_METRIC_NAMES["precursor_tolerance_ppm"], dict
+        )
+        fragment_tolerance = _structured_value(
+            run, MASS_ERROR_METRIC_NAMES["fragment_tolerance_ppm"], dict
+        )
+        fragment_tolerance_da = _structured_value(
+            run, MASS_ERROR_METRIC_NAMES["fragment_tolerance_da"], dict
+        )
+        diagnostics = _structured_value(run, MASS_ERROR_METRIC_NAMES["diagnostics"], dict)
+
+        row: dict[str, Any] = {}
+        fields = {
+            "precursor_sigma_ppm": _nested_number(precursor_precision, "single_measurement_sigma"),
+            "precursor_tolerance_ppm": _nested_number(
+                precursor_tolerance, "suggested_tolerance"
+            ),
+            "fragment_sigma_ppm": _nested_number(fragment_precision, "single_measurement_sigma"),
+            "fragment_tolerance_ppm": _nested_number(fragment_tolerance, "suggested_tolerance"),
+            "fragment_tolerance_da": _nested_number(fragment_tolerance_da, "suggested_tolerance"),
+            "precursor_repeat_pairs": _nested_number(diagnostics, "precursor_paired_spectra"),
+            "precursor_clusters": _nested_number(diagnostics, "precursor_clusters_used"),
+            "fragment_pairs": _nested_number(diagnostics, "fragment_pairs"),
+        }
+        for key, value in fields.items():
+            if value is not None:
+                row[key] = value
+
+        regime = None if diagnostics is None else diagnostics.get("fragment_resolution_regime")
+        if isinstance(regime, str) and regime:
+            row["fragment_resolution_regime"] = regime
+        confidence = None if precursor_tolerance is None else precursor_tolerance.get("confidence")
+        if isinstance(confidence, str) and confidence:
+            row["precursor_tolerance_confidence"] = confidence
+        fragment_payload = fragment_tolerance or fragment_tolerance_da
+        fragment_confidence = (
+            None if fragment_payload is None else fragment_payload.get("confidence")
+        )
+        if isinstance(fragment_confidence, str) and fragment_confidence:
+            row["fragment_tolerance_confidence"] = fragment_confidence
+
+        if row:
+            data[run.sample_name] = row
+
+        ppm_row = {
+            key: value
+            for key, value in (
+                ("Precursor tolerance", fields["precursor_tolerance_ppm"]),
+                ("Fragment tolerance", fields["fragment_tolerance_ppm"]),
+            )
+            if value is not None
+        }
+        if ppm_row:
+            ppm_plot[run.sample_name] = ppm_row
+    return data, ppm_plot
+
+
+def _mass_accuracy_summary_text(data: dict[str, dict[str, Any]], total_runs: int) -> str:
+    """Create a compact cohort summary without inventing unavailable tolerances."""
+    precursor = [
+        float(row["precursor_tolerance_ppm"])
+        for row in data.values()
+        if "precursor_tolerance_ppm" in row
+    ]
+    fragment = [
+        float(row["fragment_tolerance_ppm"])
+        for row in data.values()
+        if "fragment_tolerance_ppm" in row
+    ]
+    clauses = []
+    if precursor:
+        clauses.append(
+            f"precursor ppm tolerance available for {len(precursor)}/{total_runs} runs "
+            f"(median {median(precursor):.3g} ppm; range "
+            f"{min(precursor):.3g}-{max(precursor):.3g})"
+        )
+    if fragment:
+        clauses.append(
+            f"high-resolution fragment ppm tolerance available for {len(fragment)}/{total_runs} "
+            f"runs (median {median(fragment):.3g} ppm; range "
+            f"{min(fragment):.3g}-{max(fragment):.3g})"
+        )
+    if not clauses:
+        return "No supported ppm tolerance estimates were present."
+    return "; ".join(clauses) + "."
+
+
+def _mass_shift_records(run: MzQCRun) -> list[dict[str, Any]]:
+    """Return the bounded QC-facing mass-shift records for one run."""
+    value = _structured_value(run, MASS_SHIFT_METRIC_NAME, list)
+    if value is None:
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _mass_shift_candidate_names(record: dict[str, Any]) -> list[str]:
+    """Return displayed mass-compatible candidate labels in prideQC order."""
+    names: list[str] = []
+    candidates = record.get("unimod_candidates")
+    if isinstance(candidates, list):
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            name = candidate.get("name") or candidate.get("unimod_name")
+            if isinstance(name, str) and name and name not in names:
+                names.append(name)
+    if names:
+        return names
+    artifact = record.get("artifact_candidate")
+    if isinstance(artifact, dict):
+        name = artifact.get("artifact_name") or artifact.get("name")
+        if isinstance(name, str) and name:
+            return [name]
+    return []
+
+
+def _mass_shift_candidate_name(record: dict[str, Any]) -> str:
+    """Return the first displayed candidate or artifact label."""
+    names = _mass_shift_candidate_names(record)
+    return names[0] if names else ""
+
+
+def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
+    """Build bounded tables and plots from prideQC's reported mass-shift evidence."""
+    by_run: dict[str, list[dict[str, Any]]] = {}
+    diagnostics: dict[str, dict[str, Any]] = {}
+    classification_plot: dict[str, dict[str, int]] = {}
+    scatter_data: dict[str, list[dict[str, float]]] = defaultdict(list)
+    all_rows: list[tuple[str, dict[str, Any]]] = []
+    class_counts: Counter[str] = Counter()
+    confidence_counts: Counter[str] = Counter()
+
+    family_total_support: Counter[float] = Counter()
+    family_best: dict[float, tuple[int, dict[str, Any]]] = {}
+    family_by_run: dict[str, Counter[float]] = defaultdict(Counter)
+
+    for run in runs:
+        records = _mass_shift_records(run)
+        if records:
+            by_run[run.sample_name] = records
+        diag = _structured_value(run, MASS_SHIFT_DIAGNOSTICS_NAME, dict)
+        if diag is not None:
+            diagnostics[run.sample_name] = diag
+
+        row_counts = Counter(
+            str(record.get("classification") or "unknown") for record in records
+        )
+        if row_counts:
+            classification_plot[run.sample_name] = {
+                category: row_counts[category]
+                for category in MASS_SHIFT_CLASS_ORDER
+                if row_counts[category]
+            }
+
+        for record in records:
+            classification = str(record.get("classification") or "unknown")
+            confidence = str(record.get("confidence") or "")
+            class_counts[classification] += 1
+            if confidence:
+                confidence_counts[confidence] += 1
+            all_rows.append((run.sample_name, record))
+
+            delta = _finite_number(record.get("delta_mass_da"))
+            support = _finite_number(record.get("pair_support"))
+            if delta is None or support is None:
+                continue
+            scatter_data[classification].append({"x": float(delta), "y": float(support)})
+
+            family = round(float(delta), 2)
+            support_i = int(support)
+            family_total_support[family] += support_i
+            family_by_run[run.sample_name][family] += support_i
+            previous = family_best.get(family)
+            if previous is None or support_i > previous[0]:
+                family_best[family] = (support_i, record)
+
+    top_families = [family for family, _ in family_total_support.most_common(20)]
+    family_labels: dict[float, str] = {}
+    for family in top_families:
+        record = family_best[family][1]
+        candidate = _mass_shift_candidate_name(record)
+        classification = str(record.get("classification") or "unknown")
+        suffix = candidate or classification
+        representative = float(record.get("delta_mass_da", family))
+        family_labels[family] = f"{representative:+.3f} Da · {suffix}"
+
+    heatmap_data: dict[str, dict[str, float]] = {}
+    if top_families:
+        for run in runs:
+            counts = family_by_run.get(run.sample_name, Counter())
+            heatmap_data[run.sample_name] = {
+                family_labels[family]: log10(1.0 + counts[family])
+                for family in top_families
+            }
+
+    return {
+        "by_run": by_run,
+        "diagnostics": diagnostics,
+        "classification_plot": classification_plot,
+        "scatter_data": dict(scatter_data),
+        "all_rows": all_rows,
+        "class_counts": class_counts,
+        "confidence_counts": confidence_counts,
+        "heatmap_data": heatmap_data,
+    }
+
+
+def _mass_shift_summary_table(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Create one report-level summary row for the bounded mass-shift scout output."""
+    diagnostics = report["diagnostics"]
+    raw_clusters = sum(
+        int(value.get("raw_recurrent_clusters", 0) or 0) for value in diagnostics.values()
+    )
+    profile_ms2 = sum(
+        int(value.get("explicit_profile_ms2", 0) or 0)
+        for value in diagnostics.values()
+    )
+    profile_failures = sum(
+        int(value.get("profile_peak_pick_failures", 0) or 0) for value in diagnostics.values()
+    )
+    classes: Counter[str] = report["class_counts"]
+    confidence: Counter[str] = report["confidence_counts"]
+    reported = sum(classes.values())
+    return {
+        "Cohort": {
+            "runs_analyzed": len(diagnostics) or len(report["by_run"]),
+            "runs_with_mass_shifts": len(report["by_run"]),
+            "reported_clusters": reported,
+            "raw_recurrent_clusters": raw_clusters,
+            "high_support": confidence["high-support"],
+            "putative_ptm": classes["putative-ptm"],
+            "sample_prep": classes["sample-prep-modification"],
+            "artifacts": classes["isotope-like"] + classes["adduct-like"],
+            "unknown": classes["unknown"],
+            "profile_ms2": profile_ms2,
+            "profile_peak_pick_failures": profile_failures,
+        }
+    }
+
+
+def _mass_shift_cluster_table(
+    report: dict[str, Any], limit: int = 250
+) -> dict[str, dict[str, Any]]:
+    """Return the strongest reported clusters for an interactive report table."""
+    rows = sorted(
+        report["all_rows"],
+        key=lambda item: int(item[1].get("pair_support", 0) or 0),
+        reverse=True,
+    )[:limit]
+    result: dict[str, dict[str, Any]] = {}
+    for index, (run_name, record) in enumerate(rows, start=1):
+        delta = _finite_number(record.get("delta_mass_da"))
+        candidate_names = _mass_shift_candidate_names(record)
+        candidate = candidate_names[0] if candidate_names else ""
+        result[f"{index:03d} · {run_name}"] = {
+            "run": run_name,
+            "delta_mass_da": delta,
+            "classification": str(record.get("classification") or ""),
+            "candidate": candidate,
+            "alternative_candidates": "; ".join(candidate_names[1:]),
+            "pair_support": int(record.get("pair_support", 0) or 0),
+            "unique_spectra": int(record.get("unique_spectrum_support", 0) or 0),
+            "spectral_similarity": _finite_number(record.get("median_spectral_similarity")),
+            "confidence": str(record.get("confidence") or ""),
+            "mass_residual_da": (
+                _finite_number(
+                    record["unimod_candidates"][0].get(
+                        "residual_da",
+                        record["unimod_candidates"][0].get("unimod_residual_da"),
+                    )
+                )
+                if candidate
+                and isinstance(record.get("unimod_candidates"), list)
+                and record["unimod_candidates"]
+                and isinstance(record["unimod_candidates"][0], dict)
+                else None
+            ),
+        }
+    return result
+
+
 class MzQCModule(BaseMultiqcModule):
     """
     MultiQC module for mzQC 1.0 run-level quality-control documents.
@@ -440,7 +784,13 @@ class MzQCModule(BaseMultiqcModule):
         self._add_category_table("Chromatography", "mzqc-chromatography", {"chromatography"})
         self._add_category_table("MS1 / MS2 Summary", "mzqc-spectra", {"spectra"})
         self._add_category_table("Acquisition", "mzqc-acquisition", {"acquisition"})
-        self._add_category_table("Mass Accuracy / Precision", "mzqc-mass", {"mass"})
+        self._add_mass_accuracy_sections()
+        self._add_mass_shift_sections()
+        self._add_category_table(
+            "Other Mass Accuracy / Precision Metrics",
+            "mzqc-mass-other",
+            {"mass"},
+        )
         self._add_category_table("Other Scalar QC Metrics", "mzqc-other", {"other"})
 
         general_data, headers = _metric_data(self.runs, numeric_only=True)
@@ -450,6 +800,7 @@ class MzQCModule(BaseMultiqcModule):
                 header["hidden"] = key not in visible_keys
             self.general_stats_addcols(general_data, headers)
 
+        self._add_mass_accuracy_general_stats()
         self.write_data_file(_all_metric_data(self.runs), "multiqc_mzqc")
 
     def _run_overview_data(self) -> dict[str, dict[str, Any]]:
@@ -492,6 +843,298 @@ class MzQCModule(BaseMultiqcModule):
                 },
             ),
         )
+
+    def _add_mass_accuracy_sections(self) -> None:
+        """Render prideQC's frozen mass-precision/tolerance evidence when present."""
+        data, ppm_plot = _mass_accuracy_report_data(self.runs)
+        if not data:
+            return
+
+        headers = {
+            "precursor_sigma_ppm": {
+                "title": "Precursor precision σ",
+                "description": "Robust single-measurement precursor precision estimate.",
+                "suffix": " ppm",
+                "format": "{:,.3f}",
+            },
+            "precursor_tolerance_ppm": {
+                "title": "Precursor search tolerance",
+                "description": (
+                    "Precision-derived suggested precursor search-tolerance starting point."
+                ),
+                "suffix": " ppm",
+                "format": "{:,.3f}",
+            },
+            "fragment_sigma_ppm": {
+                "title": "Fragment precision σ",
+                "description": "Robust single-measurement fragment precision estimate.",
+                "suffix": " ppm",
+                "format": "{:,.3f}",
+            },
+            "fragment_tolerance_ppm": {
+                "title": "Fragment search tolerance",
+                "description": "Suggested high-resolution fragment search tolerance.",
+                "suffix": " ppm",
+                "format": "{:,.3f}",
+            },
+            "fragment_tolerance_da": {
+                "title": "Fragment search tolerance",
+                "description": "Suggested low-resolution fragment search tolerance.",
+                "suffix": " Da",
+                "format": "{:,.4f}",
+            },
+            "fragment_resolution_regime": {"title": "Fragment regime"},
+            "precursor_tolerance_confidence": {"title": "Precursor confidence"},
+            "fragment_tolerance_confidence": {"title": "Fragment confidence"},
+            "precursor_repeat_pairs": {
+                "title": "Precursor repeat pairs",
+                "format": "{:,.0f}",
+            },
+            "precursor_clusters": {"title": "Precursor clusters", "format": "{:,.0f}"},
+            "fragment_pairs": {"title": "Fragment pairs", "format": "{:,.0f}"},
+        }
+
+        if ppm_plot:
+            self.add_section(
+                name="Estimated Search Tolerances",
+                anchor="mzqc-estimated-search-tolerances",
+                description=(
+                    _mass_accuracy_summary_text(data, len(self.runs))
+                    + " Values are measurement-precision-derived starting points, not recovered "
+                    "historical database-search settings."
+                ),
+                plot=bargraph.plot(
+                    data=ppm_plot,
+                    pconfig={
+                        "id": "mzqc_estimated_search_tolerances_ppm",
+                        "title": "Estimated Search Tolerances",
+                        "ylab": "Tolerance (ppm)",
+                        "tt_decimals": 3,
+                        "cpswitch": False,
+                        "save_data_file": False,
+                    },
+                ),
+            )
+
+        self.add_section(
+            name="Mass Accuracy & Tolerance Details",
+            anchor="mzqc-mass-accuracy-tolerance-details",
+            description=(
+                "Run-level precision, suggested tolerances and estimator support from prideQC. "
+                "Unavailable or abstained estimates remain blank."
+            ),
+            plot=table.plot(
+                data,
+                headers=headers,
+                pconfig={
+                    "id": "mzqc_mass_accuracy_tolerance_table",
+                    "title": "Mass Accuracy & Tolerance Details",
+                    "save_file": False,
+                    "raw_data_fn": "mzqc_mass_accuracy_tolerance",
+                    "sort_rows": False,
+                    "only_defined_headers": True,
+                    "no_violin": True,
+                    "save_data_file": False,
+                },
+            ),
+        )
+
+    def _add_mass_accuracy_general_stats(self) -> None:
+        """Expose the two most actionable ppm tolerances in General Statistics."""
+        data, _ = _mass_accuracy_report_data(self.runs)
+        general_data: dict[str, dict[str, Any]] = {}
+        for sample, row in data.items():
+            values: dict[str, Any] = {}
+            if "precursor_tolerance_ppm" in row:
+                values["prideqc_precursor_tolerance_ppm"] = row["precursor_tolerance_ppm"]
+            if "fragment_tolerance_ppm" in row:
+                values["prideqc_fragment_tolerance_ppm"] = row["fragment_tolerance_ppm"]
+            if values:
+                general_data[sample] = values
+        if not general_data:
+            return
+        self.general_stats_addcols(
+            general_data,
+            {
+                "prideqc_precursor_tolerance_ppm": {
+                    "title": "Precursor tol.",
+                    "description": "prideQC precision-derived precursor search tolerance",
+                    "suffix": " ppm",
+                    "format": "{:,.2f}",
+                    "hidden": False,
+                },
+                "prideqc_fragment_tolerance_ppm": {
+                    "title": "Fragment tol.",
+                    "description": (
+                        "prideQC precision-derived high-resolution fragment search tolerance"
+                    ),
+                    "suffix": " ppm",
+                    "format": "{:,.2f}",
+                    "hidden": False,
+                },
+            },
+        )
+
+    def _add_mass_shift_sections(self) -> None:
+        """Render bounded recurrent mass-shift evidence without implying PTM identification."""
+        report = _mass_shift_report_data(self.runs)
+        if not report["by_run"] and not report["diagnostics"]:
+            return
+
+        summary_data = _mass_shift_summary_table(report)
+        summary_headers = {
+            "runs_analyzed": {"title": "Runs analysed", "format": "{:,.0f}"},
+            "runs_with_mass_shifts": {"title": "Runs with shifts", "format": "{:,.0f}"},
+            "reported_clusters": {"title": "Reported clusters", "format": "{:,.0f}"},
+            "raw_recurrent_clusters": {
+                "title": "Raw recurrent clusters",
+                "format": "{:,.0f}",
+            },
+            "high_support": {"title": "High-support", "format": "{:,.0f}"},
+            "putative_ptm": {"title": "Putative PTM-like", "format": "{:,.0f}"},
+            "sample_prep": {"title": "Sample-prep", "format": "{:,.0f}"},
+            "artifacts": {"title": "Isotope / adduct", "format": "{:,.0f}"},
+            "unknown": {"title": "Unknown", "format": "{:,.0f}"},
+            "profile_ms2": {"title": "Profile MS2", "format": "{:,.0f}"},
+            "profile_peak_pick_failures": {
+                "title": "Peak-pick failures",
+                "format": "{:,.0f}",
+            },
+        }
+        self.add_section(
+            name="Putative Modification Mass Shifts",
+            anchor="mzqc-putative-modification-mass-shifts",
+            description=(
+                "Identification-free recurrent neutral precursor-mass differences from related "
+                "MS2 spectra. Candidate annotations are mass-compatible interpretations, not "
+                "peptide- or site-localized PTM identifications."
+            ),
+            plot=table.plot(
+                summary_data,
+                headers=summary_headers,
+                pconfig={
+                    "id": "mzqc_mass_shift_summary",
+                    "title": "Mass-shift Scout Summary",
+                    "only_defined_headers": True,
+                    "sort_rows": False,
+                    "no_violin": True,
+                    "save_data_file": False,
+                },
+            ),
+        )
+
+        if report["classification_plot"]:
+            self.add_section(
+                name="Mass-shift Classification by Run",
+                anchor="mzqc-mass-shift-classification",
+                description=(
+                    "QC-facing reported clusters grouped by prideQC classification. Raw and "
+                    "suppressed clusters remain available in the mzQC diagnostics."
+                ),
+                plot=bargraph.plot(
+                    data=report["classification_plot"],
+                    pconfig={
+                        "id": "mzqc_mass_shift_classification",
+                        "title": "Mass-shift Classification by Run",
+                        "ylab": "Reported clusters",
+                        "tt_decimals": 0,
+                        "cpswitch": False,
+                        "save_data_file": False,
+                    },
+                ),
+            )
+
+        if report["heatmap_data"]:
+            self.add_section(
+                name="Recurrent Mass-shift Families",
+                anchor="mzqc-mass-shift-family-heatmap",
+                description=(
+                    "Top report-wide mass-shift families grouped into 0.01-Da display bins. "
+                    "Cell intensity is log10(1 + pair support), so lower-support recurrent "
+                    "families remain visible alongside dominant chemistry."
+                ),
+                plot=heatmap.plot(
+                    data=report["heatmap_data"],
+                    pconfig={
+                        "id": "mzqc_mass_shift_family_heatmap",
+                        "title": "Recurrent Mass-shift Families",
+                        "xlab": "Mass-shift family",
+                        "ylab": "Run",
+                        "zlab": "log10(1 + pair support)",
+                        "tt_decimals": 3,
+                        "square": False,
+                        "cluster_rows": False,
+                        "cluster_cols": False,
+                        "save_data_file": False,
+                    },
+                ),
+            )
+
+        if report["scatter_data"]:
+            self.add_section(
+                name="Mass-shift Landscape",
+                anchor="mzqc-mass-shift-landscape",
+                description=(
+                    "Each point is one bounded reported recurrent cluster. The x-axis is absolute "
+                    "neutral delta mass and the y-axis is related-spectrum pair support."
+                ),
+                plot=scatter.plot(
+                    data=report["scatter_data"],
+                    pconfig={
+                        "id": "mzqc_mass_shift_landscape",
+                        "title": "Mass-shift Landscape",
+                        "xlab": "Delta mass (Da)",
+                        "ylab": "Pair support",
+                        "showlegend": True,
+                        "save_data_file": False,
+                    },
+                ),
+            )
+
+        cluster_table = _mass_shift_cluster_table(report)
+        if cluster_table:
+            self.add_section(
+                name="Top Mass-shift Candidates",
+                anchor="mzqc-top-mass-shift-candidates",
+                description=(
+                    "Strongest 250 reported clusters by pair support. The complete bounded "
+                    "structured evidence remains available in the mzQC data export."
+                ),
+                plot=table.plot(
+                    cluster_table,
+                    headers={
+                        "run": {"title": "Run"},
+                        "delta_mass_da": {
+                            "title": "Δ mass",
+                            "suffix": " Da",
+                            "format": "{:,.5f}",
+                        },
+                        "classification": {"title": "Classification"},
+                        "candidate": {"title": "Mass-compatible candidate"},
+                        "alternative_candidates": {"title": "Alternative candidates"},
+                        "pair_support": {"title": "Pair support", "format": "{:,.0f}"},
+                        "unique_spectra": {"title": "Unique spectra", "format": "{:,.0f}"},
+                        "spectral_similarity": {
+                            "title": "Median spectral similarity",
+                            "format": "{:,.3f}",
+                        },
+                        "confidence": {"title": "Confidence"},
+                        "mass_residual_da": {
+                            "title": "Candidate residual",
+                            "suffix": " Da",
+                            "format": "{:,.5f}",
+                        },
+                    },
+                    pconfig={
+                        "id": "mzqc_top_mass_shift_candidates",
+                        "title": "Top Mass-shift Candidates",
+                        "only_defined_headers": True,
+                        "sort_rows": False,
+                        "no_violin": True,
+                        "save_data_file": False,
+                    },
+                ),
+            )
 
     @staticmethod
     def _preferred_general_stat_keys(headers: dict[str, dict[str, Any]]) -> list[str]:
