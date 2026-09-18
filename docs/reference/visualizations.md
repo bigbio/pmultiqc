@@ -18,8 +18,8 @@ Bar charts (`multiqc.plots.bargraph`) are used for count and percentage comparis
 | **Precursor Ion Charge (ProteoBench)** | ProteoBench | Charge state distribution from ProteoBench result file. |
 | **Missing Values per Condition** | ProteoBench | Count of NA intensity values in Condition A and B. |
 | **Intensity Count per File** | ProteoBench | Number of quantified precursors per raw file. |
-| **Estimated Search Tolerances** | mzQC | Per-run prideQC precursor and high-resolution fragment search-tolerance starting points in ppm. |
-| **Mass-shift Classification by Run** | mzQC | QC-facing recurrent mass-shift clusters grouped by putative PTM, sample-prep, artifact, unknown and other classes. |
+| **Estimated Search Tolerances** | mzQC | Grouped per-run prideQC precursor and high-resolution fragment search-tolerance starting points in ppm; tolerances are compared side-by-side rather than stacked. |
+| **Mass-shift Classification by Run** | mzQC | QC-facing recurrent mass-shift clusters grouped with conservative display labels such as PTM-compatible, modification-compatible, sample-prep / artifact, isotope-like, adduct-like and unknown. |
 
 ## Line Graphs / Chromatograms
 
@@ -71,7 +71,7 @@ Scatter plots (`multiqc.plots.scatter`) display relationships between two contin
 | **Log2FC vs. Log2 Mean Intensity** | ProteoBench | MA-style plot of fold change vs. mean intensity; reveals intensity-dependent bias. |
 | **Epsilon (Deviation) Plot** | ProteoBench | Observed minus expected fold change per precursor; centered at 0 for unbiased quantification. |
 | **Log2 A vs. B** | ProteoBench | Pairwise scatter of log2 intensities for Condition A and Condition B. |
-| **Mass-shift Landscape** | mzQC | Reported recurrent neutral mass shifts versus related-spectrum pair support, grouped by prideQC classification. |
+| **Mass-shift Landscape** | mzQC | Reported recurrent neutral mass shifts versus related-spectrum pair support on a logarithmic y-axis. The legend is suppressed to avoid duplicate per-point entries; classification remains available in the companion classification plot and tables. |
 
 ## Heatmaps
 
@@ -80,7 +80,7 @@ Heatmaps (`multiqc.plots.heatmap`) display pairwise relationships in a matrix fo
 | Plot | Section | Description |
 |---|---|---|
 | **Sample Correlation Heatmap** | Heatmap | Pairwise Pearson or Spearman correlation of protein/peptide intensities between samples. Color scale from 0 (no correlation) to 1 (perfect correlation). Useful for detecting outlier samples and batch effects. |
-| **Recurrent Mass-shift Families** | mzQC | Top report-wide 0.01-Da display families across runs, shown as log10(1 + pair support). |
+| **Recurrent Mass-shift Families** | mzQC | Top 12 report-wide 0.01-Da display families across runs, labelled by observed delta mass and shown as log10(1 + pair support). Candidate chemistry remains in the candidate table rather than the heatmap axis. |
 
 ## Tables
 
@@ -95,8 +95,8 @@ Interactive sortable/filterable tables (`multiqc.plots.table`) present structure
 | **MaxQuant Parameters Table** | MaxQuant | Key search parameters extracted from parameters.txt. |
 | **DIA-NN Metadata Table** | DIA-NN | Software version, library type, and key run parameters. |
 | **mzIdentML Quantification Table** | mzIdentML | Protein-level quantification values when present in the mzid file. |
-| **Mass Accuracy & Tolerance Details** | mzQC | prideQC precursor/fragment precision, suggested search tolerances, resolution regime and estimator support. |
-| **Mass-shift Scout Summary** | mzQC | Cohort-level reported/raw recurrent cluster counts, high-support evidence, modification classes and profile-MS2 processing. |
+| **Mass Accuracy & Tolerance Details** | mzQC | prideQC precursor/fragment precision, suggested search tolerances, resolution regime and estimator support. High-resolution fragment recommendations are labelled in ppm and low-resolution recommendations in Da; estimator abstention is stated explicitly. |
+| **Mass-shift Scout Summary** | mzQC | Cohort-level reported/raw recurrent cluster counts, high-support evidence, modification classes and profile-MS2 processing. Cohorts with no reportable recurrent shifts receive an explicit no-evidence message rather than empty plots. |
 | **Top Mass-shift Candidates** | mzQC | Strongest bounded recurrent clusters with delta mass, support, spectral similarity and mass-compatible candidate ambiguity. |
 
 ## Pipeline Performance Overview (Sparklines)

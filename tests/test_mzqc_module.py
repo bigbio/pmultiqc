@@ -13,9 +13,11 @@ import pytest
 
 from pmultiqc.modules.mzqc import MzQCMetric, MzQCModule, MzQCRun, parse_mzqc_document
 from pmultiqc.modules.mzqc.mzqc import (
+    _mass_accuracy_detail_description,
     _mass_accuracy_report_data,
     _mass_shift_cluster_table,
     _mass_shift_report_data,
+    _mass_shift_summary_description,
     _mass_shift_summary_table,
     _metric_data,
 )
@@ -204,8 +206,8 @@ def test_prideqc_mass_shift_annotations_feed_summary_heatmap_and_table():
     summary = _mass_shift_summary_table(report)["Cohort"]
     table_data = _mass_shift_cluster_table(report)
 
-    assert report["classification_plot"] == {"run.raw": {"putative-ptm": 2}}
-    assert len(report["heatmap_data"]["run.raw"]) == 2
+    assert report["classification_plot"] == {"run.raw": {"PTM-compatible": 2}}
+    assert set(report["heatmap_data"]["run.raw"]) == {"+15.995 Da", "+79.966 Da"}
     assert summary["reported_clusters"] == 2
     assert summary["raw_recurrent_clusters"] == 120
     assert summary["high_support"] == 2
@@ -214,7 +216,67 @@ def test_prideqc_mass_shift_annotations_feed_summary_heatmap_and_table():
     assert len(table_data) == 2
     strongest = next(iter(table_data.values()))
     assert strongest["candidate"] == "Oxidation or Hydroxylation"
+    assert strongest["classification"] == "PTM-compatible"
     assert strongest["pair_support"] == 300
+
+
+def test_mass_shift_heatmap_is_bounded_and_uses_mass_only_axis_labels():
+    """Keep dense candidate chemistry out of the heatmap axis and cap it at 12 families."""
+    records = [
+        {
+            "delta_mass_da": float(index) + 0.123,
+            "pair_support": 1000 - index,
+            "unique_spectrum_support": 20,
+            "median_spectral_similarity": 0.8,
+            "classification": "putative-modification",
+            "confidence": "moderate",
+            "unimod_candidates": [{"name": f"Candidate {index}", "residual_da": 0.001}],
+        }
+        for index in range(15)
+    ]
+    run = MzQCRun(
+        sample_name="run.raw",
+        source_path=Path("run.mzQC"),
+        metadata={},
+        metrics=(
+            MzQCMetric("QCPRIDE:MASS_SHIFTS", "putative modification mass shifts", records),
+        ),
+    )
+
+    report = _mass_shift_report_data([run])
+    labels = list(report["heatmap_data"]["run.raw"])
+
+    assert len(labels) == 12
+    assert all(label.endswith(" Da") for label in labels)
+    assert all("Candidate" not in label for label in labels)
+    assert report["classification_plot"] == {
+        "run.raw": {"Modification-compatible": 15}
+    }
+
+
+def test_prideqc_no_data_messages_make_abstention_explicit():
+    """Explain evidence-free cohorts rather than making intentionally absent plots look broken."""
+    accuracy_data = {"run.raw": {"fragment_sigma_ppm": 140.0}}
+    assert "No runs met the estimator criteria" in _mass_accuracy_detail_description(
+        accuracy_data
+    )
+
+    run = MzQCRun(
+        sample_name="run.raw",
+        source_path=Path("run.mzQC"),
+        metadata={},
+        metrics=(
+            MzQCMetric(
+                "QCPRIDE:MASS_SHIFT_DIAGNOSTICS",
+                "mass shift scout diagnostics",
+                {"raw_recurrent_clusters": 0, "reported_clusters": 0},
+            ),
+        ),
+    )
+    report = _mass_shift_report_data([run])
+    assert "No recurrent modification-compatible mass-shift clusters" in (
+        _mass_shift_summary_description(report)
+    )
 
 
 def test_preferred_general_stat_selection_preserves_header_order():
@@ -419,6 +481,8 @@ def test_multiqc_cli_renders_prideqc_mass_accuracy_and_mass_shift_sections(tmp_p
         "Recurrent Mass-shift Families",
         "Mass-shift Landscape",
         "Top Mass-shift Candidates",
+        "Fragment tolerance (ppm)",
+        "PTM-compatible",
         "Phosphorylation",
     ):
         assert label in visible_html

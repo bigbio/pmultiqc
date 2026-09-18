@@ -376,6 +376,15 @@ MASS_SHIFT_CLASS_ORDER = (
     "isotope-like",
     "adduct-like",
 )
+MASS_SHIFT_CLASS_LABELS = {
+    "putative-ptm": "PTM-compatible",
+    "sample-prep-modification": "Sample-prep / artifact",
+    "putative-modification": "Modification-compatible",
+    "mass-compatible-other": "Other mass-compatible",
+    "unknown": "Unknown",
+    "isotope-like": "Isotope-like",
+    "adduct-like": "Adduct-like",
+}
 
 
 def _metric_named(run: MzQCRun, name: str) -> MzQCMetric | None:
@@ -473,6 +482,33 @@ def _mass_accuracy_report_data(
     return data, ppm_plot
 
 
+def _mass_accuracy_detail_description(data: dict[str, dict[str, Any]]) -> str:
+    """Explain unit choice and make estimator abstention explicit in the report."""
+    description = (
+        "Run-level precision, suggested tolerances and estimator support from prideQC. "
+        "High-resolution fragment recommendations are reported in ppm; low-resolution "
+        "fragment recommendations are reported in Da. Unavailable or abstained estimates "
+        "remain blank."
+    )
+    any_suggested_tolerance = any(
+        any(
+            key in row
+            for key in (
+                "precursor_tolerance_ppm",
+                "fragment_tolerance_ppm",
+                "fragment_tolerance_da",
+            )
+        )
+        for row in data.values()
+    )
+    if not any_suggested_tolerance:
+        description += (
+            " No runs met the estimator criteria for a suggested search tolerance; "
+            "precision diagnostics remain available below."
+        )
+    return description
+
+
 def _mass_accuracy_summary_text(data: dict[str, dict[str, Any]], total_runs: int) -> str:
     """Create a compact cohort summary without inventing unavailable tolerances."""
     precursor = [
@@ -532,12 +568,6 @@ def _mass_shift_candidate_names(record: dict[str, Any]) -> list[str]:
     return []
 
 
-def _mass_shift_candidate_name(record: dict[str, Any]) -> str:
-    """Return the first displayed candidate or artifact label."""
-    names = _mass_shift_candidate_names(record)
-    return names[0] if names else ""
-
-
 def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
     """Build bounded tables and plots from prideQC's reported mass-shift evidence."""
     by_run: dict[str, list[dict[str, Any]]] = {}
@@ -565,7 +595,7 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
         )
         if row_counts:
             classification_plot[run.sample_name] = {
-                category: row_counts[category]
+                MASS_SHIFT_CLASS_LABELS[category]: row_counts[category]
                 for category in MASS_SHIFT_CLASS_ORDER
                 if row_counts[category]
             }
@@ -592,15 +622,12 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
             if previous is None or support_i > previous[0]:
                 family_best[family] = (support_i, record)
 
-    top_families = [family for family, _ in family_total_support.most_common(20)]
+    top_families = [family for family, _ in family_total_support.most_common(12)]
     family_labels: dict[float, str] = {}
     for family in top_families:
         record = family_best[family][1]
-        candidate = _mass_shift_candidate_name(record)
-        classification = str(record.get("classification") or "unknown")
-        suffix = candidate or classification
         representative = float(record.get("delta_mass_da", family))
-        family_labels[family] = f"{representative:+.3f} Da · {suffix}"
+        family_labels[family] = f"{representative:+.3f} Da"
 
     heatmap_data: dict[str, dict[str, float]] = {}
     if top_families:
@@ -621,6 +648,21 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
         "confidence_counts": confidence_counts,
         "heatmap_data": heatmap_data,
     }
+
+
+def _mass_shift_summary_description(report: dict[str, Any]) -> str:
+    """Describe the scout conservatively and call out evidence-free cohorts."""
+    description = (
+        "Identification-free recurrent neutral precursor-mass differences from related "
+        "MS2 spectra. Candidate annotations are mass-compatible interpretations, not "
+        "peptide- or site-localized PTM identifications."
+    )
+    if not report["by_run"]:
+        description += (
+            " No recurrent modification-compatible mass-shift clusters were detected in "
+            "the analysed runs."
+        )
+    return description
 
 
 def _mass_shift_summary_table(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -673,7 +715,10 @@ def _mass_shift_cluster_table(
         result[f"{index:03d} · {run_name}"] = {
             "run": run_name,
             "delta_mass_da": delta,
-            "classification": str(record.get("classification") or ""),
+            "classification": MASS_SHIFT_CLASS_LABELS.get(
+                str(record.get("classification") or "unknown"),
+                str(record.get("classification") or "Unknown"),
+            ),
             "candidate": candidate,
             "alternative_candidates": "; ".join(candidate_names[1:]),
             "pair_support": int(record.get("pair_support", 0) or 0),
@@ -872,14 +917,18 @@ class MzQCModule(BaseMultiqcModule):
                 "format": "{:,.3f}",
             },
             "fragment_tolerance_ppm": {
-                "title": "Fragment search tolerance",
-                "description": "Suggested high-resolution fragment search tolerance.",
+                "title": "Fragment tolerance (ppm)",
+                "description": (
+                    "Suggested fragment search tolerance for high-resolution fragment data."
+                ),
                 "suffix": " ppm",
                 "format": "{:,.3f}",
             },
             "fragment_tolerance_da": {
-                "title": "Fragment search tolerance",
-                "description": "Suggested low-resolution fragment search tolerance.",
+                "title": "Fragment tolerance (Da)",
+                "description": (
+                    "Suggested fragment search tolerance for low-resolution fragment data."
+                ),
                 "suffix": " Da",
                 "format": "{:,.4f}",
             },
@@ -911,6 +960,8 @@ class MzQCModule(BaseMultiqcModule):
                         "ylab": "Tolerance (ppm)",
                         "tt_decimals": 3,
                         "cpswitch": False,
+                        "stacking": "group",
+                        "sort_samples": False,
                         "save_data_file": False,
                     },
                 ),
@@ -919,10 +970,7 @@ class MzQCModule(BaseMultiqcModule):
         self.add_section(
             name="Mass Accuracy & Tolerance Details",
             anchor="mzqc-mass-accuracy-tolerance-details",
-            description=(
-                "Run-level precision, suggested tolerances and estimator support from prideQC. "
-                "Unavailable or abstained estimates remain blank."
-            ),
+            description=_mass_accuracy_detail_description(data),
             plot=table.plot(
                 data,
                 headers=headers,
@@ -991,8 +1039,8 @@ class MzQCModule(BaseMultiqcModule):
                 "format": "{:,.0f}",
             },
             "high_support": {"title": "High-support", "format": "{:,.0f}"},
-            "putative_ptm": {"title": "Putative PTM-like", "format": "{:,.0f}"},
-            "sample_prep": {"title": "Sample-prep", "format": "{:,.0f}"},
+            "putative_ptm": {"title": "PTM-compatible", "format": "{:,.0f}"},
+            "sample_prep": {"title": "Sample-prep / artifact", "format": "{:,.0f}"},
             "artifacts": {"title": "Isotope / adduct", "format": "{:,.0f}"},
             "unknown": {"title": "Unknown", "format": "{:,.0f}"},
             "profile_ms2": {"title": "Profile MS2", "format": "{:,.0f}"},
@@ -1004,11 +1052,7 @@ class MzQCModule(BaseMultiqcModule):
         self.add_section(
             name="Putative Modification Mass Shifts",
             anchor="mzqc-putative-modification-mass-shifts",
-            description=(
-                "Identification-free recurrent neutral precursor-mass differences from related "
-                "MS2 spectra. Candidate annotations are mass-compatible interpretations, not "
-                "peptide- or site-localized PTM identifications."
-            ),
+            description=_mass_shift_summary_description(report),
             plot=table.plot(
                 summary_data,
                 headers=summary_headers,
@@ -1039,6 +1083,7 @@ class MzQCModule(BaseMultiqcModule):
                         "ylab": "Reported clusters",
                         "tt_decimals": 0,
                         "cpswitch": False,
+                        "sort_samples": False,
                         "save_data_file": False,
                     },
                 ),
@@ -1049,9 +1094,11 @@ class MzQCModule(BaseMultiqcModule):
                 name="Recurrent Mass-shift Families",
                 anchor="mzqc-mass-shift-family-heatmap",
                 description=(
-                    "Top report-wide mass-shift families grouped into 0.01-Da display bins. "
-                    "Cell intensity is log10(1 + pair support), so lower-support recurrent "
-                    "families remain visible alongside dominant chemistry."
+                    "Top 12 report-wide mass-shift families grouped into 0.01-Da display bins. "
+                    "Columns are labelled only by observed delta mass; candidate chemistry "
+                    "remains available in the candidate table. Cell intensity is log10(1 + pair "
+                    "support), so lower-support recurrent families remain visible alongside "
+                    "dominant chemistry."
                 ),
                 plot=heatmap.plot(
                     data=report["heatmap_data"],
@@ -1062,6 +1109,8 @@ class MzQCModule(BaseMultiqcModule):
                         "ylab": "Run",
                         "zlab": "log10(1 + pair support)",
                         "tt_decimals": 3,
+                        "display_values": False,
+                        "xcats_samples": False,
                         "square": False,
                         "cluster_rows": False,
                         "cluster_cols": False,
@@ -1076,7 +1125,8 @@ class MzQCModule(BaseMultiqcModule):
                 anchor="mzqc-mass-shift-landscape",
                 description=(
                     "Each point is one bounded reported recurrent cluster. The x-axis is absolute "
-                    "neutral delta mass and the y-axis is related-spectrum pair support."
+                    "neutral delta mass and the y-axis is related-spectrum pair support on a "
+                    "logarithmic scale. Classification is available from the companion bar chart."
                 ),
                 plot=scatter.plot(
                     data=report["scatter_data"],
@@ -1084,8 +1134,9 @@ class MzQCModule(BaseMultiqcModule):
                         "id": "mzqc_mass_shift_landscape",
                         "title": "Mass-shift Landscape",
                         "xlab": "Delta mass (Da)",
-                        "ylab": "Pair support",
-                        "showlegend": True,
+                        "ylab": "Pair support (log scale)",
+                        "ylog": True,
+                        "showlegend": False,
                         "save_data_file": False,
                     },
                 ),
