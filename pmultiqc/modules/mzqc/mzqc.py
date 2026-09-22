@@ -4,13 +4,24 @@ import json
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from html import escape
 from math import ceil, comb, log10
 from pathlib import Path
 from statistics import median
 from typing import Any
 
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import RobustScaler
+
 from multiqc.base_module import BaseMultiqcModule, ModuleNoSamplesFound
 from multiqc.plots import bargraph, heatmap, scatter, table
+from multiqc.types import SectionAlert
+
+
+EXPERIMENT_GROUP_COLORS = ("#4C78A8", "#F58518", "#54A24B", "#E45756")
 
 
 @dataclass(frozen=True, slots=True)
@@ -591,21 +602,22 @@ def _metric_scalar_named(run: MzQCRun, name: str) -> float | None:
     return None if value is None else float(value)
 
 
-def _run_group_assignments(
+def _experiment_group_features(
     runs: list[MzQCRun],
-) -> tuple[dict[str, str], dict[str, dict[str, Any]], list[str]]:
-    """Detect conservative potential acquisition/run groups for one report cohort."""
-    if not runs:
-        return {}, {}, []
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Return mass-accuracy rows and multi-feature experiment-group evidence."""
     accuracy, _ = _mass_accuracy_report_data(runs)
-    by_name = {run.sample_name: run for run in runs}
     features: dict[str, dict[str, Any]] = {}
     for run in runs:
         row = accuracy.get(run.sample_name, {})
-        fragment_unit = "ppm" if "fragment_tolerance_ppm" in row else (
-            "Da" if "fragment_tolerance_da" in row else ""
+        fragment_unit = (
+            "ppm"
+            if "fragment_tolerance_ppm" in row
+            else "Da" if "fragment_tolerance_da" in row else ""
         )
-        fragment_value = row.get("fragment_tolerance_ppm", row.get("fragment_tolerance_da"))
+        fragment_value = row.get(
+            "fragment_tolerance_ppm", row.get("fragment_tolerance_da")
+        )
         features[run.sample_name] = {
             "precursor": row.get("precursor_tolerance_ppm"),
             "fragment": fragment_value,
@@ -613,12 +625,144 @@ def _run_group_assignments(
             "fragment_regime": row.get("fragment_resolution_regime", ""),
             "rt": _metric_scalar_named(run, "chromatography duration"),
             "isolation": _metric_scalar_named(run, "IsolationWidth_MS2_Median"),
+            "ms1": _metric_scalar_named(run, "number of MS1 spectra"),
+            "ms2": _metric_scalar_named(run, "number of MS2 spectra"),
             "instrument": run.instrument or "",
             "acquisition": run.acquisition_method or "",
         }
+    return accuracy, features
 
+
+def _scaled_feature_matrix(
+    names: list[str], features: dict[str, dict[str, Any]]
+) -> tuple[np.ndarray, list[str]] | None:
+    """Build a robustly scaled quantitative matrix with bounded median imputation."""
+    feature_keys = ("precursor", "fragment", "rt", "isolation", "ms1", "ms2")
+    minimum_observed = max(3, ceil(len(names) * 0.80))
+    selected: list[str] = []
+    columns: list[list[float]] = []
+    for key in feature_keys:
+        observed = [
+            float(features[name][key])
+            for name in names
+            if isinstance(features[name].get(key), (int, float))
+            and float(features[name][key]) > 0
+        ]
+        if len(observed) < minimum_observed or len({round(value, 12) for value in observed}) < 2:
+            continue
+        fill = median(observed)
+        column = [
+            float(features[name][key])
+            if isinstance(features[name].get(key), (int, float))
+            and float(features[name][key]) > 0
+            else fill
+            for name in names
+        ]
+        # Log-transform positive instrument-scale measurements before robust scaling.
+        column = [log10(value) for value in column]
+        selected.append(key)
+        columns.append(column)
+    if not columns:
+        return None
+    matrix = np.asarray(columns, dtype=float).T
+    scaled = RobustScaler().fit_transform(matrix)
+    keep = np.ptp(scaled, axis=0) > 1e-12
+    if not np.any(keep):
+        return None
+    return scaled[:, keep], [key for key, flag in zip(selected, keep, strict=True) if flag]
+
+
+def _supported_multivariate_partition(
+    group: list[str],
+    features: dict[str, dict[str, Any]],
+    min_group: int,
+    max_groups: int,
+) -> tuple[list[list[str]], str] | None:
+    """Return the strongest conservative multi-feature partition for one stratum."""
+    matrix_and_keys = _scaled_feature_matrix(group, features)
+    if matrix_and_keys is None:
+        return None
+    matrix, feature_keys = matrix_and_keys
+    distinct_rows = int(np.unique(matrix, axis=0).shape[0])
+    max_k = min(max_groups, len(group) // min_group, distinct_rows)
+    if max_k < 2:
+        return None
+
+    separation_thresholds = {
+        "precursor": 1.50,
+        "fragment": 1.50,
+        "rt": 1.15,
+        "isolation": 1.20,
+        "ms1": 1.25,
+        "ms2": 1.25,
+    }
+    display_names = {
+        "precursor": "precursor tolerance",
+        "fragment": "fragment tolerance",
+        "rt": "chromatography duration",
+        "isolation": "MS2 isolation width",
+        "ms1": "MS1 spectra",
+        "ms2": "MS2 spectra",
+    }
+    best: tuple[float, list[list[str]], str] | None = None
+    for k in range(2, max_k + 1):
+        labels = KMeans(n_clusters=k, random_state=0, n_init=20).fit_predict(matrix)
+        buckets = [
+            [name for name, label in zip(group, labels, strict=True) if int(label) == cluster]
+            for cluster in range(k)
+        ]
+        if any(len(bucket) < min_group for bucket in buckets):
+            continue
+        score = float(silhouette_score(matrix, labels))
+        if score < 0.45:
+            continue
+
+        differences: list[tuple[float, str]] = []
+        for key in feature_keys:
+            medians = []
+            for bucket in buckets:
+                values = [
+                    float(features[name][key])
+                    for name in bucket
+                    if isinstance(features[name].get(key), (int, float))
+                    and float(features[name][key]) > 0
+                ]
+                if values:
+                    medians.append(median(values))
+            if len(medians) != k or min(medians) <= 0:
+                continue
+            ratio = max(medians) / min(medians)
+            if ratio >= separation_thresholds[key]:
+                differences.append((ratio, key))
+        if not differences:
+            continue
+
+        ordered = sorted(
+            buckets, key=lambda bucket: min(group.index(name) for name in bucket)
+        )
+        differences.sort(reverse=True)
+        evidence = ", ".join(
+            f"{display_names[key]} {ratio:.2f}x" for ratio, key in differences[:3]
+        )
+        description = f"multivariate k={k}, silhouette={score:.2f}; {evidence}"
+        rank = score + 0.02 * len(differences)
+        if best is None or rank > best[0]:
+            best = (rank, ordered, description)
+    if best is None:
+        return None
+    return best[1], best[2]
+
+
+def _run_group_assignments(
+    runs: list[MzQCRun],
+) -> tuple[dict[str, str], dict[str, dict[str, Any]], list[str]]:
+    """Detect conservative potential experiment groups for one report cohort."""
+    if not runs:
+        return {}, {}, []
+    accuracy, features = _experiment_group_features(runs)
+    by_name = {run.sample_name: run for run in runs}
     names = [run.sample_name for run in runs]
-    min_group = max(3, ceil(len(names) * 0.10))
+    min_group = max(3, ceil(len(names) * 0.04))
     groups: list[list[str]] = [names]
     evidence: list[str] = []
 
@@ -631,81 +775,79 @@ def _run_group_assignments(
             buckets[value].append(name)
         if len(buckets) <= 1 or any(len(bucket) < min_group for bucket in buckets.values()):
             return None
-        return [buckets[key] for key in sorted(buckets)]
+        return [buckets[value] for value in sorted(buckets)]
 
-    # Hard incompatibilities only split when every resulting bucket is well supported.
+    # Separate hard acquisition incompatibilities before numerical clustering.
     for key in ("fragment_unit", "fragment_regime", "instrument", "acquisition"):
-        changed = True
-        while changed and len(groups) < 4:
-            changed = False
-            new_groups: list[list[str]] = []
-            for group in groups:
-                partition = supported_partition(group, key)
-                if partition is not None and len(new_groups) + len(partition) <= 4:
-                    new_groups.extend(partition)
-                    evidence.append(f"categorical {key} split")
-                    changed = True
-                else:
-                    new_groups.append(group)
-            groups = new_groups
+        new_groups: list[list[str]] = []
+        for group in groups:
+            partition = supported_partition(group, key)
+            if partition is not None and len(new_groups) + len(partition) <= 4:
+                new_groups.extend(partition)
+                evidence.append(f"categorical {key} split")
+            else:
+                new_groups.append(group)
+        groups = new_groups
 
-    thresholds = {
-        "precursor": 1.75,
-        "fragment": 1.75,
-        "rt": 1.20,
-        "isolation": 1.35,
-    }
-
-    def best_gap(group: list[str]) -> tuple[float, str, int, list[tuple[float, str]]] | None:
-        best = None
-        for key, threshold in thresholds.items():
-            pairs = []
-            for name in group:
-                value = features[name].get(key)
-                if isinstance(value, (int, float)) and value > 0:
-                    pairs.append((float(value), name))
-            if len(pairs) != len(group):
-                continue
-            pairs.sort()
-            for index in range(min_group, len(pairs) - min_group + 1):
-                low = pairs[index - 1][0]
-                high = pairs[index][0]
-                ratio = high / low if low > 0 else 1.0
-                score = ratio / threshold
-                if ratio >= threshold and (best is None or score > best[0]):
-                    best = (score, key, index, pairs)
-        return best
-
-    while len(groups) < 4:
-        choices = []
+    # Recursively split compatible strata in the full quantitative feature space.
+    # Binary splits are deliberate: a strong minor experiment can be separated first,
+    # then a larger mixed stratum can be tested again instead of being hidden by k selection.
+    changed = True
+    while changed and len(groups) < 4:
+        changed = False
+        updated: list[list[str]] = []
         for group_index, group in enumerate(groups):
-            gap = best_gap(group)
-            if gap is not None:
-                choices.append((gap[0], group_index, gap))
-        if not choices:
-            break
-        _, group_index, gap = max(choices, key=lambda item: item[0])
-        _, key, index, pairs = gap
-        left = [name for _, name in pairs[:index]]
-        right = [name for _, name in pairs[index:]]
-        low = pairs[index - 1][0]
-        high = pairs[index][0]
-        evidence.append(f"{key} gap {high / low:.2f}x")
-        groups[group_index : group_index + 1] = [left, right]
+            remaining_unsplit = len(groups) - group_index - 1
+            available_groups = 4 - len(updated) - remaining_unsplit
+            partition = _supported_multivariate_partition(
+                group,
+                features,
+                min_group=min_group,
+                max_groups=min(2, max(1, available_groups)),
+            )
+            if partition is not None:
+                subgroups, reason = partition
+                if len(updated) + len(subgroups) + remaining_unsplit <= 4:
+                    updated.extend(subgroups)
+                    evidence.append(reason)
+                    changed = True
+                    continue
+            updated.append(group)
+        groups = updated
 
     groups.sort(key=lambda group: min(names.index(name) for name in group))
     assignments: dict[str, str] = {}
     summaries: dict[str, dict[str, Any]] = {}
     for index, group in enumerate(groups, start=1):
-        label = f"Group {index}"
+        label = f"Experiment group {index}"
         for name in group:
             assignments[name] = label
         rows = [accuracy.get(name, {}) for name in group]
-        precursor = [float(row["precursor_tolerance_ppm"]) for row in rows if "precursor_tolerance_ppm" in row]
-        fragment_ppm = [float(row["fragment_tolerance_ppm"]) for row in rows if "fragment_tolerance_ppm" in row]
-        fragment_da = [float(row["fragment_tolerance_da"]) for row in rows if "fragment_tolerance_da" in row]
-        rt = [float(features[name]["rt"]) for name in group if isinstance(features[name]["rt"], (int, float))]
-        isolation = [float(features[name]["isolation"]) for name in group if isinstance(features[name]["isolation"], (int, float))]
+        precursor = [
+            float(row["precursor_tolerance_ppm"])
+            for row in rows
+            if "precursor_tolerance_ppm" in row
+        ]
+        fragment_ppm = [
+            float(row["fragment_tolerance_ppm"])
+            for row in rows
+            if "fragment_tolerance_ppm" in row
+        ]
+        fragment_da = [
+            float(row["fragment_tolerance_da"])
+            for row in rows
+            if "fragment_tolerance_da" in row
+        ]
+        rt = [
+            float(features[name]["rt"])
+            for name in group
+            if isinstance(features[name]["rt"], (int, float))
+        ]
+        isolation = [
+            float(features[name]["isolation"])
+            for name in group
+            if isinstance(features[name]["isolation"], (int, float))
+        ]
         summary: dict[str, Any] = {"files": len(group)}
         if precursor:
             summary["precursor_median_ppm"] = median(precursor)
@@ -726,14 +868,56 @@ def _run_group_assignments(
             summary["rt_max_min"] = max(rt) / 60.0
         if isolation:
             summary["isolation_median_th"] = median(isolation)
-        instruments = sorted({by_name[name].instrument for name in group if by_name[name].instrument})
-        acquisitions = sorted({by_name[name].acquisition_method for name in group if by_name[name].acquisition_method})
+        instruments = sorted(
+            {by_name[name].instrument for name in group if by_name[name].instrument}
+        )
+        acquisitions = sorted(
+            {
+                by_name[name].acquisition_method
+                for name in group
+                if by_name[name].acquisition_method
+            }
+        )
         if instruments:
             summary["instrument"] = "; ".join(instruments)
         if acquisitions:
             summary["acquisition"] = "; ".join(acquisitions)
         summaries[label] = summary
     return assignments, summaries, evidence
+
+
+def _experiment_group_pca_data(
+    runs: list[MzQCRun], assignments: dict[str, str]
+) -> tuple[dict[str, list[dict[str, Any]]], list[str], tuple[float, float]] | None:
+    """Project multi-feature run evidence into two PCs for report visualization."""
+    _, features = _experiment_group_features(runs)
+    names = [run.sample_name for run in runs]
+    matrix_and_keys = _scaled_feature_matrix(names, features)
+    if matrix_and_keys is None:
+        return {}, [], None
+    matrix, feature_keys = matrix_and_keys
+    if matrix.shape[0] < 3 or matrix.shape[1] < 2:
+        return {}, feature_keys, None
+    pca = PCA(n_components=2, random_state=0)
+    coordinates = pca.fit_transform(matrix)
+    plot_data: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    groups = list(dict.fromkeys(assignments.get(name, "Experiment group 1") for name in names))
+    color_by_group = {
+        group: EXPERIMENT_GROUP_COLORS[index % len(EXPERIMENT_GROUP_COLORS)]
+        for index, group in enumerate(groups)
+    }
+    for name, (x_value, y_value) in zip(names, coordinates, strict=True):
+        group = assignments.get(name, "Experiment group 1")
+        plot_data[group].append(
+            {
+                "x": float(x_value),
+                "y": float(y_value),
+                "color": color_by_group[group],
+                "name": group,
+            }
+        )
+    variance = tuple(float(value) for value in pca.explained_variance_ratio_[:2])
+    return dict(plot_data), feature_keys, variance
 
 
 def _beta_prevalence_probability(hits: int, runs: int, threshold: float = 0.10) -> float:
@@ -751,14 +935,17 @@ def _beta_prevalence_probability(hits: int, runs: int, threshold: float = 0.10) 
 
 def _mass_shift_family_context(
     runs: list[MzQCRun], assignments: dict[str, str]
-) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]]]:
-    """Aggregate 0.02-Da recurrent mass families within inferred run groups."""
+) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Aggregate 0.02-Da recurrent mass families within inferred experiment groups."""
     group_members: dict[str, list[str]] = defaultdict(list)
     for run in runs:
-        group_members[assignments.get(run.sample_name, "Group 1")].append(run.sample_name)
+        group_members[assignments.get(run.sample_name, "Experiment group 1")].append(
+            run.sample_name
+        )
 
     record_context: dict[int, dict[str, Any]] = {}
-    family_rows: list[dict[str, Any]] = []
+    ptm_family_rows: list[dict[str, Any]] = []
+    high_support_rows: list[dict[str, Any]] = []
     for group, members in group_members.items():
         observations: list[tuple[float, str, dict[str, Any]]] = []
         for run in runs:
@@ -788,13 +975,8 @@ def _mass_shift_family_context(
             )
             rep_record = representative[2]
             candidates = _mass_shift_candidate_names(rep_record)
-            high_support_runs = {
-                run_name
-                for _, run_name, record in family
-                if str(record.get("confidence") or "") == "high-support"
-            }
             context = {
-                "run_group": group,
+                "experiment_group": group,
                 "family_runs": len(run_hits),
                 "group_runs": len(members),
                 "run_prevalence": prevalence,
@@ -804,32 +986,138 @@ def _mass_shift_family_context(
             }
             for _, _, record in family:
                 record_context[id(record)] = context
+
+            if str(rep_record.get("classification") or "") != "putative-ptm" or not candidates:
+                continue
+            supports = [int(item[2].get("pair_support", 0) or 0) for item in family]
+            high_support_runs = {
+                run_name
+                for _, run_name, record in family
+                if str(record.get("confidence") or "") == "high-support"
+            }
+            high_support_run_fraction = (
+                len(high_support_runs) / len(run_hits) if run_hits else 0.0
+            )
+            family_row = {
+                "experiment_group": group,
+                "candidate": candidates[0],
+                "delta_mass_da": median([item[0] for item in family]),
+                "family_runs": len(run_hits),
+                "group_runs": len(members),
+                "run_prevalence": prevalence,
+                "raw_prevalence_probability": probability,
+                "high_support_run_fraction": high_support_run_fraction,
+                "median_pair_support": median(supports) if supports else 0,
+                "mass_identity_ambiguous": len(candidates) > 1,
+                "alternative_candidates": "; ".join(candidates[1:]),
+            }
+            ptm_family_rows.append(family_row)
             if (
-                str(rep_record.get("classification") or "") == "putative-ptm"
-                and candidates
-                and len(run_hits) >= 2
-                and len(high_support_runs) >= 2
-                and probability >= 0.95
+                prevalence >= 0.90
+                and high_support_run_fraction >= 0.80
+                and probability >= 0.99
             ):
-                supports = [int(item[2].get("pair_support", 0) or 0) for item in family]
-                family_rows.append(
-                    {
-                        "run_group": group,
-                        "candidate": candidates[0],
-                        "delta_mass_da": median([item[0] for item in family]),
-                        "family_runs": len(run_hits),
-                        "run_prevalence": prevalence,
-                        "raw_prevalence_probability": probability,
-                        "median_pair_support": median(supports) if supports else 0,
-                        "mass_identity_ambiguous": len(candidates) > 1,
-                        "alternative_candidates": "; ".join(candidates[1:]),
-                    }
-                )
-    family_rows.sort(
-        key=lambda row: (float(row["raw_prevalence_probability"]), int(row["family_runs"])),
-        reverse=True,
+                high_support_rows.append(family_row)
+
+    def sort_key(row: dict[str, Any]) -> tuple[float, float, int]:
+        return (
+            float(row["run_prevalence"]),
+            float(row["raw_prevalence_probability"]),
+            int(row["family_runs"]),
+        )
+    ptm_family_rows.sort(key=sort_key, reverse=True)
+    high_support_rows.sort(key=sort_key, reverse=True)
+
+    # Keep the high-level table deliberately compact while retaining the full detailed
+    # candidate table below. At most five strict families are shown per experiment group.
+    bounded_high_support: list[dict[str, Any]] = []
+    group_counts: Counter[str] = Counter()
+    for row in high_support_rows:
+        group = str(row["experiment_group"])
+        if group_counts[group] >= 5:
+            continue
+        bounded_high_support.append(row)
+        group_counts[group] += 1
+    return record_context, ptm_family_rows, bounded_high_support
+
+
+def _candidate_family_counts(
+    rows: list[dict[str, Any]], limit: int = 8
+) -> dict[str, int]:
+    """Count recurrent PTM-compatible families by primary candidate for pie summaries."""
+    counts = Counter(str(row.get("candidate") or "Unknown") for row in rows)
+    if not counts:
+        return {}
+    top = counts.most_common(limit)
+    result = {name: count for name, count in top}
+    remainder = sum(counts.values()) - sum(result.values())
+    if remainder:
+        result["Other"] = remainder
+    return result
+
+
+def _pie_chart_html(counts: dict[str, int], title: str) -> str:
+    """Return a compact accessible SVG pie chart with a deterministic legend."""
+    if not counts:
+        return ""
+    total = sum(counts.values())
+    palette = (
+        "#4C78A8",
+        "#F58518",
+        "#E45756",
+        "#72B7B2",
+        "#54A24B",
+        "#EECA3B",
+        "#B279A2",
+        "#FF9DA6",
+        "#9D755D",
     )
-    return record_context, family_rows
+    segments = []
+    legend = []
+    offset = 25.0
+    for index, (label, count) in enumerate(counts.items()):
+        share = count / total
+        dash = 100.0 * share
+        colour = palette[index % len(palette)]
+        segments.append(
+            f'<circle cx="18" cy="18" r="15.9155" fill="transparent" '
+            f'stroke="{colour}" stroke-width="9" stroke-dasharray="{dash:.4f} '
+            f'{100.0-dash:.4f}" stroke-dashoffset="{offset:.4f}" />'
+        )
+        offset -= dash
+        legend.append(
+            "<li style='margin:0.2rem 0'>"
+            f"<span style='color:{colour};font-size:1.2em'>■</span> "
+            f"{escape(label)}: <strong>{count}</strong> ({share:.1%})</li>"
+        )
+    return (
+        "<div style='display:flex;align-items:center;gap:1rem;min-width:300px'>"
+        "<svg viewBox='0 0 36 36' width='180' height='180' role='img' "
+        f"aria-label='{escape(title)}'>"
+        + "".join(segments)
+        + "</svg>"
+        + "<div><strong>"
+        + escape(title)
+        + "</strong><ul style='list-style:none;padding-left:0'>"
+        + "".join(legend)
+        + "</ul></div></div>"
+    )
+
+
+def _prevalence_probability_histogram(
+    rows: list[dict[str, Any]],
+) -> dict[str, dict[str, int]]:
+    """Bin RAW prevalence probabilities into equal-width bins spanning 0 to 1."""
+    counts = {f"{index / 10:.1f}–{(index + 1) / 10:.1f}": 0 for index in range(10)}
+    for row in rows:
+        value = _finite_number(row.get("raw_prevalence_probability"))
+        if value is None:
+            continue
+        probability = min(1.0, max(0.0, float(value)))
+        index = min(9, int(probability * 10))
+        label = f"{index / 10:.1f}–{(index + 1) / 10:.1f}"
+        counts[label] += 1
+    return {label: {"Families": count} for label, count in counts.items()}
 
 
 def _mass_shift_records(run: MzQCRun) -> list[dict[str, Any]]:
@@ -932,7 +1220,9 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
             }
 
     assignments, _, _ = _run_group_assignments(runs)
-    family_context, high_support_families = _mass_shift_family_context(runs, assignments)
+    family_context, ptm_families, high_support_families = _mass_shift_family_context(
+        runs, assignments
+    )
     return {
         "by_run": by_run,
         "diagnostics": diagnostics,
@@ -944,16 +1234,22 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
         "heatmap_data": heatmap_data,
         "run_groups": assignments,
         "family_context": family_context,
+        "ptm_families": ptm_families,
         "high_support_families": high_support_families,
     }
 
 
 def _mass_shift_summary_description(report: dict[str, Any]) -> str:
-    """Describe the scout conservatively and call out evidence-free cohorts."""
+    """Explain mass-shift inference, candidate annotation and recurrence probability."""
     description = (
-        "Identification-free recurrent neutral precursor-mass differences from related "
-        "MS2 spectra. Candidate annotations are mass-compatible interpretations, not "
-        "peptide- or site-localized PTM identifications."
+        "prideQC computes identification-free recurrent neutral precursor-mass "
+        "differences from related MS2 spectra. Observed shifts are grouped into "
+        "0.02-Da recurrent families within each potential experiment group. Where a "
+        "family is mass-compatible with a known modification, candidate labels describe "
+        "plausible mass interpretations only; they are not peptide identities or "
+        "site-localized PTM assignments. P(prevalence > 10%) is the Beta(1,1) posterior "
+        "probability that the mass-shift family occurs in more than 10% of runs in that "
+        "experiment group. It measures RAW-level recurrence, not PTM identity probability."
     )
     if not report["by_run"]:
         description += (
@@ -1013,7 +1309,7 @@ def _mass_shift_cluster_table(
         context = report.get("family_context", {}).get(id(record), {})
         result[f"{index:03d} · {run_name}"] = {
             "run": run_name,
-            "run_group": context.get("run_group", "Group 1"),
+            "experiment_group": context.get("experiment_group", "Experiment group 1"),
             "delta_mass_da": delta,
             "classification": MASS_SHIFT_CLASS_LABELS.get(
                 str(record.get("classification") or "unknown"),
@@ -1109,14 +1405,59 @@ class MzQCModule(BaseMultiqcModule):
             )
             evidence = ", ".join(self._run_group_evidence)
             self.add_section(
-                name="Potential Acquisition Heterogeneity",
-                anchor="mzqc-potential-acquisition-heterogeneity",
+                name="Potential Experiment Groups Detected",
+                anchor="mzqc-potential-experiment-groups",
                 description=(
-                    f"Detected {len(self._run_group_summaries)} potential acquisition/run "
-                    f"groups ({details}). This is a conservative QC warning, not a claim of "
-                    f"distinct biological experiments. Separation evidence: {evidence}."
+                    "Experiment groups are inferred from QC/acquisition characteristics and "
+                    "should be reviewed before choosing shared reanalysis parameters."
+                ),
+                alerts=SectionAlert(
+                    message=(
+                        f"**Detected {len(self._run_group_summaries)} potential experiment "
+                        f"groups.** {details}. Separation evidence: {evidence}. Grouping is a "
+                        "QC-derived indication of acquisition heterogeneity, not proof of "
+                        "different biological experiments."
+                    ),
+                    level="warning",
                 ),
             )
+
+            pca_data, pca_features, variance = _experiment_group_pca_data(
+                self.runs, self._run_groups
+            )
+            if pca_data and variance is not None:
+                feature_text = ", ".join(
+                    {
+                        "precursor": "precursor tolerance",
+                        "fragment": "fragment tolerance",
+                        "rt": "chromatography duration",
+                        "isolation": "MS2 isolation width",
+                        "ms1": "MS1 spectra",
+                        "ms2": "MS2 spectra",
+                    }[feature]
+                    for feature in pca_features
+                )
+                self.add_section(
+                    name="Experiment Group PCA",
+                    anchor="mzqc-experiment-group-pca",
+                    description=(
+                        "PCA is shown as a visual explanation of the experiment-group "
+                        "assignments; clustering is performed in the full robustly scaled "
+                        f"feature space, not on these two PCs. Features used: {feature_text}. "
+                        f"Variance explained: PC1 {variance[0]:.1%}; PC2 {variance[1]:.1%}."
+                    ),
+                    plot=scatter.plot(
+                        data=pca_data,
+                        pconfig={
+                            "id": "mzqc_experiment_group_pca",
+                            "title": "Experiment Group PCA",
+                            "xlab": "PC1 score",
+                            "ylab": "PC2 score",
+                            "showlegend": True,
+                            "save_data_file": False,
+                        },
+                    ),
+                )
 
         run_data = self._run_overview_data()
         run_headers = {
@@ -1221,8 +1562,16 @@ class MzQCModule(BaseMultiqcModule):
         if self._run_group_summaries:
             summary_headers = {
                 "files": {"title": "Files", "format": "{:,.0f}"},
-                "precursor_median_ppm": {"title": "Precursor median", "suffix": " ppm", "format": "{:,.2f}"},
-                "precursor_common_ppm": {"title": "Precursor common/max", "suffix": " ppm", "format": "{:,.2f}"},
+                "precursor_median_ppm": {
+                    "title": "Precursor median",
+                    "suffix": " ppm",
+                    "format": "{:,.2f}",
+                },
+                "precursor_common_ppm": {
+                    "title": "Precursor common/max",
+                    "suffix": " ppm",
+                    "format": "{:,.2f}",
+                },
                 "fragment_median": {"title": "Fragment median", "format": "{:,.3f}"},
                 "fragment_common": {"title": "Fragment common/max", "format": "{:,.3f}"},
                 "fragment_unit": {"title": "Fragment unit"},
@@ -1230,7 +1579,11 @@ class MzQCModule(BaseMultiqcModule):
                 "rt_median_min": {"title": "RT median", "suffix": " min", "format": "{:,.1f}"},
                 "rt_min_min": {"title": "RT min", "suffix": " min", "format": "{:,.1f}"},
                 "rt_max_min": {"title": "RT max", "suffix": " min", "format": "{:,.1f}"},
-                "isolation_median_th": {"title": "MS2 isolation width — median", "suffix": " Th", "format": "{:,.2f}"},
+                "isolation_median_th": {
+                    "title": "MS2 isolation width — median",
+                    "suffix": " Th",
+                    "format": "{:,.2f}",
+                },
                 "instrument": {"title": "Instrument"},
                 "acquisition": {"title": "Acquisition method"},
             }
@@ -1238,10 +1591,9 @@ class MzQCModule(BaseMultiqcModule):
                 name="Reanalysis Tolerance Summary",
                 anchor="mzqc-reanalysis-tolerance-summary",
                 description=(
-                    "One conservative common search-tolerance recommendation per potential "
-                    "acquisition/run group. Common values use the maximum supported run-level "
-                    "recommendation so one setting covers every run in that group; medians are "
-                    "shown for context."
+                    "Reanalysis parameters are summarized per potential experiment group. "
+                    "Medians provide a practical shared starting point; common/max values are "
+                    "also shown when a conservative setting covering every run is preferred."
                 ),
                 plot=table.plot(
                     self._run_group_summaries,
@@ -1350,21 +1702,25 @@ class MzQCModule(BaseMultiqcModule):
         )
 
     def _add_mass_accuracy_general_stats(self) -> None:
-        """Expose common group tolerances instead of different per-run recommendations."""
+        """Expose rounded experiment-group median tolerances in General Statistics."""
         data, _ = _mass_accuracy_report_data(self.runs)
         assignments = getattr(self, "_run_groups", {})
         summaries = getattr(self, "_run_group_summaries", {})
         general_data: dict[str, dict[str, Any]] = {}
         for sample, row in data.items():
-            group = assignments.get(sample, "Group 1")
+            group = assignments.get(sample, "Experiment group 1")
             summary = summaries.get(group, {})
             values: dict[str, Any] = {}
-            if "precursor_common_ppm" in summary:
-                values["prideqc_precursor_tolerance_ppm"] = summary["precursor_common_ppm"]
-            if summary.get("fragment_unit") == "ppm" and "fragment_common" in summary:
-                values["prideqc_fragment_tolerance_ppm"] = summary["fragment_common"]
+            if "precursor_median_ppm" in summary:
+                values["prideqc_precursor_tolerance_ppm"] = round(
+                    float(summary["precursor_median_ppm"])
+                )
+            if summary.get("fragment_unit") == "ppm" and "fragment_median" in summary:
+                values["prideqc_fragment_tolerance_ppm"] = round(
+                    float(summary["fragment_median"])
+                )
             if len(summaries) > 1:
-                values["prideqc_run_group"] = group
+                values["prideqc_experiment_group"] = group
             if values:
                 general_data[sample] = values
         if not general_data:
@@ -1372,23 +1728,28 @@ class MzQCModule(BaseMultiqcModule):
         headers: dict[str, dict[str, Any]] = {
             "prideqc_precursor_tolerance_ppm": {
                 "title": "Precursor tol.",
-                "description": "Common/max prideQC precursor tolerance for this run group",
+                "description": (
+                    "Rounded median prideQC precursor tolerance for this experiment group"
+                ),
                 "suffix": " ppm",
-                "format": "{:,.2f}",
+                "format": "{:,.0f}",
                 "hidden": False,
             },
             "prideqc_fragment_tolerance_ppm": {
                 "title": "Fragment tol.",
-                "description": "Common/max high-resolution fragment tolerance for this run group",
+                "description": (
+                    "Rounded median high-resolution fragment tolerance for this experiment group"
+                ),
                 "suffix": " ppm",
-                "format": "{:,.2f}",
+                "format": "{:,.0f}",
                 "hidden": False,
             },
         }
         if len(summaries) > 1:
-            headers["prideqc_run_group"] = {
-                "title": "Run group",
-                "description": "Potential acquisition/run group detected from mzQC evidence",
+            headers["prideqc_experiment_group"] = {
+                "title": "Experiment group",
+                "description": "Potential experiment group detected from mzQC evidence",
+                "scale": "Set1",
                 "hidden": False,
             }
         self.general_stats_addcols(general_data, headers)
@@ -1446,21 +1807,40 @@ class MzQCModule(BaseMultiqcModule):
                 name="High-support Modification Families",
                 anchor="mzqc-high-support-modification-families",
                 description=(
-                    "Recurrent PTM-compatible mass-shift families with at least two supporting "
-                    "runs, at least two high-support runs, and P(prevalence > 10%) >= 0.95. "
-                    "These are mass-compatible families, not peptide- or site-localized PTM "
+                    "Recurrent PTM-compatible mass-shift families observed in at least 90% of "
+                    "runs in their experiment group, with high-support per-run evidence in at "
+                    "least 80% of supporting runs and P(prevalence > 10%) >= 0.99. Up to the five "
+                    "strongest qualifying families are shown per experiment group. The entries "
+                    "remain mass-compatible families, not peptide- or site-localized PTM "
                     "identifications."
                 ),
                 plot=table.plot(
                     high_support_rows,
                     headers={
-                        "run_group": {"title": "Run group"},
+                        "experiment_group": {"title": "Experiment group"},
                         "candidate": {"title": "Mass-compatible candidate"},
-                        "delta_mass_da": {"title": "Median Δ mass", "suffix": " Da", "format": "{:,.5f}"},
+                        "delta_mass_da": {
+                            "title": "Median Δ mass",
+                            "suffix": " Da",
+                            "format": "{:,.5f}",
+                        },
                         "family_runs": {"title": "Supporting runs", "format": "{:,.0f}"},
                         "run_prevalence": {"title": "Run prevalence", "format": "{:,.1%}"},
-                        "raw_prevalence_probability": {"title": "P(prevalence > 10%)", "format": "{:,.3f}"},
-                        "median_pair_support": {"title": "Median pair support", "format": "{:,.0f}"},
+                        "high_support_run_fraction": {
+                            "title": "High-support runs",
+                            "format": "{:,.1%}",
+                        },
+                        "raw_prevalence_probability": {
+                            "title": "P(prevalence > 10%)",
+                            "description": (
+                                "RAW family recurrence probability; not PTM identity probability."
+                            ),
+                            "format": "{:,.6f}",
+                        },
+                        "median_pair_support": {
+                            "title": "Median pair support",
+                            "format": "{:,.0f}",
+                        },
                         "mass_identity_ambiguous": {"title": "Mass ambiguous"},
                         "alternative_candidates": {"title": "Alternative candidates"},
                     },
@@ -1470,6 +1850,64 @@ class MzQCModule(BaseMultiqcModule):
                         "only_defined_headers": True,
                         "sort_rows": False,
                         "no_violin": True,
+                        "save_data_file": False,
+                    },
+                ),
+            )
+
+        all_ptm_counts = _candidate_family_counts(report.get("ptm_families", []))
+        high_ptm_counts = _candidate_family_counts(report.get("high_support_families", []))
+        if all_ptm_counts or high_ptm_counts:
+            pie_blocks = []
+            if all_ptm_counts:
+                pie_blocks.append(
+                    _pie_chart_html(all_ptm_counts, "All PTM-compatible families")
+                )
+            if high_ptm_counts:
+                pie_blocks.append(
+                    _pie_chart_html(high_ptm_counts, "Strict high-support families (≥90% of runs)")
+                )
+            self.add_section(
+                name="Modification Family Composition",
+                anchor="mzqc-modification-family-composition",
+                description=(
+                    "Pie charts count recurrent mass-shift families by their primary "
+                    "mass-compatible candidate. The all-family chart shows the top eight "
+                    "candidates plus Other; the high-support chart uses the strict ≥90% run "
+                    "prevalence / ≥80% high-support-run criteria and is capped at five families "
+                    "per experiment group. Pie slices are family counts, not peptide or spectrum "
+                    "abundances."
+                ),
+                content=(
+                    "<div style='display:flex;flex-wrap:wrap;gap:2rem'>"
+                    + "".join(pie_blocks)
+                    + "</div>"
+                ),
+            )
+
+        probability_histogram = _prevalence_probability_histogram(
+            report.get("ptm_families", [])
+        )
+        if any(row["Families"] for row in probability_histogram.values()):
+            self.add_section(
+                name="RAW Prevalence Probability Distribution",
+                anchor="mzqc-prevalence-probability-distribution",
+                description=(
+                    "Histogram of P(prevalence > 10%) across recurrent PTM-compatible mass-shift "
+                    "families. The x-axis spans the full probability domain from 0 to 1 in "
+                    "equal-width bins. Values near 1 indicate strong evidence for cross-run "
+                    "recurrence, "
+                    "not PTM identity or site-localization confidence."
+                ),
+                plot=bargraph.plot(
+                    data=probability_histogram,
+                    pconfig={
+                        "id": "mzqc_prevalence_probability_histogram",
+                        "title": "RAW Prevalence Probability Distribution",
+                        "ylab": "PTM-compatible families",
+                        "tt_decimals": 0,
+                        "cpswitch": False,
+                        "sort_samples": False,
                         "save_data_file": False,
                     },
                 ),
@@ -1563,7 +2001,7 @@ class MzQCModule(BaseMultiqcModule):
                     cluster_table,
                     headers={
                         "run": {"title": "Run"},
-                        "run_group": {"title": "Run group"},
+                        "experiment_group": {"title": "Experiment group"},
                         "delta_mass_da": {
                             "title": "Δ mass",
                             "suffix": " Da",
@@ -1583,8 +2021,10 @@ class MzQCModule(BaseMultiqcModule):
                         "run_prevalence": {"title": "Run prevalence", "format": "{:,.1%}"},
                         "raw_prevalence_probability": {
                             "title": "P(prevalence > 10%)",
-                            "description": "RAW family recurrence probability; not PTM identity probability.",
-                            "format": "{:,.3f}",
+                            "description": (
+                                "RAW family recurrence probability; not PTM identity probability."
+                            ),
+                            "format": "{:,.6f}",
                         },
                         "mass_identity_ambiguous": {"title": "Mass ambiguous"},
                         "mass_residual_da": {

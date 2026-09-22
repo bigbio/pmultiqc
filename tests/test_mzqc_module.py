@@ -4,24 +4,28 @@ from __future__ import annotations
 
 import json
 import os
-from html import unescape
 import shutil
 import subprocess
+from html import unescape
 from pathlib import Path
 
 import pytest
 
 from pmultiqc.modules.mzqc import MzQCMetric, MzQCModule, MzQCRun, parse_mzqc_document
 from pmultiqc.modules.mzqc.mzqc import (
+    _beta_prevalence_probability,
+    _candidate_family_counts,
+    _experiment_group_pca_data,
     _mass_accuracy_detail_description,
     _mass_accuracy_report_data,
     _mass_shift_cluster_table,
+    _mass_shift_family_context,
     _mass_shift_report_data,
     _mass_shift_summary_description,
     _mass_shift_summary_table,
     _metric_data,
     _metric_display_title,
-    _beta_prevalence_probability,
+    _prevalence_probability_histogram,
     _run_group_assignments,
 )
 
@@ -588,7 +592,9 @@ def test_scalar_metric_columns_are_consistent_across_runs():
     assert headers["MS_4000059"]["title"] == "number of MS1 spectra"
 
 
-def _synthetic_tolerance_run(name: str, fragment_ppm: float, rt_seconds: float = 5400.0) -> MzQCRun:
+def _synthetic_tolerance_run(
+    name: str, fragment_ppm: float, rt_seconds: float = 5400.0
+) -> MzQCRun:
     return MzQCRun(
         sample_name=name,
         source_path=Path(f"{name}.mzQC"),
@@ -627,7 +633,7 @@ def test_run_group_detection_finds_supported_two_population_tolerance_split():
     assert len(set(assignments[name] for name in assignments if name.startswith("low-"))) == 1
     assert len(set(assignments[name] for name in assignments if name.startswith("high-"))) == 1
     assert assignments["low-0"] != assignments["high-0"]
-    assert any("fragment gap" in item for item in evidence)
+    assert any("fragment tolerance" in item for item in evidence)
     assert summaries[assignments["low-0"]]["fragment_common"] == pytest.approx(6.5)
     assert summaries[assignments["high-0"]]["fragment_common"] == pytest.approx(23.5)
 
@@ -641,8 +647,157 @@ def test_run_group_detection_does_not_promote_singleton_outlier():
     assignments, summaries, evidence = _run_group_assignments(runs)
 
     assert len(summaries) == 1
-    assert set(assignments.values()) == {"Group 1"}
+    assert set(assignments.values()) == {"Experiment group 1"}
     assert evidence == []
+
+
+def test_experiment_group_detection_uses_chromatography_duration():
+    runs = [
+        *[_synthetic_tolerance_run(f"short-{index}", 12.0, 5400.0) for index in range(4)],
+        *[_synthetic_tolerance_run(f"long-{index}", 12.0, 7200.0) for index in range(4)],
+    ]
+
+    assignments, summaries, evidence = _run_group_assignments(runs)
+
+    assert len(summaries) == 2
+    assert assignments["short-0"] != assignments["long-0"]
+    assert any("chromatography duration" in item for item in evidence)
+
+
+def test_experiment_group_detection_can_refine_tolerance_group_by_rt():
+    runs = [
+        *[_synthetic_tolerance_run(f"wide-{index}", 24.0, 5400.0) for index in range(6)],
+        *[_synthetic_tolerance_run(f"narrow-{index}", 7.0, 5400.0) for index in range(6)],
+        *[_synthetic_tolerance_run(f"long-{index}", 7.0, 7200.0) for index in range(3)],
+    ]
+
+    assignments, summaries, evidence = _run_group_assignments(runs)
+
+    assert len(summaries) == 3
+    assert assignments["wide-0"] != assignments["narrow-0"]
+    assert assignments["narrow-0"] != assignments["long-0"]
+    assert any("chromatography duration" in item for item in evidence)
+    assert any("fragment tolerance" in item for item in evidence)
+
+
+def test_experiment_group_pca_uses_multifeature_evidence_and_group_colours():
+    runs = [
+        *[_synthetic_tolerance_run(f"low-{index}", 6.0, 5400.0) for index in range(4)],
+        *[_synthetic_tolerance_run(f"high-{index}", 22.0, 7200.0) for index in range(4)],
+    ]
+    assignments, _, _ = _run_group_assignments(runs)
+
+    plot_data, features, variance = _experiment_group_pca_data(runs, assignments)
+
+    assert set(plot_data) == set(assignments.values())
+    assert {"fragment", "rt"}.issubset(features)
+    assert variance is not None
+    assert sum(len(points) for points in plot_data.values()) == 8
+    colours = {
+        group: {point["color"] for point in points}
+        for group, points in plot_data.items()
+    }
+    assert all(len(values) == 1 for values in colours.values())
+    assert len({next(iter(values)) for values in colours.values()}) == len(colours)
+
+
+def _synthetic_mass_shift_run(name: str, include_family: bool) -> MzQCRun:
+    records = []
+    if include_family:
+        records.append(
+            {
+                "delta_mass_da": 79.96633,
+                "pair_support": 80,
+                "unique_spectrum_support": 40,
+                "classification": "putative-ptm",
+                "confidence": "high-support",
+                "unimod_candidates": [{"name": "Phosphorylation", "residual_da": 0.0}],
+            }
+        )
+    return MzQCRun(
+        sample_name=name,
+        source_path=Path(f"{name}.mzQC"),
+        metadata={},
+        metrics=(
+            MzQCMetric(
+                "QCPRIDE:MASS_SHIFTS",
+                "putative modification mass shifts",
+                records,
+            ),
+        ),
+    )
+
+
+def test_high_support_modification_family_requires_ninety_percent_of_group_runs():
+    assignments = {f"run-{index}": "Experiment group 1" for index in range(10)}
+    eight_hits = [
+        _synthetic_mass_shift_run(f"run-{index}", index < 8) for index in range(10)
+    ]
+    _, all_eight, high_eight = _mass_shift_family_context(eight_hits, assignments)
+    assert len(all_eight) == 1
+    assert all_eight[0]["run_prevalence"] == pytest.approx(0.8)
+    assert high_eight == []
+
+    nine_hits = [
+        _synthetic_mass_shift_run(f"run-{index}", index < 9) for index in range(10)
+    ]
+    _, all_nine, high_nine = _mass_shift_family_context(nine_hits, assignments)
+    assert len(all_nine) == 1
+    assert all_nine[0]["run_prevalence"] == pytest.approx(0.9)
+    assert all_nine[0]["high_support_run_fraction"] == pytest.approx(1.0)
+    assert len(high_nine) == 1
+
+    moderate_runs = []
+    for index in range(10):
+        run = _synthetic_mass_shift_run(f"run-{index}", index < 9)
+        if index < 2:
+            record = run.metrics[0].value[0]
+            record["confidence"] = "moderate"
+        moderate_runs.append(run)
+    _, _, high_moderate = _mass_shift_family_context(moderate_runs, assignments)
+    assert high_moderate == []
+
+
+def test_candidate_family_counts_bounds_pie_categories():
+    rows = [
+        {"candidate": f"Candidate {index}"}
+        for index in range(10)
+    ] + [{"candidate": "Candidate 0"}]
+
+    counts = _candidate_family_counts(rows, limit=3)
+
+    assert len(counts) == 4
+    assert counts["Candidate 0"] == 2
+    assert counts["Other"] == 7
+
+
+def test_prevalence_probability_histogram_spans_zero_to_one_evenly():
+    rows = [
+        {"raw_prevalence_probability": 0.02},
+        {"raw_prevalence_probability": 0.18},
+        {"raw_prevalence_probability": 0.52},
+        {"raw_prevalence_probability": 0.92},
+        {"raw_prevalence_probability": 1.0},
+    ]
+
+    histogram = _prevalence_probability_histogram(rows)
+
+    assert list(histogram) == [
+        "0.0–0.1",
+        "0.1–0.2",
+        "0.2–0.3",
+        "0.3–0.4",
+        "0.4–0.5",
+        "0.5–0.6",
+        "0.6–0.7",
+        "0.7–0.8",
+        "0.8–0.9",
+        "0.9–1.0",
+    ]
+    assert histogram["0.0–0.1"]["Families"] == 1
+    assert histogram["0.1–0.2"]["Families"] == 1
+    assert histogram["0.5–0.6"]["Families"] == 1
+    assert histogram["0.9–1.0"]["Families"] == 2
 
 
 def test_beta_prevalence_probability_matches_v4_single_run_boundary():
