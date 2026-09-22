@@ -4,7 +4,7 @@ import json
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from math import log10
+from math import ceil, comb, log10
 from pathlib import Path
 from statistics import median
 from typing import Any
@@ -286,6 +286,49 @@ def _metric_key(metric: MzQCMetric, occurrence: int = 1) -> str:
     return base if occurrence == 1 else f"{base}_{occurrence}"
 
 
+def _metric_display_title(metric: MzQCMetric, endpoint: str | None = None) -> str:
+    """Return compact user-facing titles while preserving mzQC semantics."""
+    name = metric.name.strip()
+    mapping = {
+        "IsolationWidth_MS2_Median": "MS2 isolation width — median",
+        "IsolationWidth_MS2_Min": "MS2 isolation width — min",
+        "IsolationWidth_MS2_Max": "MS2 isolation width — max",
+        "IsolationWidth_MS2_Count": "MS2 isolation width — observations",
+        "IsolationWidth_MS2_Fraction": "MS2 isolation width — fraction",
+    }
+    if name in mapping:
+        return mapping[name]
+    if name == "ScanWindow_MS1" and endpoint:
+        return f"MS1 scan window {endpoint} limit"
+    if name == "ObservedMzRange_MS1" and endpoint:
+        return f"Observed MS1 m/z range — {endpoint}"
+    if name == "ObservedMzRange_MS2" and endpoint:
+        return f"Observed MS2 m/z range — {endpoint}"
+    if name == "PrecursorMzRange_MS2" and endpoint:
+        return f"MS2 precursor m/z range — {endpoint}"
+    if name in {"RTRange_MS1", "RetentionTimeRange_MS1"} and endpoint:
+        return f"MS1 retention-time range — {endpoint}"
+    if name in {"RTRange_MS2", "RetentionTimeRange_MS2"} and endpoint:
+        return f"MS2 retention-time range — {endpoint}"
+    if endpoint:
+        return f"{name} {endpoint}"
+    return name
+
+
+def _metric_unit_suffix(metric: MzQCMetric) -> str | None:
+    """Return a display unit, restoring units for local prideQC aggregate metrics."""
+    if metric.unit_name:
+        return metric.unit_name
+    name = metric.name
+    if name.startswith("IsolationWidth_MS2_"):
+        return "Th"
+    if name.startswith(("ScanWindow_", "ObservedMzRange_", "PrecursorMzRange_")):
+        return "m/z"
+    if name.startswith(("RTRange_", "RetentionTimeRange_")):
+        return "second"
+    return None
+
+
 def _metric_data(
     runs: list[MzQCRun],
     categories: set[str] | None = None,
@@ -311,7 +354,7 @@ def _metric_data(
             occurrences[metric.accession] += 1
             occurrence = occurrences[metric.accession]
             key = _metric_key(metric, occurrence)
-            unit = metric.unit_name
+            unit = _metric_unit_suffix(metric)
             description = metric.description or ""
             if _is_two_number_tuple(metric.value):
                 if numeric_only:
@@ -321,11 +364,11 @@ def _metric_data(
                 row[min_key] = metric.value[0]
                 row[max_key] = metric.value[1]
                 headers[min_key] = {
-                    "title": f"{metric.name} min",
+                    "title": _metric_display_title(metric, "lower"),
                     "description": description,
                 }
                 headers[max_key] = {
-                    "title": f"{metric.name} max",
+                    "title": _metric_display_title(metric, "upper"),
                     "description": description,
                 }
                 if unit:
@@ -333,7 +376,10 @@ def _metric_data(
                     headers[max_key]["suffix"] = f" {unit}"
             elif metric.scalar_value is not None:
                 row[key] = metric.scalar_value
-                headers[key] = {"title": metric.name, "description": description}
+                headers[key] = {
+                    "title": _metric_display_title(metric),
+                    "description": description,
+                }
                 if unit:
                     headers[key]["suffix"] = f" {unit}"
         data[run.sample_name] = row
@@ -539,6 +585,253 @@ def _mass_accuracy_summary_text(data: dict[str, dict[str, Any]], total_runs: int
     return "; ".join(clauses) + "."
 
 
+def _metric_scalar_named(run: MzQCRun, name: str) -> float | None:
+    metric = _metric_named(run, name)
+    value = None if metric is None else metric.scalar_value
+    return None if value is None else float(value)
+
+
+def _run_group_assignments(
+    runs: list[MzQCRun],
+) -> tuple[dict[str, str], dict[str, dict[str, Any]], list[str]]:
+    """Detect conservative potential acquisition/run groups for one report cohort."""
+    if not runs:
+        return {}, {}, []
+    accuracy, _ = _mass_accuracy_report_data(runs)
+    by_name = {run.sample_name: run for run in runs}
+    features: dict[str, dict[str, Any]] = {}
+    for run in runs:
+        row = accuracy.get(run.sample_name, {})
+        fragment_unit = "ppm" if "fragment_tolerance_ppm" in row else (
+            "Da" if "fragment_tolerance_da" in row else ""
+        )
+        fragment_value = row.get("fragment_tolerance_ppm", row.get("fragment_tolerance_da"))
+        features[run.sample_name] = {
+            "precursor": row.get("precursor_tolerance_ppm"),
+            "fragment": fragment_value,
+            "fragment_unit": fragment_unit,
+            "fragment_regime": row.get("fragment_resolution_regime", ""),
+            "rt": _metric_scalar_named(run, "chromatography duration"),
+            "isolation": _metric_scalar_named(run, "IsolationWidth_MS2_Median"),
+            "instrument": run.instrument or "",
+            "acquisition": run.acquisition_method or "",
+        }
+
+    names = [run.sample_name for run in runs]
+    min_group = max(3, ceil(len(names) * 0.10))
+    groups: list[list[str]] = [names]
+    evidence: list[str] = []
+
+    def supported_partition(group: list[str], key: str) -> list[list[str]] | None:
+        values = {name: str(features[name].get(key) or "") for name in group}
+        if any(not value for value in values.values()):
+            return None
+        buckets: dict[str, list[str]] = defaultdict(list)
+        for name, value in values.items():
+            buckets[value].append(name)
+        if len(buckets) <= 1 or any(len(bucket) < min_group for bucket in buckets.values()):
+            return None
+        return [buckets[key] for key in sorted(buckets)]
+
+    # Hard incompatibilities only split when every resulting bucket is well supported.
+    for key in ("fragment_unit", "fragment_regime", "instrument", "acquisition"):
+        changed = True
+        while changed and len(groups) < 4:
+            changed = False
+            new_groups: list[list[str]] = []
+            for group in groups:
+                partition = supported_partition(group, key)
+                if partition is not None and len(new_groups) + len(partition) <= 4:
+                    new_groups.extend(partition)
+                    evidence.append(f"categorical {key} split")
+                    changed = True
+                else:
+                    new_groups.append(group)
+            groups = new_groups
+
+    thresholds = {
+        "precursor": 1.75,
+        "fragment": 1.75,
+        "rt": 1.20,
+        "isolation": 1.35,
+    }
+
+    def best_gap(group: list[str]) -> tuple[float, str, int, list[tuple[float, str]]] | None:
+        best = None
+        for key, threshold in thresholds.items():
+            pairs = []
+            for name in group:
+                value = features[name].get(key)
+                if isinstance(value, (int, float)) and value > 0:
+                    pairs.append((float(value), name))
+            if len(pairs) != len(group):
+                continue
+            pairs.sort()
+            for index in range(min_group, len(pairs) - min_group + 1):
+                low = pairs[index - 1][0]
+                high = pairs[index][0]
+                ratio = high / low if low > 0 else 1.0
+                score = ratio / threshold
+                if ratio >= threshold and (best is None or score > best[0]):
+                    best = (score, key, index, pairs)
+        return best
+
+    while len(groups) < 4:
+        choices = []
+        for group_index, group in enumerate(groups):
+            gap = best_gap(group)
+            if gap is not None:
+                choices.append((gap[0], group_index, gap))
+        if not choices:
+            break
+        _, group_index, gap = max(choices, key=lambda item: item[0])
+        _, key, index, pairs = gap
+        left = [name for _, name in pairs[:index]]
+        right = [name for _, name in pairs[index:]]
+        low = pairs[index - 1][0]
+        high = pairs[index][0]
+        evidence.append(f"{key} gap {high / low:.2f}x")
+        groups[group_index : group_index + 1] = [left, right]
+
+    groups.sort(key=lambda group: min(names.index(name) for name in group))
+    assignments: dict[str, str] = {}
+    summaries: dict[str, dict[str, Any]] = {}
+    for index, group in enumerate(groups, start=1):
+        label = f"Group {index}"
+        for name in group:
+            assignments[name] = label
+        rows = [accuracy.get(name, {}) for name in group]
+        precursor = [float(row["precursor_tolerance_ppm"]) for row in rows if "precursor_tolerance_ppm" in row]
+        fragment_ppm = [float(row["fragment_tolerance_ppm"]) for row in rows if "fragment_tolerance_ppm" in row]
+        fragment_da = [float(row["fragment_tolerance_da"]) for row in rows if "fragment_tolerance_da" in row]
+        rt = [float(features[name]["rt"]) for name in group if isinstance(features[name]["rt"], (int, float))]
+        isolation = [float(features[name]["isolation"]) for name in group if isinstance(features[name]["isolation"], (int, float))]
+        summary: dict[str, Any] = {"files": len(group)}
+        if precursor:
+            summary["precursor_median_ppm"] = median(precursor)
+            summary["precursor_common_ppm"] = max(precursor)
+        if fragment_ppm:
+            summary["fragment_regime"] = "high-resolution / ppm"
+            summary["fragment_median"] = median(fragment_ppm)
+            summary["fragment_common"] = max(fragment_ppm)
+            summary["fragment_unit"] = "ppm"
+        elif fragment_da:
+            summary["fragment_regime"] = "low-resolution / Da"
+            summary["fragment_median"] = median(fragment_da)
+            summary["fragment_common"] = max(fragment_da)
+            summary["fragment_unit"] = "Da"
+        if rt:
+            summary["rt_median_min"] = median(rt) / 60.0
+            summary["rt_min_min"] = min(rt) / 60.0
+            summary["rt_max_min"] = max(rt) / 60.0
+        if isolation:
+            summary["isolation_median_th"] = median(isolation)
+        instruments = sorted({by_name[name].instrument for name in group if by_name[name].instrument})
+        acquisitions = sorted({by_name[name].acquisition_method for name in group if by_name[name].acquisition_method})
+        if instruments:
+            summary["instrument"] = "; ".join(instruments)
+        if acquisitions:
+            summary["acquisition"] = "; ".join(acquisitions)
+        summaries[label] = summary
+    return assignments, summaries, evidence
+
+
+def _beta_prevalence_probability(hits: int, runs: int, threshold: float = 0.10) -> float:
+    """Return P(prevalence > threshold | hits, runs, Beta(1,1))."""
+    if runs <= 0 or hits < 0 or hits > runs:
+        return 0.0
+    # For Beta(hits+1, runs-hits+1), 1-I_x equals a binomial lower tail.
+    total = runs + 1
+    probability = sum(
+        comb(total, index) * threshold**index * (1.0 - threshold) ** (total - index)
+        for index in range(hits + 1)
+    )
+    return min(1.0, max(0.0, probability))
+
+
+def _mass_shift_family_context(
+    runs: list[MzQCRun], assignments: dict[str, str]
+) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]]]:
+    """Aggregate 0.02-Da recurrent mass families within inferred run groups."""
+    group_members: dict[str, list[str]] = defaultdict(list)
+    for run in runs:
+        group_members[assignments.get(run.sample_name, "Group 1")].append(run.sample_name)
+
+    record_context: dict[int, dict[str, Any]] = {}
+    family_rows: list[dict[str, Any]] = []
+    for group, members in group_members.items():
+        observations: list[tuple[float, str, dict[str, Any]]] = []
+        for run in runs:
+            if run.sample_name not in members:
+                continue
+            for record in _mass_shift_records(run):
+                delta = _finite_number(record.get("delta_mass_da"))
+                if delta is not None:
+                    observations.append((float(delta), run.sample_name, record))
+        observations.sort(key=lambda item: item[0])
+        families: list[list[tuple[float, str, dict[str, Any]]]] = []
+        for observation in observations:
+            if not families:
+                families.append([observation])
+                continue
+            center = median([item[0] for item in families[-1]])
+            if abs(observation[0] - center) <= 0.02:
+                families[-1].append(observation)
+            else:
+                families.append([observation])
+        for family in families:
+            run_hits = sorted({item[1] for item in family})
+            probability = _beta_prevalence_probability(len(run_hits), len(members))
+            prevalence = len(run_hits) / len(members) if members else 0.0
+            representative = max(
+                family, key=lambda item: int(item[2].get("pair_support", 0) or 0)
+            )
+            rep_record = representative[2]
+            candidates = _mass_shift_candidate_names(rep_record)
+            high_support_runs = {
+                run_name
+                for _, run_name, record in family
+                if str(record.get("confidence") or "") == "high-support"
+            }
+            context = {
+                "run_group": group,
+                "family_runs": len(run_hits),
+                "group_runs": len(members),
+                "run_prevalence": prevalence,
+                "raw_prevalence_probability": probability,
+                "mass_identity_ambiguous": len(candidates) > 1,
+                "alternative_candidates": "; ".join(candidates[1:]),
+            }
+            for _, _, record in family:
+                record_context[id(record)] = context
+            if (
+                str(rep_record.get("classification") or "") == "putative-ptm"
+                and candidates
+                and len(run_hits) >= 2
+                and len(high_support_runs) >= 2
+                and probability >= 0.95
+            ):
+                supports = [int(item[2].get("pair_support", 0) or 0) for item in family]
+                family_rows.append(
+                    {
+                        "run_group": group,
+                        "candidate": candidates[0],
+                        "delta_mass_da": median([item[0] for item in family]),
+                        "family_runs": len(run_hits),
+                        "run_prevalence": prevalence,
+                        "raw_prevalence_probability": probability,
+                        "median_pair_support": median(supports) if supports else 0,
+                        "mass_identity_ambiguous": len(candidates) > 1,
+                        "alternative_candidates": "; ".join(candidates[1:]),
+                    }
+                )
+    family_rows.sort(
+        key=lambda row: (float(row["raw_prevalence_probability"]), int(row["family_runs"])),
+        reverse=True,
+    )
+    return record_context, family_rows
+
+
 def _mass_shift_records(run: MzQCRun) -> list[dict[str, Any]]:
     """Return the bounded QC-facing mass-shift records for one run."""
     value = _structured_value(run, MASS_SHIFT_METRIC_NAME, list)
@@ -638,6 +931,8 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
                 for family in top_families
             }
 
+    assignments, _, _ = _run_group_assignments(runs)
+    family_context, high_support_families = _mass_shift_family_context(runs, assignments)
     return {
         "by_run": by_run,
         "diagnostics": diagnostics,
@@ -647,6 +942,9 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
         "class_counts": class_counts,
         "confidence_counts": confidence_counts,
         "heatmap_data": heatmap_data,
+        "run_groups": assignments,
+        "family_context": family_context,
+        "high_support_families": high_support_families,
     }
 
 
@@ -712,8 +1010,10 @@ def _mass_shift_cluster_table(
         delta = _finite_number(record.get("delta_mass_da"))
         candidate_names = _mass_shift_candidate_names(record)
         candidate = candidate_names[0] if candidate_names else ""
+        context = report.get("family_context", {}).get(id(record), {})
         result[f"{index:03d} · {run_name}"] = {
             "run": run_name,
+            "run_group": context.get("run_group", "Group 1"),
             "delta_mass_da": delta,
             "classification": MASS_SHIFT_CLASS_LABELS.get(
                 str(record.get("classification") or "unknown"),
@@ -725,6 +1025,10 @@ def _mass_shift_cluster_table(
             "unique_spectra": int(record.get("unique_spectrum_support", 0) or 0),
             "spectral_similarity": _finite_number(record.get("median_spectral_similarity")),
             "confidence": str(record.get("confidence") or ""),
+            "family_runs": context.get("family_runs"),
+            "run_prevalence": context.get("run_prevalence"),
+            "raw_prevalence_probability": context.get("raw_prevalence_probability"),
+            "mass_identity_ambiguous": context.get("mass_identity_ambiguous"),
             "mass_residual_da": (
                 _finite_number(
                     record["unimod_candidates"][0].get(
@@ -794,6 +1098,25 @@ class MzQCModule(BaseMultiqcModule):
         self.add_software_version(None)
         if not self.runs:
             raise ModuleNoSamplesFound
+
+        self._run_groups, self._run_group_summaries, self._run_group_evidence = (
+            _run_group_assignments(self.runs)
+        )
+        if len(self._run_group_summaries) > 1:
+            details = "; ".join(
+                f"{group}: {summary['files']} files"
+                for group, summary in self._run_group_summaries.items()
+            )
+            evidence = ", ".join(self._run_group_evidence)
+            self.add_section(
+                name="Potential Acquisition Heterogeneity",
+                anchor="mzqc-potential-acquisition-heterogeneity",
+                description=(
+                    f"Detected {len(self._run_group_summaries)} potential acquisition/run "
+                    f"groups ({details}). This is a conservative QC warning, not a claim of "
+                    f"distinct biological experiments. Separation evidence: {evidence}."
+                ),
+            )
 
         run_data = self._run_overview_data()
         run_headers = {
@@ -895,6 +1218,45 @@ class MzQCModule(BaseMultiqcModule):
         if not data:
             return
 
+        if self._run_group_summaries:
+            summary_headers = {
+                "files": {"title": "Files", "format": "{:,.0f}"},
+                "precursor_median_ppm": {"title": "Precursor median", "suffix": " ppm", "format": "{:,.2f}"},
+                "precursor_common_ppm": {"title": "Precursor common/max", "suffix": " ppm", "format": "{:,.2f}"},
+                "fragment_median": {"title": "Fragment median", "format": "{:,.3f}"},
+                "fragment_common": {"title": "Fragment common/max", "format": "{:,.3f}"},
+                "fragment_unit": {"title": "Fragment unit"},
+                "fragment_regime": {"title": "Fragment regime"},
+                "rt_median_min": {"title": "RT median", "suffix": " min", "format": "{:,.1f}"},
+                "rt_min_min": {"title": "RT min", "suffix": " min", "format": "{:,.1f}"},
+                "rt_max_min": {"title": "RT max", "suffix": " min", "format": "{:,.1f}"},
+                "isolation_median_th": {"title": "MS2 isolation width — median", "suffix": " Th", "format": "{:,.2f}"},
+                "instrument": {"title": "Instrument"},
+                "acquisition": {"title": "Acquisition method"},
+            }
+            self.add_section(
+                name="Reanalysis Tolerance Summary",
+                anchor="mzqc-reanalysis-tolerance-summary",
+                description=(
+                    "One conservative common search-tolerance recommendation per potential "
+                    "acquisition/run group. Common values use the maximum supported run-level "
+                    "recommendation so one setting covers every run in that group; medians are "
+                    "shown for context."
+                ),
+                plot=table.plot(
+                    self._run_group_summaries,
+                    headers=summary_headers,
+                    pconfig={
+                        "id": "mzqc_reanalysis_tolerance_summary",
+                        "title": "Reanalysis Tolerance Summary",
+                        "only_defined_headers": True,
+                        "sort_rows": False,
+                        "no_violin": True,
+                        "save_data_file": False,
+                    },
+                ),
+            )
+
         headers = {
             "precursor_sigma_ppm": {
                 "title": "Precursor precision σ",
@@ -988,40 +1350,48 @@ class MzQCModule(BaseMultiqcModule):
         )
 
     def _add_mass_accuracy_general_stats(self) -> None:
-        """Expose the two most actionable ppm tolerances in General Statistics."""
+        """Expose common group tolerances instead of different per-run recommendations."""
         data, _ = _mass_accuracy_report_data(self.runs)
+        assignments = getattr(self, "_run_groups", {})
+        summaries = getattr(self, "_run_group_summaries", {})
         general_data: dict[str, dict[str, Any]] = {}
         for sample, row in data.items():
+            group = assignments.get(sample, "Group 1")
+            summary = summaries.get(group, {})
             values: dict[str, Any] = {}
-            if "precursor_tolerance_ppm" in row:
-                values["prideqc_precursor_tolerance_ppm"] = row["precursor_tolerance_ppm"]
-            if "fragment_tolerance_ppm" in row:
-                values["prideqc_fragment_tolerance_ppm"] = row["fragment_tolerance_ppm"]
+            if "precursor_common_ppm" in summary:
+                values["prideqc_precursor_tolerance_ppm"] = summary["precursor_common_ppm"]
+            if summary.get("fragment_unit") == "ppm" and "fragment_common" in summary:
+                values["prideqc_fragment_tolerance_ppm"] = summary["fragment_common"]
+            if len(summaries) > 1:
+                values["prideqc_run_group"] = group
             if values:
                 general_data[sample] = values
         if not general_data:
             return
-        self.general_stats_addcols(
-            general_data,
-            {
-                "prideqc_precursor_tolerance_ppm": {
-                    "title": "Precursor tol.",
-                    "description": "prideQC precision-derived precursor search tolerance",
-                    "suffix": " ppm",
-                    "format": "{:,.2f}",
-                    "hidden": False,
-                },
-                "prideqc_fragment_tolerance_ppm": {
-                    "title": "Fragment tol.",
-                    "description": (
-                        "prideQC precision-derived high-resolution fragment search tolerance"
-                    ),
-                    "suffix": " ppm",
-                    "format": "{:,.2f}",
-                    "hidden": False,
-                },
+        headers: dict[str, dict[str, Any]] = {
+            "prideqc_precursor_tolerance_ppm": {
+                "title": "Precursor tol.",
+                "description": "Common/max prideQC precursor tolerance for this run group",
+                "suffix": " ppm",
+                "format": "{:,.2f}",
+                "hidden": False,
             },
-        )
+            "prideqc_fragment_tolerance_ppm": {
+                "title": "Fragment tol.",
+                "description": "Common/max high-resolution fragment tolerance for this run group",
+                "suffix": " ppm",
+                "format": "{:,.2f}",
+                "hidden": False,
+            },
+        }
+        if len(summaries) > 1:
+            headers["prideqc_run_group"] = {
+                "title": "Run group",
+                "description": "Potential acquisition/run group detected from mzQC evidence",
+                "hidden": False,
+            }
+        self.general_stats_addcols(general_data, headers)
 
     def _add_mass_shift_sections(self) -> None:
         """Render bounded recurrent mass-shift evidence without implying PTM identification."""
@@ -1066,6 +1436,44 @@ class MzQCModule(BaseMultiqcModule):
                 },
             ),
         )
+
+        high_support_rows = {
+            f"{index:03d}": row
+            for index, row in enumerate(report.get("high_support_families", []), start=1)
+        }
+        if high_support_rows:
+            self.add_section(
+                name="High-support Modification Families",
+                anchor="mzqc-high-support-modification-families",
+                description=(
+                    "Recurrent PTM-compatible mass-shift families with at least two supporting "
+                    "runs, at least two high-support runs, and P(prevalence > 10%) >= 0.95. "
+                    "These are mass-compatible families, not peptide- or site-localized PTM "
+                    "identifications."
+                ),
+                plot=table.plot(
+                    high_support_rows,
+                    headers={
+                        "run_group": {"title": "Run group"},
+                        "candidate": {"title": "Mass-compatible candidate"},
+                        "delta_mass_da": {"title": "Median Δ mass", "suffix": " Da", "format": "{:,.5f}"},
+                        "family_runs": {"title": "Supporting runs", "format": "{:,.0f}"},
+                        "run_prevalence": {"title": "Run prevalence", "format": "{:,.1%}"},
+                        "raw_prevalence_probability": {"title": "P(prevalence > 10%)", "format": "{:,.3f}"},
+                        "median_pair_support": {"title": "Median pair support", "format": "{:,.0f}"},
+                        "mass_identity_ambiguous": {"title": "Mass ambiguous"},
+                        "alternative_candidates": {"title": "Alternative candidates"},
+                    },
+                    pconfig={
+                        "id": "mzqc_high_support_modification_families",
+                        "title": "High-support Modification Families",
+                        "only_defined_headers": True,
+                        "sort_rows": False,
+                        "no_violin": True,
+                        "save_data_file": False,
+                    },
+                ),
+            )
 
         if report["classification_plot"]:
             self.add_section(
@@ -1155,6 +1563,7 @@ class MzQCModule(BaseMultiqcModule):
                     cluster_table,
                     headers={
                         "run": {"title": "Run"},
+                        "run_group": {"title": "Run group"},
                         "delta_mass_da": {
                             "title": "Δ mass",
                             "suffix": " Da",
@@ -1169,7 +1578,15 @@ class MzQCModule(BaseMultiqcModule):
                             "title": "Median spectral similarity",
                             "format": "{:,.3f}",
                         },
-                        "confidence": {"title": "Confidence"},
+                        "confidence": {"title": "Support tier"},
+                        "family_runs": {"title": "Family runs", "format": "{:,.0f}"},
+                        "run_prevalence": {"title": "Run prevalence", "format": "{:,.1%}"},
+                        "raw_prevalence_probability": {
+                            "title": "P(prevalence > 10%)",
+                            "description": "RAW family recurrence probability; not PTM identity probability.",
+                            "format": "{:,.3f}",
+                        },
+                        "mass_identity_ambiguous": {"title": "Mass ambiguous"},
                         "mass_residual_da": {
                             "title": "Candidate residual",
                             "suffix": " Da",

@@ -20,6 +20,9 @@ from pmultiqc.modules.mzqc.mzqc import (
     _mass_shift_summary_description,
     _mass_shift_summary_table,
     _metric_data,
+    _metric_display_title,
+    _beta_prevalence_probability,
+    _run_group_assignments,
 )
 
 
@@ -583,3 +586,74 @@ def test_scalar_metric_columns_are_consistent_across_runs():
     assert data["synthetic_run_1"]["QCPRIDE_MS1_RANGE_min"] == 350.0
     assert data["synthetic_run_1"]["QCPRIDE_MS1_RANGE_max"] == 1800.0
     assert headers["MS_4000059"]["title"] == "number of MS1 spectra"
+
+
+def _synthetic_tolerance_run(name: str, fragment_ppm: float, rt_seconds: float = 5400.0) -> MzQCRun:
+    return MzQCRun(
+        sample_name=name,
+        source_path=Path(f"{name}.mzQC"),
+        metadata={},
+        metrics=(
+            MzQCMetric(
+                "QCPRIDE:PRECURSOR_TOLERANCE",
+                "suggested precursor search tolerance",
+                {"suggested_tolerance": 8.0, "confidence": "high"},
+            ),
+            MzQCMetric(
+                "QCPRIDE:FRAGMENT_TOLERANCE",
+                "suggested fragment search tolerance",
+                {"suggested_tolerance": fragment_ppm, "confidence": "high"},
+            ),
+            MzQCMetric(
+                "QCPRIDE:MASS_ERROR_DIAGNOSTICS",
+                "mass error estimator diagnostics",
+                {"fragment_resolution_regime": "high-resolution"},
+            ),
+            MzQCMetric("MS:4000053", "chromatography duration", rt_seconds),
+            MzQCMetric("QCPRIDE:ISO", "IsolationWidth_MS2_Median", 1.6),
+        ),
+    )
+
+
+def test_run_group_detection_finds_supported_two_population_tolerance_split():
+    runs = [
+        *[_synthetic_tolerance_run(f"low-{index}", 6.0 + index * 0.1) for index in range(6)],
+        *[_synthetic_tolerance_run(f"high-{index}", 21.0 + index * 0.5) for index in range(6)],
+    ]
+
+    assignments, summaries, evidence = _run_group_assignments(runs)
+
+    assert len(summaries) == 2
+    assert len(set(assignments[name] for name in assignments if name.startswith("low-"))) == 1
+    assert len(set(assignments[name] for name in assignments if name.startswith("high-"))) == 1
+    assert assignments["low-0"] != assignments["high-0"]
+    assert any("fragment gap" in item for item in evidence)
+    assert summaries[assignments["low-0"]]["fragment_common"] == pytest.approx(6.5)
+    assert summaries[assignments["high-0"]]["fragment_common"] == pytest.approx(23.5)
+
+
+def test_run_group_detection_does_not_promote_singleton_outlier():
+    runs = [
+        *[_synthetic_tolerance_run(f"base-{index}", 12.0) for index in range(9)],
+        _synthetic_tolerance_run("outlier", 40.0),
+    ]
+
+    assignments, summaries, evidence = _run_group_assignments(runs)
+
+    assert len(summaries) == 1
+    assert set(assignments.values()) == {"Group 1"}
+    assert evidence == []
+
+
+def test_beta_prevalence_probability_matches_v4_single_run_boundary():
+    assert _beta_prevalence_probability(1, 1) == pytest.approx(0.99)
+    assert _beta_prevalence_probability(0, 1) == pytest.approx(0.81)
+
+
+def test_cv_backed_metric_display_titles_are_compact():
+    isolation = MzQCMetric("QCPRIDE:ISO", "IsolationWidth_MS2_Median", 1.6)
+    scan = MzQCMetric("QCPRIDE:SCAN", "ScanWindow_MS1", [350.0, 1800.0])
+
+    assert _metric_display_title(isolation) == "MS2 isolation width — median"
+    assert _metric_display_title(scan, "lower") == "MS1 scan window lower limit"
+    assert _metric_display_title(scan, "upper") == "MS1 scan window upper limit"
