@@ -10,4 +10,5 @@ pyarrow
 scikit-learn>=1.2
 statsmodels
 urllib3>=2.6.1
+pymzqc>=1.0.3
 setuptools<78

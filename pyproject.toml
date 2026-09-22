@@ -49,11 +49,8 @@ dependencies = [
     "scikit-learn>=1.2",
     "statsmodels",
     "urllib3>=2.6.1",
+    "pymzqc>=1.0.3",
 ]
-
-[project.optional-dependencies]
-# mzQC export: when pymzqc is installed, the plugin writes an mzQC file next to the report
-mzqc = ["pymzqc>=1.0.0"]
 
 [project.urls]
 Homepage = "https://quantms.org"
