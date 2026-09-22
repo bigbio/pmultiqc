@@ -2,7 +2,9 @@
 
 import json
 import logging
+import math
 import os
+import tempfile
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
@@ -13,6 +15,41 @@ from mzqc.MZQCFile import QualityMetric
 from .mapping import MZQC_METRIC_MAPPING
 
 log = logging.getLogger("pmultiqc.mzqc_generator")
+
+
+def to_json_safe(value: Any) -> Any:
+    """Recursively convert a metric value into strict-JSON builtins.
+
+    numpy scalars and arrays become Python numbers and lists, pandas objects
+    become records or lists, non-string dict keys become strings, and NaN or
+    infinite numbers become None. Anything else unknown is stringified, so
+    serialising the result can never fail part-way through.
+    """
+    if value is None or isinstance(value, (str, bool)):
+        return value
+    if isinstance(value, np.generic):
+        value = value.item()
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, dict):
+        return {
+            (k if isinstance(k, str) else str(to_json_safe(k))): to_json_safe(v)
+            for k, v in value.items()
+        }
+    if isinstance(value, (list, tuple, set)):
+        return [to_json_safe(v) for v in value]
+    if isinstance(value, np.ndarray):
+        return [to_json_safe(v) for v in value.tolist()]
+
+    class_name = value.__class__.__name__
+    if class_name == "DataFrame":
+        return to_json_safe(value.to_dict(orient="records"))
+    if class_name == "Series":
+        return to_json_safe(value.to_list())
+
+    return str(value)
 
 class MzQcExporter:
     def __init__(self, pipeline_name: str, raw_data: dict[str, Any], output_dir: str):
@@ -44,7 +81,7 @@ class MzQcExporter:
         and writes it to the designated output directory.
         """
         if not metrics:
-            self.log_warning("No metrics provided to export.")
+            log.warning("No metrics provided to export.")
             return ""
     
             
@@ -60,7 +97,7 @@ class MzQcExporter:
                         "version": "4.1.130"
                     }
                 ],
-                "runQuality": [
+                "runQualities": [
                     {
                         "metadata": {
                             "inputFiles": [
@@ -99,15 +136,28 @@ class MzQcExporter:
         target_path = os.path.join(self.output_dir, filename)
         
         try:
-            # Ensure output directory exists
+            # Serialise completely before touching the disk: json.dump streams
+            # to the file, so a value it cannot encode used to leave a truncated
+            # mzQC behind. allow_nan=False guarantees strict JSON.
+            payload = json.dumps(to_json_safe(mzqc_data), indent=2, allow_nan=False)
+
             os.makedirs(self.output_dir, exist_ok=True)
-            
-            with open(target_path, "w", encoding="utf-8") as f:
-                json.dump(mzqc_data, f, indent=2)
-                
+
+            # write to a temporary file in the same directory, then move it into
+            # place, so the target is either the complete document or untouched
+            fd, tmp_path = tempfile.mkstemp(dir=self.output_dir, suffix=".mzQC.tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(payload)
+                os.replace(tmp_path, target_path)
+            except BaseException:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+                raise
+
             print(f"[mzQC Export] Successfully wrote mzQC file to: {target_path}")
             return target_path
-            
+
         except Exception as e:
             raise OSError(f"Failed writing mzQC payload to disk: {e}")
     ###

@@ -26,6 +26,10 @@
 pip install pmultiqc
 ```
 
+To also write the QC metrics as an [mzQC](https://github.com/HUPO-PSI/mzQC) file next to the report,
+install the optional `pymzqc` dependency with `pip install "pmultiqc[mzqc]"`. Without it the mzQC step
+is skipped and the report is produced as usual.
+
 ## Quick Start
 
 ```bash

@@ -77,8 +77,8 @@ class MzQCExporter:
                 "version": self.version,
                 "creationDate": datetime.datetime.now().isoformat() + "Z",
                 "controlledVocabularies": [self.cv_ref],
-                "runQuality": run_quality_list,
-                "setQuality": set_quality_list
+                "runQualities": run_quality_list,
+                "setQualities": set_quality_list
             }
         }
 logger = logging.getLogger(__name__)

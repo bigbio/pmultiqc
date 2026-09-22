@@ -1,0 +1,36 @@
+{
+  "mzQC": {
+    "version": "1.0.0",
+    "creationDate": "2026-09-16T10:00:00Z",
+    "runQualities": [
+      {
+        "metadata": {
+          "label": "synthetic_run_1",
+          "inputFiles": [
+            {
+              "name": "run1.raw",
+              "location": "file:///data/run1.raw",
+              "fileFormat": {"accession": "MS:1000563", "name": "Thermo RAW format"},
+              "fileProperties": [
+                {"accession": "MS:1000495", "name": "instrument model", "value": "Orbitrap Eclipse"}
+              ]
+            }
+          ],
+          "analysisSoftware": [
+            {"accession": "QCPRIDE:SOFTWARE", "name": "prideqc", "version": "1.0.0"}
+          ]
+        },
+        "qualityMetrics": [
+          {"accession": "MS:4000053", "name": "chromatography duration", "value": 3600, "unit": {"accession": "UO:0000010", "name": "second"}},
+          {"accession": "MS:4000059", "name": "number of MS1 spectra", "value": 12000, "unit": {"accession": "UO:0000189", "name": "count"}},
+          {"accession": "MS:4000060", "name": "number of MS2 spectra", "value": 48000, "unit": {"accession": "UO:0000189", "name": "count"}},
+          {"accession": "QCPRIDE:ACQ_METHOD", "name": "acquisition method", "value": "Data-dependent acquisition"},
+          {"accession": "QCPRIDE:PROVENANCE", "name": "acquisition method provenance", "value": "inferred"},
+          {"accession": "QCPRIDE:MS1_RANGE", "name": "ObservedMzRange_MS1", "value": [350.0, 1800.0], "unit": {"accession": "MS:1000040", "name": "m/z"}},
+          {"accession": "QCPRIDE:PRECISION", "name": "estimated precursor precision", "value": 3.2, "unit": {"accession": "UO:0000169", "name": "parts per million"}}
+        ]
+      }
+    ],
+    "controlledVocabularies": []
+  }
+}
