@@ -81,11 +81,10 @@ jobs:
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/TMT_PXD007683.zip
           unzip -d ./tmt TMT_PXD007683.zip
           multiqc --quantms-plugin ./tmt --config ./tmt/multiqc_config.yml -o ./results_tmt
-      - name: Check mzQC was skipped (pymzqc not installed)
+      - name: Check mzQC was exported as valid JSON (pymzqc installed)
         run: |
-          if find ./results_tmt -iname '*.mzqc' | grep -q .; then
-            echo "mzQC written without pymzqc installed"; exit 1
-          fi
+          test -s ./results_tmt/quantms_qc.mzQC
+          python -c 'import json, sys; json.load(open(sys.argv[1]), parse_constant=lambda c: sys.exit("non-standard JSON constant " + c))' ./results_tmt/quantms_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -126,7 +125,7 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install package
-        run: pip install ".[mzqc]"
+        run: pip install "."
       - name: Test DIANN dataset
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/example-projects/PXD063291.zip
@@ -214,7 +213,7 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install package
-        run: pip install ".[mzqc]"
+        run: pip install "."
       - name: Test MaxQuant file
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/11/PXD003133/txt_20min.zip
@@ -249,11 +248,10 @@ jobs:
           mkdir -p ./maxdia
           unzip -d ./maxdia MaxDIA_txt.zip
           multiqc --maxquant-plugin ./maxdia -o ./results_maxquant_dia
-      - name: Check mzQC was skipped (pymzqc not installed)
+      - name: Check mzQC was exported as valid JSON (pymzqc installed)
         run: |
-          if find ./results_maxquant_dia -iname '*.mzqc' | grep -q .; then
-            echo "mzQC written without pymzqc installed"; exit 1
-          fi
+          test -s ./results_maxquant_dia/maxquant_qc.mzQC
+          python -c 'import json, sys; json.load(open(sys.argv[1]), parse_constant=lambda c: sys.exit("non-standard JSON constant " + c))' ./results_maxquant_dia/maxquant_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results
@@ -368,14 +366,13 @@ jobs:
         run: pip install .
       - name: Test single cell dataset
         run: |
-          wget -nv https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD053464/03_SingleCell_Searches.zip
+          curl --fail --location --retry 3 --output 03_SingleCell_Searches.zip https://ftp.pride.ebi.ac.uk/pride/data/archive/2024/08/PXD053464/03_SingleCell_Searches.zip
           unzip -d ./PXD053464 03_SingleCell_Searches.zip
           multiqc --diann-plugin ./PXD053464 -o ./results_single_cell_diann
-      - name: Check mzQC was skipped (pymzqc not installed)
+      - name: Check mzQC was exported as valid JSON (pymzqc installed)
         run: |
-          if find ./results_single_cell_diann -iname '*.mzqc' | grep -q .; then
-            echo "mzQC written without pymzqc installed"; exit 1
-          fi
+          test -s ./results_single_cell_diann/diann_qc.mzQC
+          python -c 'import json, sys; json.load(open(sys.argv[1]), parse_constant=lambda c: sys.exit("non-standard JSON constant " + c))' ./results_single_cell_diann/diann_qc.mzQC
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results

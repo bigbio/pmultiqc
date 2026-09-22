@@ -1,6 +1,6 @@
-"""mzQC export is optional: it runs only when pymzqc is installed.
+"""mzQC export is guarded so it remains robust when pymzqc is unavailable.
 
-These tests pass with and without the ``mzqc`` extra installed. The checks that
+These tests pass with and without pymzqc installed. The checks that
 need pymzqc itself are skipped when it is absent, and the checks for the absent
 case hide the package so they also run on installations that have it.
 """
@@ -54,8 +54,8 @@ class TestIsMzqcAvailable:
 
         messages = [r.getMessage() for r in caplog.records]
         assert len(messages) == 1
-        assert 'pip install "pmultiqc[mzqc]"' in messages[0]
-        # skipping is the expected state without the extra, not a problem
+        assert "pip install pymzqc" in messages[0]
+        # skipping is a graceful fallback when the dependency is unavailable
         assert caplog.records[0].levelno == logging.INFO
 
     def test_nothing_is_logged_when_pymzqc_is_installed(self, monkeypatch, caplog):
