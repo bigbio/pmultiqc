@@ -1,9 +1,8 @@
 """mzQC export.
 
-mzQC output is optional. It needs the ``pymzqc`` package, which is not a core
-dependency of pmultiqc; install it with ``pip install "pmultiqc[mzqc]"``. When
-the package is present the plugin modules compute and write an mzQC file next
-to the MultiQC report, and when it is absent they skip that step entirely.
+mzQC output needs the ``pymzqc`` package. When the package is present the
+plugin modules compute and write an mzQC file next to the MultiQC report, and
+when it is absent they skip that step entirely.
 
 Nothing in this package module imports ``mzqc``, so it is safe to import on
 any installation.
@@ -31,8 +30,8 @@ def is_mzqc_available() -> bool:
         _availability = importlib.util.find_spec("mzqc") is not None
         if not _availability:
             log.info(
-                'mzQC export skipped: pymzqc is not installed '
-                '(install it with: pip install "pmultiqc[mzqc]")'
+                "mzQC export skipped: pymzqc is not installed "
+                "(install it with: pip install pymzqc)"
             )
 
     return _availability
