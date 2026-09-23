@@ -1954,7 +1954,7 @@ class MzQCModule(BaseMultiqcModule):
             headers["prideqc_experiment_group"] = {
                 "title": "Experiment group",
                 "description": "Potential experiment group detected from mzQC evidence",
-                "scale": "Set1",
+                "scale": False,
                 "hidden": False,
             }
         self.general_stats_addcols(general_data, headers)
