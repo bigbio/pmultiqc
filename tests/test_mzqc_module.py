@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from html import unescape
 from pathlib import Path
 from typing import Any
 
 import pytest
+from multiqc import config as multiqc_config
 
 from pmultiqc.modules.mzqc import MzQCMetric, MzQCModule, MzQCRun, parse_mzqc_document
 from pmultiqc.modules.mzqc.mzqc import (
     _beta_prevalence_probability,
     _candidate_family_counts,
+    _configure_dataset_report_metadata,
     _experiment_group_pca_data,
     _mass_accuracy_detail_description,
     _mass_accuracy_report_data,
@@ -25,6 +28,7 @@ from pmultiqc.modules.mzqc.mzqc import (
     _metric_data,
     _metric_display_title,
     _prevalence_probability_histogram,
+    _proteomexchange_accessions,
     _run_group_assignments,
 )
 
@@ -48,6 +52,93 @@ def test_parse_single_file_returns_one_run():
     _check(runs[0].instrument == 'Orbitrap Eclipse')
     _check(runs[0].acquisition_method == '"Data-dependent acquisition"')
     _check(runs[0].provenance == 'acquisition method provenance: "inferred"')
+
+
+def test_proteomexchange_accession_is_read_from_input_file_metadata():
+    run = MzQCRun(
+        sample_name="run.raw",
+        source_path=Path("run.mzQC"),
+        metadata={
+            "inputFiles": [
+                {
+                    "name": "run.raw",
+                    "fileProperties": [
+                        {
+                            "accession": "MS:1001919",
+                            "name": "ProteomeXchange accession number",
+                            "value": "pxd041271",
+                        }
+                    ],
+                }
+            ]
+        },
+        metrics=(),
+    )
+
+    _check(run.proteomexchange_accession == "PXD041271")
+    _check(_proteomexchange_accessions([run]) == ["PXD041271"])
+
+
+def test_historical_mzqc_can_recover_accession_from_source_path():
+    run = MzQCRun(
+        sample_name="run.raw",
+        source_path=Path("/results/PXD041271/run.raw.mzQC"),
+        metadata={},
+        metrics=(),
+    )
+
+    _check(run.proteomexchange_accession == "PXD041271")
+
+
+def test_dataset_accession_sets_default_report_title_and_header(monkeypatch):
+    run = MzQCRun(
+        sample_name="run.raw",
+        source_path=Path("run.mzQC"),
+        metadata={
+            "inputFiles": [
+                {
+                    "fileProperties": [
+                        {
+                            "accession": "MS:1001919",
+                            "name": "ProteomeXchange accession number",
+                            "value": "PXD041271",
+                        }
+                    ]
+                }
+            ]
+        },
+        metrics=(),
+    )
+    monkeypatch.setattr(multiqc_config, "title", None)
+    monkeypatch.setattr(multiqc_config, "report_header_info", [])
+
+    accessions = _configure_dataset_report_metadata([run])
+
+    _check(accessions == ["PXD041271"])
+    _check(multiqc_config.title == "PXD041271 — mzQC Quality Control")
+    _check(
+        {"ProteomeXchange accession": "PXD041271"}
+        in multiqc_config.report_header_info
+    )
+
+
+def test_dataset_accession_does_not_override_explicit_report_title(monkeypatch):
+    run = MzQCRun(
+        sample_name="run.raw",
+        source_path=Path("/results/PXD041271/run.raw.mzQC"),
+        metadata={},
+        metrics=(),
+    )
+    monkeypatch.setattr(multiqc_config, "title", "Custom report title")
+    monkeypatch.setattr(multiqc_config, "report_header_info", [])
+
+    _configure_dataset_report_metadata([run])
+
+    _check(multiqc_config.title == "Custom report title")
+    _check(
+        {"ProteomeXchange accession": "PXD041271"}
+        in multiqc_config.report_header_info
+    )
 
 
 def test_parse_single_document_with_multiple_run_qualities():
@@ -332,12 +423,16 @@ def test_module_imports_with_multiqc():
     _check(MzQCModule is not None)
 
 
-def _run_multiqc(tmp_path: Path, input_path: Path) -> tuple[Any, Path]:
+def _run_multiqc(
+    tmp_path: Path,
+    input_path: Path,
+    output_dir: Path | None = None,
+) -> tuple[Any, Path]:
     """Run the mzQC module through MultiQC's supported Python API."""
     multiqc = pytest.importorskip("multiqc")
     from multiqc.core.update_config import ClConfig
 
-    output = tmp_path / "report"
+    output = output_dir if output_dir is not None else tmp_path / "report"
     multiqc.reset()
     result = multiqc.run(
         str(input_path),
@@ -346,9 +441,11 @@ def _run_multiqc(tmp_path: Path, input_path: Path) -> tuple[Any, Path]:
             run_modules=["mzqc"],
             require_logs=True,
             output_dir=str(output),
+            filename="multiqc_report.html",
             force=True,
             no_version_check=True,
             quiet=True,
+            plots_force_interactive=True,
         ),
     )
     return result, output / "multiqc_report.html"
@@ -519,6 +616,36 @@ def test_multiqc_cli_aggregates_multiple_run_quality_objects(tmp_path):
     _check('embedded_run_1' in html)
     _check('embedded_run_2' in html)
     _check('embedded_run_3' in html)
+
+
+def test_prideqc_mzqc_dataset(tmp_path):
+    """Render the externally supplied PRIDE mzQC dataset used by CI."""
+    dataset_dir = os.environ.get("PRIDEQC_MZQC_DATASET_DIR")
+    if not dataset_dir:
+        pytest.skip("set PRIDEQC_MZQC_DATASET_DIR to run the PRIDE dataset integration test")
+    pytest.importorskip("multiqc")
+
+    source_dir = Path(dataset_dir).expanduser()
+    _check(source_dir.is_dir(), f"dataset directory not found: {source_dir}")
+    mzqc_files = sorted(source_dir.rglob("*.mzQC"))
+    _check(mzqc_files, f"no mzQC files found below {source_dir}")
+
+    configured_output = os.environ.get("PRIDEQC_MZQC_OUTPUT_DIR")
+    output_dir = (
+        Path(configured_output).expanduser()
+        if configured_output
+        else tmp_path / "prideqc-mzqc-report"
+    )
+    result, report = _run_multiqc(tmp_path, source_dir, output_dir=output_dir)
+    _check(result.sys_exit_code == 0, result.message or "MultiQC Python API failed")
+    _check(report.exists(), f"expected MultiQC report was not written: {report}")
+
+    html = report.read_text(errors="replace")
+    _check("mzQC" in html)
+    accession_match = re.search(r"PXD\d+", source_dir.name, re.IGNORECASE)
+    if accession_match:
+        accession = accession_match.group(0).upper()
+        _check(accession in html, f"expected {accession} provenance in rendered report")
 
 
 def test_real_prideqc_fixtures_can_be_run_when_provided(tmp_path):
