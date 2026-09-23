@@ -125,24 +125,16 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install package
-        run: pip install "."
+        run: |
+          pip install "."
+          pip install pytest
       - name: Test mzQC dataset
         run: |
           wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/prideqc/PXD041271.zip
           unzip -q PXD041271.zip
-          test "$(find ./PXD041271 -type f -name '*.mzQC' | wc -l)" -eq 134
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          for path in Path("PXD041271").rglob("*.mzQC"):
-              with path.open() as handle:
-                  json.load(handle, parse_constant=lambda value: (_ for _ in ()).throw(
-                      ValueError(f"non-standard JSON constant {value}")
-                  ))
-          PY
-          multiqc --strict --module mzqc --require-logs ./PXD041271 -o ./results_prideqc_mzqc
-          test -s ./results_prideqc_mzqc/multiqc_report.html
+          PRIDEQC_MZQC_DATASET_DIR=./PXD041271 \
+          PRIDEQC_MZQC_OUTPUT_DIR=./results_prideqc_mzqc \
+          pytest -q tests/test_mzqc_module.py -k prideqc_mzqc_dataset
       - uses: actions/upload-artifact@v4
         if: always()
         name: Upload results

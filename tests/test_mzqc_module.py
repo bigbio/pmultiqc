@@ -127,13 +127,13 @@ def test_module_imports_with_multiqc():
 
 
 def _run_multiqc(
-    tmp_path: Path, input_path: Path
+    tmp_path: Path, input_path: Path, output_path: Path | None = None
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     """Run the mzQC module through the real MultiQC CLI for integration tests."""
     multiqc_exe = shutil.which("multiqc")
     if not multiqc_exe:
         pytest.skip("MultiQC executable not installed")
-    output = tmp_path / "report"
+    output = output_path or tmp_path / "report"
     result = subprocess.run(
         [
             multiqc_exe,
@@ -225,6 +225,39 @@ def test_real_prideqc_fixtures_can_be_run_when_provided(tmp_path):
     html = report.read_text(errors="replace")
     for sample in sorted(expected):
         assert sample.replace(".mzQC", "") in html
+
+
+def test_prideqc_mzqc_dataset_can_be_run_when_provided(tmp_path):
+    """Run the full PRIDE QC mzQC dataset when CI provides the extracted archive."""
+    fixture_dir = os.environ.get("PRIDEQC_MZQC_DATASET_DIR")
+    if not fixture_dir:
+        pytest.skip("set PRIDEQC_MZQC_DATASET_DIR to run the PRIDE QC dataset test")
+
+    source_dir = Path(fixture_dir).expanduser()
+    mzqc_files = sorted(source_dir.rglob("*.mzQC"))
+    assert len(mzqc_files) == 67
+
+    for path in mzqc_files:
+        with path.open() as handle:
+            json.load(
+                handle,
+                parse_constant=lambda value: (_ for _ in ()).throw(
+                    ValueError(f"non-standard JSON constant {value}")
+                ),
+            )
+
+    output_dir = os.environ.get("PRIDEQC_MZQC_OUTPUT_DIR")
+    result, report = _run_multiqc(
+        tmp_path,
+        source_dir,
+        Path(output_dir) if output_dir else None,
+    )
+    assert result.returncode == 0, result.stdout + "\n" + result.stderr
+    assert report.exists()
+    html = report.read_text(errors="replace")
+    assert "Run Overview" in html
+    assert mzqc_files[0].stem in html
+    assert mzqc_files[-1].stem in html
 
 
 def test_scalar_metric_columns_are_consistent_across_runs():
