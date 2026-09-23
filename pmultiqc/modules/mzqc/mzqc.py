@@ -1335,7 +1335,7 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
     by_run: dict[str, list[dict[str, Any]]] = {}
     diagnostics: dict[str, dict[str, Any]] = {}
     classification_plot: dict[str, dict[str, int]] = {}
-    scatter_data: dict[str, list[dict[str, float]]] = defaultdict(list)
+    scatter_data: dict[str, list[dict[str, Any]]] = defaultdict(list)
     all_rows: list[tuple[str, dict[str, Any]]] = []
     class_counts: Counter[str] = Counter()
     confidence_counts: Counter[str] = Counter()
@@ -1374,7 +1374,13 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
             support = _finite_number(record.get("pair_support"))
             if delta is None or support is None:
                 continue
-            scatter_data[classification].append({"x": float(delta), "y": float(support)})
+            scatter_data[classification].append(
+                {
+                    "x": float(delta),
+                    "y": float(support),
+                    "name": run.sample_name,
+                }
+            )
 
             family = round(float(delta), 2)
             support_i = int(support)

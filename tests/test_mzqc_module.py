@@ -310,6 +310,13 @@ def test_prideqc_mass_shift_annotations_feed_summary_heatmap_and_table():
     table_data = _mass_shift_cluster_table(report)
 
     _check(report['classification_plot'] == {'run.raw': {'PTM-compatible': 2}})
+    scatter_points = [
+        point
+        for points in report['scatter_data'].values()
+        for point in points
+    ]
+    _check(len(scatter_points) == 2)
+    _check(all(point.get('name') == 'run.raw' for point in scatter_points))
     _check(set(report['heatmap_data']['run.raw']) == {'+15.995 Da', '+79.966 Da'})
     _check(summary['reported_clusters'] == 2)
     _check(summary['raw_recurrent_clusters'] == 120)
