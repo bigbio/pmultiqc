@@ -327,24 +327,30 @@ def test_module_imports_with_multiqc():
 
 
 def _run_multiqc(
-    tmp_path: Path, input_path: Path, output_path: Path | None = None
+    tmp_path: Path,
+    input_path: Path,
+    output_path: Path | None = None,
+    interactive: bool = False,
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     """Run the mzQC module through the real MultiQC CLI for integration tests."""
     multiqc_exe = shutil.which("multiqc")
     if not multiqc_exe:
         pytest.skip("MultiQC executable not installed")
     output = output_path or tmp_path / "report"
+    command = [
+        multiqc_exe,
+        "--strict",
+        "--module",
+        "mzqc",
+        "--require-logs",
+        str(input_path),
+        "-o",
+        str(output),
+    ]
+    if interactive:
+        command.append("--interactive")
     result = subprocess.run(
-        [
-            multiqc_exe,
-            "--strict",
-            "--module",
-            "mzqc",
-            "--require-logs",
-            str(input_path),
-            "-o",
-            str(output),
-        ],
+        command,
         text=True,
         encoding="utf-8",
         errors="replace",
@@ -586,6 +592,7 @@ def test_prideqc_mzqc_dataset_can_be_run_when_provided(tmp_path):
         tmp_path,
         source_dir,
         Path(output_dir) if output_dir else None,
+        interactive=True,
     )
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
     assert report.exists()
