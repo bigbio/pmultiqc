@@ -115,6 +115,41 @@ jobs:
           name: results_dia
           path: ./results_dia
 
+  test_prideqc_mzqc:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install package
+        run: pip install "."
+      - name: Test mzQC dataset
+        run: |
+          wget -nv https://ftp.pride.ebi.ac.uk/pub/databases/pride/resources/proteomes/pmultiqc/prideqc/PXD041271.zip
+          unzip -q PXD041271.zip
+          test "$(find ./PXD041271 -type f -name '*.mzQC' | wc -l)" -eq 134
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in Path("PXD041271").rglob("*.mzQC"):
+              with path.open() as handle:
+                  json.load(handle, parse_constant=lambda value: (_ for _ in ()).throw(
+                      ValueError(f"non-standard JSON constant {value}")
+                  ))
+          PY
+          multiqc --strict --module mzqc --require-logs ./PXD041271 -o ./results_prideqc_mzqc
+          test -s ./results_prideqc_mzqc/multiqc_report.html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload results
+        with:
+          name: results_prideqc_mzqc
+          path: ./results_prideqc_mzqc
+
   test_diann:
     needs: setup
     runs-on: ubuntu-latest
