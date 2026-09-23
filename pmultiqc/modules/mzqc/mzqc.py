@@ -753,138 +753,201 @@ def _supported_multivariate_partition(
     return best[1], best[2]
 
 
-def _run_group_assignments(
-    runs: list[MzQCRun],
-) -> tuple[dict[str, str], dict[str, dict[str, Any]], list[str]]:
-    """Detect conservative potential experiment groups for one report cohort."""
-    if not runs:
-        return {}, {}, []
-    accuracy, features = _experiment_group_features(runs)
-    by_name = {run.sample_name: run for run in runs}
-    names = [run.sample_name for run in runs]
-    min_group = max(3, ceil(len(names) * 0.04))
-    groups: list[list[str]] = [names]
+def _supported_categorical_partition(
+    group: list[str],
+    features: dict[str, dict[str, Any]],
+    key: str,
+    min_group: int,
+) -> list[list[str]] | None:
+    """Return a supported categorical split or ``None`` when evidence is incomplete."""
+    values = {name: str(features[name].get(key) or "") for name in group}
+    if any(not value for value in values.values()):
+        return None
+    buckets: dict[str, list[str]] = defaultdict(list)
+    for name, value in values.items():
+        buckets[value].append(name)
+    if len(buckets) <= 1 or any(len(bucket) < min_group for bucket in buckets.values()):
+        return None
+    return [buckets[value] for value in sorted(buckets)]
+
+
+def _categorical_experiment_groups(
+    groups: list[list[str]],
+    features: dict[str, dict[str, Any]],
+    min_group: int,
+    max_groups: int = 4,
+) -> tuple[list[list[str]], list[str]]:
+    """Apply hard acquisition incompatibility splits before quantitative clustering."""
     evidence: list[str] = []
-
-    def supported_partition(group: list[str], key: str) -> list[list[str]] | None:
-        values = {name: str(features[name].get(key) or "") for name in group}
-        if any(not value for value in values.values()):
-            return None
-        buckets: dict[str, list[str]] = defaultdict(list)
-        for name, value in values.items():
-            buckets[value].append(name)
-        if len(buckets) <= 1 or any(len(bucket) < min_group for bucket in buckets.values()):
-            return None
-        return [buckets[value] for value in sorted(buckets)]
-
-    # Separate hard acquisition incompatibilities before numerical clustering.
     for key in ("fragment_unit", "fragment_regime", "instrument", "acquisition"):
-        new_groups: list[list[str]] = []
+        updated: list[list[str]] = []
         for group in groups:
-            partition = supported_partition(group, key)
-            if partition is not None and len(new_groups) + len(partition) <= 4:
-                new_groups.extend(partition)
+            partition = _supported_categorical_partition(group, features, key, min_group)
+            if partition is not None and len(updated) + len(partition) <= max_groups:
+                updated.extend(partition)
                 evidence.append(f"categorical {key} split")
             else:
-                new_groups.append(group)
-        groups = new_groups
+                updated.append(group)
+        groups = updated
+    return groups, evidence
 
-    # Recursively split compatible strata in the full quantitative feature space.
-    # Binary splits are deliberate: a strong minor experiment can be separated first,
-    # then a larger mixed stratum can be tested again instead of being hidden by k selection.
+
+def _multivariate_experiment_groups(
+    groups: list[list[str]],
+    features: dict[str, dict[str, Any]],
+    min_group: int,
+    max_groups: int = 4,
+) -> tuple[list[list[str]], list[str]]:
+    """Recursively split compatible strata using supported multivariate evidence."""
+    evidence: list[str] = []
     changed = True
-    while changed and len(groups) < 4:
+    while changed and len(groups) < max_groups:
         changed = False
         updated: list[list[str]] = []
         for group_index, group in enumerate(groups):
             remaining_unsplit = len(groups) - group_index - 1
-            available_groups = 4 - len(updated) - remaining_unsplit
+            available_groups = max_groups - len(updated) - remaining_unsplit
             partition = _supported_multivariate_partition(
                 group,
                 features,
                 min_group=min_group,
                 max_groups=min(2, max(1, available_groups)),
             )
-            if partition is not None:
-                subgroups, reason = partition
-                if len(updated) + len(subgroups) + remaining_unsplit <= 4:
-                    updated.extend(subgroups)
-                    evidence.append(reason)
-                    changed = True
-                    continue
-            updated.append(group)
+            if partition is None:
+                updated.append(group)
+                continue
+            subgroups, reason = partition
+            if len(updated) + len(subgroups) + remaining_unsplit > max_groups:
+                updated.append(group)
+                continue
+            updated.extend(subgroups)
+            evidence.append(reason)
+            changed = True
         groups = updated
+    return groups, evidence
 
+
+def _numeric_group_values(
+    group: list[str],
+    features: dict[str, dict[str, Any]],
+    key: str,
+) -> list[float]:
+    """Collect positive numeric feature values for one experiment group."""
+    return [
+        float(features[name][key])
+        for name in group
+        if isinstance(features[name].get(key), (int, float))
+        and float(features[name][key]) > 0
+    ]
+
+
+def _experiment_group_summary(
+    group: list[str],
+    accuracy: dict[str, dict[str, Any]],
+    features: dict[str, dict[str, Any]],
+    runs_by_name: dict[str, MzQCRun],
+) -> dict[str, Any]:
+    """Summarize reanalysis parameters and acquisition context for one group."""
+    rows = [accuracy.get(name, {}) for name in group]
+    precursor = [
+        float(row["precursor_tolerance_ppm"])
+        for row in rows
+        if "precursor_tolerance_ppm" in row
+    ]
+    fragment_ppm = [
+        float(row["fragment_tolerance_ppm"])
+        for row in rows
+        if "fragment_tolerance_ppm" in row
+    ]
+    fragment_da = [
+        float(row["fragment_tolerance_da"])
+        for row in rows
+        if "fragment_tolerance_da" in row
+    ]
+    durations = _numeric_group_values(group, features, "rt")
+    isolation = _numeric_group_values(group, features, "isolation")
+
+    summary: dict[str, Any] = {"files": len(group)}
+    if precursor:
+        summary["precursor_median_ppm"] = median(precursor)
+        summary["precursor_common_ppm"] = max(precursor)
+    if fragment_ppm:
+        summary.update(
+            {
+                "fragment_regime": "high-resolution / ppm",
+                "fragment_median": median(fragment_ppm),
+                "fragment_common": max(fragment_ppm),
+                "fragment_unit": "ppm",
+            }
+        )
+    elif fragment_da:
+        summary.update(
+            {
+                "fragment_regime": "low-resolution / Da",
+                "fragment_median": median(fragment_da),
+                "fragment_common": max(fragment_da),
+                "fragment_unit": "Da",
+            }
+        )
+    if durations:
+        summary.update(
+            {
+                "run_duration_median_min": median(durations) / 60.0,
+                "run_duration_min_min": min(durations) / 60.0,
+                "run_duration_max_min": max(durations) / 60.0,
+                "run_duration_span_s": max(durations) - min(durations),
+            }
+        )
+    if isolation:
+        summary["isolation_median_th"] = median(isolation)
+
+    instruments = sorted(
+        {runs_by_name[name].instrument for name in group if runs_by_name[name].instrument}
+    )
+    acquisitions = sorted(
+        {
+            runs_by_name[name].acquisition_method
+            for name in group
+            if runs_by_name[name].acquisition_method
+        }
+    )
+    if instruments:
+        summary["instrument"] = "; ".join(instruments)
+    if acquisitions:
+        summary["acquisition"] = "; ".join(acquisitions)
+    return summary
+
+
+def _run_group_assignments(
+    runs: list[MzQCRun],
+) -> tuple[dict[str, str], dict[str, dict[str, Any]], list[str]]:
+    """Detect conservative potential experiment groups for one report cohort."""
+    if not runs:
+        return {}, {}, []
+
+    accuracy, features = _experiment_group_features(runs)
+    names = [run.sample_name for run in runs]
+    runs_by_name = {run.sample_name: run for run in runs}
+    min_group = max(3, ceil(len(names) * 0.04))
+
+    groups, categorical_evidence = _categorical_experiment_groups(
+        [names], features, min_group
+    )
+    groups, multivariate_evidence = _multivariate_experiment_groups(
+        groups, features, min_group
+    )
+    evidence = categorical_evidence + multivariate_evidence
     groups.sort(key=lambda group: min(names.index(name) for name in group))
+
     assignments: dict[str, str] = {}
     summaries: dict[str, dict[str, Any]] = {}
     for index, group in enumerate(groups, start=1):
         label = f"Experiment group {index}"
-        for name in group:
-            assignments[name] = label
-        rows = [accuracy.get(name, {}) for name in group]
-        precursor = [
-            float(row["precursor_tolerance_ppm"])
-            for row in rows
-            if "precursor_tolerance_ppm" in row
-        ]
-        fragment_ppm = [
-            float(row["fragment_tolerance_ppm"])
-            for row in rows
-            if "fragment_tolerance_ppm" in row
-        ]
-        fragment_da = [
-            float(row["fragment_tolerance_da"])
-            for row in rows
-            if "fragment_tolerance_da" in row
-        ]
-        rt = [
-            float(features[name]["rt"])
-            for name in group
-            if isinstance(features[name]["rt"], (int, float))
-        ]
-        isolation = [
-            float(features[name]["isolation"])
-            for name in group
-            if isinstance(features[name]["isolation"], (int, float))
-        ]
-        summary: dict[str, Any] = {"files": len(group)}
-        if precursor:
-            summary["precursor_median_ppm"] = median(precursor)
-            summary["precursor_common_ppm"] = max(precursor)
-        if fragment_ppm:
-            summary["fragment_regime"] = "high-resolution / ppm"
-            summary["fragment_median"] = median(fragment_ppm)
-            summary["fragment_common"] = max(fragment_ppm)
-            summary["fragment_unit"] = "ppm"
-        elif fragment_da:
-            summary["fragment_regime"] = "low-resolution / Da"
-            summary["fragment_median"] = median(fragment_da)
-            summary["fragment_common"] = max(fragment_da)
-            summary["fragment_unit"] = "Da"
-        if rt:
-            summary["rt_median_min"] = median(rt) / 60.0
-            summary["rt_min_min"] = min(rt) / 60.0
-            summary["rt_max_min"] = max(rt) / 60.0
-        if isolation:
-            summary["isolation_median_th"] = median(isolation)
-        instruments = sorted(
-            {by_name[name].instrument for name in group if by_name[name].instrument}
+        assignments.update({name: label for name in group})
+        summaries[label] = _experiment_group_summary(
+            group, accuracy, features, runs_by_name
         )
-        acquisitions = sorted(
-            {
-                by_name[name].acquisition_method
-                for name in group
-                if by_name[name].acquisition_method
-            }
-        )
-        if instruments:
-            summary["instrument"] = "; ".join(instruments)
-        if acquisitions:
-            summary["acquisition"] = "; ".join(acquisitions)
-        summaries[label] = summary
     return assignments, summaries, evidence
-
 
 def _experiment_group_pca_data(
     runs: list[MzQCRun], assignments: dict[str, str]
@@ -933,113 +996,162 @@ def _beta_prevalence_probability(hits: int, runs: int, threshold: float = 0.10) 
     return min(1.0, max(0.0, probability))
 
 
+def _mass_shift_group_members(
+    runs: list[MzQCRun], assignments: dict[str, str]
+) -> dict[str, list[str]]:
+    """Collect sample names by inferred experiment group."""
+    members: dict[str, list[str]] = defaultdict(list)
+    for run in runs:
+        group = assignments.get(run.sample_name, "Experiment group 1")
+        members[group].append(run.sample_name)
+    return dict(members)
+
+
+def _mass_shift_observations(
+    runs: list[MzQCRun], members: set[str]
+) -> list[tuple[float, str, dict[str, Any]]]:
+    """Collect finite mass-shift observations for the requested samples."""
+    observations: list[tuple[float, str, dict[str, Any]]] = []
+    for run in runs:
+        if run.sample_name not in members:
+            continue
+        for record in _mass_shift_records(run):
+            delta = _finite_number(record.get("delta_mass_da"))
+            if delta is not None:
+                observations.append((float(delta), run.sample_name, record))
+    observations.sort(key=lambda item: item[0])
+    return observations
+
+
+def _cluster_mass_shift_observations(
+    observations: list[tuple[float, str, dict[str, Any]]],
+    tolerance_da: float = 0.02,
+) -> list[list[tuple[float, str, dict[str, Any]]]]:
+    """Cluster sorted observations into bounded recurrent mass families."""
+    families: list[list[tuple[float, str, dict[str, Any]]]] = []
+    for observation in observations:
+        if not families:
+            families.append([observation])
+            continue
+        center = median([item[0] for item in families[-1]])
+        if abs(observation[0] - center) <= tolerance_da:
+            families[-1].append(observation)
+        else:
+            families.append([observation])
+    return families
+
+
+def _family_recurrence_context(
+    family: list[tuple[float, str, dict[str, Any]]],
+    group: str,
+    group_runs: int,
+) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
+    """Return recurrence statistics, representative record and mass-compatible candidates."""
+    run_hits = sorted({item[1] for item in family})
+    probability = _beta_prevalence_probability(len(run_hits), group_runs)
+    prevalence = len(run_hits) / group_runs if group_runs else 0.0
+    representative = max(
+        family, key=lambda item: int(item[2].get("pair_support", 0) or 0)
+    )
+    record = representative[2]
+    candidates = _mass_shift_candidate_names(record)
+    context = {
+        "experiment_group": group,
+        "family_runs": len(run_hits),
+        "group_runs": group_runs,
+        "run_prevalence": prevalence,
+        "raw_prevalence_probability": probability,
+        "mass_identity_ambiguous": len(candidates) > 1,
+        "alternative_candidates": "; ".join(candidates[1:]),
+    }
+    return context, record, candidates
+
+
+def _ptm_family_row(
+    family: list[tuple[float, str, dict[str, Any]]],
+    context: dict[str, Any],
+    representative: dict[str, Any],
+    candidates: list[str],
+) -> dict[str, Any] | None:
+    """Build one PTM-compatible family summary row when annotation evidence exists."""
+    if str(representative.get("classification") or "") != "putative-ptm" or not candidates:
+        return None
+    run_hits = {item[1] for item in family}
+    high_support_runs = {
+        run_name
+        for _, run_name, record in family
+        if str(record.get("confidence") or "") == "high-support"
+    }
+    supports = [int(item[2].get("pair_support", 0) or 0) for item in family]
+    return {
+        **context,
+        "candidate": candidates[0],
+        "delta_mass_da": median([item[0] for item in family]),
+        "high_support_run_fraction": (
+            len(high_support_runs) / len(run_hits) if run_hits else 0.0
+        ),
+        "median_pair_support": median(supports) if supports else 0,
+    }
+
+
+def _is_strict_high_support_family(row: dict[str, Any]) -> bool:
+    """Return whether a family belongs in the compact high-support summary."""
+    return (
+        float(row["run_prevalence"]) >= 0.90
+        and float(row["high_support_run_fraction"]) >= 0.80
+        and float(row["raw_prevalence_probability"]) >= 0.99
+    )
+
+
+def _family_sort_key(row: dict[str, Any]) -> tuple[float, float, int]:
+    """Sort recurrent families by prevalence, posterior support and run count."""
+    return (
+        float(row["run_prevalence"]),
+        float(row["raw_prevalence_probability"]),
+        int(row["family_runs"]),
+    )
+
+
+def _bounded_high_support_families(
+    rows: list[dict[str, Any]], per_group: int = 5
+) -> list[dict[str, Any]]:
+    """Keep a compact number of strict high-support families per experiment group."""
+    bounded: list[dict[str, Any]] = []
+    group_counts: Counter[str] = Counter()
+    for row in sorted(rows, key=_family_sort_key, reverse=True):
+        group = str(row["experiment_group"])
+        if group_counts[group] >= per_group:
+            continue
+        bounded.append(row)
+        group_counts[group] += 1
+    return bounded
+
+
 def _mass_shift_family_context(
     runs: list[MzQCRun], assignments: dict[str, str]
 ) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Aggregate 0.02-Da recurrent mass families within inferred experiment groups."""
-    group_members: dict[str, list[str]] = defaultdict(list)
-    for run in runs:
-        group_members[assignments.get(run.sample_name, "Experiment group 1")].append(
-            run.sample_name
-        )
-
     record_context: dict[int, dict[str, Any]] = {}
-    ptm_family_rows: list[dict[str, Any]] = []
-    high_support_rows: list[dict[str, Any]] = []
-    for group, members in group_members.items():
-        observations: list[tuple[float, str, dict[str, Any]]] = []
-        for run in runs:
-            if run.sample_name not in members:
-                continue
-            for record in _mass_shift_records(run):
-                delta = _finite_number(record.get("delta_mass_da"))
-                if delta is not None:
-                    observations.append((float(delta), run.sample_name, record))
-        observations.sort(key=lambda item: item[0])
-        families: list[list[tuple[float, str, dict[str, Any]]]] = []
-        for observation in observations:
-            if not families:
-                families.append([observation])
-                continue
-            center = median([item[0] for item in families[-1]])
-            if abs(observation[0] - center) <= 0.02:
-                families[-1].append(observation)
-            else:
-                families.append([observation])
-        for family in families:
-            run_hits = sorted({item[1] for item in family})
-            probability = _beta_prevalence_probability(len(run_hits), len(members))
-            prevalence = len(run_hits) / len(members) if members else 0.0
-            representative = max(
-                family, key=lambda item: int(item[2].get("pair_support", 0) or 0)
+    ptm_rows: list[dict[str, Any]] = []
+    strict_rows: list[dict[str, Any]] = []
+
+    for group, member_names in _mass_shift_group_members(runs, assignments).items():
+        observations = _mass_shift_observations(runs, set(member_names))
+        for family in _cluster_mass_shift_observations(observations):
+            context, representative, candidates = _family_recurrence_context(
+                family, group, len(member_names)
             )
-            rep_record = representative[2]
-            candidates = _mass_shift_candidate_names(rep_record)
-            context = {
-                "experiment_group": group,
-                "family_runs": len(run_hits),
-                "group_runs": len(members),
-                "run_prevalence": prevalence,
-                "raw_prevalence_probability": probability,
-                "mass_identity_ambiguous": len(candidates) > 1,
-                "alternative_candidates": "; ".join(candidates[1:]),
-            }
             for _, _, record in family:
                 record_context[id(record)] = context
-
-            if str(rep_record.get("classification") or "") != "putative-ptm" or not candidates:
+            row = _ptm_family_row(family, context, representative, candidates)
+            if row is None:
                 continue
-            supports = [int(item[2].get("pair_support", 0) or 0) for item in family]
-            high_support_runs = {
-                run_name
-                for _, run_name, record in family
-                if str(record.get("confidence") or "") == "high-support"
-            }
-            high_support_run_fraction = (
-                len(high_support_runs) / len(run_hits) if run_hits else 0.0
-            )
-            family_row = {
-                "experiment_group": group,
-                "candidate": candidates[0],
-                "delta_mass_da": median([item[0] for item in family]),
-                "family_runs": len(run_hits),
-                "group_runs": len(members),
-                "run_prevalence": prevalence,
-                "raw_prevalence_probability": probability,
-                "high_support_run_fraction": high_support_run_fraction,
-                "median_pair_support": median(supports) if supports else 0,
-                "mass_identity_ambiguous": len(candidates) > 1,
-                "alternative_candidates": "; ".join(candidates[1:]),
-            }
-            ptm_family_rows.append(family_row)
-            if (
-                prevalence >= 0.90
-                and high_support_run_fraction >= 0.80
-                and probability >= 0.99
-            ):
-                high_support_rows.append(family_row)
+            ptm_rows.append(row)
+            if _is_strict_high_support_family(row):
+                strict_rows.append(row)
 
-    def sort_key(row: dict[str, Any]) -> tuple[float, float, int]:
-        return (
-            float(row["run_prevalence"]),
-            float(row["raw_prevalence_probability"]),
-            int(row["family_runs"]),
-        )
-    ptm_family_rows.sort(key=sort_key, reverse=True)
-    high_support_rows.sort(key=sort_key, reverse=True)
-
-    # Keep the high-level table deliberately compact while retaining the full detailed
-    # candidate table below. At most five strict families are shown per experiment group.
-    bounded_high_support: list[dict[str, Any]] = []
-    group_counts: Counter[str] = Counter()
-    for row in high_support_rows:
-        group = str(row["experiment_group"])
-        if group_counts[group] >= 5:
-            continue
-        bounded_high_support.append(row)
-        group_counts[group] += 1
-    return record_context, ptm_family_rows, bounded_high_support
-
+    ptm_rows.sort(key=_family_sort_key, reverse=True)
+    return record_context, ptm_rows, _bounded_high_support_families(strict_rows)
 
 def _candidate_family_counts(
     rows: list[dict[str, Any]], limit: int = 8
@@ -1576,9 +1688,26 @@ class MzQCModule(BaseMultiqcModule):
                 "fragment_common": {"title": "Fragment common/max", "format": "{:,.3f}"},
                 "fragment_unit": {"title": "Fragment unit"},
                 "fragment_regime": {"title": "Fragment regime"},
-                "rt_median_min": {"title": "RT median", "suffix": " min", "format": "{:,.1f}"},
-                "rt_min_min": {"title": "RT min", "suffix": " min", "format": "{:,.1f}"},
-                "rt_max_min": {"title": "RT max", "suffix": " min", "format": "{:,.1f}"},
+                "run_duration_median_min": {
+                    "title": "Run duration median",
+                    "suffix": " min",
+                    "format": "{:,.2f}",
+                },
+                "run_duration_min_min": {
+                    "title": "Run duration min",
+                    "suffix": " min",
+                    "format": "{:,.2f}",
+                },
+                "run_duration_max_min": {
+                    "title": "Run duration max",
+                    "suffix": " min",
+                    "format": "{:,.2f}",
+                },
+                "run_duration_span_s": {
+                    "title": "Run duration span",
+                    "suffix": " s",
+                    "format": "{:,.2f}",
+                },
                 "isolation_median_th": {
                     "title": "MS2 isolation width — median",
                     "suffix": " Th",
@@ -1707,7 +1836,7 @@ class MzQCModule(BaseMultiqcModule):
         assignments = getattr(self, "_run_groups", {})
         summaries = getattr(self, "_run_group_summaries", {})
         general_data: dict[str, dict[str, Any]] = {}
-        for sample, row in data.items():
+        for sample in data:
             group = assignments.get(sample, "Experiment group 1")
             summary = summaries.get(group, {})
             values: dict[str, Any] = {}

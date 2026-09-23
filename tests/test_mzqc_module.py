@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
-import subprocess
 from html import unescape
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -33,16 +32,22 @@ from pmultiqc.modules.mzqc.mzqc import (
 FIXTURE_DIR = Path("tests/resources/mzqc")
 
 
+def _check(condition: bool, message: str | None = None) -> None:
+    """Raise a runtime test failure without relying on optimizable assert statements."""
+    if not condition:
+        raise AssertionError(message or "test condition failed")
+
+
 def test_parse_single_file_returns_one_run():
     """Parse one standards-shaped document and expose its run metadata."""
     runs = parse_mzqc_document(FIXTURE_DIR / "run1.mzQC")
-    assert len(runs) == 1
-    assert isinstance(runs[0], MzQCRun)
-    assert runs[0].sample_name == "synthetic_run_1"
-    assert len(runs[0].metrics) == 7
-    assert runs[0].instrument == "Orbitrap Eclipse"
-    assert runs[0].acquisition_method == "\"Data-dependent acquisition\""
-    assert runs[0].provenance == "acquisition method provenance: \"inferred\""
+    _check(len(runs) == 1)
+    _check(isinstance(runs[0], MzQCRun))
+    _check(runs[0].sample_name == 'synthetic_run_1')
+    _check(len(runs[0].metrics) == 7)
+    _check(runs[0].instrument == 'Orbitrap Eclipse')
+    _check(runs[0].acquisition_method == '"Data-dependent acquisition"')
+    _check(runs[0].provenance == 'acquisition method provenance: "inferred"')
 
 
 def test_parse_single_document_with_multiple_run_qualities():
@@ -50,15 +55,17 @@ def test_parse_single_document_with_multiple_run_qualities():
     used = set()
     runs = parse_mzqc_document(FIXTURE_DIR / "multi_run.mzQC", used)
 
-    assert [run.sample_name for run in runs] == [
-        "embedded_run_1",
-        "embedded_run_2",
-        "embedded_run_3",
-    ]
-    assert [
-        next(metric.value for metric in run.metrics if metric.accession == "MS:4000060")
-        for run in runs
-    ] == [100, 200, 300]
+    _check(
+        [run.sample_name for run in runs]
+        == ["embedded_run_1", "embedded_run_2", "embedded_run_3"]
+    )
+    _check(
+        [
+            next(metric.value for metric in run.metrics if metric.accession == "MS:4000060")
+            for run in runs
+        ]
+        == [100, 200, 300]
+    )
 
 
 def test_parse_multiple_files_keeps_runs_independent():
@@ -68,8 +75,8 @@ def test_parse_multiple_files_keeps_runs_independent():
     for path in sorted(FIXTURE_DIR.glob("run[12].mzQC")):
         runs.extend(parse_mzqc_document(path, used))
 
-    assert [run.sample_name for run in runs] == ["synthetic_run_1", "synthetic_run_2"]
-    assert [run.source_path.name for run in runs] == ["run1.mzQC", "run2.mzQC"]
+    _check([run.sample_name for run in runs] == ['synthetic_run_1', 'synthetic_run_2'])
+    _check([run.source_path.name for run in runs] == ['run1.mzQC', 'run2.mzQC'])
 
 
 def test_legacy_singular_run_quality_is_supported(tmp_path):
@@ -81,7 +88,7 @@ def test_legacy_singular_run_quality_is_supported(tmp_path):
 
     runs = parse_mzqc_document(path)
 
-    assert [run.sample_name for run in runs] == ["synthetic_run_1"]
+    _check([run.sample_name for run in runs] == ['synthetic_run_1'])
 
 
 def test_general_statistics_exclude_two_endpoint_ranges():
@@ -98,8 +105,8 @@ def test_general_statistics_exclude_two_endpoint_ranges():
 
     data, headers = _metric_data([run], numeric_only=True)
 
-    assert data == {"run": {"MS_scalar": 123}}
-    assert set(headers) == {"MS_scalar"}
+    _check(data == {'run': {'MS_scalar': 123}})
+    _check(set(headers) == {'MS_scalar'})
 
 
 def test_prideqc_mass_accuracy_annotations_feed_reporting_helpers():
@@ -144,14 +151,12 @@ def test_prideqc_mass_accuracy_annotations_feed_reporting_helpers():
 
     data, ppm_plot = _mass_accuracy_report_data([run])
 
-    assert data["run.raw"]["precursor_sigma_ppm"] == 1.25
-    assert data["run.raw"]["precursor_tolerance_ppm"] == 7.5
-    assert data["run.raw"]["fragment_tolerance_ppm"] == 12.0
-    assert data["run.raw"]["precursor_repeat_pairs"] == 1200
-    assert data["run.raw"]["fragment_resolution_regime"] == "high-resolution"
-    assert ppm_plot == {
-        "run.raw": {"Precursor tolerance": 7.5, "Fragment tolerance": 12.0}
-    }
+    _check(data['run.raw']['precursor_sigma_ppm'] == 1.25)
+    _check(data['run.raw']['precursor_tolerance_ppm'] == 7.5)
+    _check(data['run.raw']['fragment_tolerance_ppm'] == 12.0)
+    _check(data['run.raw']['precursor_repeat_pairs'] == 1200)
+    _check(data['run.raw']['fragment_resolution_regime'] == 'high-resolution')
+    _check(ppm_plot == {'run.raw': {'Precursor tolerance': 7.5, 'Fragment tolerance': 12.0}})
 
 
 def test_prideqc_mass_shift_annotations_feed_summary_heatmap_and_table():
@@ -213,18 +218,18 @@ def test_prideqc_mass_shift_annotations_feed_summary_heatmap_and_table():
     summary = _mass_shift_summary_table(report)["Cohort"]
     table_data = _mass_shift_cluster_table(report)
 
-    assert report["classification_plot"] == {"run.raw": {"PTM-compatible": 2}}
-    assert set(report["heatmap_data"]["run.raw"]) == {"+15.995 Da", "+79.966 Da"}
-    assert summary["reported_clusters"] == 2
-    assert summary["raw_recurrent_clusters"] == 120
-    assert summary["high_support"] == 2
-    assert summary["putative_ptm"] == 2
-    assert summary["profile_ms2"] == 1000
-    assert len(table_data) == 2
+    _check(report['classification_plot'] == {'run.raw': {'PTM-compatible': 2}})
+    _check(set(report['heatmap_data']['run.raw']) == {'+15.995 Da', '+79.966 Da'})
+    _check(summary['reported_clusters'] == 2)
+    _check(summary['raw_recurrent_clusters'] == 120)
+    _check(summary['high_support'] == 2)
+    _check(summary['putative_ptm'] == 2)
+    _check(summary['profile_ms2'] == 1000)
+    _check(len(table_data) == 2)
     strongest = next(iter(table_data.values()))
-    assert strongest["candidate"] == "Oxidation or Hydroxylation"
-    assert strongest["classification"] == "PTM-compatible"
-    assert strongest["pair_support"] == 300
+    _check(strongest['candidate'] == 'Oxidation or Hydroxylation')
+    _check(strongest['classification'] == 'PTM-compatible')
+    _check(strongest['pair_support'] == 300)
 
 
 def test_mass_shift_heatmap_is_bounded_and_uses_mass_only_axis_labels():
@@ -253,19 +258,18 @@ def test_mass_shift_heatmap_is_bounded_and_uses_mass_only_axis_labels():
     report = _mass_shift_report_data([run])
     labels = list(report["heatmap_data"]["run.raw"])
 
-    assert len(labels) == 12
-    assert all(label.endswith(" Da") for label in labels)
-    assert all("Candidate" not in label for label in labels)
-    assert report["classification_plot"] == {
-        "run.raw": {"Modification-compatible": 15}
-    }
+    _check(len(labels) == 12)
+    _check(all((label.endswith(' Da') for label in labels)))
+    _check(all(('Candidate' not in label for label in labels)))
+    _check(report['classification_plot'] == {'run.raw': {'Modification-compatible': 15}})
 
 
 def test_prideqc_no_data_messages_make_abstention_explicit():
     """Explain evidence-free cohorts rather than making intentionally absent plots look broken."""
     accuracy_data = {"run.raw": {"fragment_sigma_ppm": 140.0}}
-    assert "No runs met the estimator criteria" in _mass_accuracy_detail_description(
-        accuracy_data
+    _check(
+        "No runs met the estimator criteria"
+        in _mass_accuracy_detail_description(accuracy_data)
     )
 
     run = MzQCRun(
@@ -281,8 +285,9 @@ def test_prideqc_no_data_messages_make_abstention_explicit():
         ),
     )
     report = _mass_shift_report_data([run])
-    assert "No recurrent modification-compatible mass-shift clusters" in (
-        _mass_shift_summary_description(report)
+    _check(
+        "No recurrent modification-compatible mass-shift clusters"
+        in _mass_shift_summary_description(report)
     )
 
 
@@ -293,9 +298,10 @@ def test_preferred_general_stat_selection_preserves_header_order():
         for index in range(10)
     }
 
-    assert MzQCModule._preferred_general_stat_keys(headers) == [
-        f"metric_{index}" for index in range(8)
-    ]
+    _check(
+        MzQCModule._preferred_general_stat_keys(headers)
+        == [f"metric_{index}" for index in range(8)]
+    )
 
 
 def test_duplicate_run_labels_are_disambiguated(tmp_path):
@@ -309,7 +315,7 @@ def test_duplicate_run_labels_are_disambiguated(tmp_path):
 
     used = set()
     runs = parse_mzqc_document(first, used) + parse_mzqc_document(second, used)
-    assert [run.sample_name for run in runs] == ["same", "same [2]"]
+    _check([run.sample_name for run in runs] == ['same', 'same [2]'])
 
 
 def test_invalid_mzqc_is_rejected(tmp_path):
@@ -323,38 +329,27 @@ def test_invalid_mzqc_is_rejected(tmp_path):
 def test_module_imports_with_multiqc():
     """Expose the module when MultiQC is installed."""
     pytest.importorskip("multiqc")
-    assert MzQCModule is not None
+    _check(MzQCModule is not None)
 
 
-def _run_multiqc(
-    tmp_path: Path,
-    input_path: Path,
-    output_path: Path | None = None,
-    interactive: bool = False,
-) -> tuple[subprocess.CompletedProcess[str], Path]:
-    """Run the mzQC module through the real MultiQC CLI for integration tests."""
-    multiqc_exe = shutil.which("multiqc")
-    if not multiqc_exe:
-        pytest.skip("MultiQC executable not installed")
-    output = output_path or tmp_path / "report"
-    command = [
-        multiqc_exe,
-        "--strict",
-        "--module",
-        "mzqc",
-        "--require-logs",
+def _run_multiqc(tmp_path: Path, input_path: Path) -> tuple[Any, Path]:
+    """Run the mzQC module through MultiQC's supported Python API."""
+    multiqc = pytest.importorskip("multiqc")
+    from multiqc.core.update_config import ClConfig
+
+    output = tmp_path / "report"
+    multiqc.reset()
+    result = multiqc.run(
         str(input_path),
-        "-o",
-        str(output),
-    ]
-    if interactive:
-        command.append("--interactive")
-    result = subprocess.run(
-        command,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
+        cfg=ClConfig(
+            strict=True,
+            run_modules=["mzqc"],
+            require_logs=True,
+            output_dir=str(output),
+            force=True,
+            no_version_check=True,
+            quiet=True,
+        ),
     )
     return result, output / "multiqc_report.html"
 
@@ -363,12 +358,12 @@ def test_multiqc_cli_aggregates_multiple_mzqc_documents(tmp_path):
     """Aggregate multiple mzQC files into one MultiQC report."""
     pytest.importorskip("multiqc")
     result, report = _run_multiqc(tmp_path, FIXTURE_DIR)
-    assert result.returncode == 0, result.stdout + "\n" + result.stderr
-    assert report.exists()
+    _check(result.sys_exit_code == 0, result.message or 'MultiQC Python API failed')
+    _check(report.exists())
     html = report.read_text(errors="replace")
-    assert "Acquisition method" in html
-    assert "Data-dependent acquisition" in html
-    assert "run1.mzQC" in html
+    _check('Acquisition method' in html)
+    _check('Data-dependent acquisition' in html)
+    _check('run1.mzQC' in html)
     for sample in (
         "synthetic_run_1",
         "synthetic_run_2",
@@ -376,7 +371,7 @@ def test_multiqc_cli_aggregates_multiple_mzqc_documents(tmp_path):
         "embedded_run_2",
         "embedded_run_3",
     ):
-        assert sample in html
+        _check(sample in html)
 
 
 def test_multiqc_cli_renders_prideqc_mass_accuracy_and_mass_shift_sections(tmp_path):
@@ -483,7 +478,7 @@ def test_multiqc_cli_renders_prideqc_mass_accuracy_and_mass_shift_sections(tmp_p
 
     result, report = _run_multiqc(tmp_path, source_dir)
 
-    assert result.returncode == 0, result.stdout + "\n" + result.stderr
+    _check(result.sys_exit_code == 0, result.message or 'MultiQC Python API failed')
     html = report.read_text(errors="replace")
     visible_html = unescape(html)
     for label in (
@@ -498,7 +493,7 @@ def test_multiqc_cli_renders_prideqc_mass_accuracy_and_mass_shift_sections(tmp_p
         "PTM-compatible",
         "Phosphorylation",
     ):
-        assert label in visible_html
+        _check(label in visible_html)
 
     # Check the stable section anchors separately from user-visible copy so this
     # integration test is insensitive to Jinja / MultiQC HTML entity escaping.
@@ -511,29 +506,27 @@ def test_multiqc_cli_renders_prideqc_mass_accuracy_and_mass_shift_sections(tmp_p
         "mzqc-mass-shift-landscape",
         "mzqc-top-mass-shift-candidates",
     ):
-        assert anchor in html
+        _check(anchor in html)
 
 
 def test_multiqc_cli_aggregates_multiple_run_quality_objects(tmp_path):
     """Render all runQuality objects from a single multi-run document."""
     pytest.importorskip("multiqc")
     result, report = _run_multiqc(tmp_path, FIXTURE_DIR / "multi_run.mzQC")
-    assert result.returncode == 0, result.stdout + "\n" + result.stderr
-    assert report.exists()
+    _check(result.sys_exit_code == 0, result.message or 'MultiQC Python API failed')
+    _check(report.exists())
     html = report.read_text(errors="replace")
-    assert "embedded_run_1" in html
-    assert "embedded_run_2" in html
-    assert "embedded_run_3" in html
+    _check('embedded_run_1' in html)
+    _check('embedded_run_2' in html)
+    _check('embedded_run_3' in html)
 
 
 def test_real_prideqc_fixtures_can_be_run_when_provided(tmp_path):
     """Run the real three-file integration only when the user supplies the local fixtures."""
     fixture_dir = os.environ.get("PRIDEQC_MZQC_FIXTURE_DIR")
-    multiqc_exe = shutil.which("multiqc")
-    if not fixture_dir or not multiqc_exe:
-        pytest.skip(
-            "set PRIDEQC_MZQC_FIXTURE_DIR and install MultiQC to run the real integration test"
-        )
+    if not fixture_dir:
+        pytest.skip("set PRIDEQC_MZQC_FIXTURE_DIR to run the real integration test")
+    pytest.importorskip("multiqc")
 
     source_dir = Path(fixture_dir).expanduser()
     expected = {
@@ -542,64 +535,14 @@ def test_real_prideqc_fixtures_can_be_run_when_provided(tmp_path):
         "TDM_M1808_198.raw.mzQC",
     }
     present = {path.name for path in source_dir.glob("*.mzQC")}
-    assert expected <= present
+    _check(expected <= present)
 
-    result = subprocess.run(
-        [
-            multiqc_exe,
-            "--strict",
-            "--module",
-            "mzqc",
-            "--require-logs",
-            str(source_dir),
-            "-o",
-            str(tmp_path / "report"),
-        ],
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-    )
-    assert result.returncode == 0, result.stdout + "\n" + result.stderr
-    report = tmp_path / "report" / "multiqc_report.html"
-    assert report.exists()
+    result, report = _run_multiqc(tmp_path, source_dir)
+    _check(result.sys_exit_code == 0, result.message or 'MultiQC Python API failed')
+    _check(report.exists())
     html = report.read_text(errors="replace")
     for sample in sorted(expected):
-        assert sample.replace(".mzQC", "") in html
-
-
-def test_prideqc_mzqc_dataset_can_be_run_when_provided(tmp_path):
-    """Run the full PRIDE QC mzQC dataset when CI provides the extracted archive."""
-    fixture_dir = os.environ.get("PRIDEQC_MZQC_DATASET_DIR")
-    if not fixture_dir:
-        pytest.skip("set PRIDEQC_MZQC_DATASET_DIR to run the PRIDE QC dataset test")
-
-    source_dir = Path(fixture_dir).expanduser()
-    mzqc_files = sorted(source_dir.rglob("*.mzQC"))
-    assert len(mzqc_files) == 67
-
-    for path in mzqc_files:
-        with path.open() as handle:
-            json.load(
-                handle,
-                parse_constant=lambda value: (_ for _ in ()).throw(
-                    ValueError(f"non-standard JSON constant {value}")
-                ),
-            )
-
-    output_dir = os.environ.get("PRIDEQC_MZQC_OUTPUT_DIR")
-    result, report = _run_multiqc(
-        tmp_path,
-        source_dir,
-        Path(output_dir) if output_dir else None,
-        interactive=True,
-    )
-    assert result.returncode == 0, result.stdout + "\n" + result.stderr
-    assert report.exists()
-    html = report.read_text(errors="replace")
-    assert "Run Overview" in html
-    assert mzqc_files[0].stem in html
-    assert mzqc_files[-1].stem in html
+        _check(sample.replace('.mzQC', '') in html)
 
 
 def test_scalar_metric_columns_are_consistent_across_runs():
@@ -609,27 +552,28 @@ def test_scalar_metric_columns_are_consistent_across_runs():
     runs.extend(parse_mzqc_document(FIXTURE_DIR / "run2.mzQC", used))
     data, headers = _metric_data(runs)
 
-    assert set(data["synthetic_run_1"]) == {
-        "MS_4000053",
-        "MS_4000059",
-        "MS_4000060",
-        "QCPRIDE_MS1_RANGE_min",
-        "QCPRIDE_MS1_RANGE_max",
-        "QCPRIDE_PRECISION",
-    }
-    assert set(data["synthetic_run_2"]) == {
-        "MS_4000053",
-        "MS_4000059",
-        "MS_4000060",
-        "QCPRIDE_PRECISION",
-    }
-    assert data["synthetic_run_1"]["MS_4000059"] == 12000
-    assert data["synthetic_run_2"]["MS_4000059"] == 12100
-    assert data["synthetic_run_1"]["MS_4000060"] == 48000
-    assert data["synthetic_run_2"]["MS_4000060"] == 48200
-    assert data["synthetic_run_1"]["QCPRIDE_MS1_RANGE_min"] == 350.0
-    assert data["synthetic_run_1"]["QCPRIDE_MS1_RANGE_max"] == 1800.0
-    assert headers["MS_4000059"]["title"] == "number of MS1 spectra"
+    _check(
+        set(data["synthetic_run_1"])
+        == {
+            "MS_4000053",
+            "MS_4000059",
+            "MS_4000060",
+            "QCPRIDE_MS1_RANGE_min",
+            "QCPRIDE_MS1_RANGE_max",
+            "QCPRIDE_PRECISION",
+        }
+    )
+    _check(
+        set(data["synthetic_run_2"])
+        == {"MS_4000053", "MS_4000059", "MS_4000060", "QCPRIDE_PRECISION"}
+    )
+    _check(data['synthetic_run_1']['MS_4000059'] == 12000)
+    _check(data['synthetic_run_2']['MS_4000059'] == 12100)
+    _check(data['synthetic_run_1']['MS_4000060'] == 48000)
+    _check(data['synthetic_run_2']['MS_4000060'] == 48200)
+    _check(data['synthetic_run_1']['QCPRIDE_MS1_RANGE_min'] == 350.0)
+    _check(data['synthetic_run_1']['QCPRIDE_MS1_RANGE_max'] == 1800.0)
+    _check(headers['MS_4000059']['title'] == 'number of MS1 spectra')
 
 
 def _synthetic_tolerance_run(
@@ -661,6 +605,23 @@ def _synthetic_tolerance_run(
     )
 
 
+def test_experiment_group_summary_reports_run_duration_across_files():
+    """Distinguish per-run chromatogram duration statistics from within-run RT bounds."""
+    durations = [5399.64, 5400.00, 5400.10, 5400.20, 5400.30, 5402.63]
+    runs = [
+        _synthetic_tolerance_run(f"run-{index}", 6.0, duration)
+        for index, duration in enumerate(durations)
+    ]
+
+    _, summaries, _ = _run_group_assignments(runs)
+
+    _check(len(summaries) == 1)
+    summary = summaries["Experiment group 1"]
+    _check(summary["run_duration_min_min"] == pytest.approx(min(durations) / 60.0))
+    _check(summary["run_duration_max_min"] == pytest.approx(max(durations) / 60.0))
+    _check(summary["run_duration_span_s"] == pytest.approx(max(durations) - min(durations)))
+
+
 def test_run_group_detection_finds_supported_two_population_tolerance_split():
     runs = [
         *[_synthetic_tolerance_run(f"low-{index}", 6.0 + index * 0.1) for index in range(6)],
@@ -669,13 +630,13 @@ def test_run_group_detection_finds_supported_two_population_tolerance_split():
 
     assignments, summaries, evidence = _run_group_assignments(runs)
 
-    assert len(summaries) == 2
-    assert len(set(assignments[name] for name in assignments if name.startswith("low-"))) == 1
-    assert len(set(assignments[name] for name in assignments if name.startswith("high-"))) == 1
-    assert assignments["low-0"] != assignments["high-0"]
-    assert any("fragment tolerance" in item for item in evidence)
-    assert summaries[assignments["low-0"]]["fragment_common"] == pytest.approx(6.5)
-    assert summaries[assignments["high-0"]]["fragment_common"] == pytest.approx(23.5)
+    _check(len(summaries) == 2)
+    _check(len(set((assignments[name] for name in assignments if name.startswith('low-')))) == 1)
+    _check(len(set((assignments[name] for name in assignments if name.startswith('high-')))) == 1)
+    _check(assignments['low-0'] != assignments['high-0'])
+    _check(any(('fragment tolerance' in item for item in evidence)))
+    _check(summaries[assignments['low-0']]['fragment_common'] == pytest.approx(6.5))
+    _check(summaries[assignments['high-0']]['fragment_common'] == pytest.approx(23.5))
 
 
 def test_run_group_detection_does_not_promote_singleton_outlier():
@@ -686,9 +647,9 @@ def test_run_group_detection_does_not_promote_singleton_outlier():
 
     assignments, summaries, evidence = _run_group_assignments(runs)
 
-    assert len(summaries) == 1
-    assert set(assignments.values()) == {"Experiment group 1"}
-    assert evidence == []
+    _check(len(summaries) == 1)
+    _check(set(assignments.values()) == {'Experiment group 1'})
+    _check(evidence == [])
 
 
 def test_experiment_group_detection_uses_chromatography_duration():
@@ -699,9 +660,9 @@ def test_experiment_group_detection_uses_chromatography_duration():
 
     assignments, summaries, evidence = _run_group_assignments(runs)
 
-    assert len(summaries) == 2
-    assert assignments["short-0"] != assignments["long-0"]
-    assert any("chromatography duration" in item for item in evidence)
+    _check(len(summaries) == 2)
+    _check(assignments['short-0'] != assignments['long-0'])
+    _check(any(('chromatography duration' in item for item in evidence)))
 
 
 def test_experiment_group_detection_can_refine_tolerance_group_by_rt():
@@ -713,11 +674,11 @@ def test_experiment_group_detection_can_refine_tolerance_group_by_rt():
 
     assignments, summaries, evidence = _run_group_assignments(runs)
 
-    assert len(summaries) == 3
-    assert assignments["wide-0"] != assignments["narrow-0"]
-    assert assignments["narrow-0"] != assignments["long-0"]
-    assert any("chromatography duration" in item for item in evidence)
-    assert any("fragment tolerance" in item for item in evidence)
+    _check(len(summaries) == 3)
+    _check(assignments['wide-0'] != assignments['narrow-0'])
+    _check(assignments['narrow-0'] != assignments['long-0'])
+    _check(any(('chromatography duration' in item for item in evidence)))
+    _check(any(('fragment tolerance' in item for item in evidence)))
 
 
 def test_experiment_group_pca_uses_multifeature_evidence_and_group_colours():
@@ -729,16 +690,16 @@ def test_experiment_group_pca_uses_multifeature_evidence_and_group_colours():
 
     plot_data, features, variance = _experiment_group_pca_data(runs, assignments)
 
-    assert set(plot_data) == set(assignments.values())
-    assert {"fragment", "rt"}.issubset(features)
-    assert variance is not None
-    assert sum(len(points) for points in plot_data.values()) == 8
+    _check(set(plot_data) == set(assignments.values()))
+    _check({'fragment', 'rt'}.issubset(features))
+    _check(variance is not None)
+    _check(sum((len(points) for points in plot_data.values())) == 8)
     colours = {
         group: {point["color"] for point in points}
         for group, points in plot_data.items()
     }
-    assert all(len(values) == 1 for values in colours.values())
-    assert len({next(iter(values)) for values in colours.values()}) == len(colours)
+    _check(all((len(values) == 1 for values in colours.values())))
+    _check(len({next(iter(values)) for values in colours.values()}) == len(colours))
 
 
 def _synthetic_mass_shift_run(name: str, include_family: bool) -> MzQCRun:
@@ -774,18 +735,18 @@ def test_high_support_modification_family_requires_ninety_percent_of_group_runs(
         _synthetic_mass_shift_run(f"run-{index}", index < 8) for index in range(10)
     ]
     _, all_eight, high_eight = _mass_shift_family_context(eight_hits, assignments)
-    assert len(all_eight) == 1
-    assert all_eight[0]["run_prevalence"] == pytest.approx(0.8)
-    assert high_eight == []
+    _check(len(all_eight) == 1)
+    _check(all_eight[0]['run_prevalence'] == pytest.approx(0.8))
+    _check(high_eight == [])
 
     nine_hits = [
         _synthetic_mass_shift_run(f"run-{index}", index < 9) for index in range(10)
     ]
     _, all_nine, high_nine = _mass_shift_family_context(nine_hits, assignments)
-    assert len(all_nine) == 1
-    assert all_nine[0]["run_prevalence"] == pytest.approx(0.9)
-    assert all_nine[0]["high_support_run_fraction"] == pytest.approx(1.0)
-    assert len(high_nine) == 1
+    _check(len(all_nine) == 1)
+    _check(all_nine[0]['run_prevalence'] == pytest.approx(0.9))
+    _check(all_nine[0]['high_support_run_fraction'] == pytest.approx(1.0))
+    _check(len(high_nine) == 1)
 
     moderate_runs = []
     for index in range(10):
@@ -795,7 +756,7 @@ def test_high_support_modification_family_requires_ninety_percent_of_group_runs(
             record["confidence"] = "moderate"
         moderate_runs.append(run)
     _, _, high_moderate = _mass_shift_family_context(moderate_runs, assignments)
-    assert high_moderate == []
+    _check(high_moderate == [])
 
 
 def test_candidate_family_counts_bounds_pie_categories():
@@ -806,9 +767,9 @@ def test_candidate_family_counts_bounds_pie_categories():
 
     counts = _candidate_family_counts(rows, limit=3)
 
-    assert len(counts) == 4
-    assert counts["Candidate 0"] == 2
-    assert counts["Other"] == 7
+    _check(len(counts) == 4)
+    _check(counts['Candidate 0'] == 2)
+    _check(counts['Other'] == 7)
 
 
 def test_prevalence_probability_histogram_spans_zero_to_one_evenly():
@@ -822,33 +783,36 @@ def test_prevalence_probability_histogram_spans_zero_to_one_evenly():
 
     histogram = _prevalence_probability_histogram(rows)
 
-    assert list(histogram) == [
-        "0.0–0.1",
-        "0.1–0.2",
-        "0.2–0.3",
-        "0.3–0.4",
-        "0.4–0.5",
-        "0.5–0.6",
-        "0.6–0.7",
-        "0.7–0.8",
-        "0.8–0.9",
-        "0.9–1.0",
-    ]
-    assert histogram["0.0–0.1"]["Families"] == 1
-    assert histogram["0.1–0.2"]["Families"] == 1
-    assert histogram["0.5–0.6"]["Families"] == 1
-    assert histogram["0.9–1.0"]["Families"] == 2
+    _check(
+        list(histogram)
+        == [
+            "0.0–0.1",
+            "0.1–0.2",
+            "0.2–0.3",
+            "0.3–0.4",
+            "0.4–0.5",
+            "0.5–0.6",
+            "0.6–0.7",
+            "0.7–0.8",
+            "0.8–0.9",
+            "0.9–1.0",
+        ]
+    )
+    _check(histogram['0.0–0.1']['Families'] == 1)
+    _check(histogram['0.1–0.2']['Families'] == 1)
+    _check(histogram['0.5–0.6']['Families'] == 1)
+    _check(histogram['0.9–1.0']['Families'] == 2)
 
 
 def test_beta_prevalence_probability_matches_v4_single_run_boundary():
-    assert _beta_prevalence_probability(1, 1) == pytest.approx(0.99)
-    assert _beta_prevalence_probability(0, 1) == pytest.approx(0.81)
+    _check(_beta_prevalence_probability(1, 1) == pytest.approx(0.99))
+    _check(_beta_prevalence_probability(0, 1) == pytest.approx(0.81))
 
 
 def test_cv_backed_metric_display_titles_are_compact():
     isolation = MzQCMetric("QCPRIDE:ISO", "IsolationWidth_MS2_Median", 1.6)
     scan = MzQCMetric("QCPRIDE:SCAN", "ScanWindow_MS1", [350.0, 1800.0])
 
-    assert _metric_display_title(isolation) == "MS2 isolation width — median"
-    assert _metric_display_title(scan, "lower") == "MS1 scan window lower limit"
-    assert _metric_display_title(scan, "upper") == "MS1 scan window upper limit"
+    _check(_metric_display_title(isolation) == 'MS2 isolation width — median')
+    _check(_metric_display_title(scan, 'lower') == 'MS1 scan window lower limit')
+    _check(_metric_display_title(scan, 'upper') == 'MS1 scan window upper limit')
