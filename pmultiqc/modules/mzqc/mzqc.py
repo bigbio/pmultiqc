@@ -16,12 +16,14 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import RobustScaler
 
+from multiqc import config
 from multiqc.base_module import BaseMultiqcModule, ModuleNoSamplesFound
 from multiqc.plots import bargraph, heatmap, scatter, table
 from multiqc.types import SectionAlert
 
 
 EXPERIMENT_GROUP_COLORS = ("#4C78A8", "#F58518", "#54A24B", "#E45756")
+_PROTEOMEXCHANGE_ACCESSION = re.compile(r"\bPXD\d+\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +76,40 @@ class MzQCRun:
             elif isinstance(location, str) and location:
                 names.append(Path(location.split("?")[0]).name)
         return names
+
+    @property
+    def proteomexchange_accession(self) -> str | None:
+        """Return the ProteomeXchange accession declared for this run, if available."""
+        for item in self.input_files:
+            if not isinstance(item, dict):
+                continue
+            properties = item.get("fileProperties", [])
+            if not isinstance(properties, list):
+                continue
+            for prop in properties:
+                if not isinstance(prop, dict):
+                    continue
+                if str(prop.get("accession", "")).upper() != "MS:1001919":
+                    continue
+                value = prop.get("value")
+                if isinstance(value, str):
+                    match = _PROTEOMEXCHANGE_ACCESSION.search(value)
+                    if match:
+                        return match.group(0).upper()
+
+        # Backward-compatible convenience for historical prideQC mzQC files that
+        # predate explicit MS:1001919 metadata but are still stored under a PXD path.
+        candidates = [str(self.source_path)]
+        candidates.extend(
+            str(item.get("location", ""))
+            for item in self.input_files
+            if isinstance(item, dict)
+        )
+        for candidate in candidates:
+            match = _PROTEOMEXCHANGE_ACCESSION.search(candidate)
+            if match:
+                return match.group(0).upper()
+        return None
 
     @property
     def instrument(self) -> str | None:
@@ -259,6 +295,39 @@ def _slug(value: str) -> str:
     """Convert a metric identity into a stable MultiQC column key."""
     value = re.sub(r"[^A-Za-z0-9]+", "_", value.strip()).strip("_")
     return value or "metric"
+
+
+def _proteomexchange_accessions(runs: list[MzQCRun]) -> list[str]:
+    """Return sorted unique ProteomeXchange accessions represented by the report."""
+    return sorted(
+        {
+            accession
+            for run in runs
+            if (accession := run.proteomexchange_accession) is not None
+        }
+    )
+
+
+def _configure_dataset_report_metadata(runs: list[MzQCRun]) -> list[str]:
+    """Expose dataset provenance in the MultiQC report without overriding user titles."""
+    accessions = _proteomexchange_accessions(runs)
+    if not accessions:
+        return []
+
+    if not getattr(config, "title", None):
+        if len(accessions) == 1:
+            config.title = f"{accessions[0]} — mzQC Quality Control"
+        else:
+            config.title = f"mzQC Quality Control — {len(accessions)} ProteomeXchange datasets"
+
+    label = "ProteomeXchange accession" if len(accessions) == 1 else "ProteomeXchange accessions"
+    value = ", ".join(accessions)
+    header_info = list(getattr(config, "report_header_info", None) or [])
+    if not any(isinstance(item, dict) and label in item for item in header_info):
+        header_info.append({label: value})
+        config.report_header_info = header_info
+
+    return accessions
 
 
 def classify_metric(metric: MzQCMetric) -> str:
@@ -1499,6 +1568,7 @@ class MzQCModule(BaseMultiqcModule):
                 self.log.warning("Skipping invalid mzQC input: %s", message)
 
         self.runs = runs
+        self.proteomexchange_accessions = _configure_dataset_report_metadata(runs)
         self._draw_report()
 
     def _draw_report(self) -> None:
