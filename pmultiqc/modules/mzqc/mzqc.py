@@ -1925,7 +1925,9 @@ class MzQCModule(BaseMultiqcModule):
                     float(summary["fragment_median"])
                 )
             if len(summaries) > 1:
-                values["prideqc_experiment_group"] = group
+                group_match = re.fullmatch(r"Experiment group (\d+)", group)
+                if group_match is not None:
+                    values["prideqc_experiment_group"] = int(group_match.group(1))
             if values:
                 general_data[sample] = values
         if not general_data:
