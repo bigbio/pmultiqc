@@ -1,7 +1,7 @@
 {
   "mzQC": {
     "version": "1.0.0",
-    "creationDate": "2026-09-08T15:36:20.993342",
+    "creationDate": "2026-09-24T08:53:48.186087",
     "controlledVocabularies": [
       {
         "name": "PSI-MS Quality Control Ontology",
@@ -9,7 +9,7 @@
         "version": "4.1.130"
       }
     ],
-    "runQuality": [
+    "runQualities": [
       {
         "metadata": {
           "inputFiles": [
