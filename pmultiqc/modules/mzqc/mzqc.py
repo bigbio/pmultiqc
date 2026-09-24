@@ -1957,6 +1957,7 @@ class MzQCModule(BaseMultiqcModule):
                 "title": "Experiment group",
                 "description": "Potential experiment group detected from mzQC evidence",
                 "scale": False,
+                "format": "Experiment group {:,.0f}",
                 "hidden": False,
             }
         self.general_stats_addcols(general_data, headers)
