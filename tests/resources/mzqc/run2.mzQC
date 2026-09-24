@@ -1,0 +1,21 @@
+{
+  "mzQC": {
+    "version": "1.0.0",
+    "creationDate": "2026-09-16T10:00:00Z",
+    "runQualities": [
+      {
+        "metadata": {
+          "label": "synthetic_run_2",
+          "inputFiles": [{"name": "run2.raw", "location": "file:///data/run2.raw"}]
+        },
+        "qualityMetrics": [
+          {"accession": "MS:4000053", "name": "chromatography duration", "value": 3700, "unit": {"accession": "UO:0000010", "name": "second"}},
+          {"accession": "MS:4000059", "name": "number of MS1 spectra", "value": 12100},
+          {"accession": "MS:4000060", "name": "number of MS2 spectra", "value": 48200},
+          {"accession": "QCPRIDE:PRECISION", "name": "estimated precursor precision", "value": 2.8, "unit": {"accession": "UO:0000169", "name": "parts per million"}}
+        ]
+      }
+    ],
+    "controlledVocabularies": []
+  }
+}

@@ -1,6 +1,6 @@
-"""mzQC export is optional: it runs only when pymzqc is installed.
+"""mzQC export is guarded so it remains robust when pymzqc is unavailable.
 
-These tests pass with and without the ``mzqc`` extra installed. The checks that
+These tests pass with and without pymzqc installed. The checks that
 need pymzqc itself are skipped when it is absent, and the checks for the absent
 case hide the package so they also run on installations that have it.
 """
@@ -54,8 +54,8 @@ class TestIsMzqcAvailable:
 
         messages = [r.getMessage() for r in caplog.records]
         assert len(messages) == 1
-        assert 'pip install "pmultiqc[mzqc]"' in messages[0]
-        # skipping is the expected state without the extra, not a problem
+        assert "pip install pymzqc" in messages[0]
+        # skipping is a graceful fallback when the dependency is unavailable
         assert caplog.records[0].levelno == logging.INFO
 
     def test_nothing_is_logged_when_pymzqc_is_installed(self, monkeypatch, caplog):
@@ -119,7 +119,7 @@ class TestWithPymzqc:
 
         with open(path, encoding="utf-8") as handle:
             document = json.load(handle)
-        exported = document["mzQC"]["runQuality"][0]["qualityMetrics"]
+        exported = document["mzQC"]["runQualities"][0]["qualityMetrics"]
         assert len(exported) == len(metrics)
         assert exported[0]["value"] == {"0": 0.8, "1": 0.2}
 
@@ -160,13 +160,13 @@ class TestMzqcFileIsValidJson:
             exporter,
             {"identified_spectra": {"0 ~ 100": np.int64(42), "100 ~ 200": np.float32(1.5)}},
         )
-        value = _strict_json_load(path)["mzQC"]["runQuality"][0]["qualityMetrics"][0]["value"]
+        value = _strict_json_load(path)["mzQC"]["runQualities"][0]["qualityMetrics"][0]["value"]
         assert value == {"0 ~ 100": 42, "100 ~ 200": 1.5}
 
     def test_numpy_integer_keys(self, exporter):
         np = pytest.importorskip("numpy")
         path = self._export(exporter, {"charge_states": {np.int64(2): 10, np.int64(3): 5}})
-        value = _strict_json_load(path)["mzQC"]["runQuality"][0]["qualityMetrics"][0]["value"]
+        value = _strict_json_load(path)["mzQC"]["runQualities"][0]["qualityMetrics"][0]["value"]
         assert value == {"2": 10, "3": 5}
 
     def test_non_finite_numbers_become_null(self, exporter):
@@ -175,14 +175,14 @@ class TestMzqcFileIsValidJson:
             exporter,
             {"mass_error": [1.0, float("nan"), np.float64("inf"), -np.inf]},
         )
-        value = _strict_json_load(path)["mzQC"]["runQuality"][0]["qualityMetrics"][0]["value"]
+        value = _strict_json_load(path)["mzQC"]["runQualities"][0]["qualityMetrics"][0]["value"]
         assert value == [1.0, None, None, None]
 
     def test_pandas_objects_nested_in_values(self, exporter):
         pd = pytest.importorskip("pandas")
         frame = pd.DataFrame({"run": ["a", "b"], "count": [3, None]})
         path = self._export(exporter, {"peptide_intensity": {"table": frame}})
-        value = _strict_json_load(path)["mzQC"]["runQuality"][0]["qualityMetrics"][0]["value"]
+        value = _strict_json_load(path)["mzQC"]["runQualities"][0]["qualityMetrics"][0]["value"]
         assert value == {"table": [{"run": "a", "count": 3.0}, {"run": "b", "count": None}]}
 
     def test_failed_write_leaves_no_partial_file(self, exporter, tmp_path, monkeypatch):
