@@ -1917,11 +1917,11 @@ class MzQCModule(BaseMultiqcModule):
             summary = summaries.get(group, {})
             values: dict[str, Any] = {}
             if "precursor_median_ppm" in summary:
-                values["prideqc_precursor_tolerance_ppm"] = round(
+                values["prideqc_group_precursor_tolerance_ppm"] = round(
                     float(summary["precursor_median_ppm"])
                 )
             if summary.get("fragment_unit") == "ppm" and "fragment_median" in summary:
-                values["prideqc_fragment_tolerance_ppm"] = round(
+                values["prideqc_group_fragment_tolerance_ppm"] = round(
                     float(summary["fragment_median"])
                 )
             if len(summaries) > 1:
@@ -1933,7 +1933,7 @@ class MzQCModule(BaseMultiqcModule):
         if not general_data:
             return
         headers: dict[str, dict[str, Any]] = {
-            "prideqc_precursor_tolerance_ppm": {
+            "prideqc_group_precursor_tolerance_ppm": {
                 "title": "Precursor tol.",
                 "description": (
                     "Rounded median prideQC precursor tolerance for this experiment group"
@@ -1942,7 +1942,7 @@ class MzQCModule(BaseMultiqcModule):
                 "format": "{:,.0f}",
                 "hidden": False,
             },
-            "prideqc_fragment_tolerance_ppm": {
+            "prideqc_group_fragment_tolerance_ppm": {
                 "title": "Fragment tol.",
                 "description": (
                     "Rounded median high-resolution fragment tolerance for this experiment group"
@@ -2265,14 +2265,18 @@ class MzQCModule(BaseMultiqcModule):
             "acquisition cycle count",
             "mass error",
             "precision",
-            "tolerance",
         )
         for key, header in headers.items():
             title = str(header.get("title", "")).casefold()
+            if "tolerance" in title:
+                continue
             if any(pattern in title for pattern in patterns):
                 preferred.append(key)
         if len(preferred) < 2:
-            for key in headers:
+            for key, header in headers.items():
+                title = str(header.get("title", "")).casefold()
+                if "tolerance" in title:
+                    continue
                 if key not in preferred:
                     preferred.append(key)
                 if len(preferred) >= 2:
