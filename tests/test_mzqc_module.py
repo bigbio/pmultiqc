@@ -310,6 +310,13 @@ def test_prideqc_mass_shift_annotations_feed_summary_heatmap_and_table():
     table_data = _mass_shift_cluster_table(report)
 
     _check(report['classification_plot'] == {'run.raw': {'PTM-compatible': 2}})
+    scatter_points = [
+        point
+        for points in report['scatter_data'].values()
+        for point in points
+    ]
+    _check(len(scatter_points) == 2)
+    _check(all(point.get('name') == 'run.raw' for point in scatter_points))
     _check(set(report['heatmap_data']['run.raw']) == {'+15.995 Da', '+79.966 Da'})
     _check(summary['reported_clusters'] == 2)
     _check(summary['raw_recurrent_clusters'] == 120)
@@ -393,6 +400,71 @@ def test_preferred_general_stat_selection_preserves_header_order():
         MzQCModule._preferred_general_stat_keys(headers)
         == [f"metric_{index}" for index in range(8)]
     )
+
+
+def test_preferred_general_stats_excludes_run_level_tolerances():
+    """Keep run-level tolerances out of General Statistics; group summaries replace them."""
+    headers = {
+        "precursor_tol": {"title": "suggested precursor search tolerance"},
+        "fragment_tol": {"title": "suggested fragment search tolerance"},
+        "ms1": {"title": "number of MS1 spectra"},
+        "ms2": {"title": "number of MS2 spectra"},
+    }
+
+    selected = MzQCModule._preferred_general_stat_keys(headers)
+
+    _check("precursor_tol" not in selected)
+    _check("fragment_tol" not in selected)
+    _check(selected == ["ms1", "ms2"])
+
+
+def test_mass_accuracy_general_stats_use_unique_group_tolerance_keys(monkeypatch):
+    """Repeat rounded group medians without colliding with per-run tolerance metric IDs."""
+    runs = [
+        _synthetic_tolerance_run("group1-a", 21.0),
+        _synthetic_tolerance_run("group1-b", 23.5),
+        _synthetic_tolerance_run("group2-a", 6.0),
+    ]
+    module = object.__new__(MzQCModule)
+    module.runs = runs
+    module._run_groups = {
+        "group1-a": "Experiment group 1",
+        "group1-b": "Experiment group 1",
+        "group2-a": "Experiment group 2",
+    }
+    module._run_group_summaries = {
+        "Experiment group 1": {
+            "precursor_median_ppm": 7.74,
+            "fragment_unit": "ppm",
+            "fragment_median": 22.307,
+        },
+        "Experiment group 2": {
+            "precursor_median_ppm": 13.99,
+            "fragment_unit": "ppm",
+            "fragment_median": 7.173,
+        },
+    }
+    captured: dict[str, Any] = {}
+
+    def capture(data, headers):
+        captured["data"] = data
+        captured["headers"] = headers
+
+    monkeypatch.setattr(module, "general_stats_addcols", capture)
+    module._add_mass_accuracy_general_stats()
+
+    data = captured["data"]
+    headers = captured["headers"]
+    _check(data["group1-a"]["prideqc_group_precursor_tolerance_ppm"] == 8)
+    _check(data["group1-b"]["prideqc_group_precursor_tolerance_ppm"] == 8)
+    _check(data["group2-a"]["prideqc_group_precursor_tolerance_ppm"] == 14)
+    _check(data["group1-a"]["prideqc_group_fragment_tolerance_ppm"] == 22)
+    _check(data["group1-b"]["prideqc_group_fragment_tolerance_ppm"] == 22)
+    _check(data["group2-a"]["prideqc_group_fragment_tolerance_ppm"] == 7)
+    _check("prideqc_group_precursor_tolerance_ppm" in headers)
+    _check("prideqc_group_fragment_tolerance_ppm" in headers)
+    _check("prideqc_precursor_tolerance_ppm" not in headers)
+    _check("prideqc_fragment_tolerance_ppm" not in headers)
 
 
 def test_duplicate_run_labels_are_disambiguated(tmp_path):
