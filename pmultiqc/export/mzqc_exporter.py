@@ -13,6 +13,7 @@ import numpy as np
 from mzqc.MZQCFile import QualityMetric
 
 from .mapping import MZQC_METRIC_MAPPING
+from .metadata import build_analysis_software
 
 log = logging.getLogger("pmultiqc.mzqc_generator")
 
@@ -52,10 +53,19 @@ def to_json_safe(value: Any) -> Any:
     return str(value)
 
 class MzQcExporter:
-    def __init__(self, pipeline_name: str, raw_data: dict[str, Any], output_dir: str):
+    def __init__(
+        self,
+        pipeline_name: str,
+        raw_data: dict[str, Any],
+        output_dir: str,
+        *,
+        software_version: str | None = None,
+    ):
+        """Initialize an exporter with an optional analysis software version."""
         self.pipeline_name = pipeline_name.lower().replace("-", "")
         self.raw_data = raw_data
         self.output_dir = output_dir
+        self.software_version = software_version
 
     def sanitize_value(self,v):
             class_name = v.__class__.__name__
@@ -111,12 +121,7 @@ class MzQcExporter:
                                 }
                             ],
                             "analysisSoftware": [
-                                {
-                                    "accession": "MS:1002298",
-                                    "name": "MaxQuant",
-                                    "version": "1.6.x (or later)",
-                                    "uri": "https://www.maxquant.org"
-                                }
+                                build_analysis_software(self.pipeline_name, self.software_version)
                             ]
                         },
                         "qualityMetrics": [
