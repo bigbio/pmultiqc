@@ -61,6 +61,7 @@ class MzQcExporter:
         *,
         software_version: str | None = None,
     ):
+        """Initialize an exporter with an optional analysis software version."""
         self.pipeline_name = pipeline_name.lower().replace("-", "")
         self.raw_data = raw_data
         self.output_dir = output_dir

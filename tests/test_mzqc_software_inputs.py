@@ -1,4 +1,5 @@
-"""Software-only export checks with real synthetic DIA/MS-info file parsing.
+"""
+Software-only export checks with real synthetic DIA/MS-info file parsing.
 
 Only plotting and report assembly are suppressed. These are module call-chain
 tests with synthetic inputs, not full MultiQC CLI or biological-data runs.
