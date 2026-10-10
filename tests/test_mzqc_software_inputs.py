@@ -1,9 +1,7 @@
-"""
-Software-only export checks with real synthetic DIA/MS-info file parsing.
+"""Test software metadata with synthetic DIA/MS-info file parsing."""
 
-Only plotting and report assembly are suppressed. These are module call-chain
-tests with synthetic inputs, not full MultiQC CLI or biological-data runs.
-"""
+# Only plotting and report assembly are suppressed. These are module call-chain
+# tests with synthetic inputs, not full MultiQC CLI or biological-data runs.
 
 import json
 from collections import defaultdict

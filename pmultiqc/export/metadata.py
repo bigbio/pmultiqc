@@ -15,12 +15,9 @@ SOFTWARE = {
 def build_analysis_software(
     pipeline_name: str, software_version: str | None = None
 ) -> dict[str, str]:
-    """
-    Describe a supported workflow without inventing a software version.
-
-    mzQC requires a version string. Missing versions are explicitly recorded as
-    unknown. Unknown workflow names raise rather than claiming a different tool.
-    """
+    """Describe a supported workflow without inventing a software version."""
+    # mzQC requires a version string. Missing versions are recorded as unknown.
+    # Unknown workflow names raise rather than claiming a different tool.
     pipeline = pipeline_name.lower().replace("-", "")
     if pipeline not in SOFTWARE:
         raise ValueError(f"Unsupported mzQC pipeline: {pipeline_name}")
