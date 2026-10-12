@@ -29,6 +29,8 @@ PMULTIQC_SEARCH_PATTERNS = {
     "mzqc": {"fn": "*.mzQC", "num_lines": 0},
     "pmultiqc/exp_design": {"fn": "experimental_design.tsv", "num_lines": 0},
     "pmultiqc/sdrf": {"fn": "*sdrf.tsv", "num_lines": 0},
+    # Before pmultiqc/tsv: MultiQC gives each file to the first key that matches it.
+    "pmultiqc/lfq_groups": {"fn": "lfq_groups.tsv", "num_lines": 0},
     "pmultiqc/mztab": {"fn": "*.mzTab", "num_lines": 0},
     "pmultiqc/mzML": {"fn": "*.mzML", "num_lines": 0},
     "pmultiqc/mgf": {"fn": "*.mgf", "num_lines": 0},

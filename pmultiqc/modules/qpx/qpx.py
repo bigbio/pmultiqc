@@ -40,7 +40,13 @@ from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.qpx.qpx_design import build_design_from_parquet
 from pmultiqc.modules.qpx.qpx_heatmap import calculate_qpx_heatmap
 from pmultiqc.modules.qpx.qpx_mass_error import calculate_mass_error
-from pmultiqc.modules.qpx.qpx_io import has_data, parse_qpx_parquet, select_columns
+from pmultiqc.modules.qpx.qpx_io import (
+    has_data,
+    parse_qpx_parquet,
+    read_lfq_groups,
+    select_columns,
+    split_by_lfq_group
+)
 from pmultiqc.modules.qpx.qpx_sections import (
     build_peptides_per_protein,
     draw_qpx_pca,
@@ -124,6 +130,8 @@ class QpxModule(BasePMultiqcModule):
         self.id_df = None
         self.id_source = None
         self.id_df_valid = False
+        # Run -> LFQ group label (quantms --lfq_group_by); empty when not grouped.
+        self.run_groups = {}
 
         # Set False by a host module that registers the section groups itself.
         self.register_section_groups = True
@@ -164,6 +172,10 @@ class QpxModule(BasePMultiqcModule):
         self.feature_df = self._read_qpx_parquets("pmultiqc/qpx_feature", "feature")
         self.run_df = self._read_qpx_parquets("pmultiqc/qpx_run", None)
         self.sample_parquet_df = self._read_qpx_parquets("pmultiqc/qpx_sample", None)
+        self.run_groups = read_lfq_groups(
+            os.path.join(f["root"], f["fn"])
+            for f in self.find_log_files("pmultiqc/lfq_groups", filecontents=False)
+        )
 
         self.psm_df_valid = self._is_valid(self.psm_df)
         self.pg_df_valid = self._is_valid(self.pg_df)
@@ -314,37 +326,21 @@ class QpxModule(BasePMultiqcModule):
 
         log.info("[Results Overview] Starting generation...")
 
-        total_ms2_spectra_identified = 0
-        total_peptide_count = 0
-        total_protein_identified = 0
-        total_protein_quantified = 0
+        id_df = self.id_df if self.id_df_valid else None
+        pg_df = self.pg_df if self.pg_df_valid else None
+        totals = _summary_counts(id_df, pg_df)
 
-        if self.id_df_valid:
-
-            # Summary Table & Pipeline Result Statistics
-            # 'scan' is a list column (list<int32>), so .str[0] unwraps the scan number;
-            # the column itself is unhashable and cannot be grouped on. It is optional,
-            # and DIA-NN may write an empty list, so fall back to counting rows.
-            if has_data(self.id_df, "scan"):
-                total_ms2_spectra_identified = self.id_df.groupby(
-                    ["run", self.id_df["scan"].str[0]]
-                ).ngroups
-            else:
-                total_ms2_spectra_identified = len(self.id_df)
-                log.info(
-                    "[Results Overview] No usable 'scan' column; reporting identified "
-                    "spectra as the identification count."
-                )
-            total_peptide_count = self.id_df["sequence"].nunique()
-
-        if self.pg_df_valid:
-            # Count protein groups by their accession set: anchor_protein is a display
-            # label and several groups may share one, so it undercounts.
-            pg_keys = protein_group_key(self.pg_df)
-            total_protein_identified = pg_keys.nunique()
-
-            valid_intensity = self.pg_df["intensity"].notna() & (self.pg_df["intensity"] != "")
-            total_protein_quantified = pg_keys[valid_intensity].nunique()
+        # Each LFQ group has its own protein inference, so its counts are reported too.
+        group_totals = {}
+        if self.run_groups:
+            id_parts = (
+                dict(split_by_lfq_group(id_df, self.run_groups)) if id_df is not None else {}
+            )
+            pg_parts = (
+                dict(split_by_lfq_group(pg_df, self.run_groups)) if pg_df is not None else {}
+            )
+            for group in sorted(set(id_parts) | set(pg_parts)):
+                group_totals[group] = _summary_counts(id_parts.get(group), pg_parts.get(group))
 
         # Pipeline Result Statistics
         if self.id_df_valid and self.pg_df_valid:
@@ -354,16 +350,22 @@ class QpxModule(BasePMultiqcModule):
 
             pg_by_run = self.pg_df.assign(_key=protein_group_key(self.pg_df))
             pg_prots_by_run = pg_by_run.groupby("run")["_key"].apply(set).to_dict()
-            unambiguous = get_unambiguous_peptides(
-                self.feature_df if self.feature_df_valid else self.id_df
-            )
+            # A peptide's protein mapping is judged within its LFQ group.
+            unambiguous = {
+                group: get_unambiguous_peptides(rows)
+                for group, rows in split_by_lfq_group(
+                    self.feature_df if self.feature_df_valid else self.id_df, self.run_groups
+                )
+            }
             for run, psm_group in self.id_df.groupby("run"):
                 run_str = str(run)
                 prots = pg_prots_by_run.get(run_str, set())
                 (
                     stat_at_run[run_str],
                     data_per_run[run_str]
-                ) = calculate_run_stat(psm_group, prots, unambiguous)
+                ) = calculate_run_stat(
+                    psm_group, prots, unambiguous.get(self.run_groups.get(run_str))
+                )
 
             num_table_at_sample = cal_num_table_at_sample(self.file_df, data_per_run)
 
@@ -383,13 +385,7 @@ class QpxModule(BasePMultiqcModule):
                 cal_num_table_data=self.cal_num_table_data
             )
 
-        draw_summary_table(
-            self.sub_sections["summary"],
-            total_ms2_spectra_identified,
-            total_peptide_count,
-            total_protein_identified,
-            total_protein_quantified
-        )
+        draw_summary_table(self.sub_sections["summary"], *totals, group_totals=group_totals)
 
 
     # Identification Summary
@@ -513,6 +509,7 @@ class QpxModule(BasePMultiqcModule):
             feature_df=self.feature_df if self.feature_df_valid else None,
             missed_cleavages_by_run=self.missed_cleavages_by_run,
             contaminant_affix=config.kwargs.get("contaminant_affix", "CONT"),
+            run_groups=self.run_groups,
         )
 
         if not heat_map_score:
@@ -629,8 +626,13 @@ class QpxModule(BasePMultiqcModule):
                 plot_data=get_protein_intensity(self.pg_df, self.file_df),
             )
 
-            # PCA of protein intensity
-            pca_data = protein_intensity_pca(self.pg_df)
+            # PCA of protein intensity, one per LFQ group: intensities of different
+            # groups come from separate quantifications.
+            pca_data = {
+                group: protein_intensity_pca(rows)
+                for group, rows in split_by_lfq_group(self.pg_df, self.run_groups)
+            }
+            pca_data = {group: data for group, data in pca_data.items() if data}
             if pca_data:
                 self._safe_draw(
                     draw_qpx_pca,
@@ -656,7 +658,7 @@ class QpxModule(BasePMultiqcModule):
 
             # Standard Deviation of Intensity
             std_data = calculate_intensity_std(
-                self.feature_df, self.sample_df, self.file_df
+                self.feature_df, self.sample_df, self.file_df, self.run_groups
             )
             if std_data:
                 self._safe_draw(
@@ -836,6 +838,35 @@ class QpxModule(BasePMultiqcModule):
         except Exception:
             log.exception(f"Failed to generate {name}")
             return None
+
+
+def _summary_counts(id_df, pg_df):
+    """Identified spectra, peptides, and identified/quantified protein groups."""
+    spectra = peptides = proteins = quantified = 0
+
+    if id_df is not None:
+        # 'scan' is a list column (list<int32>), so .str[0] unwraps the scan number;
+        # the column itself is unhashable and cannot be grouped on. It is optional,
+        # and DIA-NN may write an empty list, so fall back to counting rows.
+        if has_data(id_df, "scan"):
+            spectra = id_df.groupby(["run", id_df["scan"].str[0]]).ngroups
+        else:
+            spectra = len(id_df)
+            log.info(
+                "[Results Overview] No usable 'scan' column; reporting identified "
+                "spectra as the identification count."
+            )
+        peptides = id_df["sequence"].nunique()
+
+    if pg_df is not None:
+        # Count protein groups by their accession set: anchor_protein is a display
+        # label and several groups may share one, so it undercounts.
+        pg_keys = protein_group_key(pg_df)
+        proteins = pg_keys.nunique()
+        valid_intensity = pg_df["intensity"].notna() & (pg_df["intensity"] != "")
+        quantified = pg_keys[valid_intensity].nunique()
+
+    return spectra, peptides, proteins, quantified
 
 
 def _sample_level_mods(df, sdrf_file_df):

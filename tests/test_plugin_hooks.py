@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from multiqc import report
+
 from pmultiqc import main as pmultiqc_main
 
 
@@ -33,3 +35,22 @@ def test_before_config_preserves_existing_search_pattern_overrides(monkeypatch):
     pmultiqc_main.pmultiqc_plugin_before_config()
 
     assert pmultiqc_main.config.sp["pmultiqc/mztab"]["fn"] == "custom.mzTab"
+
+
+def test_lfq_groups_manifest_is_not_taken_by_the_generic_tsv_pattern(monkeypatch, tmp_path):
+    """MultiQC gives each file to the first key that matches it, so *.tsv must not come first."""
+    (tmp_path / "lfq_groups.tsv").write_text("group_id\trun_id\n")
+    (tmp_path / "psm.tsv").write_text("x\n")
+    monkeypatch.setattr(pmultiqc_main.config, "sp", {})
+    pmultiqc_main.pmultiqc_plugin_before_config()
+
+    report.reset_file_search()
+    report.analysis_files = [str(tmp_path)]
+    try:
+        report.search_files(["pmultiqc"])
+        found = {key: [f["fn"] for f in files] for key, files in report.files.items()}
+    finally:
+        report.reset_file_search()
+
+    assert found["pmultiqc/lfq_groups"] == ["lfq_groups.tsv"]
+    assert found["pmultiqc/tsv"] == ["psm.tsv"]

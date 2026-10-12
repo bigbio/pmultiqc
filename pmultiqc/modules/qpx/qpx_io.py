@@ -94,6 +94,47 @@ def select_columns(df, columns, context):
     return df[list(columns)].copy()
 
 
+# lfq_groups.tsv columns that identify a group or its files; the remaining columns are
+# the SDRF columns whose values define the group.
+LFQ_GROUP_FILE_COLUMNS = ["group_id", "run_id", "sdrf_file", "design_file"]
+
+
+def read_lfq_groups(paths):
+    """Map each run to its LFQ group label from quantms' ``lfq_groups.tsv`` files.
+
+    quantms ``--lfq_group_by`` quantifies each group in its own ProteomicsLFQ run, so
+    protein groups and intensities are only comparable within a group. The label joins
+    the SDRF values that define the group, falling back to the group_id.
+    """
+    run_groups = {}
+    for path in paths:
+        df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+        if not {"group_id", "run_id"}.issubset(df.columns):
+            log.warning(f"{path} has no group_id/run_id columns; ignoring it.")
+            continue
+        value_columns = [c for c in df.columns if c not in LFQ_GROUP_FILE_COLUMNS]
+        for row in df.to_dict("records"):
+            label = " | ".join(row[c] for c in value_columns if row[c]) or row["group_id"]
+            run_groups[row["run_id"]] = label
+    if run_groups:
+        log.info(
+            f"[LFQ groups] {len(set(run_groups.values()))} groups over {len(run_groups)} runs."
+        )
+    return run_groups
+
+
+def split_by_lfq_group(df, run_groups):
+    """Yield ``(group, rows)`` for each LFQ group of a per-run table.
+
+    Without groups the whole table is one ``(None, df)`` pair, so callers handle both
+    cases with one loop. Rows of runs that have no group are left out.
+    """
+    if not run_groups:
+        yield None, df
+        return
+    yield from df.groupby(df["run"].astype(str).map(run_groups), sort=True)
+
+
 def parse_qpx_parquet(file_path, qpx_type):
     """Read one quantms.io parquet table, keeping only columns the file actually has.
 
