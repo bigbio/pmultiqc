@@ -23,10 +23,8 @@ def draw_summary_table(
     total_protein_quantified: int = 0,
     group_totals: dict = None
 ):
-    """Summary table: identified spectra, peptides and proteins, globally and per LFQ group.
-
-    ``group_totals`` maps each LFQ group to the same four counts, in the same order.
-    """
+    """Summary table: identified spectra, peptides and proteins, globally and per LFQ group."""
+    # group_totals maps each LFQ group to the same four counts, in the same order.
     log.info("Summary table generation...")
 
     summary_table = {

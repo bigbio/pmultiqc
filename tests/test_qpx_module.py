@@ -6,7 +6,10 @@ real (subsampled) quantms.io parquet files, so the wiring is covered rather than
 the pieces.
 """
 
+import tempfile
+import unittest
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -202,13 +205,18 @@ class TestHostDelegation:
 
 
 @pytest.mark.skipif(not QPX_DATA_DIR.exists(), reason="QPX fixtures not available")
-class TestLfqGroups:
+class TestLfqGroups(unittest.TestCase):
     """quantms --lfq_group_by writes lfq_groups.tsv; each group is quantified separately."""
 
     RUNS = ["Phospho_redissolve_final_01", "Phospho_redissolve_final_02"]
 
-    def _grouped_module(self, tmp_path):
-        manifest = tmp_path / "lfq_groups.tsv"
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp_path = Path(tmp.name)
+
+    def _grouped_module(self):
+        manifest = self.tmp_path / "lfq_groups.tsv"
         manifest.write_text(
             "group_id\trun_id\tsdrf_file\tdesign_file\tsource name\n"
             + "".join(
@@ -220,19 +228,19 @@ class TestLfqGroups:
 
         def finder(search_pattern, filecontents=False):
             if search_pattern == "pmultiqc/lfq_groups":
-                yield {"root": str(tmp_path), "fn": manifest.name}
+                yield {"root": str(manifest.parent), "fn": manifest.name}
             else:
                 yield from parquet_finder(search_pattern, filecontents)
 
         return QpxModule(finder, {key: [] for key in SUB_SECTION_KEYS}, _heatmap_colors())
 
-    def test_reads_the_group_of_every_run(self, tmp_path):
-        module = self._grouped_module(tmp_path)
-        assert module.get_data() is True
+    def test_reads_the_group_of_every_run(self):
+        module = self._grouped_module()
+        self.assertIs(module.get_data(), True)
 
-        assert module.run_groups == {self.RUNS[0]: "S1", self.RUNS[1]: "S2"}
+        self.assertEqual(module.run_groups, {self.RUNS[0]: "S1", self.RUNS[1]: "S2"})
 
-    def test_summary_has_one_row_per_group(self, tmp_path, monkeypatch):
+    def test_summary_has_one_row_per_group(self):
         from pmultiqc.modules.qpx import qpx
 
         captured = {}
@@ -240,20 +248,23 @@ class TestLfqGroups:
         def capture(sub_sections, *totals, group_totals=None):
             captured.update(totals=totals, group_totals=group_totals)
 
-        monkeypatch.setattr(qpx, "draw_summary_table", capture)
-        module = self._grouped_module(tmp_path)
-        module.get_data()
-        module.plot_results_overview()
+        module = self._grouped_module()
+        with mock.patch.object(qpx, "draw_summary_table", capture):
+            module.get_data()
+            module.plot_results_overview()
 
         group_totals = captured["group_totals"]
-        assert set(group_totals) == {"S1", "S2"}
+        self.assertEqual(set(group_totals), {"S1", "S2"})
         # Runs belong to exactly one group, so identified spectra add up.
-        assert sum(counts[0] for counts in group_totals.values()) == captured["totals"][0]
+        self.assertEqual(
+            sum(counts[0] for counts in group_totals.values()), captured["totals"][0]
+        )
 
-    def test_draw_plots_completes(self, tmp_path):
-        module = self._grouped_module(tmp_path)
+    def test_draw_plots_completes(self):
+        module = self._grouped_module()
         module.get_data()
         module.draw_plots()
 
         for key in ["summary", "identification", "quantification"]:
-            assert module.sub_sections[key], f"{key} produced no plots"
+            with self.subTest(key=key):
+                self.assertTrue(module.sub_sections[key], f"{key} produced no plots")

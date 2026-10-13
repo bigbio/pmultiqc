@@ -1,8 +1,11 @@
-"""Tests for LFQ groups written by quantms --lfq_group_by (lfq_groups.tsv).
+"""Tests for LFQ groups written by quantms --lfq_group_by (lfq_groups.tsv)."""
 
-Each group is quantified by its own ProteomicsLFQ run, so summaries that compare runs
-must stay within a group.
-"""
+# Each group is quantified by its own ProteomicsLFQ run, so summaries that compare runs
+# must stay within a group.
+
+import tempfile
+import unittest
+from pathlib import Path
 
 import pandas as pd
 
@@ -18,10 +21,15 @@ def _write_manifest(path, header, rows):
     return path
 
 
-class TestReadLfqGroups:
-    def test_labels_runs_by_their_sdrf_values(self, tmp_path):
+class TestReadLfqGroups(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp_path = Path(tmp.name)
+
+    def test_labels_runs_by_their_sdrf_values(self):
         manifest = _write_manifest(
-            tmp_path / "lfq_groups.tsv",
+            self.tmp_path / "lfq_groups.tsv",
             [*HEADER, "source name", "instrument"],
             [
                 ["lfq_group_a", "r1", "a.sdrf.tsv", "a_design.tsv", "S1", "QE"],
@@ -30,28 +38,31 @@ class TestReadLfqGroups:
             ],
         )
 
-        assert read_lfq_groups([manifest]) == {"r1": "S1 | QE", "r2": "S1 | QE", "r3": "S2 | QE"}
-
-    def test_falls_back_to_the_group_id(self, tmp_path):
-        manifest = _write_manifest(
-            tmp_path / "lfq_groups.tsv", HEADER, [["lfq_group_a", "r1", "a.sdrf.tsv", "a.tsv"]]
+        self.assertEqual(
+            read_lfq_groups([manifest]), {"r1": "S1 | QE", "r2": "S1 | QE", "r3": "S2 | QE"}
         )
 
-        assert read_lfq_groups([manifest]) == {"r1": "lfq_group_a"}
+    def test_falls_back_to_the_group_id(self):
+        manifest = _write_manifest(
+            self.tmp_path / "lfq_groups.tsv", HEADER, [["lfq_group_a", "r1", "a.sdrf.tsv", "a.tsv"]]
+        )
 
-    def test_ignores_a_table_without_run_ids(self, tmp_path):
-        other = _write_manifest(tmp_path / "lfq_groups.tsv", ["sample", "group"], [["s1", "g1"]])
+        self.assertEqual(read_lfq_groups([manifest]), {"r1": "lfq_group_a"})
 
-        assert read_lfq_groups([other]) == {}
+    def test_ignores_a_table_without_run_ids(self):
+        other = _write_manifest(self.tmp_path / "lfq_groups.tsv", ["sample", "group"], [["s1", "g1"]])
+
+        self.assertEqual(read_lfq_groups([other]), {})
 
 
-class TestSplitByLfqGroup:
+class TestSplitByLfqGroup(unittest.TestCase):
     def test_without_groups_the_table_stays_whole(self):
         df = pd.DataFrame({"run": ["r1", "r2"]})
 
         [(group, rows)] = list(split_by_lfq_group(df, {}))
 
-        assert group is None and rows is df
+        self.assertIsNone(group)
+        self.assertIs(rows, df)
 
     def test_runs_without_a_group_are_left_out(self):
         df = pd.DataFrame({"run": ["r1", "r2", "r3"], "x": [1, 2, 3]})
@@ -61,10 +72,10 @@ class TestSplitByLfqGroup:
             for group, rows in split_by_lfq_group(df, {"r1": "g1", "r3": "g2"})
         }
 
-        assert parts == {"g1": [1], "g2": [3]}
+        self.assertEqual(parts, {"g1": [1], "g2": [3]})
 
 
-class TestHeatmapWithinGroups:
+class TestHeatmapWithinGroups(unittest.TestCase):
     @staticmethod
     def _metric(result, metric):
         scores, xnames, runs = result
@@ -87,16 +98,19 @@ class TestHeatmapWithinGroups:
         )
 
         for metric in ["Charge", "Pep Missing Values"]:
-            assert self._metric(project, metric) == {"r1": 0.5, "r2": 0.5}
-            assert self._metric(grouped, metric) == {"r1": 1.0, "r2": 1.0}
+            with self.subTest(metric=metric):
+                self.assertEqual(self._metric(project, metric), {"r1": 0.5, "r2": 0.5})
+                self.assertEqual(self._metric(grouped, metric), {"r1": 1.0, "r2": 1.0})
 
     def test_variance_uses_the_group_median(self):
         groups = {"r1": "g1", "r2": "g2"}
 
-        assert _variance_scores({"r1": 1.0, "r2": 0.5}, groups) == {"r1": 1.0, "r2": 1.0}
+        self.assertEqual(
+            _variance_scores({"r1": 1.0, "r2": 0.5}, groups), {"r1": 1.0, "r2": 1.0}
+        )
 
 
-class TestIntensityStdWithinGroups:
+class TestIntensityStdWithinGroups(unittest.TestCase):
     def test_only_conditions_in_several_groups_are_split(self):
         runs = ["r1", "r2", "r3", "r4", "r5", "r6"]
         feature = pd.DataFrame(
@@ -113,9 +127,8 @@ class TestIntensityStdWithinGroups:
         file_df = pd.DataFrame({"Sample": range(1, 7), "Run": runs})
         groups = {"r1": "g1", "r2": "g1", "r3": "g2", "r4": "g2", "r5": "g2", "r6": "g2"}
 
-        assert set(calculate_intensity_std(feature, sample_df, file_df)) == {"A", "B"}
-        assert set(calculate_intensity_std(feature, sample_df, file_df, groups)) == {
-            "g1: A",
-            "g2: A",
-            "B",
-        }
+        self.assertEqual(set(calculate_intensity_std(feature, sample_df, file_df)), {"A", "B"})
+        self.assertEqual(
+            set(calculate_intensity_std(feature, sample_df, file_df, groups)),
+            {"g1: A", "g2: A", "B"},
+        )

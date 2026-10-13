@@ -100,12 +100,10 @@ LFQ_GROUP_FILE_COLUMNS = ["group_id", "run_id", "sdrf_file", "design_file"]
 
 
 def read_lfq_groups(paths):
-    """Map each run to its LFQ group label from quantms' ``lfq_groups.tsv`` files.
-
-    quantms ``--lfq_group_by`` quantifies each group in its own ProteomicsLFQ run, so
-    protein groups and intensities are only comparable within a group. The label joins
-    the SDRF values that define the group, falling back to the group_id.
-    """
+    """Map each run to its LFQ group label from quantms' ``lfq_groups.tsv`` files."""
+    # quantms --lfq_group_by quantifies each group in its own ProteomicsLFQ run, so
+    # protein groups and intensities are only comparable within a group. The label joins
+    # the SDRF values that define the group, falling back to the group_id.
     run_groups = {}
     for path in paths:
         df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
@@ -124,11 +122,9 @@ def read_lfq_groups(paths):
 
 
 def split_by_lfq_group(df, run_groups):
-    """Yield ``(group, rows)`` for each LFQ group of a per-run table.
-
-    Without groups the whole table is one ``(None, df)`` pair, so callers handle both
-    cases with one loop. Rows of runs that have no group are left out.
-    """
+    """Yield ``(group, rows)`` for each LFQ group of a per-run table."""
+    # Without groups the whole table is one (None, df) pair, so callers handle both
+    # cases with one loop. Rows of runs that have no group are left out.
     if not run_groups:
         yield None, df
         return

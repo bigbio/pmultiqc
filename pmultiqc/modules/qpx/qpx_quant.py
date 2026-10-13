@@ -414,11 +414,7 @@ def protein_intensity_pca(pg_df):
 
 
 def calculate_intensity_std(feature_df, sample_df, file_df, run_groups=None):
-    """Per-condition standard deviation of log2 peptide intensity.
-
-    With LFQ groups, a condition found in several groups is split by group, because
-    intensities of different groups come from separate quantifications.
-    """
+    """Per-condition standard deviation of log2 peptide intensity."""
     from pmultiqc.modules.qpx.qpx_io import has_data
 
     if not has_data(feature_df, "peptidoform", "intensities", "run"):
@@ -452,7 +448,9 @@ def calculate_intensity_std(feature_df, sample_df, file_df, run_groups=None):
     df["log2_intensity"] = np.log2(df["intensity"])
 
     if run_groups:
-        # Runs without a group are left out; a condition in one group keeps its name.
+        # Intensities of different LFQ groups come from separate quantifications, so a
+        # condition found in several groups is split by group. Runs without a group are
+        # left out; a condition in one group keeps its name.
         df["lfq_group"] = df["run"].astype(str).map(run_groups)
         df = df.dropna(subset=["lfq_group", "Condition"])
         condition = df["Condition"].astype(str)
