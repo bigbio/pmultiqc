@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+from multiqc import report
+
 from pmultiqc import main as pmultiqc_main
 
 
@@ -33,3 +40,24 @@ def test_before_config_preserves_existing_search_pattern_overrides(monkeypatch):
     pmultiqc_main.pmultiqc_plugin_before_config()
 
     assert pmultiqc_main.config.sp["pmultiqc/mztab"]["fn"] == "custom.mzTab"
+
+
+class TestLfqGroupsSearchPattern(unittest.TestCase):
+    def test_lfq_groups_manifest_is_not_taken_by_the_generic_tsv_pattern(self):
+        """Each file goes to the first search key that matches it, so *.tsv must not come first."""
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(pmultiqc_main.config, "sp", {}):
+            tmp_path = Path(tmp)
+            (tmp_path / "lfq_groups.tsv").write_text("group_id\trun_id\n")
+            (tmp_path / "psm.tsv").write_text("x\n")
+            pmultiqc_main.pmultiqc_plugin_before_config()
+
+            report.reset_file_search()
+            report.analysis_files = [str(tmp_path)]
+            try:
+                report.search_files(["pmultiqc"])
+                found = {key: [f["fn"] for f in files] for key, files in report.files.items()}
+            finally:
+                report.reset_file_search()
+
+        self.assertEqual(found["pmultiqc/lfq_groups"], ["lfq_groups.tsv"])
+        self.assertEqual(found["pmultiqc/tsv"], ["psm.tsv"])
