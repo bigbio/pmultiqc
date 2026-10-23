@@ -1,0 +1,6 @@
+# pytest assertions verify test expectations rather than production input validation.
+# Keep all other security checks enabled, including B101 outside these test files.
+assert_used:
+  skips:
+    - '*/tests/test_mzqc_metadata.py'
+    - '*/tests/test_mzqc_software_inputs.py'

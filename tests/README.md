@@ -121,6 +121,23 @@ The current tests cover the following functionality:
 - Retention time analysis
 - Peptide intensity analysis
 
+## mzQC software identity regressions
+
+Run `python -m pytest tests/test_mzqc_metadata.py tests/test_mzqc_software_inputs.py tests/test_mzqc_optional.py -q`.
+These tests cover the original three-argument exporter API for DIA-NN, MaxQuant
+and QuantMS, the optional keyword-only `software_version`, software identities,
+missing versions, and failed writes. Unsupported pipeline names raise explicitly.
+Synthetic TSV/Parquet and ms_info tests run the actual readers and statistics
+with plotting disabled; they are not full CLI tests on real experiments.
+
+This change addresses only `analysisSoftware` in issue #730. `inputFiles`, metric
+CV mappings, and timestamps retain their existing behavior and known limitations.
+The exporter does not require source paths or reject same-named input files.
+Unknown software versions are logged and recorded as `unknown`; QuantMS never
+uses the version of its internal DIA-NN tool as the workflow version.
+MaxQuant parameter-reader tests cover a missing Version row, empty/NA cells,
+and whitespace-only values; each produces `unknown` and a warning.
+
 ## Working with Compressed Test Data
 
 If you need to add or update test data:

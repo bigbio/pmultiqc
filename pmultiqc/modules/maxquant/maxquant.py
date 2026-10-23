@@ -1,6 +1,8 @@
 import os
 from datetime import datetime
 
+import pandas as pd
+
 from pmultiqc.modules.maxquant import (
     maxquant_utils,
     maxquant_io,
@@ -58,10 +60,23 @@ class MaxQuantModule(BasePMultiqcModule):
             
                 output_directory = getattr(config, "output_dir", "./")
             
+                parameters = get_parameter_dicts.get("parameters_tb_dict") or {}
+                software_version = next(
+                    (
+                        row["value"]
+                        for row in parameters.values()
+                        if str(row.get("parameter", "")).lower() == "version"
+                    ),
+                    None,
+                )
+                # The parameter reader represents empty/NA cells as NaN.
+                if pd.isna(software_version):
+                    software_version = None
                 exporter = MzQcExporter(
                     pipeline_name="MaxQuant",
                     raw_data=self.mq_results,
-                    output_dir=output_directory
+                    output_dir=output_directory,
+                    software_version=software_version,
                 )
             
                 # 1. Parse the metrics
