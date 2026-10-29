@@ -1,7 +1,7 @@
 {
   "mzQC": {
     "version": "1.0.0",
-    "creationDate": "2026-09-08T15:30:07.483014",
+    "creationDate": "2026-09-24T09:03:23.205062",
     "controlledVocabularies": [
       {
         "name": "PSI-MS Quality Control Ontology",
@@ -9,7 +9,7 @@
         "version": "4.1.130"
       }
     ],
-    "runQuality": [
+    "runQualities": [
       {
         "metadata": {
           "inputFiles": [
@@ -31838,16 +31838,16 @@
             "name": "identified MS1 feature area principal component analysis result",
             "value": {
               "intensity 4_1_2450": {
-                "x": 27.35059201978782,
-                "y": 67.36813727776347
+                "x": 27.350592019787122,
+                "y": 67.3681372777637
               },
               "intensity 5_1_2451": {
-                "x": 45.405116499224306,
-                "y": -57.074542226885136
+                "x": 45.40511649922488,
+                "y": -57.074542226884645
               },
               "intensity 6_1_2452": {
-                "x": -72.7557085190121,
-                "y": -10.293595050878308
+                "x": -72.75570851901196,
+                "y": -10.29359505087905
               }
             }
           },
@@ -31856,16 +31856,16 @@
             "name": "principal component analysis of MaxQuant's protein group lfq intensities",
             "value": {
               "lfq intensity 4_1_2450": {
-                "x": -72.78690775007429,
-                "y": 1.7816018497391752
+                "x": -72.78690775007428,
+                "y": 1.7816018497398296
               },
               "lfq intensity 5_1_2451": {
-                "x": 34.8318157649545,
-                "y": -63.17025381815155
+                "x": 34.83181576495393,
+                "y": -63.17025381815184
               },
               "lfq intensity 6_1_2452": {
-                "x": 37.95509198511978,
-                "y": 61.38865196841235
+                "x": 37.95509198512034,
+                "y": 61.388651968412006
               }
             }
           },
@@ -519761,7 +519761,7 @@
               },
               "32": {
                 "parameter": "Fixed andromeda index folder",
-                "value": NaN
+                "value": null
               },
               "33": {
                 "parameter": "Second peptides",
@@ -519865,7 +519865,7 @@
               },
               "58": {
                 "parameter": "Variation mode",
-                "value": NaN
+                "value": null
               },
               "59": {
                 "parameter": "MS/MS tol. (FTMS)",
@@ -520129,7 +520129,7 @@
               },
               "124": {
                 "parameter": "Site tables",
-                "value": NaN
+                "value": null
               }
             }
           }

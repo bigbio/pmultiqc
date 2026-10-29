@@ -736,6 +736,11 @@ class QpxModule(BasePMultiqcModule):
             if psm is None:
                 return
 
+            psm = psm.dropna(subset=["rt"])
+            if psm.empty:
+                log.info("[RT Quality Control] Skipped: no reported retention times.")
+                return
+
             psm["retention time"] = psm["rt"] / 60
             psm.rename(columns={"run": "raw file"}, inplace=True)
             qpx_ids_over_rt = evidence_rt_count(psm)
