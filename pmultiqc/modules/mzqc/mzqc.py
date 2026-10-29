@@ -409,6 +409,48 @@ def _metric_unit_suffix(metric: MzQCMetric) -> str | None:
     return None
 
 
+
+def _is_run_level_tolerance_general_stat(
+    key: str,
+    header: dict[str, Any],
+) -> bool:
+    """Return whether a raw per-run tolerance column should stay out of General Statistics."""
+    if key.startswith("prideqc_group_"):
+        return False
+    title = str(header.get("title", "")).casefold()
+    description = str(header.get("description", "")).casefold()
+    text = f"{key} {title} {description}"
+    return "tolerance" in text or re.search(r"\btol\.?(?=\s|$|\()", title) is not None
+
+
+def _without_run_level_tolerance_general_stats(
+    data: dict[str, dict[str, Any]],
+    headers: dict[str, dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Remove per-run tolerance metrics from the high-level General Statistics payload."""
+    excluded = {
+        key
+        for key, header in headers.items()
+        if _is_run_level_tolerance_general_stat(key, header)
+    }
+    if not excluded:
+        return data, headers
+
+    filtered_headers = {
+        key: header
+        for key, header in headers.items()
+        if key not in excluded
+    }
+    filtered_data = {
+        sample: {
+            key: value
+            for key, value in row.items()
+            if key not in excluded
+        }
+        for sample, row in data.items()
+    }
+    return filtered_data, filtered_headers
+
 def _metric_data(
     runs: list[MzQCRun],
     categories: set[str] | None = None,
@@ -1335,7 +1377,7 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
     by_run: dict[str, list[dict[str, Any]]] = {}
     diagnostics: dict[str, dict[str, Any]] = {}
     classification_plot: dict[str, dict[str, int]] = {}
-    scatter_data: dict[str, list[dict[str, float]]] = defaultdict(list)
+    scatter_data: dict[str, list[dict[str, Any]]] = defaultdict(list)
     all_rows: list[tuple[str, dict[str, Any]]] = []
     class_counts: Counter[str] = Counter()
     confidence_counts: Counter[str] = Counter()
@@ -1374,7 +1416,13 @@ def _mass_shift_report_data(runs: list[MzQCRun]) -> dict[str, Any]:
             support = _finite_number(record.get("pair_support"))
             if delta is None or support is None:
                 continue
-            scatter_data[classification].append({"x": float(delta), "y": float(support)})
+            scatter_data[classification].append(
+                {
+                    "x": float(delta),
+                    "y": float(support),
+                    "name": run.sample_name,
+                }
+            )
 
             family = round(float(delta), 2)
             support_i = int(support)
@@ -1685,13 +1733,28 @@ class MzQCModule(BaseMultiqcModule):
         self._add_category_table("Other Scalar QC Metrics", "mzqc-other", {"other"})
 
         general_data, headers = _metric_data(self.runs, numeric_only=True)
+        general_data, headers = _without_run_level_tolerance_general_stats(
+            general_data,
+            headers,
+        )
+        group_data, group_headers = self._mass_accuracy_general_stats_payload()
+        for sample, values in group_data.items():
+            general_data.setdefault(sample, {}).update(values)
+        headers.update(group_headers)
+
         if general_data:
-            visible_keys = self._preferred_general_stat_keys(headers)
+            group_keys = list(group_headers)
+            preferred = [
+                key
+                for key in self._preferred_general_stat_keys(headers)
+                if key not in group_headers
+            ]
+            visible_budget = max(0, 8 - len(group_keys))
+            visible_keys = set(preferred[:visible_budget]) | set(group_keys)
             for key, header in headers.items():
                 header["hidden"] = key not in visible_keys
             self.general_stats_addcols(general_data, headers)
 
-        self._add_mass_accuracy_general_stats()
         self.write_data_file(_all_metric_data(self.runs), "multiqc_mzqc")
 
     def _run_overview_data(self) -> dict[str, dict[str, Any]]:
@@ -1900,58 +1963,82 @@ class MzQCModule(BaseMultiqcModule):
             ),
         )
 
-    def _add_mass_accuracy_general_stats(self) -> None:
-        """Expose rounded experiment-group median tolerances in General Statistics."""
-        data, _ = _mass_accuracy_report_data(self.runs)
+    def _mass_accuracy_general_stats_payload(
+        self,
+    ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+        """Build rounded experiment-group tolerance columns for General Statistics."""
         assignments = getattr(self, "_run_groups", {})
         summaries = getattr(self, "_run_group_summaries", {})
         general_data: dict[str, dict[str, Any]] = {}
-        for sample in data:
+
+        for run in self.runs:
+            sample = run.sample_name
             group = assignments.get(sample, "Experiment group 1")
             summary = summaries.get(group, {})
             values: dict[str, Any] = {}
+
             if "precursor_median_ppm" in summary:
-                values["prideqc_precursor_tolerance_ppm"] = round(
+                values["prideqc_group_precursor_tolerance_ppm"] = round(
                     float(summary["precursor_median_ppm"])
                 )
             if summary.get("fragment_unit") == "ppm" and "fragment_median" in summary:
-                values["prideqc_fragment_tolerance_ppm"] = round(
+                values["prideqc_group_fragment_tolerance_ppm"] = round(
                     float(summary["fragment_median"])
                 )
             if len(summaries) > 1:
-                values["prideqc_experiment_group"] = group
+                group_match = re.fullmatch(r"Experiment group (\d+)", group)
+                if group_match is not None:
+                    values["prideqc_experiment_group"] = int(group_match.group(1))
+
             if values:
                 general_data[sample] = values
-        if not general_data:
-            return
-        headers: dict[str, dict[str, Any]] = {
-            "prideqc_precursor_tolerance_ppm": {
-                "title": "Precursor tol.",
+
+        headers: dict[str, dict[str, Any]] = {}
+        if any(
+            "prideqc_group_precursor_tolerance_ppm" in row
+            for row in general_data.values()
+        ):
+            headers["prideqc_group_precursor_tolerance_ppm"] = {
+                "title": "Precursor median tol.",
                 "description": (
-                    "Rounded median prideQC precursor tolerance for this experiment group"
+                    "Rounded experiment-group median prideQC precursor tolerance"
                 ),
                 "suffix": " ppm",
                 "format": "{:,.0f}",
                 "hidden": False,
-            },
-            "prideqc_fragment_tolerance_ppm": {
-                "title": "Fragment tol.",
+            }
+        if any(
+            "prideqc_group_fragment_tolerance_ppm" in row
+            for row in general_data.values()
+        ):
+            headers["prideqc_group_fragment_tolerance_ppm"] = {
+                "title": "Fragment median tol.",
                 "description": (
-                    "Rounded median high-resolution fragment tolerance for this experiment group"
+                    "Rounded experiment-group median high-resolution fragment tolerance"
                 ),
                 "suffix": " ppm",
                 "format": "{:,.0f}",
                 "hidden": False,
-            },
-        }
+            }
         if len(summaries) > 1:
             headers["prideqc_experiment_group"] = {
                 "title": "Experiment group",
-                "description": "Potential experiment group detected from mzQC evidence",
-                "scale": "Set1",
+                "description": (
+                    "Numeric identifier for the potential experiment group detected "
+                    "from mzQC evidence"
+                ),
+                "scale": False,
+                "format": "{:,.0f}",
                 "hidden": False,
             }
-        self.general_stats_addcols(general_data, headers)
+        return general_data, headers
+
+    def _add_mass_accuracy_general_stats(self) -> None:
+        """Compatibility wrapper for adding only the group-level General Statistics payload."""
+        general_data, headers = self._mass_accuracy_general_stats_payload()
+        if general_data:
+            self.general_stats_addcols(general_data, headers)
+
 
     def _add_mass_shift_sections(self) -> None:
         """Render bounded recurrent mass-shift evidence without implying PTM identification."""
@@ -2256,14 +2343,17 @@ class MzQCModule(BaseMultiqcModule):
             "acquisition cycle count",
             "mass error",
             "precision",
-            "tolerance",
         )
         for key, header in headers.items():
             title = str(header.get("title", "")).casefold()
+            if _is_run_level_tolerance_general_stat(key, header):
+                continue
             if any(pattern in title for pattern in patterns):
                 preferred.append(key)
         if len(preferred) < 2:
-            for key in headers:
+            for key, header in headers.items():
+                if _is_run_level_tolerance_general_stat(key, header):
+                    continue
                 if key not in preferred:
                     preferred.append(key)
                 if len(preferred) >= 2:

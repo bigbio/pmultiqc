@@ -827,6 +827,7 @@ def cal_feature_avg_rt(report_data, col):
 
 # DIA-NN: Lowess (Loess)
 def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
+    """Bin per-run LOWESS fits using interpolation within 0.5% of each iRT range."""
     if len(report_df) > 1000000:
         log.warning(f"Dataset too large ({len(report_df)} rows). Skipping LOWESS computation.")
         return None
@@ -835,7 +836,10 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
 
     from statsmodels.nonparametric.smoothers_lowess import lowess
 
-    df = report_df.copy()
+    # Use paired finite observations for both the fit and interpolation distance.
+    df = report_df[["Run", "RT", "iRT"]].copy()
+    df[["RT", "iRT"]] = df[["RT", "iRT"]].replace([np.inf, -np.inf], np.nan)
+    df = df.dropna(subset=["RT", "iRT"])
 
     # bin
     x_min, x_max = df["iRT"].min(), df["iRT"].max()
@@ -849,12 +853,17 @@ def cal_rt_irt_loess(report_df, frac=0.3, data_bins: int = DEFAULT_BINS):
     plot_dict = dict()
     for run, group in df.groupby("Run", observed=True):
 
+        if group["iRT"].nunique() < 2:
+            log.warning("Skipping LOWESS for run %s: fewer than two distinct iRT values.", run)
+            continue
+
         group_sorted = group.sort_values("iRT")
         x = group_sorted["iRT"].values
         y = group_sorted["RT"].values
 
-        # lowess
-        smoothed = lowess(y, x, frac=frac)
+        # Adapted from iolosquires' speedup in PR #734. Nearby fits are interpolated.
+        delta = 0.005 * (x.max() - x.min())
+        smoothed = lowess(y, x, frac=frac, delta=delta)
         smoothed_x = smoothed[:, 0]
         smoothed_y = smoothed[:, 1]
 
