@@ -138,6 +138,25 @@ uses the version of its internal DIA-NN tool as the workflow version.
 MaxQuant parameter-reader tests cover a missing Version row, empty/NA cells,
 and whitespace-only values; each produces `unknown` and a warning.
 
+## LOWESS interpolation checks
+
+Run `pytest tests/test_lowess.py tests/test_diann.py tests/test_dia_box_plots.py`
+to check the DIA LOWESS calculation and its plotting integration. The speedup
+uses the approach proposed by iolosquires in PR #734: interpolate nearby fits
+with `delta` set to 0.5% of each run's finite iRT range.
+
+The seeded nonlinear examples compare binned results against `delta=0` with an
+absolute tolerance of 0.05 RT units. This is a regression bound for these inputs,
+not an accuracy guarantee for every experiment. Tests also cover nonfinite
+RT/iRT pairs, repeated iRT values, degenerate runs, input preservation, and the
+existing million-row limit. Three seeded separated-cluster cases check a
+0.03 RT-unit tolerance before and after binning. These sample-specific tolerances
+are not a universal error bound; highly skewed inputs can still have larger
+interpolation errors.
+Runs with fewer than two distinct finite iRT values are skipped with a warning.
+Timing benchmarks should be run separately from pytest because their results
+depend on the machine and dataset.
+
 ## Working with Compressed Test Data
 
 If you need to add or update test data:
