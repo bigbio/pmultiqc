@@ -645,9 +645,11 @@ def calculate_dia_intensity_std(df, sdrf_file_df):
 
         log.info("No SDRF available; experimental grouping was parsed using Run names.")
 
-        df_sub[["run_condition", "run_replicate"]] = df_sub["Run"].apply(
-            lambda x: pd.Series(extract_condition_and_replicate(x))
-        )
+        # Run is read as a Categorical; Series.apply returning a Series fails on it
+        # ("unhashable type: 'Series'"). Parse each distinct run once and map back.
+        parsed = {run: extract_condition_and_replicate(str(run)) for run in df_sub["Run"].unique()}
+        df_sub["run_condition"] = df_sub["Run"].map({run: c for run, (c, _) in parsed.items()})
+        df_sub["run_replicate"] = df_sub["Run"].map({run: r for run, (_, r) in parsed.items()})
 
         grouped_std = (
             df_sub.groupby(["run_condition", "Modified.Sequence"], observed=True)["log_intensity"]

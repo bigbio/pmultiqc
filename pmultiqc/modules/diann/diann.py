@@ -313,7 +313,8 @@ class DiannModule(BasePMultiqcModule):
                 exporter = MzQcExporter(
                     pipeline_name="DIA-NN",
                     raw_data=diann_payload, 
-                    output_dir=output_directory
+                    output_dir=output_directory,
+                    software_version=self.diann_version,
                 )
             
                 mzqc_metrics = exporter._parse_diann(diann_payload)

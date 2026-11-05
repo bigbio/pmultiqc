@@ -187,6 +187,8 @@ multiqc --mhcquant-plugin /path/to/mhcquant/files -o ./report
 multiqc --qpx-plugin /path/to/qpx/files -o ./report
 ```
 
+QPX retention times (`rt`, in seconds) may be missing or null. Retention-time plots use only reported values and omit runs without them; other report sections remain available.
+
 #### For prideQC mzQC files
 
 pmultiqc also exposes a direct mzQC input module. It reads `.mzQC` documents without converting them to `ms_info` or another intermediate format. Every `runQuality` object is treated as one MultiQC run, so a directory containing many `.mzQC` files produces one dataset-level report, and a single document containing multiple `runQuality` objects is handled without collapsing those runs.

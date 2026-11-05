@@ -20,9 +20,11 @@ def draw_summary_table(
     total_ms2_spectra_identified: int = 0,
     total_peptide_count: int = 0,
     total_protein_identified: int = 0,
-    total_protein_quantified: int = 0
+    total_protein_quantified: int = 0,
+    group_totals: dict = None
 ):
-    """Global summary table: identified spectra, peptides and proteins."""
+    """Summary table: identified spectra, peptides and proteins, globally and per LFQ group."""
+    # group_totals maps each LFQ group to the same four counts, in the same order.
     log.info("Summary table generation...")
 
     summary_table = {
@@ -33,6 +35,9 @@ def draw_summary_table(
             "#Proteins Quantified": total_protein_quantified
         }
     }
+    columns = list(summary_table["Global Summary"])
+    for group, counts in (group_totals or {}).items():
+        summary_table[f"LFQ group: {group}"] = dict(zip(columns, counts))
 
     t_headers = {
         "#Identified MS2 Spectra": {
@@ -66,7 +71,9 @@ def draw_summary_table(
 
     description_str = "This table shows the pipeline summary statistics."
     helptext_str = """
-        This table shows the pipeline summary statistics.
+        This table shows the pipeline summary statistics. When quantms quantified LFQ
+        groups separately (--lfq_group_by), each group has its own row; the global
+        protein counts then join the protein groups inferred in each LFQ group.
         """
 
     add_sub_section(

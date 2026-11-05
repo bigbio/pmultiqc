@@ -13,6 +13,7 @@ import pandas as pd
 
 from pmultiqc.modules.common.logging import get_logger
 from pmultiqc.modules.common.stats import cal_hm_charge, nanmedian, qual_uniform
+from pmultiqc.modules.qpx.qpx_io import split_by_lfq_group
 from pmultiqc.modules.qpx.qpx_sections import resolve_contaminant_flags
 
 
@@ -34,11 +35,14 @@ METRIC_ORDER = [
 ]
 
 
-def calculate_qpx_heatmap(psm_df, pg_df, feature_df, missed_cleavages_by_run, contaminant_affix):
+def calculate_qpx_heatmap(
+    psm_df, pg_df, feature_df, missed_cleavages_by_run, contaminant_affix, run_groups=None
+):
     """Build ``(heat_map_score, xnames, ynames)`` for :func:`draw_heatmap`.
 
     Returns ``([], [], [])`` when nothing can be computed, so the caller can skip the
-    plot entirely.
+    plot entirely. Metrics scored against the other runs compare each run only with
+    the runs of its LFQ group when ``run_groups`` is given.
     """
     if psm_df is None or getattr(psm_df, "empty", True) or "run" not in psm_df.columns:
         return [], [], []
@@ -50,13 +54,13 @@ def calculate_qpx_heatmap(psm_df, pg_df, feature_df, missed_cleavages_by_run, co
     scores = {
         "Contaminants": _contaminant_scores(pg_df, contaminant_affix),
         "Peptide Intensity": _peptide_intensity_scores(feature_df),
-        "Charge": _charge_scores(psm_df),
+        "Charge": _within_groups(_charge_scores, psm_df, run_groups),
         "Missed Cleavages": _missed_cleavage_scores(missed_cleavages_by_run),
         "ID rate over RT": _id_rate_over_rt_scores(psm_df),
         "MS2 OverSampling": _oversampling_scores(psm_df),
-        "Pep Missing Values": _pep_missing_value_scores(psm_df),
+        "Pep Missing Values": _within_groups(_pep_missing_value_scores, psm_df, run_groups),
     }
-    scores["Missed Cleavages Var"] = _variance_scores(scores["Missed Cleavages"])
+    scores["Missed Cleavages Var"] = _variance_scores(scores["Missed Cleavages"], run_groups)
 
     # Keep only metrics that cover every run, so no cell is silently invented.
     xnames = [
@@ -185,13 +189,25 @@ def _missed_cleavage_scores(missed_cleavages_by_run):
     return result
 
 
-def _variance_scores(base_scores):
-    """1 - |value - median| across runs, as used for Missed Cleavages Var."""
+def _within_groups(score, psm_df, run_groups):
+    """Apply a run-relative score separately within each LFQ group."""
+    result = {}
+    for _, rows in split_by_lfq_group(psm_df, run_groups):
+        result.update(score(rows))
+    return result
+
+
+def _variance_scores(base_scores, run_groups=None):
+    """1 - |value - median| across runs (of one LFQ group), as used for Missed Cleavages Var."""
     if not base_scores:
         return {}
-    median = np.median(list(base_scores.values()))
+    scope = run_groups or {}
+    values = {}
+    for run, value in base_scores.items():
+        values.setdefault(scope.get(run), []).append(value)
+    medians = {group: np.median(group_values) for group, group_values in values.items()}
     return {
-        run: float(max(0.0, 1.0 - abs(value - median)))
+        run: float(max(0.0, 1.0 - abs(value - medians[scope.get(run)])))
         for run, value in base_scores.items()
     }
 

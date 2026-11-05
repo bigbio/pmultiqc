@@ -446,6 +446,9 @@ def draw_qpx_search_engine_scores(sub_section, plot_data, score_name):
 def draw_qpx_pca(sub_section, pca_data):
     """PCA scatter of the protein-group intensity matrix.
 
+    ``pca_data`` maps each LFQ group (None without groups) to its run coordinates;
+    several groups become datasets of one plot.
+
     A dedicated drawer rather than maxquant_plots.draw_pg_pca, whose helptext describes
     proteinGroups.txt columns that do not exist in a QPX project.
     """
@@ -466,8 +469,14 @@ def draw_qpx_pca(sub_section, pca_data):
         "ylab": "PC #2",
         "save_data_file": False,
     }
+    groups = list(pca_data)
+    if groups == [None]:
+        data = pca_data[None]
+    else:
+        data = [pca_data[group] for group in groups]
+        draw_config["data_labels"] = [{"name": str(group)} for group in groups]
 
-    scatter_html = plot_html_check(scatter.plot(data=pca_data, pconfig=draw_config))
+    scatter_html = plot_html_check(scatter.plot(data=data, pconfig=draw_config))
 
     add_sub_section(
         sub_section=sub_section,
@@ -478,6 +487,7 @@ def draw_qpx_pca(sub_section, pca_data):
             Protein group intensities from pg.parquet are arranged as a protein x run
             matrix, restricted to groups quantified in every run, log2-transformed and
             standardised before PCA. Runs of the same condition are expected to cluster;
-            a run sitting apart from its group is a candidate outlier.
+            a run sitting apart from its group is a candidate outlier. When quantms
+            quantified LFQ groups separately (--lfq_group_by), each group has its own PCA.
             """,
     )

@@ -88,3 +88,18 @@ def test_intensity_dis_by_sample_without_merge(capture_box):
     assert isinstance(data, list) and len(data) == 2
     assert set(data[0]) == {"a", "b"} and set(data[1]) == {"Sample 1"}
     assert all(isinstance(v, dict) for ds in data for v in ds.values())
+
+
+@pytest.mark.parametrize("run_dtype", ["category", "object"])
+def test_intensity_std_groups_by_run_name_without_sdrf(run_dtype):
+    """Run is read dictionary-encoded (a Categorical); the no-SDRF path must still parse it."""
+    runs = ["exp_ctrl1", "exp_ctrl2", "exp_treat1", "exp_treat2"]
+    df = pd.DataFrame({
+        "Run": pd.Series(np.repeat(runs, 3), dtype=run_dtype),
+        "Modified.Sequence": ["PEPA", "PEPB", "PEPC"] * len(runs),
+        "Protein.Group": ["P1"] * 3 * len(runs),
+        "log_intensity": np.arange(3 * len(runs), dtype=float),
+    })
+    data = dia_plots.calculate_dia_intensity_std(df, pd.DataFrame())
+    assert set(data) == {"exp_ctrl", "exp_treat"}
+    assert all(len(stds) == 3 for stds in data.values())  # one SD per peptide
