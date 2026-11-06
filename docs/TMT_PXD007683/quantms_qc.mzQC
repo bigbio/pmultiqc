@@ -1,7 +1,7 @@
 {
   "mzQC": {
     "version": "1.0.0",
-    "creationDate": "2026-09-24T10:13:06.832558",
+    "creationDate": "2026-11-06T00:21:27.197602",
     "controlledVocabularies": [
       {
         "name": "PSI-MS Quality Control Ontology",
@@ -24,10 +24,10 @@
           ],
           "analysisSoftware": [
             {
-              "accession": "MS:1002298",
-              "name": "MaxQuant",
-              "version": "1.6.x (or later)",
-              "uri": "https://www.maxquant.org"
+              "accession": "MS:1003425",
+              "name": "quantms",
+              "version": "unknown",
+              "uri": "https://quantms.org"
             }
           ]
         },
