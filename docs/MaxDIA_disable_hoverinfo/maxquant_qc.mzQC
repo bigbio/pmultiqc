@@ -1,7 +1,7 @@
 {
   "mzQC": {
     "version": "1.0.0",
-    "creationDate": "2026-09-24T09:03:23.205062",
+    "creationDate": "2026-11-06T00:30:12.527060",
     "controlledVocabularies": [
       {
         "name": "PSI-MS Quality Control Ontology",
@@ -24,9 +24,9 @@
           ],
           "analysisSoftware": [
             {
-              "accession": "MS:1002298",
+              "accession": "MS:1001583",
               "name": "MaxQuant",
-              "version": "1.6.x (or later)",
+              "version": "2.7.2.0",
               "uri": "https://www.maxquant.org"
             }
           ]
@@ -31838,16 +31838,16 @@
             "name": "identified MS1 feature area principal component analysis result",
             "value": {
               "intensity 4_1_2450": {
-                "x": 27.350592019787122,
-                "y": 67.3681372777637
+                "x": 27.35059201978661,
+                "y": 67.36813727776392
               },
               "intensity 5_1_2451": {
-                "x": 45.40511649922488,
-                "y": -57.074542226884645
+                "x": 45.405116499225315,
+                "y": -57.07454222688433
               },
               "intensity 6_1_2452": {
-                "x": -72.75570851901196,
-                "y": -10.29359505087905
+                "x": -72.75570851901192,
+                "y": -10.293595050879597
               }
             }
           },
@@ -31856,16 +31856,16 @@
             "name": "principal component analysis of MaxQuant's protein group lfq intensities",
             "value": {
               "lfq intensity 4_1_2450": {
-                "x": -72.78690775007428,
-                "y": 1.7816018497398296
+                "x": -72.78690775007426,
+                "y": 1.7816018497393156
               },
               "lfq intensity 5_1_2451": {
-                "x": 34.83181576495393,
-                "y": -63.17025381815184
+                "x": 34.83181576495439,
+                "y": -63.17025381815159
               },
               "lfq intensity 6_1_2452": {
-                "x": 37.95509198512034,
-                "y": 61.388651968412006
+                "x": 37.95509198511991,
+                "y": 61.38865196841227
               }
             }
           },

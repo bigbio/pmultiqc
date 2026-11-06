@@ -1,7 +1,7 @@
 {
   "mzQC": {
     "version": "1.0.0",
-    "creationDate": "2026-09-24T08:53:48.186087",
+    "creationDate": "2026-11-05T23:50:57.307490",
     "controlledVocabularies": [
       {
         "name": "PSI-MS Quality Control Ontology",
@@ -24,10 +24,10 @@
           ],
           "analysisSoftware": [
             {
-              "accession": "MS:1002298",
-              "name": "MaxQuant",
-              "version": "1.6.x (or later)",
-              "uri": "https://www.maxquant.org"
+              "accession": "MS:1003253",
+              "name": "DIA-NN",
+              "version": "1.8",
+              "uri": "https://github.com/vdemichev/DiaNN"
             }
           ]
         },
