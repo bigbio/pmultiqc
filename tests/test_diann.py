@@ -144,3 +144,40 @@ class TestDiaReportMemory:
 
         minimal = self._report_df()[["Run", "RT"]]
         dia_utils.draw_dia_rt_qc(None, minimal)
+
+
+class TestDiaHeatmapContaminants:
+    """The heatmap Contaminants score uses --contaminant-affix, not a fixed "CON" prefix."""
+
+    @staticmethod
+    def _report_df(names):
+        return pd.DataFrame(
+            {
+                "Run": ["run1", "run1"],
+                "Protein.Names": names,
+                "Precursor.Quantity": [100.0, 300.0],
+                "RT": [10.0, 20.0],
+                "Predicted.RT": [10.0, 20.0],
+                "Precursor.Charge": [2, 2],
+                "Normalisation.Factor": [1.0, 1.0],
+                "RT.Stop": [10.1, 20.1],
+                "RT.Start": [10.0, 20.0],
+            }
+        )
+
+    @pytest.mark.parametrize(
+        "names, affix",
+        [
+            (["contaminant_P02768", "ALBU_HUMAN"], "contaminant_"),
+            (["CONT_P02768", "ALBU_HUMAN"], "CONT"),
+            (["Cont_P02768", "ALBU_HUMAN"], "CONT"),
+        ],
+    )
+    def test_contaminant_score_matches_affix(self, names, affix):
+        heatmap = dia_utils.heatmap_cont_pep_intensity(self._report_df(names), affix)
+        assert heatmap["run1"]["Contaminants"] == pytest.approx(0.75)
+
+    def test_no_affix_match_gives_full_score(self):
+        report_df = self._report_df(["contaminant_P02768", "ALBU_HUMAN"])
+        heatmap = dia_utils.heatmap_cont_pep_intensity(report_df, "CON__")
+        assert heatmap["run1"]["Contaminants"] == 1
