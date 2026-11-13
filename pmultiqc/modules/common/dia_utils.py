@@ -5,6 +5,7 @@ import pandas as pd
 import re
 from collections import OrderedDict
 from sdrf_pipelines.converters.openms.unimod import UnimodDatabase
+from multiqc import config
 from multiqc.plots import table
 
 from pmultiqc.modules.common.histogram import Histogram
@@ -153,7 +154,7 @@ def _draw_diann_plots(sub_sections, report_data, heatmap_color_list, sample_df, 
 def _draw_heatmap(sub_section, report_data, heatmap_color_list):
     """Draw heatmap for DIA-NN data."""
     log.info("Compute the Heatmap.")
-    heatmap_data = cal_dia_heatmap(report_data)
+    heatmap_data = cal_dia_heatmap(report_data, config.kwargs.get("contaminant_affix", "CONT"))
 
     if heatmap_data:
         dia_plots.draw_heatmap(sub_section, heatmap_color_list, heatmap_data)
@@ -714,16 +715,16 @@ def draw_protein_table(sub_sections, table_data, headers, report_type):
 
 
 # DIA-NN: HeatMap
-def cal_dia_heatmap(report_df):
+def cal_dia_heatmap(report_df, contam_affix):
     # "Contaminants" & "Peptide Intensity"
-    pep_intensity = heatmap_cont_pep_intensity(report_df)
+    pep_intensity = heatmap_cont_pep_intensity(report_df, contam_affix)
 
     # missed tryptic cleavages: there is no available data
 
     return pep_intensity
 
 
-def heatmap_cont_pep_intensity(report_df):
+def heatmap_cont_pep_intensity(report_df, contam_affix):
     require_cols = [
         "Run",
         "Protein.Names",
@@ -742,8 +743,8 @@ def heatmap_cont_pep_intensity(report_df):
 
     df = report_df[require_cols].copy()
 
-    # TODO "CON"?
-    df["is_contaminant"] = df["Protein.Names"].str.startswith("CON", na=False)
+    # Same rule as cal_contaminant_percent: case-insensitive match of --contaminant-affix
+    df["is_contaminant"] = df["Protein.Names"].str.contains(contam_affix, case=False, na=False)
 
     # 3. "Charge"
     heatmap_charge = cal_hm_charge(
